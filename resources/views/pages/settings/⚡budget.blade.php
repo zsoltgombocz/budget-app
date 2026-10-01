@@ -247,7 +247,7 @@ new #[Title('Budget settings')] class extends Component {
                             <div class="mt-0.5 text-xs text-muted" x-show="state === 'unsupported'">{{ __('This browser does not support push notifications. On iPhone add the app to your Home Screen first.') }}</div>
                             <div class="mt-0.5 text-xs text-warn" x-show="state === 'denied'">{{ __('Notifications are blocked in the browser settings.') }}</div>
                         </div>
-                        <button type="button" role="switch" x-show="state === 'on' || state === 'off'" x-on:click="toggle()" class="flex h-8 w-[52px] shrink-0 rounded-2xl p-[3px]" :class="state === 'on' ? 'justify-end bg-accent' : 'justify-start bg-zinc-600'"><span class="block size-[26px] rounded-full bg-white"></span></button>
+                        <button type="button" role="switch" x-show="state === 'on' || state === 'off'" x-on:click="toggle()" class="flex h-6 w-10 shrink-0 rounded-full p-0.5" :class="state === 'on' ? 'justify-end bg-accent' : 'justify-start bg-zinc-600'"><span class="block size-5 rounded-full bg-white"></span></button>
                     </div>
                     <x-ui.button x-show="state === 'on'" variant="secondary" size="sm" icon="notifications" wire:click="sendTestNotification" class="mt-3">{{ __('Send a test') }}</x-ui.button>
                 </div>

@@ -6,6 +6,14 @@
  */
 return [
     [
+        'version' => '1.4.1',
+        'date' => '2026-10-01',
+        'changes' => [
+            ['hu' => 'Telepített iPhone appban nem homályosodik el a fejléc a státuszsáv alatt.', 'en' => 'The header no longer blurs under the status bar in the installed iPhone app.'],
+            ['hu' => 'Levegősebb összegmegadás az onboardingban, kisebb kapcsolók mindenhol.', 'en' => 'Roomier amount step in onboarding and smaller switches everywhere.'],
+        ],
+    ],
+    [
         'version' => '1.4.0',
         'date' => '2026-10-01',
         'changes' => [
