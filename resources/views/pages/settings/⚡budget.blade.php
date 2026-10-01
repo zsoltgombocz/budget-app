@@ -270,6 +270,7 @@ new #[Title('Budget settings')] class extends Component {
                             <option value="pocket:{{ $pocket->id }}">{{ $pocket->name }}</option>
                         @endforeach
                     </x-ui.select>
+                    <p class="mt-2 text-xs leading-snug text-muted">{{ __('Account: listed as a manual transfer at closing. Pocket: added to the pocket balance in the app.') }}</p>
                 </div>
             </x-ui.card>
 
