@@ -29,7 +29,7 @@ Laravel 13 + Livewire 4 a felhasználói felülethez, mert a napi rögzítéshez
 | Auth | Laravel Livewire starter kit (Fortify) | Passkey a kitben már benne van |
 | Adatbázis | MariaDB / MySQL 8 | Fejlesztéshez SQLite is mehet |
 | Push | laravel-notification-channels/webpush | VAPID kulcsok |
-| PWA | vite-plugin-pwa (Workbox) | Manifest, service worker, offline cache |
+| PWA | Saját service worker (`public/sw.js`) + manifest | Gyökér scope, offline cache; a vite-plugin-pwa `/build/` alá generálna, ami Laravel mellett körülményes |
 | Ütemezés | Laravel Scheduler + queue (database driver) | Napi emlékeztető, hó végi zárás |
 | Grafikon | Chart.js vagy ApexCharts | Dashboard és hó végi riport |
 | Tesztek | Pest 5 | Unit a számításokra, Feature a flow-kra |
@@ -194,7 +194,7 @@ Telepíthető PWA, iOS-en kezdőképernyőre téve (iOS 16.4+ csak így kap Web 
 **PWA**
 
 - `manifest.webmanifest`: név, ikonok (192, 512, maskable), `display: standalone`, `theme_color`, `start_url: /ma`.
-- Service worker vite-plugin-pwa-val: app shell és statikus assetek cache-elve, API hívások network-first.
+- Service worker (`public/sw.js`): statikus assetek cache-first, oldalak network-first (a dashboard utolsó állapota offline is elérhető), Livewire/API hívások csak hálózatról.
 - Telepítés után egyszeri onboarding: értesítés engedélyezése, emlékeztető időpont kiválasztása.
 
 **Értesítések**

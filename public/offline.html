@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#059669">
+    <title>Offline – Budget</title>
+    <style>
+        :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+        body { margin: 0; min-height: 100dvh; display: grid; place-items: center; background: #fafafa; color: #171717; text-align: center; padding: 24px; box-sizing: border-box; }
+        @media (prefers-color-scheme: dark) { body { background: #171717; color: #fafafa; } }
+        img { width: 72px; height: 72px; border-radius: 16px; }
+        h1 { font-size: 1.25rem; margin: 16px 0 8px; }
+        p { margin: 0 0 20px; opacity: .7; }
+        button { font: inherit; padding: 10px 20px; border-radius: 10px; border: 0; background: #059669; color: #fff; }
+    </style>
+</head>
+<body>
+    <main>
+        <img src="/icons/icon-192.png" alt="">
+        <h1>Nincs internetkapcsolat</h1>
+        <p>Amint visszajön a net, folytathatod.<br>No connection – try again when you are back online.</p>
+        <button type="button" onclick="location.reload()">Újra</button>
+    </main>
+</body>
+</html>

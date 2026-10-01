@@ -5,6 +5,8 @@ use App\Enums\PeriodMode;
 use App\Models\Account;
 use App\Models\Pocket;
 use App\Models\User;
+use App\Notifications\DailyReminder;
+use App\Services\PeriodService;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -89,6 +91,21 @@ new #[Title('Budget settings')] class extends Component {
         Flux::toast(variant: 'success', text: __('Settings saved.'));
     }
 
+    public function sendTestNotification(): void
+    {
+        $user = $this->user();
+
+        if (! $user->pushSubscriptions()->exists()) {
+            Flux::toast(variant: 'warning', text: __('Turn on notifications on this device first.'));
+
+            return;
+        }
+
+        $user->notifyNow(new DailyReminder(app(PeriodService::class)->today($user->settings())->toDateString()));
+
+        Flux::toast(text: __('Test notification sent.'));
+    }
+
     /**
      * @return Collection<int, Account>
      */
@@ -149,6 +166,31 @@ new #[Title('Budget settings')] class extends Component {
             </flux:select>
 
             <flux:separator />
+
+            <div x-data="{
+                    state: 'unknown',
+                    async refresh() {
+                        if (! window.budgetPush.supported()) { this.state = 'unsupported'; return }
+                        if (window.budgetPush.permission() === 'denied') { this.state = 'denied'; return }
+                        this.state = (await window.budgetPush.current()) ? 'on' : 'off'
+                    },
+                    async toggle() {
+                        if (this.state === 'on') await window.budgetPush.unsubscribe()
+                        else await window.budgetPush.subscribe()
+                        await this.refresh()
+                    },
+                }" x-init="refresh()" class="flex flex-col gap-2" data-test="push-device">
+                <flux:heading size="sm">{{ __('Notifications on this device') }}</flux:heading>
+                <flux:text class="text-sm" x-show="state === 'unsupported'">{{ __('This browser does not support push notifications. On iPhone add the app to your Home Screen first.') }}</flux:text>
+                <flux:text class="text-sm" x-show="state === 'denied'">{{ __('Notifications are blocked in the browser settings.') }}</flux:text>
+                <div class="flex gap-2" x-show="state === 'on' || state === 'off'">
+                    <flux:button size="sm" x-on:click="toggle()">
+                        <span x-show="state === 'off'">{{ __('Turn on') }}</span>
+                        <span x-show="state === 'on'">{{ __('Turn off') }}</span>
+                    </flux:button>
+                    <flux:button size="sm" variant="ghost" wire:click="sendTestNotification" x-show="state === 'on'">{{ __('Send a test') }}</flux:button>
+                </div>
+            </div>
 
             <flux:switch wire:model="reminderEnabled" :label="__('Daily reminder')" :description="__('Only if you have not recorded anything that day.')" />
             <flux:input type="time" wire:model="reminderTime" :label="__('Reminder time')" />

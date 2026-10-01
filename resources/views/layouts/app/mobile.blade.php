@@ -9,7 +9,7 @@
         <div class="mx-auto flex min-h-dvh w-full max-w-lg flex-col">
             <header class="sticky top-0 z-20 flex items-center gap-3 border-b border-zinc-200 bg-zinc-50/90 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/90">
                 <a href="{{ route('dashboard') }}" wire:navigate class="flex items-center gap-2" aria-label="{{ config('app.name') }}">
-                    <x-app-logo-icon class="size-7 fill-current text-zinc-900 dark:text-white" />
+                    <x-app-logo-icon class="size-7 text-emerald-600 dark:text-emerald-400" />
                 </a>
 
                 <flux:heading size="lg" class="truncate">{{ filled($title) ? __($title) : "" }}</flux:heading>
