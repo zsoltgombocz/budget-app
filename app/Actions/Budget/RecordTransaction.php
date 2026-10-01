@@ -65,6 +65,9 @@ final readonly class RecordTransaction
             'client_uuid' => $clientUuid,
         ]);
 
+        // Spending on a day contradicts "I didn't spend today".
+        $user->dayMarks()->whereDate('date', $date->toDateString())->delete();
+
         $this->alerts->afterSpending($user, $period, $category->id, $amount);
 
         return $transaction;

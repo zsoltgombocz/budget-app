@@ -68,13 +68,25 @@ it('links the manifest and service worker assets', function (): void {
         ->and(public_path('offline.html'))->toBeFile();
 });
 
-it('renders the reminder prompt and saves the chosen time', function (): void {
+it('renders the device-aware reminder prompt', function (): void {
+    $this->actingAs(onboardedUser());
+
+    $this->get(route('dashboard'))->assertSee('data-test="push-prompt"', false);
+});
+
+it('stores the reminder choices from the notification onboarding', function (): void {
     $user = onboardedUser();
     $this->actingAs($user);
 
-    $this->get(route('dashboard'))->assertSee('data-test="push-prompt"', false);
+    Livewire::test('pages::notifications')
+        ->call('pick', '21:30')
+        ->set('dueReminders', false)
+        ->call('finish', true)
+        ->assertRedirect(route('dashboard'));
 
-    Livewire::test('pages::today')->call('saveReminderTime', '21:45');
+    $settings = $user->settings()->refresh();
 
-    expect($user->settings()->refresh()->reminder_time)->toStartWith('21:45');
+    expect($settings->reminder_time)->toStartWith('21:30')
+        ->and($settings->due_reminder_enabled)->toBeFalse()
+        ->and($settings->notifications_onboarded_at)->not->toBeNull();
 });

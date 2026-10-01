@@ -4,14 +4,16 @@ use App\Http\Controllers\NoSpendFromNotificationController;
 use App\Http\Controllers\PushSubscriptionController;
 use Illuminate\Support\Facades\Route;
 
-Route::view('/', 'welcome')->name('home');
+Route::redirect('/', '/ma')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::livewire('kezdes', 'pages::onboarding')->name('onboarding');
 
     Route::middleware('onboarded')->group(function (): void {
         Route::livewire('ma', 'pages::today')->name('dashboard');
-        Route::livewire('rogzites', 'pages::entry')->name('entry');
+        // Opens the quick entry sheet over the dashboard (push notification and shortcut target).
+        Route::redirect('rogzites', '/ma?rogzites=1')->name('entry');
+        Route::livewire('ertesitesek', 'pages::notifications')->name('notifications.onboarding');
         Route::livewire('terv', 'pages::plan')->name('plan');
         Route::livewire('honap', 'pages::month')->name('month');
         Route::livewire('honap/zaras/{period}', 'pages::close')->name('close');

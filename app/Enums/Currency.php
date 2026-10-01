@@ -25,6 +25,16 @@ enum Currency: string
         };
     }
 
+    /**
+     * Localised currency symbol, e.g. "Ft" or "€".
+     */
+    public function symbol(?string $locale = null): string
+    {
+        $formatter = new \NumberFormatter(($locale ?? app()->getLocale()).'@currency='.$this->value, \NumberFormatter::CURRENCY);
+
+        return $formatter->getSymbol(\NumberFormatter::CURRENCY_SYMBOL) ?: $this->value;
+    }
+
     public function minorPerMajor(): int
     {
         return 10 ** $this->decimals();

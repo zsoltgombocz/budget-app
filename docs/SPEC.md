@@ -18,13 +18,14 @@ Univerzális, többfelhasználós app: bárki onboarding varázslóval rakja ös
 
 ## Tech stack
 
-Laravel 13 + Livewire 4 a felhasználói felülethez, mert a napi rögzítéshez gyors, egyedi mobil UI kell, amit egy Filament panel nem ad jól. Filament csak opcionálisan, admin/beállítás felületnek.
+Laravel 13 + Livewire 4 a felhasználói felülethez, mert a napi rögzítéshez gyors, egyedi mobil UI kell. Filament nincs a projektben, az app egy PWA. A képernyők a `docs/design/koltsegvetes-pwa.html` design alapján készülnek (React helyett Livewire + Blaze).
 
 | Réteg | Választás | Megjegyzés |
 | --- | --- | --- |
 | Backend | Laravel 13, PHP 8.4 | Actions + Services, Form Requestek |
 | AI fejlesztés | Laravel Boost | MCP Claude Code-nak, guideline-ok, docs search |
-| UI | Livewire 4, Flux UI, Alpine.js | Livewire 4 natív single-file komponensek (Volt nélkül) |
+| UI | Livewire 4 (⚡ single-file komponensek), Blaze, Alpine.js | Saját design komponensek (`resources/views/components/ui`, Blaze-zel fordítva); Flux csak a beállítás és belépés űrlapjaihoz |
+| Design | Geist, Geist Mono, Material Symbols Rounded | Dark az elsődleges téma; ikon subset: `scripts/fetch-icons.sh` |
 | Stílus | Tailwind CSS 4 | Mobile-first, dark mode |
 | Auth | Laravel Livewire starter kit (Fortify) | Passkey a kitben már benne van |
 | Adatbázis | MariaDB / MySQL 8 | Fejlesztéshez SQLite is mehet |
@@ -254,7 +255,7 @@ Hat fázis, mindegyik végén zöld Pest, Larastan max és Pint. Claude Code egy
    - [ ] Egy költés rögzítése 2 érintés mobilon
    - [ ] Terv módosítása azonnal frissíti az összesítőt
 4. **Dashboard**: várható maradék, kategória progress barok, napi keret, fix tételek pipálása.
-   - [ ] A dashboard 375 px szélességen görgetés nélkül mutatja a fő számot és a top 4 kategóriát
+   - [ ] A dashboard 375 px szélességen görgetés nélkül mutatja a fő számot és a „Ma még költhetsz” kártyát (a design szerint a kategóriák alatta görgethetők)
 5. **PWA és push**: manifest, service worker, webpush, ütemezett emlékeztetők, onboarding.
    - [ ] Telepíthető iOS-en és Androidon, a napi emlékeztető megérkezik és a rögzítőt nyitja
    - [ ] Lighthouse PWA audit átmegy

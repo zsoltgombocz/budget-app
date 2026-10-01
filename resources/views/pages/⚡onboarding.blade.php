@@ -6,6 +6,7 @@ use App\Enums\LineType;
 use App\Enums\PeriodMode;
 use App\Models\CategoryTemplate;
 use App\Models\User;
+use App\Support\Icons;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -33,6 +34,9 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
     /** @var array<int, string> */
     public array $amounts = [];
 
+    /** @var array<int, bool> */
+    public array $included = [];
+
     public string $reserveTarget = '';
 
     public int $reservePct = 100;
@@ -51,7 +55,9 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
         $this->validateStep();
 
         if ($this->step === 4) {
-            $this->amounts = array_fill(0, count($this->template->items), '');
+            $count = count($this->template->items);
+            $this->amounts = array_fill(0, $count, '');
+            $this->included = array_fill(0, $count, true);
         }
 
         $this->step = min(self::STEPS, $this->step + 1);
@@ -82,9 +88,10 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
             reserveTarget: $this->reserveTarget === '' ? null : Money::parse($this->reserveTarget, $currency),
             reservePct: $this->reservePct,
             surplusTarget: $this->surplusTarget === 'pocket' ? 'pocket' : 'investment',
+            included: array_keys(array_filter($this->included)),
         );
 
-        $this->redirectRoute('dashboard', navigate: true);
+        $this->redirectRoute('notifications.onboarding', navigate: true);
     }
 
     #[Computed]
@@ -102,9 +109,15 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
         return CategoryTemplate::query()->orderBy('sort')->get();
     }
 
+    #[Computed]
+    public function currencyEnum(): Currency
+    {
+        return Currency::tryFrom($this->currency) ?? Currency::HUF;
+    }
+
     private function validateStep(): void
     {
-        $currency = Currency::tryFrom($this->currency) ?? Currency::HUF;
+        $currency = $this->currencyEnum;
         $money = function (string $attribute, mixed $value, Closure $fail) use ($currency): void {
             if ($value !== '' && $value !== null && (! is_scalar($value) || Money::parse((string) $value, $currency) === null)) {
                 $fail(__('Enter a valid amount.'));
@@ -140,106 +153,172 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
     }
 }; ?>
 
-<div class="flex flex-col gap-6">
-    <div class="flex flex-col gap-2">
-        <flux:text class="text-sm">{{ __('Step :step of :total', ['step' => $step, 'total' => $this::STEPS]) }}</flux:text>
-        <flux:progress :value="$step / $this::STEPS * 100" />
+@php
+    $currency = $this->currencyEnum;
+    $titles = [
+        1 => [__('How much do you earn?'), __('Your monthly net income. The plan starts from this.')],
+        2 => [__('When does your month start?'), __('Plan from payday to payday, or by calendar month.')],
+        3 => [__('Which currency?'), __('Every amount in the plan is in this currency.')],
+        4 => [__('Pick a starting point'), __('Everything can be changed later.')],
+        5 => [__('Fill in the amounts'), __('Only what you pay from your own account, monthly. Switch off what you do not need, leave empty what you do not know yet.')],
+        6 => [__('What happens to the leftover?'), __('At month end the leftover fills the reserve first, the rest goes to your chosen target.')],
+    ];
+@endphp
+
+<div class="flex min-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom))] flex-col pb-[110px]"
+     x-data="{
+        field: null,
+        value: '',
+        decimals: {{ $currency->decimals() }},
+        formatter: new Intl.NumberFormat(@js(str_replace('_', '-', app()->getLocale())), { maximumFractionDigits: 0, useGrouping: 'always' }),
+        open(name, current) { this.field = name; this.value = String(current ?? '').replace('.', ',') },
+        press(key) {
+            let v = this.value
+            if (key === 'del') v = v.slice(0, -1)
+            else if (key === ',') { if (this.decimals > 0 && ! v.includes(',')) v = (v || '0') + ',' }
+            else if (key === '000') { if (v && ! v.includes(',')) v += '000' }
+            else { const f = v.split(',')[1]; if (f !== undefined && f.length >= this.decimals) return; if (v === '0') v = ''; v += key }
+            this.value = v.slice(0, 12)
+        },
+        show(raw, fallback = '0') {
+            const v = String(raw ?? '')
+            if (v === '') return fallback
+            const [w, f] = v.replace('.', ',').split(',')
+            return this.formatter.format(parseInt(w || '0', 10)) + (f !== undefined ? ',' + f : '')
+        },
+        apply() { $wire.set(this.field, this.value); this.field = null },
+     }">
+    <div class="grid grid-cols-[44px_1fr_44px] items-center px-3 pt-1.5">
+        @if ($step > 1)
+            <button type="button" wire:click="back" class="flex size-11 items-center justify-center text-ink-2" aria-label="{{ __('Back') }}"><x-ui.icon name="arrow_back" /></button>
+        @else
+            <span></span>
+        @endif
+        <div class="text-center text-[15px] font-semibold">{{ __('Set up your budget') }}</div>
+        <div class="text-center font-mono text-[13px] text-muted">{{ $step }}/{{ $this::STEPS }}</div>
+    </div>
+    <x-ui.steps :current="$step" :total="$this::STEPS" />
+
+    <div class="px-6 pt-[22px]">
+        <h1 class="text-[28px] font-semibold leading-tight tracking-[-0.03em] text-pretty">{{ $titles[$step][0] }}</h1>
+        <p class="mt-1.5 text-sm leading-normal text-pretty text-muted">{{ $titles[$step][1] }}</p>
     </div>
 
-    <form wire:submit="{{ $step === $this::STEPS ? 'finish' : 'next' }}" class="flex flex-col gap-6">
+    <div class="px-4 pt-6">
         @switch($step)
             @case(1)
-                <div class="flex flex-col gap-2">
-                    <flux:heading size="xl">{{ __('How much do you earn?') }}</flux:heading>
-                    <flux:text>{{ __('Your monthly net income. The plan starts from this.') }}</flux:text>
-                </div>
-                <flux:input wire:model="income" :label="__('Monthly net income')" inputmode="decimal" autofocus required data-test="onboarding-income" />
+                <button type="button" x-on:click="open('income', $wire.income)" class="w-full rounded-card bg-surface px-5 py-6 text-left" data-test="onboarding-income">
+                    <span class="block text-[13px] text-muted">{{ __('Monthly net income') }}</span>
+                    <span class="num mt-1 flex items-baseline gap-2"><span class="text-[44px] font-semibold tracking-[-0.04em]" :class="$wire.income === '' && 'text-faint'" x-text="show($wire.income)"></span><span class="text-xl text-muted">{{ $currency->symbol() }}</span></span>
+                </button>
+                @error('income')<p class="mt-2 px-2 text-xs text-danger">{{ $message }}</p>@enderror
                 @break
 
             @case(2)
-                <div class="flex flex-col gap-2">
-                    <flux:heading size="xl">{{ __('When does your month start?') }}</flux:heading>
-                    <flux:text>{{ __('Plan from payday to payday, or by calendar month.') }}</flux:text>
-                </div>
-                <flux:radio.group wire:model.live="periodMode" variant="cards" class="flex-col">
+                <div class="grid gap-2">
                     @foreach (PeriodMode::cases() as $mode)
-                        <flux:radio :value="$mode->value" :label="$mode->label()" />
+                        <x-ui.choice :selected="$periodMode === $mode->value" wire:click="$set('periodMode', '{{ $mode->value }}')" class="rounded-btn px-4 py-4 text-left text-[15px]">
+                            {{ $mode->label() }}
+                        </x-ui.choice>
                     @endforeach
-                </flux:radio.group>
+                </div>
                 @if ($periodMode === 'payday')
-                    <flux:input type="number" wire:model="paydayDay" :label="__('Payday (day of month)')" min="1" max="31" inputmode="numeric" />
+                    <div class="mt-5 px-1 text-[13px] text-muted">{{ __('Payday (day of month)') }}</div>
+                    <div class="mt-2 grid grid-cols-7 gap-1.5" data-test="payday-grid">
+                        @for ($day = 1; $day <= 31; $day++)
+                            <x-ui.choice :selected="$paydayDay === $day" wire:click="$set('paydayDay', {{ $day }})" class="num aspect-square rounded-xl text-sm">{{ $day }}</x-ui.choice>
+                        @endfor
+                    </div>
+                    <p class="mt-2 px-1 text-xs text-muted">{{ __('If the month is shorter, the last day counts.') }}</p>
                 @endif
                 @break
 
             @case(3)
-                <div class="flex flex-col gap-2">
-                    <flux:heading size="xl">{{ __('Which currency?') }}</flux:heading>
-                    <flux:text>{{ __('Every amount in the plan is in this currency.') }}</flux:text>
-                </div>
-                <flux:select wire:model="currency" :label="__('Base currency')">
+                <div class="grid grid-cols-4 gap-2">
                     @foreach (Currency::cases() as $option)
-                        <flux:select.option :value="$option->value">{{ $option->value }}</flux:select.option>
+                        <x-ui.choice :selected="$currency === $option" wire:click="$set('currency', '{{ $option->value }}')" class="h-14 rounded-btn text-[15px]">{{ $option->value }}</x-ui.choice>
                     @endforeach
-                </flux:select>
+                </div>
                 @break
 
             @case(4)
-                <div class="flex flex-col gap-2">
-                    <flux:heading size="xl">{{ __('Pick a starting point') }}</flux:heading>
-                    <flux:text>{{ __('Everything can be changed later.') }}</flux:text>
-                </div>
-                <flux:radio.group wire:model="templateKey" variant="cards" class="flex-col">
+                <div class="grid gap-2">
                     @foreach ($this->templates as $template)
-                        <flux:radio :value="$template->key" :label="__($template->name)" :description="__($template->description ?? '')" />
+                        <x-ui.choice :selected="$templateKey === $template->key" wire:click="$set('templateKey', '{{ $template->key }}')" class="rounded-btn px-4 py-4 text-left" wire:key="template-{{ $template->key }}">
+                            <span class="block text-[15px] font-semibold">{{ __($template->name) }}</span>
+                            <span class="mt-1 block text-[13px] font-normal leading-snug text-muted">{{ __($template->description ?? '') }}</span>
+                        </x-ui.choice>
                     @endforeach
-                </flux:radio.group>
+                </div>
                 @break
 
             @case(5)
-                <div class="flex flex-col gap-2">
-                    <flux:heading size="xl">{{ __('Fill in the amounts') }}</flux:heading>
-                    <flux:text>{{ __('Monthly amounts. Leave empty what you do not know yet.') }}</flux:text>
-                </div>
                 @if (empty($this->template->items))
-                    <flux:callout icon="information-circle">
-                        <flux:callout.text>{{ __('You start with an empty plan and add lines on the Plan screen.') }}</flux:callout.text>
-                    </flux:callout>
-                @endif
-                <div class="flex flex-col gap-3">
-                    @foreach ($this->template->items as $index => $item)
-                        <div wire:key="amount-{{ $index }}" class="flex items-center gap-3">
-                            <div class="min-w-0 flex-1">
-                                <div class="truncate text-sm font-medium">{{ __($item['name']) }}</div>
-                                <div class="text-xs text-zinc-500">{{ LineType::from($item['type'])->label() }}</div>
+                    <x-ui.empty-state icon="list_alt" :title="__('Empty plan')">{{ __('You start with an empty plan and add lines on the Plan screen.') }}</x-ui.empty-state>
+                @else
+                    <div class="rounded-card bg-surface px-4">
+                        @foreach ($this->template->items as $index => $item)
+                            @php $on = $included[$index] ?? true; @endphp
+                            <div wire:key="item-{{ $index }}" @class(['py-3.5', 'border-b border-line' => ! $loop->last])>
+                                <div class="flex items-center gap-3">
+                                    <x-ui.icon-tile :icon="Icons::forCategory($item['icon'] ?? null)" :size="36" class="{{ $on ? '' : 'opacity-40' }}" />
+                                    <div @class(['min-w-0 flex-1', 'opacity-40' => ! $on])>
+                                        <div class="truncate text-[15px] font-medium">{{ __($item['name']) }}</div>
+                                        <div class="text-xs text-muted">{{ LineType::from($item['type'])->label() }}</div>
+                                    </div>
+                                    @if ($on)
+                                        <button type="button" x-on:click="open('amounts.{{ $index }}', $wire.amounts[{{ $index }}])" class="num min-w-[92px] rounded-xl bg-surface-2 px-3 py-2 text-right text-[15px] font-medium" data-test="amount-{{ $index }}">
+                                            <span :class="! $wire.amounts[{{ $index }}] && 'text-faint'" x-text="show($wire.amounts[{{ $index }}], '0')"></span>
+                                        </button>
+                                    @endif
+                                    <x-ui.toggle :on="$on" wire:click="$set('included.{{ $index }}', {{ $on ? 'false' : 'true' }})" :aria-label="__($item['name'])" />
+                                </div>
+                                @if (! empty($item['hint']) && $on)
+                                    <p class="mt-2 pl-12 text-xs leading-snug text-muted">{{ __($item['hint']) }}</p>
+                                @endif
                             </div>
-                            <flux:input wire:model="amounts.{{ $index }}" inputmode="decimal" class="!w-32" :aria-label="__($item['name'])" />
-                        </div>
-                    @endforeach
-                </div>
+                        @endforeach
+                    </div>
+                @endif
                 @break
 
             @case(6)
-                <div class="flex flex-col gap-2">
-                    <flux:heading size="xl">{{ __('What happens to the leftover?') }}</flux:heading>
-                    <flux:text>{{ __('At month end the leftover fills the reserve first, the rest goes to your chosen target.') }}</flux:text>
+                <button type="button" x-on:click="open('reserveTarget', $wire.reserveTarget)" class="w-full rounded-card bg-surface px-5 py-4 text-left">
+                    <span class="block text-[13px] text-muted">{{ __('Reserve target') }}</span>
+                    <span class="num mt-1 flex items-baseline gap-2"><span class="text-[30px] font-semibold" :class="$wire.reserveTarget === '' && 'text-faint'" x-text="show($wire.reserveTarget, '–')"></span><span class="text-muted">{{ $currency->symbol() }}</span></span>
+                    <span class="mt-1 block text-xs text-muted">{{ __('Leave empty for no reserve cap.') }}</span>
+                </button>
+                <div class="mt-5 px-1 text-[13px] text-muted">{{ __('Share of the leftover going to the reserve (%)') }}</div>
+                <div class="mt-2 grid grid-cols-4 gap-2">
+                    @foreach ([25, 50, 75, 100] as $pct)
+                        <x-ui.choice :selected="$reservePct === $pct" wire:click="$set('reservePct', {{ $pct }})" class="num h-12 rounded-xl text-[15px]">{{ $pct }}%</x-ui.choice>
+                    @endforeach
                 </div>
-                <flux:input wire:model="reserveTarget" :label="__('Reserve target')" :description="__('Leave empty for no reserve cap.')" inputmode="decimal" />
-                <flux:input type="number" wire:model="reservePct" :label="__('Share of the leftover going to the reserve (%)')" min="0" max="100" inputmode="numeric" />
-                <flux:radio.group wire:model="surplusTarget" :label="__('The rest goes to')" variant="cards" class="flex-col">
-                    <flux:radio value="investment" :label="__('Investment account')" />
-                    <flux:radio value="pocket" :label="__('Savings pocket')" />
-                </flux:radio.group>
+                <div class="mt-5 px-1 text-[13px] text-muted">{{ __('The rest goes to') }}</div>
+                <div class="mt-2 grid grid-cols-2 gap-2">
+                    <x-ui.choice :selected="$surplusTarget === 'investment'" wire:click="$set('surplusTarget', 'investment')" class="rounded-btn px-4 py-4 text-left text-[15px]">{{ __('Investment account') }}</x-ui.choice>
+                    <x-ui.choice :selected="$surplusTarget === 'pocket'" wire:click="$set('surplusTarget', 'pocket')" class="rounded-btn px-4 py-4 text-left text-[15px]">{{ __('Savings pocket') }}</x-ui.choice>
+                </div>
                 @break
         @endswitch
+    </div>
 
-        <div class="flex gap-2">
-            @if ($step > 1)
-                <flux:button wire:click="back" variant="ghost" icon="arrow-left">{{ __('Back') }}</flux:button>
-            @endif
-            <flux:spacer />
-            <flux:button type="submit" variant="primary" data-test="onboarding-next">
-                {{ $step === $this::STEPS ? __('Start budgeting') : __('Next') }}
-            </flux:button>
+    <div class="fixed inset-x-0 bottom-0 z-20 mx-auto flex max-w-lg gap-2.5 bg-gradient-to-t from-bg via-bg to-transparent px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-6">
+        @if ($step < $this::STEPS)
+            <x-ui.button class="flex-1" wire:click="next" data-test="onboarding-next">{{ __('Next') }}</x-ui.button>
+        @else
+            <x-ui.button class="flex-1" wire:click="finish" data-test="onboarding-next">{{ __('Start budgeting') }}</x-ui.button>
+        @endif
+    </div>
+
+    {{-- Numpad sheet for every amount on the wizard --}}
+    <div x-show="field" x-cloak class="fixed inset-0 z-50" role="dialog" aria-modal="true">
+        <div class="absolute inset-0 bg-black/55" x-on:click="field = null"></div>
+        <div class="absolute inset-x-0 bottom-0 mx-auto max-w-lg rounded-t-[30px] bg-surface px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2" x-show="field" x-transition:enter="transition duration-300 ease-out" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0">
+            <div class="mx-auto h-[5px] w-9 rounded-full bg-ink/18"></div>
+            <div class="num flex items-baseline justify-center gap-2 py-5"><span class="text-[52px] font-semibold tracking-[-0.04em]" x-text="show(value)"></span><span class="text-2xl text-muted">{{ $currency->symbol() }}</span></div>
+            <x-ui.numpad :decimal="$currency->decimals() > 0" />
+            <x-ui.button x-on:click="apply()" class="mt-3 w-full" data-test="numpad-done">{{ __('Done') }}</x-ui.button>
         </div>
-    </form>
+    </div>
 </div>

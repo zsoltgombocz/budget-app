@@ -16,11 +16,11 @@ beforeEach(function (): void {
 it('lists the period\'s spending', function (): void {
     Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 12_345, 'note' => 'Shell']);
 
-    $this->get(route('month'))->assertOk()->assertSee('Shell')->assertSee(money(12_345));
+    $this->get(route('month'))->assertOk()->assertSee('Shell')->assertSee(money_number(12_345));
 });
 
 it('shows an explanation instead of an empty list', function (): void {
-    $this->get(route('month'))->assertOk()->assertSee(__('No spending recorded'));
+    $this->get(route('month'))->assertOk()->assertSee('data-test="empty-state"', false)->assertSee('Clean slate');
 });
 
 it('filters by category', function (): void {
@@ -39,4 +39,10 @@ it('deletes an entry', function (): void {
     Livewire::test('pages::month')->call('delete', $transaction->id);
 
     expect(Transaction::query()->count())->toBe(0);
+});
+
+it('shows the payday and no-spend days in the timeline', function (): void {
+    $this->user->dayMarks()->create(['date' => now()->toDateString()]);
+
+    $this->get(route('month'))->assertSee('Salary')->assertSee("Didn't spend");
 });

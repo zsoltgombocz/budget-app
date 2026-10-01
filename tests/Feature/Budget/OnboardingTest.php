@@ -35,7 +35,7 @@ it('builds the plan from the wizard answers', function (): void {
         ->set('surplusTarget', 'investment')
         ->call('finish')
         ->assertHasNoErrors()
-        ->assertRedirect(route('dashboard'));
+        ->assertRedirect(route('notifications.onboarding'));
 
     $settings = $user->refresh()->settings();
 
@@ -85,4 +85,31 @@ it('skips the wizard once onboarded', function (): void {
     $this->actingAs(onboardedUser());
 
     Livewire::test('pages::onboarding')->assertRedirect(route('dashboard'));
+});
+
+it('skips template lines that were switched off', function (): void {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test('pages::onboarding')
+        ->set('income', '500000')->call('next')
+        ->set('periodMode', 'calendar')->call('next')
+        ->call('next')
+        ->set('templateKey', 'couple')->call('next')
+        ->set('included.1', false)
+        ->call('next')
+        ->call('finish')
+        ->assertHasNoErrors();
+
+    expect($user->categories()->pluck('name'))->not->toContain('Utilities')
+        ->and($user->categories()->count())->toBe(9);
+});
+
+it('shows a hint for every template line', function (): void {
+    $this->actingAs(User::factory()->create());
+
+    Livewire::test('pages::onboarding')
+        ->set('income', '500000')->call('next')->call('next')->call('next')
+        ->set('templateKey', 'couple')->call('next')
+        ->assertSee('Leave 0 if they are paid from a joint account.');
 });

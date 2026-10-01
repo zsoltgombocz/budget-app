@@ -1,20 +1,33 @@
-<div class="flex items-start max-md:flex-col">
-    <div class="me-10 w-full pb-4 md:w-[220px]">
-        <flux:navlist aria-label="{{ __('Settings') }}">
-            <flux:navlist.item :href="route('budget.edit')" wire:navigate>{{ __('Budget') }}</flux:navlist.item>
-            <flux:navlist.item :href="route('profile.edit')" wire:navigate>{{ __('Profile') }}</flux:navlist.item>
-            <flux:navlist.item :href="route('security.edit')" wire:navigate>{{ __('Security') }}</flux:navlist.item>
-            <flux:navlist.item :href="route('appearance.edit')" wire:navigate>{{ __('Appearance') }}</flux:navlist.item>
-        </flux:navlist>
-    </div>
+@php
+    $tabs = [
+        ['route' => 'budget.edit', 'label' => __('Budget')],
+        ['route' => 'profile.edit', 'label' => __('Profile')],
+        ['route' => 'security.edit', 'label' => __('Security')],
+        ['route' => 'appearance.edit', 'label' => __('Appearance')],
+    ];
+@endphp
 
-    <flux:separator class="md:hidden" />
+<div class="pb-6">
+    <nav class="no-scrollbar flex gap-1.5 overflow-x-auto px-4 pt-4" aria-label="{{ __('Settings') }}">
+        @foreach ($tabs as $tab)
+            @php $active = request()->routeIs($tab['route']); @endphp
+            <a href="{{ route($tab['route']) }}" wire:navigate @class([
+                'h-9 shrink-0 rounded-xl border px-3.5 text-[13px] font-medium leading-[34px]',
+                'border-accent bg-accent/14 text-accent' => $active,
+                'border-transparent bg-surface text-ink-2' => ! $active,
+            ]) @if ($active) aria-current="page" @endif>{{ $tab['label'] }}</a>
+        @endforeach
+    </nav>
 
-    <div class="flex-1 self-stretch max-md:pt-6">
-        <flux:heading>{{ $heading ?? '' }}</flux:heading>
-        <flux:subheading>{{ $subheading ?? '' }}</flux:subheading>
+    <div class="px-4 pt-5">
+        @if (filled($heading ?? null))
+            <div class="px-1.5">
+                <div class="text-lg font-semibold">{{ $heading }}</div>
+                @if (filled($subheading ?? null))<div class="mt-0.5 text-sm text-muted">{{ $subheading }}</div>@endif
+            </div>
+        @endif
 
-        <div class="mt-5 w-full max-w-lg">
+        <div class="mt-4 w-full">
             {{ $slot }}
         </div>
     </div>

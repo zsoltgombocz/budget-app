@@ -22,6 +22,7 @@ final readonly class CompleteOnboarding
      *
      * @param  array<int, int>  $amounts  template item index => planned amount
      * @param  'investment'|'pocket'  $surplusTarget
+     * @param  list<int>|null  $included  template item indexes to create, null for all
      */
     public function handle(
         User $user,
@@ -34,12 +35,19 @@ final readonly class CompleteOnboarding
         ?int $reserveTarget,
         int $reservePct,
         string $surplusTarget,
+        ?array $included = null,
     ): void {
-        DB::transaction(function () use ($user, $income, $periodMode, $paydayDay, $currency, $template, $amounts, $reserveTarget, $reservePct, $surplusTarget): void {
-            $categories = $this->applyTemplate->handle($user, $template);
+        DB::transaction(function () use ($user, $income, $periodMode, $paydayDay, $currency, $template, $amounts, $reserveTarget, $reservePct, $surplusTarget, $included): void {
+            $categories = $this->applyTemplate->handle($user, $template, $included);
 
             foreach ($categories as $index => $category) {
                 $user->budgetLines()->where('category_id', $category->id)->update(['amount' => max(0, $amounts[$index] ?? 0)]);
+
+                $loanId = $user->budgetLines()->where('category_id', $category->id)->value('loan_id');
+
+                if ($loanId !== null && ($amounts[$index] ?? 0) > 0) {
+                    $user->loans()->whereKey($loanId)->update(['installment' => $amounts[$index]]);
+                }
             }
 
             $reserve = $user->pockets()->where('is_reserve', true)->first();

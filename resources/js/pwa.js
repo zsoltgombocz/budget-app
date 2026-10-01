@@ -97,3 +97,44 @@ export const push = {
         if (subscription) await send('POST', subscription).catch(() => {})
     },
 }
+
+/**
+ * Install prompt: Chrome/Android fire beforeinstallprompt; keep it so the app can show
+ * its own install button. iOS never fires it, the UI shows Share → Add to Home Screen instead.
+ */
+export const install = {
+    deferred: null,
+
+    listen() {
+        window.addEventListener('beforeinstallprompt', (event) => {
+            event.preventDefault()
+            this.deferred = event
+            window.dispatchEvent(new CustomEvent('install-available'))
+        })
+
+        window.addEventListener('appinstalled', () => {
+            this.deferred = null
+            window.dispatchEvent(new CustomEvent('install-done'))
+        })
+    },
+
+    available() {
+        return this.deferred !== null
+    },
+
+    ios() {
+        return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    },
+
+    installed() {
+        return push.standalone()
+    },
+
+    async prompt() {
+        if (! this.deferred) return false
+        this.deferred.prompt()
+        const { outcome } = await this.deferred.userChoice
+        this.deferred = null
+        return outcome === 'accepted'
+    },
+}

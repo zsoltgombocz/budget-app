@@ -22,6 +22,16 @@ final readonly class MarkNoSpendDay
             ?? $user->dayMarks()->create(['date' => $date->toDateString()]);
     }
 
+    /**
+     * Undo "I didn't spend today".
+     */
+    public function unmark(User $user, ?CarbonImmutable $date = null): void
+    {
+        $date ??= $this->periods->today($user->settings());
+
+        $user->dayMarks()->whereDate('date', $date->toDateString())->delete();
+    }
+
     public function isMarked(User $user, ?CarbonImmutable $date = null): bool
     {
         $date ??= $this->periods->today($user->settings());

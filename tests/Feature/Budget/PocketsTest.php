@@ -1,5 +1,8 @@
 <?php
 
+use App\Actions\Budget\MovePocketMoney;
+use App\Actions\Budget\RecordPrepayment;
+use App\Actions\Budget\SaveLoan;
 use App\Enums\PrepayMode;
 use App\Models\BudgetLine;
 use App\Models\Category;
@@ -10,76 +13,75 @@ use Livewire\Livewire;
 beforeEach(function (): void {
     $this->user = onboardedUser();
     $this->actingAs($this->user);
+    $this->page = fn () => Livewire::test('pages::pockets')->instance();
 });
 
-it('lists pockets and loans with an explanation when empty', function (): void {
+it('explains pockets when there are none', function (): void {
     $this->get(route('pockets'))->assertOk()->assertSee('Pockets collect money for a goal');
 });
 
 it('creates a pocket and moves money in and out', function (): void {
-    Livewire::test('pages::pockets')
-        ->call('editPocket')
-        ->set('pocketName', 'Holiday')
-        ->set('pocketTarget', '300000')
-        ->call('savePocket')
-        ->assertHasNoErrors();
+    $data = ($this->page)()->pocketData();
+    $data['name'] = 'Holiday';
+    $data['amounts']['target'] = '300000';
+
+    expect(($this->page)()->savePocket($data)['ok'])->toBeTrue();
 
     $pocket = Pocket::query()->where('name', 'Holiday')->sole();
-
-    Livewire::test('pages::pockets')
-        ->call('editPocket', $pocket->id)
-        ->set('moveAmount', '50000')->call('movePocketMoney', 1)
-        ->set('moveAmount', '20000')->call('movePocketMoney', -1);
+    ($this->page)()->movePocketMoney($pocket->id, 1, '50000', null, resolve(MovePocketMoney::class));
+    ($this->page)()->movePocketMoney($pocket->id, -1, '20000', null, resolve(MovePocketMoney::class));
 
     expect($pocket->refresh()->balance)->toBe(30_000)
         ->and($pocket->target_amount)->toBe(300_000)
         ->and($pocket->movements()->count())->toBe(2);
 });
 
+it('rejects an empty pocket name', function (): void {
+    $result = ($this->page)()->savePocket(($this->page)()->pocketData());
+
+    expect($result['ok'])->toBeFalse()->and($result['errors'])->toHaveKey('name');
+});
+
 it('keeps a single reserve pocket', function (): void {
     $old = Pocket::factory()->for($this->user)->create(['is_reserve' => true]);
+    $data = ($this->page)()->pocketData();
+    $data['name'] = 'New reserve';
+    $data['isReserve'] = true;
 
-    Livewire::test('pages::pockets')
-        ->call('editPocket')
-        ->set('pocketName', 'New reserve')
-        ->set('pocketIsReserve', true)
-        ->call('savePocket');
+    ($this->page)()->savePocket($data);
 
     expect($old->refresh()->is_reserve)->toBeFalse()
         ->and(Pocket::query()->where('is_reserve', true)->value('name'))->toBe('New reserve');
 });
 
-it('saves a loan and syncs its plan line', function (): void {
+it('saves a loan with a decimal APR and syncs its plan line', function (): void {
     $loan = Loan::factory()->for($this->user)->create(['installment' => 80_000, 'insurance' => 2_000]);
     $category = Category::factory()->for($this->user)->create(['type' => 'loan']);
     $line = BudgetLine::factory()->for($this->user)->for($category)->create(['amount' => 82_000, 'loan_id' => $loan->id]);
 
-    Livewire::test('pages::pockets')
-        ->call('editLoan', $loan->id)
-        ->set('loanInstallment', '75000')
-        ->set('loanThm', '11,5')
-        ->call('saveLoan')
-        ->assertHasNoErrors();
+    $data = ($this->page)()->loanData($loan->id);
+    $data['amounts']['installment'] = '75000';
+    $data['amounts']['thm'] = '11,5';
 
-    expect($line->refresh()->amount)->toBe(77_000)
+    expect(($this->page)()->saveLoan($data, resolve(SaveLoan::class))['ok'])->toBeTrue()
+        ->and($line->refresh()->amount)->toBe(77_000)
         ->and($loan->refresh()->thm)->toBe(11.5);
 });
 
-it('records a prepayment from the loan card', function (): void {
+it('records a prepayment from the linked pocket', function (): void {
     $loan = Loan::factory()->for($this->user)->create([
         'principal_balance' => 2_000_000, 'installment' => 50_000, 'insurance' => 0,
         'thm' => null, 'remaining_months' => null, 'prepay_mode' => PrepayMode::ReduceInstallment,
     ]);
     $pocket = Pocket::factory()->for($this->user)->create(['balance' => 500_000, 'prepay_step' => 500_000, 'loan_id' => $loan->id]);
 
-    Livewire::test('pages::pockets')
-        ->call('startPrepayment', $loan->id)
-        ->assertSet('prepayPocketId', $pocket->id)
-        ->assertSet('prepayAmount', '500000')
-        ->call('prepay')
-        ->assertHasNoErrors();
+    $data = ($this->page)()->prepayData($loan->id);
+    expect($data['pocketId'])->toBe($pocket->id)->and($data['amounts']['prepay'])->toBe('500000');
 
-    expect($loan->refresh()->principal_balance)->toBe(1_500_000)
+    $result = ($this->page)()->prepay($loan->id, '500000', $pocket->id, resolve(RecordPrepayment::class));
+
+    expect($result['ok'])->toBeTrue()
+        ->and($loan->refresh()->principal_balance)->toBe(1_500_000)
         ->and($loan->installment)->toBe(37_500)
         ->and($pocket->refresh()->balance)->toBe(0);
 });
@@ -88,10 +90,22 @@ it('refuses a prepayment larger than the pocket', function (): void {
     $loan = Loan::factory()->for($this->user)->create();
     $pocket = Pocket::factory()->for($this->user)->create(['balance' => 1_000]);
 
-    Livewire::test('pages::pockets')
-        ->call('startPrepayment', $loan->id)
-        ->set('prepayAmount', '5000')
-        ->set('prepayPocketId', $pocket->id)
-        ->call('prepay')
-        ->assertHasErrors('amount');
+    $result = ($this->page)()->prepay($loan->id, '5000', $pocket->id, resolve(RecordPrepayment::class));
+
+    expect($result['ok'])->toBeFalse()->and($result['errors'])->toHaveKey('prepay');
+});
+
+it('previews the installment after the next prepayment', function (): void {
+    $loan = Loan::factory()->for($this->user)->create(['principal_balance' => 4_000_000, 'installment' => 88_978, 'insurance' => 2_549, 'thm' => 12.0, 'remaining_months' => 60]);
+    $pocket = Pocket::factory()->for($this->user)->create(['prepay_step' => 500_000, 'loan_id' => $loan->id]);
+
+    expect(($this->page)()->nextInstallment($loan, $pocket))->toBe(77_856 + 2_549);
+
+    $this->get(route('pockets'))->assertSee(money(77_856 + 2_549));
+});
+
+it('cannot touch another user\'s pocket', function (): void {
+    $foreign = Pocket::factory()->create();
+
+    Livewire::test('pages::pockets')->call('pocketData', $foreign->id)->assertNotFound();
 });

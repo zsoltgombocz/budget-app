@@ -1,14 +1,18 @@
 <?php
 
+use App\Enums\LineType;
 use App\Models\Category;
 use App\Models\Period;
-use App\Models\Transaction;
 use App\Models\User;
+use App\Services\OverviewService;
 use App\Services\PeriodService;
-use Flux\Flux;
+use App\Support\Dates;
+use App\Support\Icons;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -29,15 +33,25 @@ new #[Title('Month')] class extends Component {
 
     public function delete(int $transactionId): void
     {
-        $this->user()->transactions()->whereKey($transactionId)->delete();
-        unset($this->transactions);
+        $this->user()->transactions()->whereKey($transactionId)->whereRelation('period', 'status', 'open')->delete();
+        $this->refresh();
 
-        Flux::toast(text: __('Entry removed.'));
+        $this->dispatch('budget-updated');
+        $this->dispatch('app-toast', title: __('Entry removed.'), icon: 'delete');
     }
 
-    public function updatedPeriodId(): void
+    public function showPeriod(int $periodId): void
     {
-        unset($this->period, $this->transactions);
+        if ($this->user()->periods()->whereKey($periodId)->exists()) {
+            $this->periodId = $periodId;
+            $this->refresh();
+        }
+    }
+
+    #[On('budget-updated')]
+    public function refresh(): void
+    {
+        unset($this->period, $this->days, $this->overview, $this->neighbours);
     }
 
     #[Computed]
@@ -46,27 +60,85 @@ new #[Title('Month')] class extends Component {
         return $this->user()->periods()->findOrFail($this->periodId);
     }
 
-    /**
-     * @return Collection<int, Period>
-     */
     #[Computed]
-    public function periods(): Collection
+    public function overview(): \App\Services\Data\Overview
     {
-        return $this->user()->periods()->orderByDesc('starts_on')->get();
+        $today = app(PeriodService::class)->today($this->user()->settings());
+
+        return app(OverviewService::class)->forPeriod($this->user(), $this->period, $today);
     }
 
     /**
-     * @return Collection<int, Transaction>
+     * @return array{previous: int|null, next: int|null}
      */
     #[Computed]
-    public function transactions(): Collection
+    public function neighbours(): array
     {
-        return $this->period->transactions()
-            ->with('category')
+        $periods = $this->user()->periods();
+
+        return [
+            'previous' => (clone $periods)->whereDate('starts_on', '<', $this->period->starts_on->toDateString())->orderByDesc('starts_on')->value('id'),
+            'next' => (clone $periods)->whereDate('starts_on', '>', $this->period->starts_on->toDateString())->orderBy('starts_on')->value('id'),
+        ];
+    }
+
+    /**
+     * Rows grouped by day, newest first: spending, "didn't spend" marks and the payday.
+     *
+     * @return list<array{date: CarbonImmutable, total: int, payday: bool, rows: list<array<string, mixed>>}>
+     */
+    #[Computed]
+    public function days(): array
+    {
+        $period = $this->period;
+        $today = app(PeriodService::class)->today($this->user()->settings());
+        $days = [];
+
+        $transactions = $period->transactions()->with('category')
             ->when($this->categoryId, fn ($query, int $categoryId) => $query->where('category_id', $categoryId))
-            ->orderByDesc('occurred_on')
-            ->orderByDesc('id')
-            ->get();
+            ->orderByDesc('occurred_on')->orderByDesc('id')->get();
+
+        foreach ($transactions as $transaction) {
+            $key = $transaction->occurred_on->toDateString();
+            $days[$key] ??= ['date' => $transaction->occurred_on, 'total' => 0, 'payday' => false, 'rows' => []];
+            $days[$key]['total'] += $transaction->amount;
+            $days[$key]['rows'][] = [
+                'kind' => 'spending',
+                'id' => $transaction->id,
+                'icon' => Icons::forCategory($transaction->category?->icon),
+                'title' => $transaction->category?->name ?? '',
+                'note' => $transaction->note,
+                'amount' => $transaction->amount,
+            ];
+        }
+
+        if ($this->categoryId === null) {
+            $marks = $this->user()->dayMarks()
+                ->whereDate('date', '>=', $period->starts_on->toDateString())
+                ->whereDate('date', '<=', $period->ends_on->toDateString())
+                ->get();
+
+            foreach ($marks as $mark) {
+                $key = $mark->date->toDateString();
+                $days[$key] ??= ['date' => $mark->date, 'total' => 0, 'payday' => false, 'rows' => []];
+                $days[$key]['rows'][] = ['kind' => 'no-spend', 'markedAt' => $mark->created_at?->setTimezone($this->user()->settings()->timezone)->format('H:i')];
+            }
+
+            if (! $period->starts_on->greaterThan($today)) {
+                $key = $period->starts_on->toDateString();
+                $fixed = $this->overview->fixedItems;
+                $days[$key] ??= ['date' => $period->starts_on, 'total' => 0, 'payday' => true, 'rows' => []];
+                $days[$key]['payday'] = true;
+                $days[$key]['rows'][] = ['kind' => 'income', 'amount' => $period->income()];
+                if ($fixed !== []) {
+                    $days[$key]['rows'][] = ['kind' => 'fixed', 'count' => count($fixed), 'amount' => array_sum(array_map(fn ($item) => $item->line->planned(), $fixed))];
+                }
+            }
+        }
+
+        krsort($days);
+
+        return array_values($days);
     }
 
     #[Computed]
@@ -84,80 +156,127 @@ new #[Title('Month')] class extends Component {
     }
 }; ?>
 
-<div class="flex flex-col gap-4">
-    <div class="flex items-center gap-2">
-        <flux:select wire:model.live="periodId" class="flex-1" :aria-label="__('Period')">
-            @foreach ($this->periods as $period)
-                <flux:select.option :value="$period->id">
-                    {{ $period->starts_on->isoFormat('YYYY. MM. DD.') }} – {{ $period->ends_on->isoFormat('MM. DD.') }}
-                    @if (! $period->isOpen()) · {{ __('closed') }} @endif
-                </flux:select.option>
-            @endforeach
-        </flux:select>
+@php
+    $period = $this->period;
+    $overview = $this->overview;
+    $forecast = $overview->forecast;
+    $today = $overview->today;
+    $closeRecord = $period->isOpen() ? null : $period->close()->first();
+    $hasSpending = collect($this->days)->contains(fn ($day) => collect($day['rows'])->contains('kind', 'spending'));
+@endphp
+
+<div x-data="{ selected: null }">
+    <div class="flex items-end justify-between gap-2 px-6 pt-3.5">
+        <div class="min-w-0">
+            <h1 class="truncate text-[30px] font-semibold tracking-[-0.03em]">{{ Dates::monthName($period->starts_on) }}</h1>
+            <div class="num mt-0.5 text-[13px] text-muted">
+                {{ Dates::range($period->starts_on, $period->ends_on) }} ·
+                @if (! $period->isOpen())
+                    {{ __('closed') }}
+                @elseif ($period->contains($today))
+                    {{ trans_choice('{1} :count day left|[2,*] :count days left', $forecast->remainingDays, ['count' => $forecast->remainingDays]) }}
+                @else
+                    {{ __('open') }}
+                @endif
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <x-ui.icon-button icon="chevron_left" :label="__('Previous period')" wire:click="showPeriod({{ $this->neighbours['previous'] ?? 0 }})" :disabled="$this->neighbours['previous'] === null" class="disabled:opacity-30" data-test="previous-period" />
+            <x-ui.icon-button icon="chevron_right" :label="__('Next period')" wire:click="showPeriod({{ $this->neighbours['next'] ?? 0 }})" :disabled="$this->neighbours['next'] === null" class="disabled:opacity-30" />
+        </div>
     </div>
 
-    @if ($this->period->isOpen())
-        <flux:button :href="route('close', $this->period)" wire:navigate icon="lock-closed" data-test="start-close">
-            {{ __('Close the period') }}
-        </flux:button>
-    @elseif ($close = $this->period->close()->first())
-        <a href="{{ route('close', $this->period) }}" wire:navigate class="block rounded-2xl bg-white p-4 shadow-xs dark:bg-zinc-800" data-test="close-summary">
-            <div class="flex items-center justify-between">
-                <flux:heading>{{ __('Closed') }}</flux:heading>
-                <flux:icon.chevron-right class="size-4 text-zinc-400" />
-            </div>
-            <dl class="mt-2 grid grid-cols-3 gap-2 text-xs">
-                <div><dt class="text-zinc-500">{{ __('Leftover') }}</dt><dd><x-money :amount="$close->leftover" class="text-sm font-semibold" /></dd></div>
-                <div><dt class="text-zinc-500">{{ __('To the reserve') }}</dt><dd><x-money :amount="$close->to_reserve" class="text-sm" /></dd></div>
-                <div><dt class="text-zinc-500">{{ __('Rest') }}</dt><dd><x-money :amount="$close->to_invest" class="text-sm" /></dd></div>
-            </dl>
-        </a>
-    @endif
+    <x-ui.card class="mx-4 mb-1 mt-[18px] rounded-[22px] px-[18px] py-4">
+        <div class="num flex items-baseline justify-between text-[13px] text-muted">
+            <span>{{ __('Variable spending so far') }}</span>
+            <span>{{ __('budget :amount', ['amount' => money($forecast->variablePlanned)]) }}</span>
+        </div>
+        <x-ui.amount :value="$forecast->variableSpent" size="lg" class="mt-1 [&>span:first-child]:text-[26px]" />
+        <x-ui.bar :value="$forecast->variablePlanned > 0 ? $forecast->variableSpent / $forecast->variablePlanned : 0" :tone="$forecast->variableSpent > $forecast->variablePlanned ? 'danger' : ($forecast->variablePlanned > 0 && $forecast->variableSpent / $forecast->variablePlanned >= 0.8 ? 'warn' : 'accent')" class="mt-2.5" />
+
+        @if ($period->isOpen())
+            <a href="{{ route('close', $period) }}" wire:navigate class="mt-3.5 flex h-12 items-center justify-center gap-2 rounded-2xl bg-surface-2 text-[15px] font-semibold" data-test="start-close">
+                <x-ui.icon name="task_alt" :size="20" class="text-accent" />{{ __('Close the month') }}
+            </a>
+        @elseif ($closeRecord)
+            <a href="{{ route('close', $period) }}" wire:navigate class="mt-3.5 grid grid-cols-3 gap-2 rounded-2xl bg-surface-2 px-3 py-2.5 text-xs" data-test="close-summary">
+                <span><span class="block text-muted">{{ __('Leftover') }}</span><span class="num block text-sm font-semibold">{{ money($closeRecord->leftover) }}</span></span>
+                <span><span class="block text-muted">{{ __('To the reserve') }}</span><span class="num block text-sm">{{ money($closeRecord->to_reserve) }}</span></span>
+                <span><span class="block text-muted">{{ __('Rest') }}</span><span class="num block text-sm">{{ money($closeRecord->to_invest) }}</span></span>
+            </a>
+        @endif
+    </x-ui.card>
 
     @if ($this->category)
-        <div class="flex items-center gap-2">
-            <flux:badge icon="funnel">{{ $this->category->name }}</flux:badge>
-            <flux:button size="xs" variant="ghost" icon="x-mark" wire:click="$set('categoryId', null)" :aria-label="__('Clear filter')" />
+        <div class="mx-4 mt-3 flex">
+            <button type="button" wire:click="$set('categoryId', null)" class="flex h-9 items-center gap-1.5 rounded-xl bg-accent/14 px-3 text-[13px] font-medium text-accent">
+                {{ $this->category->name }} <x-ui.icon name="close" :size="16" />
+            </button>
         </div>
     @endif
 
-    <div class="flex items-baseline justify-between">
-        <flux:heading>{{ __('Spending') }}</flux:heading>
-        <x-money :amount="$this->transactions->sum('amount')" class="font-semibold" />
-    </div>
+    @foreach ($this->days as $day)
+        <div class="px-4" wire:key="day-{{ $day['date']->toDateString() }}">
+            <div class="num flex justify-between px-1.5 pb-2 pt-[18px] text-[13px]">
+                <span class="font-semibold text-ink-2">{{ Dates::day($day['date'], $today) }}@if ($day['payday']) · {{ __('Payday') }}@endif</span>
+                @if ($day['total'] > 0 || ! $day['payday'])<span class="text-muted">{{ money($day['total']) }}</span>@endif
+            </div>
+            <div class="rounded-[20px] bg-surface px-4">
+                @foreach ($day['rows'] as $row)
+                    @php $border = ! $loop->last; @endphp
+                    @if ($row['kind'] === 'spending')
+                        <button type="button" x-on:click="selected = @js(['id' => $row['id'], 'title' => $row['title'], 'note' => $row['note'], 'amount' => money($row['amount'])])"
+                                @class(['grid w-full grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-[11px] text-left', 'border-b border-line' => $border]) data-test="transaction">
+                            <x-ui.icon-tile :icon="$row['icon']" :size="36" />
+                            <span class="min-w-0"><span class="block truncate text-[15px]">{{ $row['title'] }}</span>@if ($row['note'])<span class="mt-0.5 block truncate text-xs text-muted">{{ $row['note'] }}</span>@endif</span>
+                            <span class="num text-[15px] font-medium">{{ money_number($row['amount']) }}</span>
+                        </button>
+                    @elseif ($row['kind'] === 'no-spend')
+                        <div @class(['grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-[11px]', 'border-b border-line' => $border])>
+                            <x-ui.icon-tile icon="do_not_disturb_on" tone="accent" :size="36" />
+                            <span><span class="block text-[15px] text-ink-2">{{ __("Didn't spend") }}</span>@if ($row['markedAt'])<span class="mt-0.5 block text-xs text-muted">{{ __('marked at :time', ['time' => $row['markedAt']]) }}</span>@endif</span>
+                            <span></span>
+                        </div>
+                    @elseif ($row['kind'] === 'income')
+                        <div @class(['grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-[11px]', 'border-b border-line' => $border])>
+                            <x-ui.icon-tile icon="payments" tone="accent" :size="36" />
+                            <span class="text-[15px]">{{ __('Salary') }}</span>
+                            <span class="num text-[15px] font-medium text-accent">+{{ money_number($row['amount']) }}</span>
+                        </div>
+                    @else
+                        <div @class(['grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-[11px]', 'border-b border-line' => $border])>
+                            <x-ui.icon-tile icon="autorenew" tone="muted" :size="36" />
+                            <span><span class="block text-[15px]">{{ __('Fixed items') }}</span><span class="mt-0.5 block text-xs text-muted">{{ trans_choice('{1} :count item automatically|[2,*] :count items automatically', $row['count'], ['count' => $row['count']]) }}</span></span>
+                            <span class="num text-[15px] font-medium">{{ money_number($row['amount']) }}</span>
+                        </div>
+                    @endif
+                @endforeach
+            </div>
+        </div>
+    @endforeach
 
-    @if ($this->transactions->isEmpty())
-        <flux:callout icon="receipt-percent">
-            <flux:callout.heading>{{ __('No spending recorded') }}</flux:callout.heading>
-            <flux:callout.text>{{ __('Tap the + button to record what you spend. Fixed costs are already part of the plan.') }}</flux:callout.text>
-        </flux:callout>
-    @else
-        @foreach ($this->transactions->groupBy(fn ($transaction) => $transaction->occurred_on->toDateString()) as $day => $transactions)
-            <section wire:key="day-{{ $day }}" class="flex flex-col gap-1">
-                <div class="flex justify-between px-1 text-xs font-medium uppercase tracking-wide text-zinc-500">
-                    <span>{{ \Carbon\CarbonImmutable::parse($day)->locale(app()->getLocale())->isoFormat('MMMM D., dddd') }}</span>
-                    <x-money :amount="$transactions->sum('amount')" />
-                </div>
-                <ul class="divide-y divide-zinc-200 overflow-hidden rounded-xl border border-zinc-200 bg-white dark:divide-zinc-700 dark:border-zinc-700 dark:bg-zinc-800">
-                    @foreach ($transactions as $transaction)
-                        <li wire:key="transaction-{{ $transaction->id }}" class="flex items-center gap-3 px-3 py-2">
-                            @if ($transaction->category)
-                                <x-category-icon :category="$transaction->category" class="size-5 shrink-0" />
-                            @endif
-                            <div class="min-w-0 flex-1">
-                                <div class="truncate text-sm font-medium">{{ $transaction->category?->name }}</div>
-                                @if ($transaction->note)
-                                    <div class="truncate text-xs text-zinc-500">{{ $transaction->note }}</div>
-                                @endif
-                            </div>
-                            <x-money :amount="$transaction->amount" class="text-sm font-medium" />
-                            @if ($this->period->isOpen())
-                                <flux:button size="xs" variant="ghost" icon="trash" wire:click="delete({{ $transaction->id }})" wire:confirm="{{ __('Delete this entry?') }}" :aria-label="__('Delete')" />
-                            @endif
-                        </li>
-                    @endforeach
-                </ul>
-            </section>
-        @endforeach
+    @if (! $hasSpending)
+        <div class="flex flex-col items-center gap-2.5 px-10 pb-6 pt-12 text-center" data-test="empty-state">
+            <x-ui.icon-tile icon="event_note" tone="muted" :size="56" class="!bg-surface" />
+            <div class="mt-1 text-lg font-semibold">{{ $this->category ? __('No spending in this category') : __('Clean slate') }}</div>
+            <div class="text-sm leading-normal text-pretty text-muted">{{ __('Your daily spending and the “didn’t spend” days land here. Record the first one with the + button.') }}</div>
+        </div>
     @endif
+
+    {{-- Transaction actions --}}
+    <div x-show="selected" x-cloak class="fixed inset-0 z-50" role="dialog" aria-modal="true">
+        <div class="absolute inset-0 bg-black/55" x-on:click="selected = null"></div>
+        <div class="absolute inset-x-0 bottom-0 mx-auto max-w-lg rounded-t-[30px] bg-surface px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-2" x-show="selected" x-transition:enter="transition duration-300 ease-out" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0">
+            <div class="mx-auto h-[5px] w-9 rounded-full bg-ink/18"></div>
+            <div class="py-5 text-center">
+                <div class="text-sm text-muted" x-text="selected?.title"></div>
+                <div class="num mt-1 text-[40px] font-semibold tracking-[-0.03em]" x-text="selected?.amount"></div>
+                <div class="mt-1 text-sm text-muted" x-show="selected?.note" x-text="selected?.note"></div>
+            </div>
+            @if ($period->isOpen())
+                <x-ui.button variant="danger" icon="delete" class="w-full" x-on:click="$wire.delete(selected.id); selected = null" data-test="delete-transaction">{{ __('Delete entry') }}</x-ui.button>
+            @endif
+            <x-ui.button variant="ghost" class="mt-1 w-full" x-on:click="selected = null">{{ __('Close') }}</x-ui.button>
+        </div>
+    </div>
 </div>

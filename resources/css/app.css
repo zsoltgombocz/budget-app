@@ -1,4 +1,6 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
 @import '../../vendor/livewire/flux/dist/flux.css';
 
 @source '../views';
@@ -8,43 +10,159 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+@font-face {
+    font-family: 'Material Symbols Rounded';
+    font-style: normal;
+    font-weight: 100 700;
+    font-display: block;
+    src: url('../fonts/material-symbols-rounded.woff2') format('woff2');
+}
+
+/*
+ * Design tokens. Dark is the primary theme; light values apply when the
+ * document is not in dark mode (Flux appearance toggles the .dark class).
+ */
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Geist Variable', system-ui, sans-serif;
+    --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
 
-    --color-zinc-50: #fafafa;
-    --color-zinc-100: #f5f5f5;
-    --color-zinc-200: #e5e5e5;
-    --color-zinc-300: #d4d4d4;
-    --color-zinc-400: #a3a3a3;
-    --color-zinc-500: #737373;
-    --color-zinc-600: #525252;
-    --color-zinc-700: #404040;
-    --color-zinc-800: #262626;
-    --color-zinc-900: #171717;
-    --color-zinc-950: #0a0a0a;
+    --color-bg: var(--app-bg);
+    --color-surface: var(--app-surface);
+    --color-surface-2: var(--app-surface-2);
+    --color-surface-3: var(--app-surface-3);
+    --color-ink: var(--app-ink);
+    --color-ink-2: var(--app-ink-2);
+    --color-muted: var(--app-muted);
+    --color-faint: var(--app-faint);
+    --color-line: var(--app-line);
+    --color-accent: var(--app-accent);
+    --color-accent-strong: var(--app-accent-strong);
+    --color-accent-ink: #06210F;
+    --color-warn: var(--app-warn);
+    --color-danger: var(--app-danger);
+    --color-track: var(--app-track);
 
-    --color-accent: var(--color-neutral-800);
-    --color-accent-content: var(--color-neutral-800);
-    --color-accent-foreground: var(--color-white);
+    --radius-card: 24px;
+    --radius-btn: 18px;
+
+    /* Flux reads zinc and accent; map them onto the design's neutrals. */
+    --color-zinc-50: #F3F4F2;
+    --color-zinc-100: #EEF0EE;
+    --color-zinc-200: #E2E5E3;
+    --color-zinc-300: #C9CECB;
+    --color-zinc-400: #8C938F;
+    --color-zinc-500: #6E7571;
+    --color-zinc-600: #3A3F3C;
+    --color-zinc-700: #2A2F2C;
+    --color-zinc-800: #1F2321;
+    --color-zinc-900: #161917;
+    --color-zinc-950: #0C0E0D;
+
+    --color-accent-content: var(--app-accent);
+    --color-accent-foreground: #06210F;
 }
 
 @layer theme {
+    :root {
+        --app-bg: #F3F4F2;
+        --app-surface: #FFFFFF;
+        --app-surface-2: #EEF0EE;
+        --app-surface-3: #E2E5E3;
+        --app-ink: #0E110F;
+        --app-ink-2: #3E4441;
+        --app-muted: #6A716D;
+        --app-faint: #A3A9A5;
+        --app-line: rgba(14, 17, 15, 0.06);
+        --app-accent: #1FB866;
+        --app-accent-strong: #0F8F45;
+        --app-warn: #D9800B;
+        --app-danger: #E0383E;
+        --app-track: rgba(14, 17, 15, 0.08);
+    }
+
     .dark {
-        --color-accent: var(--color-white);
-        --color-accent-content: var(--color-white);
-        --color-accent-foreground: var(--color-neutral-800);
+        --app-bg: #0C0E0D;
+        --app-surface: #161917;
+        --app-surface-2: #1F2321;
+        --app-surface-3: #2A2F2C;
+        --app-ink: #F3F5F4;
+        --app-ink-2: #C9CECB;
+        --app-muted: #8C938F;
+        --app-faint: #5C625F;
+        --app-line: rgba(255, 255, 255, 0.06);
+        --app-accent: #4BD88A;
+        --app-accent-strong: #4BD88A;
+        --app-warn: #F2A33A;
+        --app-danger: #FF6B70;
+        --app-track: rgba(255, 255, 255, 0.08);
+
+        /* Flux sets a white accent in dark mode; keep the design's green. */
+        --color-accent: var(--app-accent);
+        --color-accent-content: var(--app-accent);
+        --color-accent-foreground: #06210F;
+    }
+
+    :root {
+        --color-accent: var(--app-accent);
+        --color-accent-content: var(--app-accent-strong);
+        --color-accent-foreground: #06210F;
     }
 }
 
 @layer base {
-
     *,
     ::after,
     ::before,
     ::backdrop,
     ::file-selector-button {
-        border-color: var(--color-gray-200, currentColor);
+        border-color: var(--color-line, currentColor);
     }
+
+    html {
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+        font-feature-settings: 'cv11';
+        -webkit-font-smoothing: antialiased;
+    }
+
+    [x-cloak] {
+        display: none !important;
+    }
+}
+
+@utility num {
+    font-variant-numeric: tabular-nums;
+}
+
+@utility no-scrollbar {
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+.ms {
+    font-family: 'Material Symbols Rounded';
+    font-weight: 400;
+    font-style: normal;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    direction: ltr;
+    font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+    font-variation-settings: 'FILL' 0, 'opsz' 24;
+    overflow: hidden;
+    user-select: none;
+}
+
+.ms-fill {
+    font-variation-settings: 'FILL' 1, 'opsz' 24;
 }
 
 [data-flux-field]:not(ui-radio, ui-checkbox) {
@@ -52,15 +170,11 @@
 }
 
 [data-flux-label] {
-    @apply  !mb-0 !leading-tight;
+    @apply !mb-0 !leading-tight;
 }
 
 input:focus[data-flux-control],
 textarea:focus[data-flux-control],
 select:focus[data-flux-control] {
-    @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-accent-foreground;
+    @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-bg;
 }
-
-/* \[:where(&)\]:size-4 {
-    @apply size-4;
-} */
