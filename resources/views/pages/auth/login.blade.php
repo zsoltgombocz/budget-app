@@ -1,6 +1,6 @@
 <x-layouts::auth :title="__('Log in')">
     <div class="flex flex-col gap-6">
-        <x-auth-header :title="__('Log in')" :description="__('No password: we email you a sign-in link, or use a passkey.')" />
+        <x-auth-header :title="__('Log in')" :description="__('No password: we email you a code, or use a passkey.')" />
 
         <x-auth-session-status :status="session('status')" />
 

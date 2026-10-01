@@ -9,7 +9,7 @@ new #[Title('Register')] #[Layout('layouts::auth')] class extends Component {
 }; ?>
 
 <div class="flex flex-col gap-6">
-    <x-auth-header :title="__('Create an account')" :description="__('Just your name and email. We send a link that signs you in, no password needed.')" />
+    <x-auth-header :title="__('Create an account')" :description="__('Just your name and email. We send a code that signs you in, no password needed.')" />
 
     <livewire:auth.magic-link-form :register="true" />
 

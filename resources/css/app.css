@@ -123,11 +123,11 @@
     }
 
     /*
-     * The installed iPhone app uses an opaque status bar (see partials/head), so content starts
-     * below it and iOS does not blur the top of the page. Add a little breathing room there.
+     * iOS 26 blurs a strip below the status bar of installed web apps (scroll edge effect).
+     * Keep the first line of content below that strip.
      */
     html.ios-standalone {
-        --safe-top: calc(env(safe-area-inset-top, 0px) + 8px);
+        --safe-top: calc(env(safe-area-inset-top, 0px) + 24px);
     }
 
     html {

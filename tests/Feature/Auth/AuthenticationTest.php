@@ -95,3 +95,55 @@ test('users can logout', function (): void {
 
     $this->assertGuest();
 });
+
+test('the emailed code signs in inside the app', function (): void {
+    Notification::fake();
+    $user = User::factory()->unverified()->create();
+
+    $component = Livewire::test('auth.magic-link-form')->set('email', $user->email)->call('send');
+
+    $code = null;
+    Notification::assertSentTo($user, MagicLoginLink::class, function (MagicLoginLink $notification) use (&$code): bool {
+        $code = $notification->code;
+
+        return true;
+    });
+
+    expect($code)->toMatch('/^\d{6}$/');
+
+    $component->set('code', substr($code, 0, 3).' '.substr($code, 3))->call('verify')->assertRedirect(route('dashboard'));
+
+    $this->assertAuthenticatedAs($user);
+    expect($user->refresh()->hasVerifiedEmail())->toBeTrue();
+});
+
+test('a wrong code does not sign in and the code dies after too many attempts', function (): void {
+    Notification::fake();
+    $user = User::factory()->create();
+    $component = Livewire::test('auth.magic-link-form')->set('email', $user->email)->call('send');
+
+    $code = null;
+    Notification::assertSentTo($user, MagicLoginLink::class, function (MagicLoginLink $notification) use (&$code): bool {
+        $code = $notification->code;
+
+        return true;
+    });
+
+    $wrong = $code === '111111' ? '222222' : '111111';
+
+    foreach (range(1, SendMagicLink::MAX_ATTEMPTS) as $attempt) {
+        $component->set('code', $wrong)->call('verify')->assertHasErrors('code');
+    }
+
+    $component->set('code', $code)->call('verify')->assertHasErrors('code');
+    $this->assertGuest();
+});
+
+test('the sign-in email shows the code and the link', function (): void {
+    $user = User::factory()->create();
+    app()->setLocale('hu');
+
+    $html = (string) new MagicLoginLink('token-123', '482915')->toMail($user)->render();
+
+    expect($html)->toContain('482 915')->toContain(route('magic-link.show', 'token-123'));
+});

@@ -222,34 +222,40 @@ img {
 
 .button {
     -webkit-text-size-adjust: none;
+    background-color: #4BD88A;
     border-radius: 18px;
     color: #06210F;
     display: inline-block;
     font-size: 17px;
     font-weight: 600;
-    overflow: hidden;
+    line-height: 20px;
+    padding: 16px 32px;
     text-decoration: none;
 }
 
-.button-blue,
-.button-primary,
-.button-green,
-.button-success {
+.button-cell {
     background-color: #4BD88A;
-    border-bottom: 16px solid #4BD88A;
-    border-left: 28px solid #4BD88A;
-    border-right: 28px solid #4BD88A;
-    border-top: 16px solid #4BD88A;
 }
 
 .button-red,
-.button-error {
+.button-error,
+.button-cell-error {
     background-color: #E0383E;
-    border-bottom: 16px solid #E0383E;
-    border-left: 28px solid #E0383E;
-    border-right: 28px solid #E0383E;
-    border-top: 16px solid #E0383E;
     color: #FFFFFF;
+}
+
+/* Sign-in code */
+p.code {
+    background-color: #F3F4F2;
+    border-radius: 16px;
+    color: #0E110F;
+    font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    margin: 8px 0 20px;
+    padding: 18px 0;
+    text-align: center;
 }
 
 .panel {
@@ -306,8 +312,15 @@ img {
         color: #4BD88A !important;
     }
 
-    .button {
+    .button,
+    .button-cell {
+        background-color: #4BD88A !important;
         color: #06210F !important;
+    }
+
+    p.code {
+        background-color: #1F2321 !important;
+        color: #F3F5F4 !important;
     }
 
     .subcopy p, .footer p, .footer a {
