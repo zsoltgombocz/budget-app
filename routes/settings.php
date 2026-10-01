@@ -10,6 +10,7 @@ Route::middleware(['auth'])->group(function (): void {
 
 Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::livewire('settings/appearance', 'pages::settings.appearance')->name('appearance.edit');
+    Route::livewire('settings/budget', 'pages::settings.budget')->middleware('onboarded')->name('budget.edit');
 
     Route::livewire('settings/security', 'pages::settings.security')
         ->middleware([

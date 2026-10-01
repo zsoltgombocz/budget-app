@@ -31,6 +31,44 @@ final readonly class Money implements JsonSerializable, Stringable
         return new self($major * $currency->minorPerMajor(), $currency);
     }
 
+    /**
+     * Parse user input like "24,99", "24.99" or "609 000" into the smallest unit.
+     * Returns null when the input is not a valid non-negative amount.
+     */
+    public static function parse(string $input, Currency $currency): ?int
+    {
+        $normalized = preg_replace('/[\s\x{00A0}\x{202F}]/u', '', trim($input)) ?? '';
+        $normalized = str_replace(',', '.', $normalized);
+
+        if ($normalized === '' || preg_match('/^\d+(\.\d+)?$/', $normalized) !== 1) {
+            return null;
+        }
+
+        [$major, $minor] = array_pad(explode('.', $normalized, 2), 2, '');
+
+        if (strlen($minor) > $currency->decimals()) {
+            return null;
+        }
+
+        return (int) $major * $currency->minorPerMajor() + (int) str_pad($minor, $currency->decimals(), '0');
+    }
+
+    /**
+     * Plain number for an input field, e.g. 2499 cents → "24.99", 609000 HUF → "609000".
+     */
+    public static function toInput(?int $amount, Currency $currency): string
+    {
+        if ($amount === null) {
+            return '';
+        }
+
+        if ($currency->decimals() === 0) {
+            return (string) $amount;
+        }
+
+        return number_format($amount / $currency->minorPerMajor(), $currency->decimals(), '.', '');
+    }
+
     public static function zero(Currency $currency): self
     {
         return new self(0, $currency);
