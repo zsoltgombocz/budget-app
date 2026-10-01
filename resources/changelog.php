@@ -6,6 +6,16 @@
  */
 return [
     [
+        'version' => '1.5.1',
+        'date' => '2026-10-01',
+        'changes' => [
+            ['hu' => 'Belépés 6 jegyű kóddal: az e-mailből az appban írod be, így a telepített app is belép.', 'en' => 'Sign in with a 6-digit code typed in the app, so the installed app signs in too.'],
+            ['hu' => 'A passkey megszakítása nem ad hibát, a hibaüzenetek magyarul jelennek meg.', 'en' => 'Cancelling a passkey is not an error any more, and errors are translated.'],
+            ['hu' => 'A telepítési útmutató az appon belül nyílik a beállításokból.', 'en' => 'The install guide opens inside the app from Settings.'],
+            ['hu' => 'Szebb e-mailek mobilon, javított ikonok és több hely a fejléc fölött iPhone-on.', 'en' => 'Nicer emails on phones, fixed icons and more room above the header on iPhone.'],
+        ],
+    ],
+    [
         'version' => '1.5.0',
         'date' => '2026-10-01',
         'changes' => [

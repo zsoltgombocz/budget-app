@@ -51,9 +51,8 @@
                 this.showForm = false;
                 await $wire.loadPasskeys();
             } catch (e) {
-                if (e.constructor?.name !== 'UserCancelledError') {
-                    this.error = e.message;
-                }
+                const text = [e?.name, e?.constructor?.name, e?.message].join(' ');
+                this.error = /cancel|abort|NotAllowed/i.test(text) ? null : @js(__('Adding the passkey did not work. Try again.'));
             } finally {
                 this.loading = false;
             }

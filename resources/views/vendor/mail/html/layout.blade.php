@@ -15,6 +15,14 @@ width: 100% !important;
 .footer {
 width: 100% !important;
 }
+
+.body {
+padding: 0 12px !important;
+}
+
+.content-cell {
+padding: 28px 22px !important;
+}
 }
 
 @media only screen and (max-width: 500px) {
