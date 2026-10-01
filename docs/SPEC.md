@@ -18,15 +18,15 @@ Univerzális, többfelhasználós app: bárki onboarding varázslóval rakja ös
 
 ## Tech stack
 
-Laravel 12 + Livewire 3 (Volt) a felhasználói felülethez, mert a napi rögzítéshez gyors, egyedi mobil UI kell, amit egy Filament panel nem ad jól. Filament csak opcionálisan, admin/beállítás felületnek.
+Laravel 13 + Livewire 4 a felhasználói felülethez, mert a napi rögzítéshez gyors, egyedi mobil UI kell, amit egy Filament panel nem ad jól. Filament csak opcionálisan, admin/beállítás felületnek.
 
 | Réteg | Választás | Megjegyzés |
 | --- | --- | --- |
-| Backend | Laravel 12, PHP 8.4 | Actions + Services, Form Requestek |
+| Backend | Laravel 13, PHP 8.4 | Actions + Services, Form Requestek |
 | AI fejlesztés | Laravel Boost | MCP Claude Code-nak, guideline-ok, docs search |
-| UI | Livewire 3 + Volt, Alpine.js | Single-file komponensek |
+| UI | Livewire 4, Flux UI, Alpine.js | Livewire 4 natív single-file komponensek (Volt nélkül) |
 | Stílus | Tailwind CSS 4 | Mobile-first, dark mode |
-| Auth | Laravel Livewire starter kit (Fortify) | Később passkey |
+| Auth | Laravel Livewire starter kit (Fortify) | Passkey a kitben már benne van |
 | Adatbázis | MariaDB / MySQL 8 | Fejlesztéshez SQLite is mehet |
 | Push | laravel-notification-channels/webpush | VAPID kulcsok |
 | PWA | vite-plugin-pwa (Workbox) | Manifest, service worker, offline cache |
@@ -34,6 +34,7 @@ Laravel 12 + Livewire 3 (Volt) a felhasználói felülethez, mert a napi rögzí
 | Grafikon | Chart.js vagy ApexCharts | Dashboard és hó végi riport |
 | Tesztek | Pest 3 | Unit a számításokra, Feature a flow-kra |
 | Minőség | Larastan max szint, Pint, Rector | CI-ban kötelező |
+| Frontend tooling | bun, Vite | npm helyett bun (`bun.lock`) |
 
 Pénzösszegek **egész számként**, a felhasználó alapdevizájának legkisebb egységében (HUF-nál forint, EUR-nál cent), lebegőpontos szám sehol. Az alapdeviza beállítható; devizás tételeknél az eredeti összeg és deviza is tárolva, a terv alapdevizában számol. A felület i18n-képes: első nyelv a magyar, második az angol.
 
