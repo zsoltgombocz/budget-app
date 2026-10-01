@@ -51,6 +51,10 @@ final readonly class RecordTransaction
         $date ??= $this->periods->today($user->settings());
         $period = $this->periods->forDate($user, $date);
 
+        if (! $period->isOpen()) {
+            throw ValidationException::withMessages(['date' => __('That period is already closed.')]);
+        }
+
         $transaction = $user->transactions()->create([
             'period_id' => $period->id,
             'category_id' => $category->id,

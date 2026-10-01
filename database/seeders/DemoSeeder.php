@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Actions\Budget\ApplyCategoryTemplate;
+use App\Enums\AccountType;
 use App\Enums\CalcMode;
 use App\Enums\Currency;
 use App\Enums\LineType;
@@ -10,6 +11,7 @@ use App\Enums\PeriodMode;
 use App\Enums\TransactionSource;
 use App\Models\CategoryTemplate;
 use App\Models\User;
+use App\Services\PeriodCloser;
 use App\Services\PeriodService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
@@ -44,6 +46,7 @@ class DemoSeeder extends Seeder
     public function __construct(
         private readonly ApplyCategoryTemplate $applyTemplate,
         private readonly PeriodService $periods,
+        private readonly PeriodCloser $closer,
     ) {}
 
     public function run(): void
@@ -81,6 +84,9 @@ class DemoSeeder extends Seeder
             'remaining_months' => 44,
         ]);
 
+        $investment = $user->accounts()->create(['name' => 'Befektetési számla', 'type' => AccountType::Investment, 'currency' => Currency::HUF]);
+        $user->settings()->update(['surplus_account_id' => $investment->id]);
+
         $this->generateSpending($user->refresh());
     }
 
@@ -110,7 +116,7 @@ class DemoSeeder extends Seeder
     }
 
     /**
-     * Two past periods plus the current one up to today.
+     * Two past periods (closed) plus the current one up to today.
      */
     private function generateSpending(User $user): void
     {
@@ -144,6 +150,10 @@ class DemoSeeder extends Seeder
                         'client_uuid' => (string) Str::uuid(),
                     ]);
                 }
+            }
+
+            if ($period->ends_on->lessThan($today)) {
+                $this->closer->close($user, $period);
             }
         }
     }

@@ -96,6 +96,24 @@ new #[Title('Month')] class extends Component {
         </flux:select>
     </div>
 
+    @if ($this->period->isOpen())
+        <flux:button :href="route('close', $this->period)" wire:navigate icon="lock-closed" data-test="start-close">
+            {{ __('Close the period') }}
+        </flux:button>
+    @elseif ($close = $this->period->close()->first())
+        <a href="{{ route('close', $this->period) }}" wire:navigate class="block rounded-2xl bg-white p-4 shadow-xs dark:bg-zinc-800" data-test="close-summary">
+            <div class="flex items-center justify-between">
+                <flux:heading>{{ __('Closed') }}</flux:heading>
+                <flux:icon.chevron-right class="size-4 text-zinc-400" />
+            </div>
+            <dl class="mt-2 grid grid-cols-3 gap-2 text-xs">
+                <div><dt class="text-zinc-500">{{ __('Leftover') }}</dt><dd><x-money :amount="$close->leftover" class="text-sm font-semibold" /></dd></div>
+                <div><dt class="text-zinc-500">{{ __('To the reserve') }}</dt><dd><x-money :amount="$close->to_reserve" class="text-sm" /></dd></div>
+                <div><dt class="text-zinc-500">{{ __('Rest') }}</dt><dd><x-money :amount="$close->to_invest" class="text-sm" /></dd></div>
+            </dl>
+        </a>
+    @endif
+
     @if ($this->category)
         <div class="flex items-center gap-2">
             <flux:badge icon="funnel">{{ $this->category->name }}</flux:badge>
