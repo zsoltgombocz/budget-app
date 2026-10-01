@@ -1,0 +1,87 @@
+name: deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+
+  build:
+    needs: tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      DEPLOY_TARGET: ${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}
+    steps:
+      - name: Checkout code
+        if: env.DEPLOY_SSH_KEY != ''
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: webfactory/ssh-agent@v0.9.0
+        if: env.DEPLOY_SSH_KEY != ''
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Ship the compose file and restart on the VPS
+        if: env.DEPLOY_SSH_KEY != ''
+        run: |
+          scp -o StrictHostKeyChecking=accept-new deploy/docker-compose.yml "$DEPLOY_TARGET:/home/projects/budget-app/docker-compose.yml"
+          ssh -o StrictHostKeyChecking=accept-new "$DEPLOY_TARGET" '
+            set -e
+            cd /home/projects/budget-app
+            docker compose pull app queue scheduler
+            docker compose up -d --remove-orphans
+            docker compose exec -T app php artisan migrate --force
+            docker compose exec -T app php artisan db:seed --class=CategoryTemplateSeeder --force
+            docker compose exec -T scheduler php artisan schedule:clear-cache
+            docker image prune -f
+          '
+
+      - name: Skipped (deploy secrets missing)
+        if: env.DEPLOY_SSH_KEY == ''
+        run: echo "::warning::DEPLOY_SSH_KEY, DEPLOY_SSH_USER and DEPLOY_SSH_HOST are not set; the image was pushed but not deployed."
