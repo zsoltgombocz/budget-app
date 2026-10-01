@@ -1,10 +1,12 @@
-# Production stack on the VPS (/home/projects/budget-app). Copied there by the deploy workflow.
-# The shared Caddy container (/opt/caddy) serves public/ from the budget_app_public volume
-# and forwards PHP requests to budget-app:9000 on the external "caddy" network.
-name: budget-app
+# Stack on the VPS, copied there by the deploy workflow: production in /home/projects/budget-app,
+# dev in /home/projects/budget-app-dev. The shared Caddy container (/opt/caddy) serves public/
+# from the PUBLIC_VOLUME volume and forwards PHP requests to <STACK_NAME>:9000 on the external
+# "caddy" network. STACK_NAME, IMAGE_TAG and PUBLIC_VOLUME come from the stack's .env; the
+# defaults are production.
+name: ${STACK_NAME:-budget-app}
 
 x-app: &app
-  image: ghcr.io/zsoltgombocz/budget-app:latest
+  image: ghcr.io/zsoltgombocz/budget-app:${IMAGE_TAG:-latest}
   volumes:
     - ./.env:/var/www/html/.env:ro
   networks:
@@ -17,7 +19,7 @@ x-app: &app
 services:
   app:
     <<: *app
-    container_name: budget-app
+    container_name: ${STACK_NAME:-budget-app}
     volumes:
       - ./.env:/var/www/html/.env:ro
       - budget_app_public:/var/www/html/public
@@ -25,23 +27,23 @@ services:
       internal:
       caddy:
         aliases:
-          - budget-app
+          - ${STACK_NAME:-budget-app}
 
   queue:
     <<: *app
-    container_name: budget-app-queue
+    container_name: ${STACK_NAME:-budget-app}-queue
     user: www-data
     command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--max-time=3600"]
 
   scheduler:
     <<: *app
-    container_name: budget-app-scheduler
+    container_name: ${STACK_NAME:-budget-app}-scheduler
     user: www-data
     command: ["php", "artisan", "schedule:work"]
 
   mariadb:
     image: mariadb:11.4
-    container_name: budget-app-mariadb
+    container_name: ${STACK_NAME:-budget-app}-mariadb
     environment:
       MARIADB_DATABASE: ${DB_DATABASE}
       MARIADB_USER: ${DB_USERNAME}
@@ -62,6 +64,7 @@ volumes:
   mariadb_data:
   budget_app_public:
     external: true
+    name: ${PUBLIC_VOLUME:-budget_app_public}
 
 networks:
   internal:

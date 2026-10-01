@@ -1,0 +1,62 @@
+{
+    "id": "/ma",
+    "name": "Budget DEV",
+    "short_name": "Budget DEV",
+    "description": "Havi költségvetés: tervezés, gyors rögzítés, várható maradék.",
+    "lang": "hu",
+    "start_url": "/ma",
+    "scope": "/",
+    "display": "standalone",
+    "orientation": "portrait",
+    "background_color": "#fafafa",
+    "theme_color": "#2563EB",
+    "icons": [
+        {
+            "src": "/icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/icons/maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "/icons/maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Rögzítés",
+            "short_name": "Rögzítés",
+            "url": "/rogzites",
+            "icons": [
+                {
+                    "src": "/icons/icon-192.png",
+                    "sizes": "192x192"
+                }
+            ]
+        },
+        {
+            "name": "Terv",
+            "url": "/terv",
+            "icons": [
+                {
+                    "src": "/icons/icon-192.png",
+                    "sizes": "192x192"
+                }
+            ]
+        }
+    ]
+}

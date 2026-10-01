@@ -6,6 +6,16 @@
  */
 return [
     [
+        'version' => '1.6.0',
+        'date' => '2026-10-01',
+        'changes' => [
+            ['hu' => 'Átdolgozott szerkesztő ablakok: csoportosított mezők, mindig látható Mentés gomb, és az összeghez külön felcsúszó számbillentyűzet.', 'en' => 'Reworked editors: grouped fields, an always visible Save button and a numpad that slides up for amounts.'],
+            ['hu' => 'A perselynél külön fül a pénzmozgásnak és a beállításoknak.', 'en' => 'Pockets have separate tabs for moving money and for settings.'],
+            ['hu' => 'Görgetés után is teljesen feljönnek az ablakok, és az onboardingban megjelenik a számbillentyűzet.', 'en' => 'Sheets open fully even after scrolling, and the numpad shows up in onboarding.'],
+            ['hu' => 'A fejléc nem homályosodik el a státuszsáv alatt, és iPhone-on a belépőkód felajánlható az e-mailből.', 'en' => 'The header no longer blurs under the status bar, and iPhone can offer the sign-in code from the email.'],
+        ],
+    ],
+    [
         'version' => '1.5.1',
         'date' => '2026-10-01',
         'changes' => [
