@@ -6,13 +6,17 @@
         @include('partials.head')
     </head>
     <body class="min-h-dvh bg-bg font-sans text-ink antialiased">
+        <x-splash />
+
         <div class="mx-auto min-h-dvh w-full max-w-lg">
             <main @class([
                 'pt-[var(--safe-top)]',
                 'pb-[calc(118px+env(safe-area-inset-bottom))]' => $tabs,
                 'pb-[env(safe-area-inset-bottom)]' => ! $tabs,
             ])>
-                {{ $slot }}
+                <div class="page-enter">
+                    {{ $slot }}
+                </div>
             </main>
         </div>
 
@@ -25,6 +29,12 @@
                 <livewire:entry-sheet />
             @endpersist
         @endif
+
+        @auth
+            @unless (request()->routeIs('changelog'))
+                <x-new-version />
+            @endunless
+        @endauth
 
         @persist('app-toast')
             <x-toast-host :tabs="$tabs" />

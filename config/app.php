@@ -1,5 +1,7 @@
 <?php
 
+use App\Support\Changelog;
+
 return [
 
     /*
@@ -14,6 +16,9 @@ return [
     */
 
     'name' => env('APP_NAME', 'Laravel'),
+
+    // Current app version, from the user-facing changelog (resources/changelog.php).
+    'version' => Changelog::version(),
 
     /*
     |--------------------------------------------------------------------------

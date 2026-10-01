@@ -651,7 +651,7 @@ new #[Title('Pockets and loans')] class extends Component {
             </div>
 
             <template x-if="sheet && sheet !== 'new'">
-                <x-ui.button x-on:click="submit()" ::disabled="saving" class="mt-2 w-full shrink-0" data-test="sheet-save">
+                <x-ui.button x-on:click="submit()" ::disabled="saving" ::class="saving && 'is-busy'" class="mt-2 w-full shrink-0" data-test="sheet-save">
                     <span x-text="sheet === 'prepay' ? @js(__('Record prepayment')) : @js(__('Save'))"></span>
                 </x-ui.button>
             </template>

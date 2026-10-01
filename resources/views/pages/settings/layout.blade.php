@@ -30,5 +30,11 @@
         <div class="mt-4 w-full">
             {{ $slot }}
         </div>
+
+        <a href="{{ route('changelog') }}" wire:navigate class="mt-8 flex items-center justify-center gap-2 text-[13px] text-muted" data-test="app-version">
+            <span>{{ __('Version :version', ['version' => config('app.version')]) }}</span>
+            <span class="text-faint">·</span>
+            <span class="font-medium text-accent">{{ __('What’s new') }}</span>
+        </a>
     </div>
 </div>

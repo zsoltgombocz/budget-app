@@ -250,7 +250,7 @@ new class extends Component {
                     </button>
                     <button type="button" x-on:click="submit()" :disabled="! digits || saving"
                             class="h-14 flex-1 rounded-btn text-[17px] font-semibold transition active:scale-[0.98]"
-                            :class="digits ? 'bg-accent text-accent-ink' : 'bg-surface-3 text-zinc-500'" data-test="save-entry">{{ __('Save') }}</button>
+                            :class="[digits ? 'bg-accent text-accent-ink' : 'bg-surface-3 text-zinc-500', saving && 'is-busy']" data-test="save-entry">{{ __('Save') }}</button>
                 </div>
             @endif
         </div>

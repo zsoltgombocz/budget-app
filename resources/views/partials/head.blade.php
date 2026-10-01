@@ -1,6 +1,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="csrf-token" content="{{ csrf_token() }}" />
+<meta name="app-version" content="{{ config('app.version') }}" />
 
 <title>
     {{ filled($title ?? null) ? __($title).' - '.config('app.name', 'Laravel') : config('app.name', 'Laravel') }}
@@ -25,5 +26,7 @@
 @vite(['resources/css/app.css', 'resources/js/app.js'])
 {{-- Dark is the primary theme; light or system can be chosen under Settings → Appearance. --}}
 <script>try { if ((/iPad|iPhone|iPod/.test(navigator.userAgent)) && (window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches)) document.documentElement.classList.add('ios-standalone') } catch (e) {}</script>
+{{-- Launch splash: only in the installed app and once per session. --}}
+<script>try { if ((navigator.standalone === true || matchMedia('(display-mode: standalone)').matches) && ! sessionStorage.getItem('splashed')) { document.documentElement.classList.add('splash'); sessionStorage.setItem('splashed', '1') } } catch (e) {}</script>
 <script>try { if (! localStorage.getItem('flux.appearance')) localStorage.setItem('flux.appearance', 'dark') } catch (e) {}</script>
 @fluxAppearance
