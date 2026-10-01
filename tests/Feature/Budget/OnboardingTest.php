@@ -113,3 +113,12 @@ it('shows a hint for every template line', function (): void {
         ->set('templateKey', 'couple')->call('next')
         ->assertSee('Leave 0 if they are paid from a joint account.');
 });
+
+it('explains what the leftover targets mean', function (): void {
+    $this->actingAs(User::factory()->create());
+
+    Livewire::test('pages::onboarding')
+        ->set('step', 6)
+        ->assertSee('listed as a manual transfer')
+        ->assertSee('added to a “Savings” pocket');
+});

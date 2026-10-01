@@ -295,10 +295,17 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                     @endforeach
                 </div>
                 <div class="mt-5 px-1 text-[13px] text-muted">{{ __('The rest goes to') }}</div>
-                <div class="mt-2 grid grid-cols-2 gap-2">
-                    <x-ui.choice :selected="$surplusTarget === 'investment'" wire:click="$set('surplusTarget', 'investment')" class="rounded-btn px-4 py-4 text-left text-[15px]">{{ __('Investment account') }}</x-ui.choice>
-                    <x-ui.choice :selected="$surplusTarget === 'pocket'" wire:click="$set('surplusTarget', 'pocket')" class="rounded-btn px-4 py-4 text-left text-[15px]">{{ __('Savings pocket') }}</x-ui.choice>
+                <div class="mt-2 grid gap-2" data-test="surplus-options">
+                    <x-ui.choice :selected="$surplusTarget === 'investment'" wire:click="$set('surplusTarget', 'investment')" class="rounded-btn px-4 py-4 text-left">
+                        <span class="block text-[15px] font-semibold">{{ __('Investment account') }}</span>
+                        <span class="mt-1 block text-[13px] font-normal leading-snug text-muted">{{ __('At closing the rest is listed as a manual transfer and we remind you to move it to your broker or investment account. The app does not track its balance (yet).') }}</span>
+                    </x-ui.choice>
+                    <x-ui.choice :selected="$surplusTarget === 'pocket'" wire:click="$set('surplusTarget', 'pocket')" class="rounded-btn px-4 py-4 text-left">
+                        <span class="block text-[15px] font-semibold">{{ __('Savings pocket') }}</span>
+                        <span class="mt-1 block text-[13px] font-normal leading-snug text-muted">{{ __('At closing the rest is added to a “Savings” pocket in the app: you see its balance under Pockets and can take money out of it.') }}</span>
+                    </x-ui.choice>
                 </div>
+                <p class="mt-3 px-1 text-xs leading-snug text-muted">{{ __('This only decides where the month-end leftover goes after the reserve. You can change it later in Settings.') }}</p>
                 @break
         @endswitch
     </div>
