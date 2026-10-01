@@ -6,13 +6,17 @@ use App\Enums\TransactionSource;
 use App\Models\Category;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Services\BudgetAlerts;
 use App\Services\PeriodService;
 use Carbon\CarbonImmutable;
 use Illuminate\Validation\ValidationException;
 
 final readonly class RecordTransaction
 {
-    public function __construct(private PeriodService $periods) {}
+    public function __construct(
+        private PeriodService $periods,
+        private BudgetAlerts $alerts,
+    ) {}
 
     /**
      * Record a spending. Idempotent on the client generated UUID, so a retried
@@ -47,7 +51,7 @@ final readonly class RecordTransaction
         $date ??= $this->periods->today($user->settings());
         $period = $this->periods->forDate($user, $date);
 
-        return $user->transactions()->create([
+        $transaction = $user->transactions()->create([
             'period_id' => $period->id,
             'category_id' => $category->id,
             'amount' => $amount,
@@ -56,5 +60,9 @@ final readonly class RecordTransaction
             'source' => TransactionSource::Manual,
             'client_uuid' => $clientUuid,
         ]);
+
+        $this->alerts->afterSpending($user, $period, $category->id, $amount);
+
+        return $transaction;
     }
 }

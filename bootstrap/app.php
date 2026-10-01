@@ -18,6 +18,10 @@ return Application::configure(basePath: dirname(__DIR__))
             SetUserLocale::class,
         ]);
 
+        $middleware->validateCsrfTokens(except: [
+            'push/no-spend/*',
+        ]);
+
         $middleware->alias([
             'onboarded' => EnsureOnboarded::class,
         ]);

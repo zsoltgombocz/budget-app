@@ -25,6 +25,13 @@ new #[Title('Today')] class extends Component {
         unset($this->overview);
     }
 
+    public function saveReminderTime(string $time): void
+    {
+        validator(['time' => $time], ['time' => ['required', 'date_format:H:i']])->validate();
+
+        $this->user()->settings()->update(['reminder_time' => $time, 'reminder_enabled' => true]);
+    }
+
     #[Computed]
     public function overview(): Overview
     {
@@ -48,6 +55,8 @@ new #[Title('Today')] class extends Component {
 @endphp
 
 <div class="flex flex-col gap-4">
+    <x-push-prompt :reminder-time="substr(auth()->user()->settings()->reminder_time, 0, 5)" />
+
     <section class="rounded-2xl bg-zinc-900 p-4 text-white shadow-sm dark:bg-white dark:text-zinc-900" data-test="expected-leftover">
         <div class="flex items-center justify-between gap-2 text-sm opacity-80">
             <span class="truncate">{{ __('Expected leftover at period end') }}</span>
