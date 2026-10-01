@@ -7,6 +7,8 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -58,5 +60,117 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         return Str::length($initials) > 1
             ? Str::substr($initials, 0, 1).Str::substr($initials, -1)
             : $initials;
+    }
+
+    /**
+     * @return HasOne<BudgetSetting, $this>
+     */
+    public function budgetSetting(): HasOne
+    {
+        return $this->hasOne(BudgetSetting::class);
+    }
+
+    /**
+     * The user's budget settings, created with defaults on first access.
+     */
+    public function settings(): BudgetSetting
+    {
+        $settings = $this->budgetSetting;
+
+        if ($settings === null) {
+            $settings = $this->budgetSetting()->create();
+            $settings->refresh();
+            $this->setRelation('budgetSetting', $settings);
+        }
+
+        return $settings;
+    }
+
+    /**
+     * @return HasMany<Account, $this>
+     */
+    public function accounts(): HasMany
+    {
+        return $this->hasMany(Account::class);
+    }
+
+    /**
+     * @return HasMany<Category, $this>
+     */
+    public function categories(): HasMany
+    {
+        return $this->hasMany(Category::class);
+    }
+
+    /**
+     * @return HasMany<BudgetLine, $this>
+     */
+    public function budgetLines(): HasMany
+    {
+        return $this->hasMany(BudgetLine::class);
+    }
+
+    /**
+     * @return HasMany<Period, $this>
+     */
+    public function periods(): HasMany
+    {
+        return $this->hasMany(Period::class);
+    }
+
+    /**
+     * @return HasMany<Transaction, $this>
+     */
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(Transaction::class);
+    }
+
+    /**
+     * @return HasMany<DayMark, $this>
+     */
+    public function dayMarks(): HasMany
+    {
+        return $this->hasMany(DayMark::class);
+    }
+
+    /**
+     * @return HasMany<Pocket, $this>
+     */
+    public function pockets(): HasMany
+    {
+        return $this->hasMany(Pocket::class);
+    }
+
+    /**
+     * @return HasMany<PocketMovement, $this>
+     */
+    public function pocketMovements(): HasMany
+    {
+        return $this->hasMany(PocketMovement::class);
+    }
+
+    /**
+     * @return HasMany<Loan, $this>
+     */
+    public function loans(): HasMany
+    {
+        return $this->hasMany(Loan::class);
+    }
+
+    /**
+     * @return HasMany<LoanEvent, $this>
+     */
+    public function loanEvents(): HasMany
+    {
+        return $this->hasMany(LoanEvent::class);
+    }
+
+    /**
+     * @return HasMany<PeriodClose, $this>
+     */
+    public function periodCloses(): HasMany
+    {
+        return $this->hasMany(PeriodClose::class);
     }
 }
