@@ -24,5 +24,6 @@
 
 @vite(['resources/css/app.css', 'resources/js/app.js'])
 {{-- Dark is the primary theme; light or system can be chosen under Settings → Appearance. --}}
+<script>try { if ((/iPad|iPhone|iPod/.test(navigator.userAgent)) && (window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches)) document.documentElement.classList.add('ios-standalone') } catch (e) {}</script>
 <script>try { if (! localStorage.getItem('flux.appearance')) localStorage.setItem('flux.appearance', 'dark') } catch (e) {}</script>
 @fluxAppearance

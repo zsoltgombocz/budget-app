@@ -8,7 +8,7 @@
     <body class="min-h-dvh bg-bg font-sans text-ink antialiased">
         <div class="mx-auto min-h-dvh w-full max-w-lg">
             <main @class([
-                'pt-[env(safe-area-inset-top)]',
+                'pt-[var(--safe-top)]',
                 'pb-[calc(118px+env(safe-area-inset-bottom))]' => $tabs,
                 'pb-[env(safe-area-inset-bottom)]' => ! $tabs,
             ])>

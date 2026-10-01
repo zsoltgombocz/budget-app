@@ -278,7 +278,7 @@ new #[Title('Plan')] class extends Component {
         </x-slot>
     </x-ui.page-header>
 
-    <div class="sticky top-0 z-10 bg-bg px-4 pb-1 pt-3.5">
+    <div class="sticky top-[var(--safe-top)] z-10 bg-bg px-4 pb-1 pt-3.5">
         <div class="grid grid-cols-3 gap-2 rounded-[22px] border border-ink/7 bg-surface-2 px-[18px] py-3.5" data-test="plan-summary">
             <div><div class="text-xs text-muted">{{ __('Income') }}</div><div class="num mt-[3px] text-base font-semibold">{{ money_number($summary->income) }}</div></div>
             <div><div class="text-xs text-muted">{{ __('Expenses') }}</div><div class="num mt-[3px] text-base font-semibold">{{ money_number($summary->totalExpenses) }}</div></div>
@@ -363,7 +363,7 @@ new #[Title('Plan')] class extends Component {
     {{-- Line editor --}}
     <div x-show="sheet === 'line'" x-cloak class="fixed inset-0 z-50" role="dialog" aria-modal="true">
         <div class="absolute inset-0 bg-black/55" x-on:click="sheet = null"></div>
-        <div class="absolute inset-x-0 bottom-0 top-[max(2.5rem,calc(env(safe-area-inset-top)+1rem))] mx-auto flex max-w-lg flex-col rounded-t-[30px] bg-surface px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2"
+        <div class="absolute inset-x-0 bottom-0 top-[max(2.5rem,calc(var(--safe-top)+1rem))] mx-auto flex max-w-lg flex-col rounded-t-[30px] bg-surface px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2"
              x-show="sheet === 'line'" x-transition:enter="transition duration-300 ease-out" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0">
             <div class="mx-auto h-[5px] w-9 shrink-0 rounded-full bg-ink/18"></div>
             <div class="mt-1 grid h-11 shrink-0 grid-cols-[72px_1fr_72px] items-center">

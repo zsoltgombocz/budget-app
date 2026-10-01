@@ -182,7 +182,7 @@ new class extends Component {
         <div x-show="open"
              x-transition:enter="transition duration-300 ease-out" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
              x-transition:leave="transition duration-200 ease-in" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full"
-             class="absolute inset-x-0 bottom-0 top-[max(5rem,calc(env(safe-area-inset-top)+4rem))] mx-auto flex max-w-lg flex-col rounded-t-[30px] bg-surface px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2">
+             class="absolute inset-x-0 bottom-0 top-[max(5rem,calc(var(--safe-top)+4rem))] mx-auto flex max-w-lg flex-col rounded-t-[30px] bg-surface px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2">
             <div class="mx-auto h-[5px] w-9 shrink-0 rounded-full bg-ink/18"></div>
             <div class="mt-1 grid h-11 shrink-0 grid-cols-[72px_1fr_72px] items-center">
                 <button type="button" class="text-left text-[15px] text-muted" x-on:click="close()">{{ __('Cancel') }}</button>

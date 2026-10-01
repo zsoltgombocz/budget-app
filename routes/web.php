@@ -6,6 +6,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/ma')->name('home');
 
+// Public install guide: shows the steps for the visitor's phone and browser.
+Route::view('telepites', 'install')->name('install');
+
 Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::livewire('kezdes', 'pages::onboarding')->name('onboarding');
 

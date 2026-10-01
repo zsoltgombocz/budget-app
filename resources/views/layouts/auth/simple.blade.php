@@ -4,7 +4,7 @@
         @include('partials.head')
     </head>
     <body class="min-h-dvh bg-bg font-sans text-ink antialiased">
-        <div class="flex min-h-dvh flex-col items-center justify-center gap-6 px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-[calc(1.5rem+env(safe-area-inset-top))]">
+        <div class="flex min-h-dvh flex-col items-center justify-center gap-6 px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-[calc(1.5rem+var(--safe-top))]">
             <div class="flex w-full max-w-sm flex-col gap-6">
                 <a href="{{ route('home') }}" class="flex items-center gap-3" wire:navigate>
                     <span class="flex size-12 items-center justify-center rounded-2xl bg-accent text-accent-ink">
@@ -15,7 +15,9 @@
                 <div class="flex flex-col gap-6 rounded-card bg-surface p-6">
                     {{ $slot }}
                 </div>
-                <x-install-card />
+                @unless (request()->routeIs('install'))
+                    <x-install-card />
+                @endunless
             </div>
         </div>
 
