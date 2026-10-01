@@ -6,6 +6,7 @@ use App\Enums\PeriodMode;
 use App\Enums\PeriodStatus;
 use App\Models\BudgetSetting;
 use App\Models\Period;
+use App\Models\PocketMovement;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -90,6 +91,26 @@ final readonly class PeriodService
             'status' => PeriodStatus::Open,
             'plan_snapshot' => $this->calculator->snapshot($lines),
         ]);
+    }
+
+    /**
+     * Money taken out of pockets into this period's budget (counts as extra income).
+     */
+    public function topUps(Period $period): int
+    {
+        return -(int) PocketMovement::query()
+            ->withoutGlobalScopes()
+            ->where('period_id', $period->id)
+            ->where('to_budget', true)
+            ->sum('amount');
+    }
+
+    /**
+     * Income the period can spend: actual (or planned) income plus pocket top-ups.
+     */
+    public function availableIncome(Period $period): int
+    {
+        return $period->income() + $this->topUps($period);
     }
 
     private function paydayIn(CarbonImmutable $month, int $paydayDay): CarbonImmutable

@@ -32,7 +32,8 @@ final readonly class OverviewService
 
         $spent = [];
 
-        foreach ($period->transactions()->selectRaw('category_id, sum(amount) as total')->groupBy('category_id')->toBase()->get() as $row) {
+        // Spending paid from a pocket does not use up the budget.
+        foreach ($period->transactions()->whereNull('pocket_id')->selectRaw('category_id, sum(amount) as total')->groupBy('category_id')->toBase()->get() as $row) {
             if (is_numeric($row->category_id) && is_numeric($row->total)) {
                 $spent[(int) $row->category_id] = (int) $row->total;
             }
@@ -46,7 +47,7 @@ final readonly class OverviewService
 
         $forecast = $this->forecasts->forecast(
             lines: $lines,
-            income: $period->income(),
+            income: $this->periods->availableIncome($period),
             spentByCategory: $spent,
             totalDays: $period->totalDays(),
             elapsedDays: max(1, $period->elapsedDays($today)),

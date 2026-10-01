@@ -1,6 +1,8 @@
 <?php
 
 use App\Actions\Budget\MovePocketMoney;
+use App\Actions\Budget\PayFromPocket;
+use App\Enums\LineType;
 use App\Actions\Budget\RecordPrepayment;
 use App\Actions\Budget\SaveLoan;
 use App\Enums\Currency;
@@ -36,6 +38,12 @@ new #[Title('Pockets and loans')] class extends Component {
             'isReserve' => $pocket->is_reserve ?? false,
             'isShared' => $pocket->is_shared ?? false,
             'loanId' => $pocket?->loan_id,
+            'movements' => $pocket === null ? [] : $pocket->movements()->latest('occurred_on')->latest('id')->limit(5)->get()
+                ->map(fn ($movement): array => [
+                    'date' => \App\Support\Dates::short($movement->occurred_on),
+                    'amount' => ($movement->amount > 0 ? '+' : '').money($movement->amount),
+                    'label' => $movement->note ?? $movement->type->label(),
+                ])->all(),
             'amounts' => [
                 'move' => '',
                 'target' => $this->input($pocket?->target_amount),
@@ -100,7 +108,13 @@ new #[Title('Pockets and loans')] class extends Component {
     /**
      * @return array{ok: bool, errors: array<string, string>}
      */
-    public function movePocketMoney(int $pocketId, int $direction, string $amount, ?string $note, MovePocketMoney $movePocketMoney): array
+    /**
+     * Deposit (direction 1) or withdraw (-1). A withdrawal tops up this period's budget
+     * unless $toBudget is false (money simply leaves the pocket).
+     *
+     * @return array{ok: bool, errors: array<string, string>}
+     */
+    public function movePocketMoney(int $pocketId, int $direction, string $amount, ?string $note, MovePocketMoney $movePocketMoney, bool $toBudget = true): array
     {
         $value = $this->parse($amount);
 
@@ -109,10 +123,49 @@ new #[Title('Pockets and loans')] class extends Component {
         }
 
         $pocket = $this->user()->pockets()->findOrFail($pocketId);
-        $movePocketMoney->handle($this->user(), $pocket, ($direction < 0 ? -1 : 1) * $value, $note);
+
+        try {
+            $movePocketMoney->handle($this->user(), $pocket, ($direction < 0 ? -1 : 1) * $value, $note, $direction < 0 && $toBudget);
+        } catch (ValidationException $exception) {
+            return ['ok' => false, 'errors' => ['move' => (string) collect($exception->errors())->flatten()->first()]];
+        }
 
         unset($this->pockets);
-        $this->dispatch('app-toast', title: $direction < 0 ? __('Withdrawn: :amount', ['amount' => money($value)]) : __('Deposited: :amount', ['amount' => money($value)]));
+        $this->dispatch('budget-updated');
+        $this->dispatch('app-toast',
+            title: $direction < 0 ? __('Withdrawn: :amount', ['amount' => money($value)]) : __('Deposited: :amount', ['amount' => money($value)]),
+            subtitle: $direction < 0 && $toBudget ? __('Added to this period’s budget.') : null,
+        );
+
+        return ['ok' => true, 'errors' => []];
+    }
+
+    /**
+     * Pay a spending from the pocket: recorded in the month, does not use up the budget.
+     *
+     * @return array{ok: bool, errors: array<string, string>}
+     */
+    public function payFromPocket(int $pocketId, string $amount, ?int $categoryId, ?string $note, PayFromPocket $payFromPocket): array
+    {
+        $value = $this->parse($amount);
+
+        if ($value === null || $value <= 0) {
+            return ['ok' => false, 'errors' => ['move' => __('Enter a valid amount.')]];
+        }
+
+        if ($categoryId === null) {
+            return ['ok' => false, 'errors' => ['category' => __('Choose a category.')]];
+        }
+
+        try {
+            $payFromPocket->handle($this->user(), $this->user()->pockets()->findOrFail($pocketId), $categoryId, $value, filled($note) ? $note : null);
+        } catch (ValidationException $exception) {
+            return ['ok' => false, 'errors' => ['move' => (string) collect($exception->errors())->flatten()->first()]];
+        }
+
+        unset($this->pockets);
+        $this->dispatch('budget-updated');
+        $this->dispatch('app-toast', title: __('Paid from the pocket: :amount', ['amount' => money($value)]), subtitle: __('It does not use up this period’s budget.'));
 
         return ['ok' => true, 'errors' => []];
     }
@@ -260,6 +313,17 @@ new #[Title('Pockets and loans')] class extends Component {
         return $this->user()->loans()->with('pockets')->orderByDesc('principal_balance')->get();
     }
 
+    /**
+     * Categories a pocket can pay for.
+     *
+     * @return Collection<int, \App\Models\Category>
+     */
+    #[Computed]
+    public function spendCategories(): Collection
+    {
+        return $this->user()->categories()->whereIn('type', [LineType::Variable, LineType::Sinking])->orderBy('sort')->get();
+    }
+
     #[Computed]
     public function currency(): Currency
     {
@@ -328,7 +392,11 @@ new #[Title('Pockets and loans')] class extends Component {
     $decimals = $this->currency->decimals();
 @endphp
 
-<div x-data="pocketsPage({ decimals: {{ $decimals }}, locale: @js(str_replace('_', '-', app()->getLocale())) })">
+@php
+    $coverAmount = (int) request()->query('fedezes', 0);
+    $cover = $coverAmount > 0 && $reserve ? ['pocketId' => $reserve->id, 'amount' => str_replace('.', ',', \App\Support\Money::toInput(min($coverAmount, max(0, $reserve->balance)), $this->currency))] : null;
+@endphp
+<div x-data="pocketsPage({ decimals: {{ $decimals }}, locale: @js(str_replace('_', '-', app()->getLocale())), cover: @js($cover) })">
     <x-ui.page-header :title="__('Pockets')" :subtitle="__('Saved in total: :amount', ['amount' => money((int) $pockets->sum('balance'))])">
         <x-slot name="actions">
             <x-ui.icon-button icon="add" x-on:click="sheet = 'new'" :label="__('Add')" data-test="add" />
@@ -478,11 +546,33 @@ new #[Title('Pockets and loans')] class extends Component {
                             <div class="rounded-btn bg-bg p-3">
                                 <div class="num text-center text-sm text-muted">{{ __('Balance') }}: <span class="font-semibold text-ink" x-text="money(form.balance)"></span></div>
                                 <button type="button" x-on:click="focus('move')" class="num mt-1 block w-full py-2 text-center text-[44px] font-semibold tracking-[-0.04em]" :class="! filled('move') && 'text-faint'" x-text="display('move')"></button>
-                                <div class="mb-2 text-center text-xs text-danger" x-show="errors.move" x-text="errors.move"></div>
-                                <div class="grid grid-cols-2 gap-2">
-                                    <x-ui.button variant="secondary" size="md" icon="remove" x-on:click="move(-1)">{{ __('Withdraw') }}</x-ui.button>
-                                    <x-ui.button size="md" icon="add" x-on:click="move(1)" data-test="pocket-deposit">{{ __('Deposit') }}</x-ui.button>
+                                <div class="mb-2 text-center text-xs text-danger" x-show="errors.move || errors.category" x-text="errors.move || errors.category"></div>
+                                <div class="grid grid-cols-3 gap-[3px] rounded-xl bg-surface p-[3px]">
+                                    @foreach (['deposit' => __('Deposit'), 'budget' => __('To the budget'), 'spend' => __('Pay a spending')] as $mode => $label)
+                                        <button type="button" x-on:click="moveMode = @js($mode)" class="h-9 rounded-[9px] text-[12px] font-medium leading-tight" :class="moveMode === @js($mode) ? 'bg-surface-3 text-ink' : 'text-muted'" data-test="mode-{{ $mode }}">{{ $label }}</button>
+                                    @endforeach
                                 </div>
+                                <p class="mt-2 text-xs leading-snug text-muted" x-show="moveMode === 'budget'">{{ __('The money leaves the pocket and is added to this period’s budget, so the expected leftover and the daily budget grow.') }}</p>
+                                <p class="mt-2 text-xs leading-snug text-muted" x-show="moveMode === 'spend'">{{ __('Recorded as a spending of the chosen category, paid by the pocket. It does not use up the budget; deleting it puts the money back.') }}</p>
+                                <template x-if="moveMode === 'spend'">
+                                    <div class="mt-2 grid gap-2">
+                                        <select x-model.number="spendCategory" class="h-11 w-full rounded-[14px] bg-surface-2 px-3 text-[15px] outline-none" data-test="spend-category">
+                                            <option value="">{{ __('Choose a category') }}</option>
+                                            @foreach ($this->spendCategories as $category)<option value="{{ $category->id }}">{{ $category->name }}</option>@endforeach
+                                        </select>
+                                        <input type="text" x-model="spendNote" maxlength="255" placeholder="{{ __('Note (optional)') }}" class="h-11 w-full rounded-[14px] bg-surface-2 px-3 outline-none">
+                                    </div>
+                                </template>
+                                <x-ui.button size="md" class="mt-2 w-full" x-on:click="move()" data-test="pocket-move">
+                                    <span x-text="{ deposit: @js(__('Deposit')), budget: @js(__('Withdraw to the budget')), spend: @js(__('Pay from the pocket')) }[moveMode]"></span>
+                                </x-ui.button>
+                                <template x-if="form.movements?.length">
+                                    <div class="mt-3 border-t border-line pt-2">
+                                        <template x-for="movement in form.movements">
+                                            <div class="num flex justify-between gap-2 py-1 text-xs text-muted"><span class="truncate" x-text="movement.date + ' · ' + movement.label"></span><span class="shrink-0 text-ink-2" x-text="movement.amount"></span></div>
+                                        </template>
+                                    </div>
+                                </template>
                             </div>
                         </template>
 
@@ -571,8 +661,11 @@ new #[Title('Pockets and loans')] class extends Component {
 
 @script
 <script>
-    Alpine.data('pocketsPage', ({ decimals, locale }) => ({
+    Alpine.data('pocketsPage', ({ decimals, locale, cover }) => ({
         sheet: null,
+        moveMode: 'deposit',
+        spendCategory: '',
+        spendNote: '',
         form: {},
         fields: {},
         active: null,
@@ -584,6 +677,10 @@ new #[Title('Pockets and loans')] class extends Component {
 
         init() {
             this.$watch('sheet', open => document.documentElement.classList.toggle('overflow-hidden', !! open))
+            if (cover?.pocketId) {
+                this.openPocket(cover.pocketId).then(() => { this.moveMode = 'budget'; this.fields.move = String(cover.amount) })
+                history.replaceState(null, '', location.pathname)
+            }
         },
 
         title() {
@@ -629,14 +726,17 @@ new #[Title('Pockets and loans')] class extends Component {
             this.errors = {}
             this.sheet = sheet
         },
-        async openPocket(id) { const data = await $wire.pocketData(id); this.open('pocket', data, id ? 'move' : 'target') },
+        async openPocket(id) { const data = await $wire.pocketData(id); this.moveMode = 'deposit'; this.open('pocket', data, id ? 'move' : 'target') },
         async openLoan(id) { const data = await $wire.loanData(id); this.open('loan', data, 'principal') },
         async openPrepay(id) { const data = await $wire.prepayData(id); this.open('prepay', data, 'prepay') },
 
-        async move(direction) {
-            const result = await $wire.movePocketMoney(this.form.id, direction, this.fields.move || '', null)
+        async move() {
+            const amount = this.fields.move || ''
+            const result = this.moveMode === 'spend'
+                ? await $wire.payFromPocket(this.form.id, amount, this.spendCategory || null, this.spendNote || null)
+                : await $wire.movePocketMoney(this.form.id, this.moveMode === 'deposit' ? 1 : -1, amount, null, true)
             this.errors = result.errors
-            if (result.ok) this.sheet = null
+            if (result.ok) { this.sheet = null; this.spendNote = ''; this.spendCategory = '' }
         },
         async removePocket() {
             if (! confirm(@js(__('Delete this pocket?')))) return
