@@ -1,0 +1,69 @@
+# Production stack on the VPS (/home/projects/budget-app). Copied there by the deploy workflow.
+# The shared Caddy container (/opt/caddy) serves public/ from the budget_app_public volume
+# and forwards PHP requests to budget-app:9000 on the external "caddy" network.
+name: budget-app
+
+x-app: &app
+  image: ghcr.io/zsoltgombocz/budget-app:latest
+  volumes:
+    - ./.env:/var/www/html/.env:ro
+  networks:
+    - internal
+  depends_on:
+    mariadb:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  app:
+    <<: *app
+    container_name: budget-app
+    volumes:
+      - ./.env:/var/www/html/.env:ro
+      - budget_app_public:/var/www/html/public
+    networks:
+      internal:
+      caddy:
+        aliases:
+          - budget-app
+
+  queue:
+    <<: *app
+    container_name: budget-app-queue
+    user: www-data
+    command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--max-time=3600"]
+
+  scheduler:
+    <<: *app
+    container_name: budget-app-scheduler
+    user: www-data
+    command: ["php", "artisan", "schedule:work"]
+
+  mariadb:
+    image: mariadb:11.4
+    container_name: budget-app-mariadb
+    environment:
+      MARIADB_DATABASE: ${DB_DATABASE}
+      MARIADB_USER: ${DB_USERNAME}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+      MARIADB_RANDOM_ROOT_PASSWORD: "1"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  mariadb_data:
+  budget_app_public:
+    external: true
+
+networks:
+  internal:
+  caddy:
+    external: true

@@ -1,0 +1,29 @@
+# Reference copy of /opt/caddy/vhost/budget-app on the VPS, imported from the shared
+# Caddy container's main Caddyfile. Caddy does not read this file directly.
+# budget.miraglia.cc is proxied by Cloudflare, so TLS uses the *.miraglia.cc origin certificate.
+
+budget.miraglia.cc {
+    tls /etc/ssl/cert/miraglia_cc.cert.pem /etc/ssl/private/miraglia_cc.key.pem
+
+    root * /var/www/budget-app/public
+    encode zstd gzip
+
+    header /build/* Cache-Control "public, max-age=31536000, immutable"
+    header /sw.js Cache-Control "no-cache"
+    header /manifest.webmanifest Content-Type "application/manifest+json"
+
+    php_fastcgi budget-app:9000 {
+        root /var/www/html/public
+    }
+    file_server
+
+    log {
+        output file /var/log/caddy/budget_miraglia_cc.access.log {
+            roll_size 50mb
+            roll_keep 5
+            roll_keep_for 14d
+        }
+
+        format console
+    }
+}
