@@ -72,7 +72,7 @@ new class extends Component {
     #[On('undo-transaction')]
     public function undoTransaction(int $id): void
     {
-        Transaction::query()->whereKey($id)->where('user_id', $this->user()->id)->delete();
+        Transaction::query()->whereKey($id)->where('user_id', $this->user()->id)->first()?->delete();
         $this->options = $this->loadOptions();
 
         $this->dispatch('budget-updated');

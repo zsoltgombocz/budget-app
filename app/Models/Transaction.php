@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $period_id
  * @property int $category_id
  * @property int|null $account_id
+ * @property int|null $pocket_id
  * @property int $amount
  * @property CarbonImmutable $occurred_on
  * @property string|null $note
@@ -26,7 +27,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
-#[Fillable(['period_id', 'category_id', 'account_id', 'amount', 'occurred_on', 'note', 'source', 'client_uuid', 'external_ref'])]
+#[Fillable(['period_id', 'category_id', 'account_id', 'pocket_id', 'amount', 'occurred_on', 'note', 'source', 'client_uuid', 'external_ref'])]
 class Transaction extends Model
 {
     /** @use HasFactory<TransactionFactory> */
@@ -60,6 +61,28 @@ class Transaction extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class)->withTrashed();
+    }
+
+    /**
+     * The pocket that paid for this spending, if any.
+     *
+     * @return BelongsTo<Pocket, $this>
+     */
+    public function pocket(): BelongsTo
+    {
+        return $this->belongsTo(Pocket::class);
+    }
+
+    /**
+     * Deleting a pocket-paid spending puts the money back into the pocket.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (Transaction $transaction): void {
+            if ($transaction->pocket_id !== null) {
+                Pocket::query()->withoutGlobalScopes()->whereKey($transaction->pocket_id)->increment('balance', $transaction->amount);
+            }
+        });
     }
 
     /**

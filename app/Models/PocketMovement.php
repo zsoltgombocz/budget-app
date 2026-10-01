@@ -16,6 +16,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $user_id
  * @property int $pocket_id
  * @property int|null $period_id
+ * @property int|null $transaction_id
+ * @property bool $to_budget
  * @property int $amount
  * @property PocketMovementType $type
  * @property CarbonImmutable $occurred_on
@@ -23,7 +25,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
-#[Fillable(['pocket_id', 'period_id', 'amount', 'type', 'occurred_on', 'note'])]
+#[Fillable(['pocket_id', 'period_id', 'transaction_id', 'to_budget', 'amount', 'type', 'occurred_on', 'note'])]
 class PocketMovement extends Model
 {
     /** @use HasFactory<PocketMovementFactory> */
@@ -38,6 +40,7 @@ class PocketMovement extends Model
     {
         return [
             'amount' => 'integer',
+            'to_budget' => 'boolean',
             'type' => PocketMovementType::class,
             'occurred_on' => 'immutable_date',
         ];

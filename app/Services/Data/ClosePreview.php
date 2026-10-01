@@ -16,6 +16,7 @@ final readonly class ClosePreview
     public function __construct(
         public int $incomePlanned,
         public int $incomeActual,
+        public int $topUps,
         public int $plannedTotal,
         public int $actualTotal,
         public array $categories,
@@ -28,7 +29,7 @@ final readonly class ClosePreview
 
     public function leftover(): int
     {
-        return $this->incomeActual - $this->actualTotal;
+        return $this->incomeActual + $this->topUps - $this->actualTotal;
     }
 
     /**
@@ -39,6 +40,7 @@ final readonly class ClosePreview
         return [
             'income_planned' => $this->incomePlanned,
             'income_actual' => $this->incomeActual,
+            'top_ups' => $this->topUps,
             'categories' => $this->categories,
             'allocation' => [
                 'to_reserve' => $this->allocation->toReserve,

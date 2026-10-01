@@ -41,6 +41,25 @@ new #[Title('Today')] class extends Component {
         $this->dispatch('budget-updated');
     }
 
+    public function markTransferred(int $periodCloseId): void
+    {
+        $this->user()->periodCloses()->whereKey($periodCloseId)->update(['surplus_transferred_at' => now()]);
+        unset($this->pendingTransfers);
+
+        $this->dispatch('app-toast', title: __('Marked as transferred.'));
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Collection<int, \App\Models\PeriodClose>
+     */
+    #[Computed]
+    public function pendingTransfers(): \Illuminate\Database\Eloquent\Collection
+    {
+        return $this->user()->periodCloses()->with('surplusAccount')
+            ->whereNull('surplus_transferred_at')->whereNotNull('surplus_account_id')->where('to_invest', '>', 0)
+            ->latest('id')->get();
+    }
+
     #[On('budget-updated')]
     public function refresh(): void
     {
@@ -129,11 +148,22 @@ new #[Title('Today')] class extends Component {
                 </div>
             </div>
             <div class="flex gap-2 pl-[34px]">
-                <x-ui.button variant="light" size="sm" :href="route('pockets')" wire:navigate>{{ __('Cover from the reserve') }}</x-ui.button>
+                <x-ui.button variant="light" size="sm" :href="route('pockets', ['fedezes' => max(0, -$forecast->expectedLeftover)])" wire:navigate data-test="cover-from-reserve">{{ __('Cover from the reserve') }}</x-ui.button>
                 <x-ui.button variant="secondary" size="sm" :href="route('month')" wire:navigate class="!bg-ink/8">{{ __('Details') }}</x-ui.button>
             </div>
         </div>
     @endif
+
+    @foreach ($this->pendingTransfers as $close)
+        <div class="mx-4 mb-3 flex items-center gap-3 rounded-[22px] border border-accent/22 bg-accent/10 px-4 py-3.5" wire:key="transfer-{{ $close->id }}" data-test="pending-transfer">
+            <x-ui.icon-tile icon="show_chart" tone="accent" />
+            <div class="min-w-0 flex-1">
+                <div class="num text-[15px] font-semibold">{{ __('Transfer :amount', ['amount' => money($close->to_invest)]) }}</div>
+                <div class="truncate text-xs text-muted">{{ __('to :account, from the month-end leftover', ['account' => $close->surplusAccount->name ?? '']) }}</div>
+            </div>
+            <x-ui.button size="sm" variant="light" wire:click="markTransferred({{ $close->id }})" data-test="mark-transferred">{{ __('Transferred') }}</x-ui.button>
+        </div>
+    @endforeach
 
     <button type="button" x-data x-on:click="$dispatch('open-entry')" class="mx-4 mb-3 flex w-[calc(100%-2rem)] items-center justify-between rounded-card bg-surface px-5 py-[18px] text-left" data-test="daily-allowance">
         <span>

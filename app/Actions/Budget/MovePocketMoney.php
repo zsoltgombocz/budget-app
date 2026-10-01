@@ -15,15 +15,20 @@ final readonly class MovePocketMoney
     public function __construct(private PeriodService $periods) {}
 
     /**
-     * Manual deposit (positive) or withdrawal (negative).
+     * Manual deposit (positive) or withdrawal (negative). A withdrawal with $toBudget
+     * tops up the current period's budget, as if it were extra income.
      */
-    public function handle(User $user, Pocket $pocket, int $amount, ?string $note = null): PocketMovement
+    public function handle(User $user, Pocket $pocket, int $amount, ?string $note = null, bool $toBudget = false): PocketMovement
     {
         if ($amount === 0) {
             throw ValidationException::withMessages(['amount' => __('The amount must be greater than zero.')]);
         }
 
-        return DB::transaction(function () use ($user, $pocket, $amount, $note): PocketMovement {
+        if ($amount < 0 && $pocket->balance < -$amount) {
+            throw ValidationException::withMessages(['amount' => __('The pocket does not have enough money.')]);
+        }
+
+        return DB::transaction(function () use ($user, $pocket, $amount, $note, $toBudget): PocketMovement {
             $today = $this->periods->today($user->settings());
 
             $movement = $user->pocketMovements()->create([
@@ -31,6 +36,7 @@ final readonly class MovePocketMoney
                 'period_id' => $this->periods->forDate($user, $today)->id,
                 'amount' => $amount,
                 'type' => $amount > 0 ? PocketMovementType::Deposit : PocketMovementType::Withdraw,
+                'to_budget' => $amount < 0 && $toBudget,
                 'occurred_on' => $today->toDateString(),
                 'note' => filled($note) ? $note : null,
             ]);

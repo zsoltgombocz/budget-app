@@ -31,6 +31,11 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
     /** Manual split of a positive leftover, null = the settings' rule. */
     public ?int $toReserve = null;
 
+    /** Leftover target for this closing only ('account:ID', 'pocket:ID', 'new-pocket', 'none'); null = settings. */
+    public ?string $surplusTarget = null;
+
+    public bool $saveTargetAsDefault = false;
+
     /** @var list<int> pockets whose prepayment was recorded after closing */
     public array $prepaid = [];
 
@@ -46,6 +51,19 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
     {
         if ($this->period->isOpen()) {
             $this->step = max(1, min(3, $step));
+            unset($this->preview);
+        }
+    }
+
+    public function chooseTarget(string $target): void
+    {
+        $user = $this->user();
+        $valid = $target === 'none' || $target === 'new-pocket'
+            || (preg_match('/^account:(\d+)$/', $target, $m) === 1 && $user->accounts()->whereKey((int) $m[1])->exists())
+            || (preg_match('/^pocket:(\d+)$/', $target, $m) === 1 && $user->pockets()->whereKey((int) $m[1])->where('is_reserve', false)->exists());
+
+        if ($valid) {
+            $this->surplusTarget = $target;
             unset($this->preview);
         }
     }
@@ -76,7 +94,21 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
 
     public function close(PeriodCloser $closer): void
     {
-        $closer->close($this->user(), $this->period, $this->incomeActual, $this->toReserve);
+        $user = $this->user();
+        $closer->close($user, $this->period, $this->incomeActual, $this->toReserve, $this->surplusTarget);
+
+        if ($this->saveTargetAsDefault && $this->surplusTarget !== null) {
+            [$type, $id] = array_pad(explode(':', $this->surplusTarget, 2), 2, null);
+
+            if ($type === 'new-pocket') {
+                [$type, $id] = ['pocket', $user->pockets()->where('name', __('Savings'))->latest('id')->value('id')];
+            }
+
+            $user->settings()->update([
+                'surplus_account_id' => $type === 'account' ? (int) $id : null,
+                'surplus_pocket_id' => $type === 'pocket' && $id !== null ? (int) $id : null,
+            ]);
+        }
 
         $this->step = 4;
         unset($this->period, $this->preview, $this->closeRecord);
@@ -107,7 +139,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
     #[Computed]
     public function preview(): ClosePreview
     {
-        return app(PeriodCloser::class)->preview($this->user(), $this->period, $this->incomeActual, $this->toReserve);
+        return app(PeriodCloser::class)->preview($this->user(), $this->period, $this->incomeActual, $this->toReserve, $this->surplusTarget);
     }
 
     #[Computed]
@@ -142,6 +174,29 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         $settings = $this->user()->settings();
 
         return app(PeriodService::class)->boundsFor($settings->period_mode, $settings->payday_day, $this->period->ends_on->addDay());
+    }
+
+    /**
+     * @return array<string, string> target key => label
+     */
+    #[Computed]
+    public function targets(): array
+    {
+        $user = $this->user();
+        $targets = [];
+
+        foreach ($user->accounts()->orderBy('name')->get() as $account) {
+            $targets['account:'.$account->id] = $account->name;
+        }
+
+        foreach ($user->pockets()->where('is_reserve', false)->orderBy('sort')->get() as $pocket) {
+            $targets['pocket:'.$pocket->id] = $pocket->name;
+        }
+
+        $targets['new-pocket'] = __('New “Savings” pocket');
+        $targets['none'] = __('Stays on the account');
+
+        return $targets;
     }
 
     #[Computed]
@@ -271,6 +326,28 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
                 </div>
             </div>
 
+            @php
+                $current = match ($preview->surplusTarget['type']) {
+                    'account', 'pocket' => $preview->surplusTarget['type'].':'.$preview->surplusTarget['id'],
+                    'new-pocket' => 'new-pocket',
+                    default => 'none',
+                };
+            @endphp
+            <div class="mx-4 mt-5">
+                <x-ui.section-label :label="__('The rest goes to')" />
+                <div class="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4" data-test="surplus-targets">
+                    @foreach ($this->targets as $key => $label)
+                        <x-ui.choice :selected="$current === $key" wire:click="chooseTarget('{{ $key }}')" class="h-10 shrink-0 whitespace-nowrap rounded-xl px-3 text-[13px]" wire:key="target-{{ $key }}">{{ $label }}</x-ui.choice>
+                    @endforeach
+                </div>
+                @if ($surplusTarget !== null)
+                    <label class="mt-3 flex items-center justify-between rounded-[14px] bg-surface px-4 py-3 text-sm">
+                        <span>{{ __('Use it next time too') }}</span>
+                        <x-ui.toggle :on="$saveTargetAsDefault" wire:click="$toggle('saveTargetAsDefault')" :aria-label="__('Use it next time too')" />
+                    </label>
+                @endif
+            </div>
+
             @if ($hasReserve && $preview->leftover() > 0)
                 <div class="relative mx-6 mt-7 h-9">
                     <div class="absolute inset-x-0 top-3.5 h-2 overflow-hidden rounded bg-ink-2"><div class="h-full bg-accent" :style="'width:' + pct() + '%'"></div></div>
@@ -279,7 +356,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
                            class="absolute inset-0 h-full w-full cursor-pointer opacity-0" aria-label="{{ __('To the reserve') }}" data-test="split-slider">
                 </div>
                 <div class="mx-4 mt-[18px] flex justify-center gap-2">
-                    @foreach ([__('All to the reserve') => 'leftover', __('Half and half') => 'half', ($preview->surplusTarget['type'] === 'pocket' ? __('All to the pocket') : ($preview->surplusTarget['type'] === 'account' ? __('All to invest') : __('All stays'))) => 'none'] as $label => $preset)
+                    @foreach ([__('All to the reserve') => 'leftover', __('Half and half') => 'half', (in_array($preview->surplusTarget['type'], ['pocket', 'new-pocket'], true) ? __('All to the pocket') : ($preview->surplusTarget['type'] === 'account' ? __('All to invest') : __('All stays'))) => 'none'] as $label => $preset)
                         <button type="button" x-on:click="preset(@js($preset))" class="h-10 whitespace-nowrap rounded-xl border px-3 text-[13px] font-medium"
                                 :class="isPreset(@js($preset)) ? 'border-accent bg-accent/14' : 'border-ink/8 bg-surface'">{{ $label }}</button>
                     @endforeach

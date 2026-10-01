@@ -33,7 +33,7 @@ new #[Title('Month')] class extends Component {
 
     public function delete(int $transactionId): void
     {
-        $this->user()->transactions()->whereKey($transactionId)->whereRelation('period', 'status', 'open')->delete();
+        $this->user()->transactions()->whereKey($transactionId)->whereRelation('period', 'status', 'open')->first()?->delete();
         $this->refresh();
 
         $this->dispatch('budget-updated');
@@ -94,14 +94,16 @@ new #[Title('Month')] class extends Component {
         $today = app(PeriodService::class)->today($this->user()->settings());
         $days = [];
 
-        $transactions = $period->transactions()->with('category')
+        $transactions = $period->transactions()->with(['category', 'pocket'])
             ->when($this->categoryId, fn ($query, int $categoryId) => $query->where('category_id', $categoryId))
             ->orderByDesc('occurred_on')->orderByDesc('id')->get();
 
         foreach ($transactions as $transaction) {
             $key = $transaction->occurred_on->toDateString();
             $days[$key] ??= ['date' => $transaction->occurred_on, 'total' => 0, 'payday' => false, 'rows' => []];
-            $days[$key]['total'] += $transaction->amount;
+            if ($transaction->pocket_id === null) {
+                $days[$key]['total'] += $transaction->amount;
+            }
             $days[$key]['rows'][] = [
                 'kind' => 'spending',
                 'id' => $transaction->id,
@@ -109,6 +111,7 @@ new #[Title('Month')] class extends Component {
                 'title' => $transaction->category?->name ?? '',
                 'note' => $transaction->note,
                 'amount' => $transaction->amount,
+                'pocket' => $transaction->pocket?->name,
             ];
         }
 
@@ -228,7 +231,7 @@ new #[Title('Month')] class extends Component {
                         <button type="button" x-on:click="selected = @js(['id' => $row['id'], 'title' => $row['title'], 'note' => $row['note'], 'amount' => money($row['amount'])])"
                                 @class(['grid w-full grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-[11px] text-left', 'border-b border-line' => $border]) data-test="transaction">
                             <x-ui.icon-tile :icon="$row['icon']" :size="36" />
-                            <span class="min-w-0"><span class="block truncate text-[15px]">{{ $row['title'] }}</span>@if ($row['note'])<span class="mt-0.5 block truncate text-xs text-muted">{{ $row['note'] }}</span>@endif</span>
+                            <span class="min-w-0"><span class="block truncate text-[15px]">{{ $row['title'] }}</span>@if ($row['pocket'])<span class="mt-0.5 block truncate text-xs text-accent">{{ __('paid from :pocket', ['pocket' => $row['pocket']]) }}</span>@elseif ($row['note'])<span class="mt-0.5 block truncate text-xs text-muted">{{ $row['note'] }}</span>@endif</span>
                             <span class="num text-[15px] font-medium">{{ money_number($row['amount']) }}</span>
                         </button>
                     @elseif ($row['kind'] === 'no-spend')

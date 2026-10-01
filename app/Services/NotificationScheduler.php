@@ -10,6 +10,7 @@ use App\Notifications\DailyReminder;
 use App\Notifications\DueItemsReminder;
 use App\Notifications\PaydayReminder;
 use App\Notifications\PeriodEndReminder;
+use App\Notifications\SurplusTransferReminder;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
 
@@ -24,6 +25,8 @@ final readonly class NotificationScheduler
     public const string PERIOD_END_TIME = '09:00';
 
     public const string DUE_ITEMS_TIME = '08:00';
+
+    public const string SURPLUS_REMINDER_TIME = '09:00';
 
     public function __construct(
         private PeriodService $periods,
@@ -70,6 +73,20 @@ final readonly class NotificationScheduler
             if ($due !== [] && $this->claim('due-items', $user, $today)) {
                 $user->notify(new DueItemsReminder($due));
                 $sent[] = 'due-items';
+            }
+        }
+
+        if ($time >= self::SURPLUS_REMINDER_TIME) {
+            $pending = $user->periodCloses()->with('surplusAccount')
+                ->whereNull('surplus_transferred_at')->whereNotNull('surplus_account_id')->where('to_invest', '>', 0)
+                ->whereDate('created_at', '<', $today->toDateString())
+                ->get();
+
+            foreach ($pending as $close) {
+                if (Cache::add("notification:surplus:{$close->id}", true, now()->addDays(60))) {
+                    $user->notify(new SurplusTransferReminder($close->id, $close->to_invest, $close->surplusAccount->name ?? ''));
+                    $sent[] = 'surplus-transfer';
+                }
             }
         }
 

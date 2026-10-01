@@ -4,6 +4,7 @@ use App\Actions\Budget\RecordTransaction;
 use App\Enums\PeriodMode;
 use App\Models\BudgetLine;
 use App\Models\Category;
+use App\Models\PeriodClose;
 use App\Models\Transaction;
 use App\Notifications\BudgetAlert;
 use App\Notifications\DailyReminder;
@@ -119,4 +120,17 @@ it('respects the due reminder setting', function (): void {
     BudgetLine::query()->whereRelation('category', 'name', 'Rent')->update(['due_day' => 14]);
 
     expect($this->scheduler->run($this->user, budapest('2026-10-14 08:30')))->not->toContain('due-items');
+});
+
+it('reminds once the next morning about an untransferred leftover', function (): void {
+    $broker = $this->user->accounts()->create(['name' => 'Broker', 'type' => 'investment', 'currency' => 'HUF']);
+    $period = resolve(PeriodService::class)->forDate($this->user, budapest('2026-10-14'));
+    $close = new PeriodClose(['period_id' => $period->id, 'planned_total' => 0, 'actual_total' => 0, 'leftover' => 50_000, 'to_invest' => 50_000, 'surplus_account_id' => $broker->id, 'breakdown' => []]);
+    $close->user_id = $this->user->id;
+    $close->created_at = budapest('2026-10-13 20:00');
+    $close->save();
+
+    expect($this->scheduler->run($this->user, budapest('2026-10-14 08:59')))->not->toContain('surplus-transfer')
+        ->and($this->scheduler->run($this->user, budapest('2026-10-14 09:01')))->toContain('surplus-transfer')
+        ->and($this->scheduler->run($this->user, budapest('2026-10-15 09:01')))->not->toContain('surplus-transfer');
 });

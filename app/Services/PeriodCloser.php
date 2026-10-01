@@ -9,6 +9,7 @@ use App\Models\Period;
 use App\Models\PeriodClose;
 use App\Models\Pocket;
 use App\Models\User;
+use App\Notifications\SurplusTransferReminder;
 use App\Services\Data\Allocation;
 use App\Services\Data\ClosePreview;
 use App\Services\Data\PlanLine;
@@ -35,16 +36,18 @@ final readonly class PeriodCloser
 
     /**
      * @param  int|null  $toReserve  manual split of a positive leftover; the rest goes to the surplus target
+     * @param  string|null  $surplusTarget  'account:ID', 'pocket:ID' or 'none' for this closing only; null uses the settings
      */
-    public function preview(User $user, Period $period, ?int $incomeActual = null, ?int $toReserve = null): ClosePreview
+    public function preview(User $user, Period $period, ?int $incomeActual = null, ?int $toReserve = null, ?string $surplusTarget = null): ClosePreview
     {
         $lines = $this->plans->linesFor($period);
         $settings = $user->settings();
-        $income = $incomeActual ?? $period->income();
+        $topUps = $this->periods->topUps($period);
+        $income = ($incomeActual ?? $period->income()) + $topUps;
 
         $spent = [];
 
-        foreach ($period->transactions()->get(['category_id', 'amount']) as $transaction) {
+        foreach ($period->transactions()->whereNull('pocket_id')->get(['category_id', 'amount']) as $transaction) {
             $spent[$transaction->category_id] = ($spent[$transaction->category_id] ?? 0) + $transaction->amount;
         }
 
@@ -77,8 +80,10 @@ final readonly class PeriodCloser
             );
         }
 
-        $surplusPocket = $settings->surplus_pocket_id !== null ? $pockets->get($settings->surplus_pocket_id) : null;
-        $surplusAccount = $settings->surplus_account_id !== null ? $user->accounts()->find($settings->surplus_account_id) : null;
+        [$targetType, $targetId] = $this->resolveTarget($settings->surplus_account_id, $settings->surplus_pocket_id, $surplusTarget);
+        $surplusPocket = $targetType === 'pocket' ? $pockets->get($targetId) : null;
+        $newPocket = $targetType === 'new-pocket';
+        $surplusAccount = $targetType === 'account' ? $user->accounts()->find($targetId) : null;
 
         $balancesAfter = [];
 
@@ -110,31 +115,32 @@ final readonly class PeriodCloser
 
         return new ClosePreview(
             incomePlanned: $period->income_planned,
-            incomeActual: $income,
+            incomeActual: $income - $topUps,
+            topUps: $topUps,
             plannedTotal: $plannedTotal,
             actualTotal: $actualTotal,
             categories: $categories,
             allocation: $allocation,
             reservePocketId: $reserve?->id,
             surplusTarget: [
-                'type' => $surplusPocket !== null ? 'pocket' : ($surplusAccount !== null ? 'account' : null),
+                'type' => $newPocket ? 'new-pocket' : ($surplusPocket !== null ? 'pocket' : ($surplusAccount !== null ? 'account' : null)),
                 'id' => $surplusPocket->id ?? $surplusAccount?->id,
-                'name' => $surplusPocket->name ?? $surplusAccount?->name,
+                'name' => $newPocket ? $this->savingsName() : ($surplusPocket->name ?? $surplusAccount?->name),
             ],
             pocketDeposits: array_values($deposits),
             prepayReady: $prepayReady,
         );
     }
 
-    public function close(User $user, Period $period, ?int $incomeActual = null, ?int $toReserve = null): PeriodClose
+    public function close(User $user, Period $period, ?int $incomeActual = null, ?int $toReserve = null, ?string $surplusTarget = null): PeriodClose
     {
         if (! $period->isOpen()) {
             throw ValidationException::withMessages(['period' => __('This period is already closed.')]);
         }
 
-        return DB::transaction(function () use ($user, $period, $incomeActual, $toReserve): PeriodClose {
+        $close = DB::transaction(function () use ($user, $period, $incomeActual, $toReserve, $surplusTarget): PeriodClose {
             $lines = $this->plans->linesFor($period);
-            $preview = $this->preview($user, $period, $incomeActual, $toReserve);
+            $preview = $this->preview($user, $period, $incomeActual, $toReserve, $surplusTarget);
             $closedOn = $period->ends_on->toDateString();
 
             foreach ($preview->pocketDeposits as $deposit) {
@@ -149,6 +155,11 @@ final readonly class PeriodCloser
 
             if ($preview->reservePocketId !== null && $allocation->fromReserve > 0) {
                 $this->move($user, $preview->reservePocketId, $period, -$allocation->fromReserve, PocketMovementType::Withdraw, $closedOn, __('Covering the deficit'));
+            }
+
+            if ($preview->surplusTarget['type'] === 'new-pocket' && $allocation->toSurplus > 0) {
+                $pocket = $user->pockets()->create(['name' => $this->savingsName(), 'sort' => $user->pockets()->count() + 1]);
+                $this->move($user, $pocket->id, $period, $allocation->toSurplus, PocketMovementType::Deposit, $closedOn, __('Leftover'));
             }
 
             if ($preview->surplusTarget['type'] === 'pocket' && $preview->surplusTarget['id'] !== null && $allocation->toSurplus > 0) {
@@ -168,6 +179,7 @@ final readonly class PeriodCloser
                 'leftover' => $preview->leftover(),
                 'to_reserve' => $allocation->toReserve,
                 'to_invest' => $allocation->toSurplus,
+                'surplus_account_id' => $preview->surplusTarget['type'] === 'account' ? $preview->surplusTarget['id'] : null,
                 'from_reserve' => $allocation->fromReserve,
                 'breakdown' => $preview->toBreakdown(),
             ]);
@@ -178,6 +190,43 @@ final readonly class PeriodCloser
 
             return $close;
         });
+
+        if ($close->awaitsTransfer() && $user->pushSubscriptions()->exists()) {
+            $user->notify(new SurplusTransferReminder($close->id, $close->to_invest, $close->surplusAccount->name ?? ''));
+        }
+
+        return $close;
+    }
+
+    private function savingsName(): string
+    {
+        $name = __('Savings');
+
+        return is_string($name) ? $name : 'Savings';
+    }
+
+    /**
+     * @return array{0: string|null, 1: int|null}
+     */
+    private function resolveTarget(?int $accountId, ?int $pocketId, ?string $override): array
+    {
+        if ($override === 'none') {
+            return [null, null];
+        }
+
+        if ($override === 'new-pocket') {
+            return ['new-pocket', null];
+        }
+
+        if ($override !== null && preg_match('/^(account|pocket):(\d+)$/', $override, $matches) === 1) {
+            return [$matches[1], (int) $matches[2]];
+        }
+
+        return match (true) {
+            $accountId !== null => ['account', $accountId],
+            $pocketId !== null => ['pocket', $pocketId],
+            default => [null, null],
+        };
     }
 
     /**
