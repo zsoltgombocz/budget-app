@@ -211,3 +211,115 @@ textarea:focus[data-flux-control],
 select:focus[data-flux-control] {
     @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-bg;
 }
+
+/* ── Motion ─────────────────────────────────────────────────────────── */
+
+@keyframes page-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes item-in {
+    from { opacity: 0; transform: translateY(10px) scale(0.99); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes bar-grow {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes splash-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.06); }
+}
+
+/* Every page (also after wire:navigate) fades up; its blocks follow in a short stagger. */
+.page-enter {
+    animation: page-in 260ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.page-enter > * > * {
+    animation: item-in 380ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.page-enter > * > *:nth-child(2) { animation-delay: 40ms; }
+.page-enter > * > *:nth-child(3) { animation-delay: 80ms; }
+.page-enter > * > *:nth-child(4) { animation-delay: 120ms; }
+.page-enter > * > *:nth-child(5) { animation-delay: 160ms; }
+.page-enter > * > *:nth-child(6) { animation-delay: 200ms; }
+.page-enter > * > *:nth-child(n + 7) { animation-delay: 240ms; }
+
+/* Fixed overlays (sheets, bars) inside pages must not be animated as blocks. */
+.page-enter > * > .fixed {
+    animation: none;
+}
+
+[role='progressbar'] > div {
+    transform-origin: left center;
+    animation: bar-grow 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both 120ms;
+}
+
+/* Loading state: Livewire marks the element that started a request with data-loading. */
+button[data-loading],
+a[data-loading],
+.is-busy {
+    position: relative;
+    pointer-events: none;
+    opacity: 0.75;
+}
+
+button[data-loading]::after,
+.is-busy::after {
+    content: '';
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    width: 16px;
+    height: 16px;
+    margin-top: -8px;
+    border-radius: 9999px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    animation: spin 700ms linear infinite;
+}
+
+/* App launch splash (installed app, first load of a session). */
+#app-splash {
+    display: none;
+}
+
+html.splash #app-splash {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    background: var(--app-bg);
+    transition: opacity 320ms ease, visibility 320ms ease;
+}
+
+html.splash.splash-out #app-splash {
+    opacity: 0;
+    visibility: hidden;
+}
+
+#app-splash .splash-icon {
+    animation: splash-pulse 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .page-enter,
+    .page-enter > * > *,
+    [role='progressbar'] > div,
+    #app-splash .splash-icon {
+        animation: none !important;
+    }
+}
