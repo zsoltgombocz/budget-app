@@ -1,0 +1,3 @@
+[run]
+# Run package bins (vite-plus) on the bun runtime instead of the system node.
+bun = true
