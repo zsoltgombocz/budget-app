@@ -14,6 +14,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         Route::livewire('rogzites', 'pages::entry')->name('entry');
         Route::livewire('terv', 'pages::plan')->name('plan');
         Route::livewire('honap', 'pages::month')->name('month');
+        Route::livewire('honap/zaras/{period}', 'pages::close')->name('close');
         Route::livewire('perselyek', 'pages::pockets')->name('pockets');
     });
 });
