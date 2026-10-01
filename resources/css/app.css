@@ -124,10 +124,10 @@
 
     /*
      * iOS 26 blurs a strip below the status bar of installed web apps (scroll edge effect).
-     * Keep the first line of content below that strip.
+     * A solid fixed bar at the top (#status-shield) makes iOS tint that strip instead of blurring.
      */
     html.ios-standalone {
-        --safe-top: calc(env(safe-area-inset-top, 0px) + 24px);
+        --safe-top: calc(env(safe-area-inset-top, 0px) + 12px);
     }
 
     html {
@@ -238,13 +238,17 @@ select:focus[data-flux-control] {
     50% { transform: scale(1.06); }
 }
 
-/* Every page (also after wire:navigate) fades up; its blocks follow in a short stagger. */
+/*
+ * Every page (also after wire:navigate) fades up; its blocks follow in a short stagger.
+ * Fill mode is "backwards", never "both"/"forwards": an animation that stays in effect keeps the
+ * element a containing block, and iOS then pins fixed sheets to the page instead of the screen.
+ */
 .page-enter {
-    animation: page-in 180ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation: page-in 180ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
 }
 
 .page-enter > * > * {
-    animation: item-in 260ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation: item-in 260ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
 }
 
 .page-enter > * > *:nth-child(2) { animation-delay: 20ms; }
@@ -307,7 +311,7 @@ html.splash.splash-out #app-splash {
 }
 
 .step-enter {
-    animation: step-in 280ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation: step-in 280ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
 }
 
 /* Navigation feedback: an instant top bar and a dimmed page while the next page loads. */
@@ -344,4 +348,14 @@ html.navigating main {
     html.navigating #nav-progress {
         animation: none !important;
     }
+}
+
+/* Solid strip behind the status bar; iOS samples fixed top elements to colour the edge. */
+#status-shield {
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 45;
+    height: var(--safe-top);
+    background: var(--app-bg);
+    pointer-events: none;
 }

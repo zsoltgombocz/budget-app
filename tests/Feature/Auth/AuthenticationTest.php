@@ -145,5 +145,5 @@ test('the sign-in email shows the code and the link', function (): void {
 
     $html = (string) new MagicLoginLink('token-123', '482915')->toMail($user)->render();
 
-    expect($html)->toContain('482 915')->toContain(route('magic-link.show', 'token-123'));
+    expect($html)->toContain('482915')->toContain(route('magic-link.show', 'token-123'));
 });

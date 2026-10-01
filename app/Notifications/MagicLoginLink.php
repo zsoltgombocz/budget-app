@@ -27,8 +27,8 @@ class MagicLoginLink extends Notification
     {
         return (new MailMessage)
             ->subject(__(':code is your sign-in code', ['code' => $this->code]))
-            ->line(__('Type this code in the app to sign in:'))
-            ->line(new HtmlString('<p class="code">'.e(substr($this->code, 0, 3).' '.substr($this->code, 3)).'</p>'))
+            ->line(__('Your sign-in code is :code. Type it in the app to sign in:', ['code' => $this->code]))
+            ->line(new HtmlString('<p class="code">'.e($this->code).'</p>'))
             ->line(__('The code works once, for :minutes minutes.', ['minutes' => SendMagicLink::MINUTES]))
             ->line(__('On a computer or in the browser you can also use the button:'))
             ->action(__('Sign in'), route('magic-link.show', $this->token))

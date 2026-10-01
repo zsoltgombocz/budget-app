@@ -5,6 +5,7 @@
     </head>
     <body class="min-h-dvh bg-bg font-sans text-ink antialiased">
         <x-splash />
+        <div id="status-shield" aria-hidden="true"></div>
         <div class="flex min-h-dvh flex-col items-center justify-center gap-6 px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-[calc(1.5rem+var(--safe-top))]">
             <div class="flex w-full max-w-sm flex-col gap-6">
                 <a href="{{ route('home') }}" class="flex items-center gap-3" wire:navigate>
