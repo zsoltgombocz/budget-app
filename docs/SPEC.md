@@ -32,7 +32,7 @@ Laravel 13 + Livewire 4 a felhasználói felülethez, mert a napi rögzítéshez
 | PWA | vite-plugin-pwa (Workbox) | Manifest, service worker, offline cache |
 | Ütemezés | Laravel Scheduler + queue (database driver) | Napi emlékeztető, hó végi zárás |
 | Grafikon | Chart.js vagy ApexCharts | Dashboard és hó végi riport |
-| Tesztek | Pest 3 | Unit a számításokra, Feature a flow-kra |
+| Tesztek | Pest 5 | Unit a számításokra, Feature a flow-kra |
 | Minőség | Larastan max szint, Pint, Rector | CI-ban kötelező |
 | Frontend tooling | bun, Vite | npm helyett bun (`bun.lock`) |
 
