@@ -17,7 +17,7 @@
                  x-transition:leave="transition duration-200 ease-in" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full"
                  {{ $attributes->class([
                      'absolute inset-x-0 bottom-0 mx-auto flex max-w-lg flex-col rounded-t-[30px] bg-surface px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-2 text-ink',
-                     'top-[max(2rem,env(safe-area-inset-top))]' => $full,
+                     'top-[max(2rem,var(--safe-top))]' => $full,
                      'max-h-[92dvh]' => ! $full,
                  ]) }}>
                 <div class="mx-auto h-[5px] w-9 shrink-0 rounded-full bg-ink/18"></div>

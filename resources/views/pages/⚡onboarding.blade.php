@@ -165,7 +165,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
     ];
 @endphp
 
-<div class="flex min-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom))] flex-col pb-[110px]"
+<div class="flex min-h-[calc(100dvh-var(--safe-top)-env(safe-area-inset-bottom))] flex-col pb-[110px]"
      x-data="{
         field: null,
         value: '',

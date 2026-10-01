@@ -1,6 +1,7 @@
 import { registerNumpad } from './numpad.js'
-import { install, push, registerServiceWorker } from './pwa.js'
+import { install, markStandalone, push, registerServiceWorker } from './pwa.js'
 
+markStandalone()
 registerServiceWorker()
 install.listen()
 

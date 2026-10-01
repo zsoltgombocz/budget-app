@@ -118,8 +118,41 @@
         border-color: var(--color-line, currentColor);
     }
 
+    :root {
+        --safe-top: env(safe-area-inset-top, 0px);
+    }
+
+    /*
+     * Installed on iPhone the app draws under the translucent status bar. If iOS reports
+     * no inset, keep at least the status bar's height free (set by resources/js/pwa.js).
+     */
+    html.ios-standalone {
+        --safe-top: max(env(safe-area-inset-top, 0px), 50px);
+    }
+
     html {
         -webkit-tap-highlight-color: transparent;
+        /* No double-tap zoom (numpad!), pinch zoom keeps working. */
+        touch-action: manipulation;
+    }
+
+    button,
+    a,
+    [role='button'],
+    input,
+    select,
+    textarea,
+    label {
+        touch-action: manipulation;
+    }
+
+    /* iOS zooms into inputs with text under 16px on focus. */
+    @media (pointer: coarse) {
+        input,
+        select,
+        textarea {
+            font-size: max(16px, 1em) !important;
+        }
     }
 
     body {

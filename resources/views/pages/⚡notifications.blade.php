@@ -52,7 +52,7 @@ new #[Title('Notifications')] #[Layout('layouts::app', ['tabs' => false])] class
     }
 }; ?>
 
-<div class="flex min-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom))] flex-col"
+<div class="flex min-h-[calc(100dvh-var(--safe-top)-env(safe-area-inset-bottom))] flex-col"
      x-data="{
         busy: false,
         supported: window.budgetPush.supported(),
