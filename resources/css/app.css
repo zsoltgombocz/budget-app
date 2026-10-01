@@ -123,11 +123,11 @@
     }
 
     /*
-     * Installed on iPhone the app draws under the translucent status bar. If iOS reports
-     * no inset, keep at least the status bar's height free (set by resources/js/pwa.js).
+     * The installed iPhone app uses an opaque status bar (see partials/head), so content starts
+     * below it and iOS does not blur the top of the page. Add a little breathing room there.
      */
     html.ios-standalone {
-        --safe-top: max(env(safe-area-inset-top, 0px), 50px);
+        --safe-top: calc(env(safe-area-inset-top, 0px) + 8px);
     }
 
     html {

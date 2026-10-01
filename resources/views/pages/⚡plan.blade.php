@@ -427,7 +427,7 @@ new #[Title('Plan')] class extends Component {
                         </div>
                         <div class="mt-4 flex items-center justify-between">
                             <span class="text-sm">{{ __('Show on the quick entry screen') }}</span>
-                            <button type="button" role="switch" x-on:click="line.isQuickEntry = ! line.isQuickEntry" class="flex h-8 w-[52px] shrink-0 rounded-2xl p-[3px]" :class="line.isQuickEntry ? 'justify-end bg-accent' : 'justify-start bg-zinc-600'"><span class="block size-[26px] rounded-full bg-white"></span></button>
+                            <button type="button" role="switch" x-on:click="line.isQuickEntry = ! line.isQuickEntry" class="flex h-6 w-10 shrink-0 rounded-full p-0.5" :class="line.isQuickEntry ? 'justify-end bg-accent' : 'justify-start bg-zinc-600'"><span class="block size-5 rounded-full bg-white"></span></button>
                         </div>
                     </div>
                 </template>

@@ -21,18 +21,12 @@ it('disables double-tap zoom and focus zoom on touch devices', function (): void
         ->and($result['input'])->toBeGreaterThanOrEqual(16.0);
 });
 
-it('keeps the onboarding header below the status bar when installed on iPhone', function (): void {
+it('uses an opaque status bar on iPhone so iOS does not blur the page header', function (): void {
     $this->actingAs(User::factory()->create());
     $this->seed(CategoryTemplateSeeder::class);
 
-    $page = visit(route('onboarding'))->on()->iPhone14Pro();
+    $style = visit(route('onboarding'))->on()->iPhone14Pro()
+        ->script("() => document.querySelector('meta[name=apple-mobile-web-app-status-bar-style]').content");
 
-    $top = $page->script(<<<'JS'
-        () => {
-            document.documentElement.classList.add('ios-standalone')
-            return document.querySelector('main').getBoundingClientRect().top + parseFloat(getComputedStyle(document.querySelector('main')).paddingTop)
-        }
-    JS);
-
-    expect($top)->toBeGreaterThanOrEqual(50.0);
+    expect($style)->toBe('black');
 });

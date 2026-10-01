@@ -188,7 +188,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
         },
         apply() { $wire.set(this.field, this.value); this.field = null },
      }">
-    <div class="grid grid-cols-[44px_1fr_44px] items-center px-3 pt-1.5">
+    <div class="grid grid-cols-[44px_1fr_44px] items-center px-3 pt-3">
         @if ($step > 1)
             <button type="button" wire:click="back" class="flex size-11 items-center justify-center text-ink-2" aria-label="{{ __('Back') }}"><x-ui.icon name="arrow_back" /></button>
         @else
@@ -256,25 +256,31 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                 @if (empty($this->template->items))
                     <x-ui.empty-state icon="list_alt" :title="__('Empty plan')">{{ __('You start with an empty plan and add lines on the Plan screen.') }}</x-ui.empty-state>
                 @else
-                    <div class="rounded-card bg-surface px-4">
+                    <div class="flex flex-col gap-2.5">
                         @foreach ($this->template->items as $index => $item)
                             @php $on = $included[$index] ?? true; @endphp
-                            <div wire:key="item-{{ $index }}" @class(['py-3.5', 'border-b border-line' => ! $loop->last])>
-                                <div class="flex items-center gap-3">
-                                    <x-ui.icon-tile :icon="Icons::forCategory($item['icon'] ?? null)" :size="36" class="{{ $on ? '' : 'opacity-40' }}" />
-                                    <div @class(['min-w-0 flex-1', 'opacity-40' => ! $on])>
-                                        <div class="truncate text-[15px] font-medium">{{ __($item['name']) }}</div>
-                                        <div class="text-xs text-muted">{{ LineType::from($item['type'])->label() }}</div>
+                            <div wire:key="item-{{ $index }}" class="rounded-[22px] bg-surface px-4 py-4" data-test="template-item">
+                                <div class="flex items-start gap-3">
+                                    <x-ui.icon-tile :icon="Icons::forCategory($item['icon'] ?? null)" :size="40" class="{{ $on ? '' : 'opacity-40' }}" />
+                                    <div class="min-w-0 flex-1 pt-0.5 {{ $on ? '' : 'opacity-40' }}">
+                                        <div class="text-[15px] font-medium leading-snug">{{ __($item['name']) }}</div>
+                                        <div class="mt-0.5 text-xs text-muted">{{ LineType::from($item['type'])->label() }}</div>
                                     </div>
-                                    @if ($on)
-                                        <button type="button" x-on:click="open('amounts.{{ $index }}', $wire.amounts[{{ $index }}])" class="num min-w-[92px] rounded-xl bg-surface-2 px-3 py-2 text-right text-[15px] font-medium" data-test="amount-{{ $index }}">
-                                            <span :class="! $wire.amounts[{{ $index }}] && 'text-faint'" x-text="show($wire.amounts[{{ $index }}], '0')"></span>
-                                        </button>
-                                    @endif
-                                    <x-ui.toggle :on="$on" wire:click="$set('included.{{ $index }}', {{ $on ? 'false' : 'true' }})" :aria-label="__($item['name'])" />
+                                    <x-ui.toggle :on="$on" wire:click="$set('included.{{ $index }}', {{ $on ? 'false' : 'true' }})" :aria-label="__($item['name'])" class="mt-2" />
                                 </div>
-                                @if (! empty($item['hint']) && $on)
-                                    <p class="mt-2 pl-12 text-xs leading-snug text-muted">{{ __($item['hint']) }}</p>
+
+                                @if ($on)
+                                    @if (! empty($item['hint']))
+                                        <p class="mt-3 text-[13px] leading-relaxed text-muted">{{ __($item['hint']) }}</p>
+                                    @endif
+                                    <button type="button" x-on:click="open('amounts.{{ $index }}', $wire.amounts[{{ $index }}])"
+                                            class="mt-3 flex h-12 w-full items-center justify-between rounded-[14px] bg-surface-2 px-4 text-left" data-test="amount-{{ $index }}">
+                                        <span class="text-[13px] text-muted">{{ __('Monthly amount') }}</span>
+                                        <span class="num text-[17px] font-semibold">
+                                            <span :class="! $wire.amounts[{{ $index }}] && 'text-faint'" x-text="show($wire.amounts[{{ $index }}], '0')"></span>
+                                            <span class="text-sm font-medium text-muted">{{ $currency->symbol() }}</span>
+                                        </span>
+                                    </button>
                                 @endif
                             </div>
                         @endforeach

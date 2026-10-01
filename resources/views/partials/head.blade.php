@@ -12,7 +12,7 @@
 <meta name="theme-color" content="#F3F4F2" media="(prefers-color-scheme: light)">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="{{ config('app.name') }}">
 @auth
     <meta name="vapid-public-key" content="{{ config('webpush.vapid.public_key') }}">

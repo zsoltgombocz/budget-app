@@ -600,9 +600,9 @@ new #[Title('Pockets and loans')] class extends Component {
                             </select>
                         </label>
                         <div class="mt-3 flex items-center justify-between"><span class="text-sm">{{ __('This is the reserve') }}</span>
-                            <button type="button" role="switch" x-on:click="form.isReserve = ! form.isReserve" class="flex h-8 w-[52px] rounded-2xl p-[3px]" :class="form.isReserve ? 'justify-end bg-accent' : 'justify-start bg-zinc-600'"><span class="block size-[26px] rounded-full bg-white"></span></button></div>
+                            <button type="button" role="switch" x-on:click="form.isReserve = ! form.isReserve" class="flex h-6 w-10 shrink-0 rounded-full p-0.5" :class="form.isReserve ? 'justify-end bg-accent' : 'justify-start bg-zinc-600'"><span class="block size-5 rounded-full bg-white"></span></button></div>
                         <div class="mt-3 flex items-center justify-between"><span class="text-sm">{{ __('Shared pocket') }}</span>
-                            <button type="button" role="switch" x-on:click="form.isShared = ! form.isShared" class="flex h-8 w-[52px] rounded-2xl p-[3px]" :class="form.isShared ? 'justify-end bg-accent' : 'justify-start bg-zinc-600'"><span class="block size-[26px] rounded-full bg-white"></span></button></div>
+                            <button type="button" role="switch" x-on:click="form.isShared = ! form.isShared" class="flex h-6 w-10 shrink-0 rounded-full p-0.5" :class="form.isShared ? 'justify-end bg-accent' : 'justify-start bg-zinc-600'"><span class="block size-5 rounded-full bg-white"></span></button></div>
                     </div>
                 </template>
 
