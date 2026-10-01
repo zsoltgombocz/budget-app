@@ -14,7 +14,7 @@ it('has a Hungarian translation for every UI string', function (): void {
     $missing = [];
 
     foreach ($files as $file) {
-        preg_match_all('/(?:__\(|#\[Title\()\s*([\'"])((?:\\\\.|(?!\1).)*)\1/', (string) file_get_contents($file), $matches, PREG_SET_ORDER);
+        preg_match_all('/(?:__\(|#\[Title\(|trans_choice\()\s*([\'"])((?:\\\\.|(?!\1).)*)\1/', (string) file_get_contents($file), $matches, PREG_SET_ORDER);
 
         foreach ($matches as $match) {
             $key = $match[1] === "'" ? str_replace("\\'", "'", $match[2]) : $match[2];

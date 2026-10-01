@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property CarbonImmutable|null $updated_at
  *
  * A starting set of categories offered in onboarding. Global, not user scoped.
- * @property array<int, array{name: string, type: string, icon?: string|null, color?: string|null, is_quick_entry?: bool, amount?: int, pocket?: array{name: string, is_reserve?: bool, is_shared?: bool, prepay_step?: int|null}, loan?: bool}> $items
+ * @property array<int, array{name: string, type: string, icon?: string|null, color?: string|null, is_quick_entry?: bool, amount?: int, hint?: string, pocket?: array{name: string, is_reserve?: bool, is_shared?: bool, prepay_step?: int|null}, loan?: bool}> $items
  */
 #[Fillable(['key', 'name', 'description', 'items', 'sort'])]
 class CategoryTemplate extends Model

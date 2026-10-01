@@ -142,15 +142,15 @@ it('walks through the three-step closing wizard', function (): void {
     Livewire::test('pages::close', ['period' => $this->period->id])
         ->assertSet('step', 1)
         ->assertSee('Fuel')
-        ->set('incomeActual', '510000')
-        ->call('next')
+        ->call('goTo', 2)
         ->assertSet('step', 2)
-        ->assertSee(money(250_000))
-        ->call('next')
-        ->assertSet('step', 3)
+        ->assertSee(money_number(240_000))
+        ->call('goTo', 3)
+        ->call('setIncome', '510000')
+        ->assertSet('incomeActual', 510_000)
         ->call('close')
         ->assertSet('step', 4)
-        ->assertSee('Period closed');
+        ->assertSee('October is closed');
 
     expect($this->period->refresh()->isOpen())->toBeFalse()
         ->and($this->period->income_actual)->toBe(510_000);
@@ -163,7 +163,7 @@ it('offers the prepayment right after closing', function (): void {
     $fund = Pocket::factory()->for($this->user)->create(['name' => 'Car fund', 'balance' => 600_000, 'prepay_step' => 500_000, 'loan_id' => $loan->id]);
 
     Livewire::test('pages::close', ['period' => $this->period->id])
-        ->call('next')->call('next')->call('close')
+        ->call('goTo', 2)->call('goTo', 3)->call('close')
         ->assertSee('Prepayment ready')
         ->call('prepay', $fund->id);
 
@@ -176,4 +176,23 @@ it('cannot open another user\'s period', function (): void {
     $foreign = Period::factory()->create();
 
     $this->get(route('close', $foreign))->assertNotFound();
+});
+
+it('splits a positive leftover by hand between the reserve and the surplus target', function (): void {
+    Livewire::test('pages::close', ['period' => $this->period->id])
+        ->call('goTo', 2)
+        ->call('split', 5_000)
+        ->call('goTo', 3)
+        ->call('close');
+
+    expect($this->reserve->refresh()->balance)->toBe(85_000)
+        ->and($this->savings->refresh()->balance)->toBe(295_000);
+});
+
+it('caps a manual split at the leftover', function (): void {
+    $preview = resolve(PeriodCloser::class)->preview($this->user, $this->period, null, 9_999_999);
+
+    // 500 000 income − 200 000 rent, nothing spent yet.
+    expect($preview->allocation->toReserve)->toBe(300_000)
+        ->and($preview->allocation->toSurplus)->toBe(0);
 });

@@ -16,15 +16,20 @@ final class ApplyCategoryTemplate
      * Create the template's categories with an empty plan line each, plus the pockets
      * and loan placeholders they need. Names are translated into the current locale.
      *
-     * @return list<Category>
+     * @param  list<int>|null  $only  template item indexes to apply, null for all
+     * @return array<int, Category> keyed by template item index
      */
-    public function handle(User $user, CategoryTemplate $template): array
+    public function handle(User $user, CategoryTemplate $template, ?array $only = null): array
     {
-        return DB::transaction(function () use ($user, $template): array {
+        return DB::transaction(function () use ($user, $template, $only): array {
             $sort = $user->categories()->withTrashed()->count();
             $categories = [];
 
-            foreach ($template->items as $item) {
+            foreach ($template->items as $index => $item) {
+                if ($only !== null && ! in_array($index, $only, true)) {
+                    continue;
+                }
+
                 $type = LineType::from($item['type']);
                 $name = __($item['name']);
 
@@ -67,7 +72,7 @@ final class ApplyCategoryTemplate
                     'loan_id' => $loanId,
                 ]);
 
-                $categories[] = $category;
+                $categories[$index] = $category;
             }
 
             $this->linkPrepaymentPocketToLoan($user);

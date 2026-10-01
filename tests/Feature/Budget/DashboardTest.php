@@ -29,7 +29,7 @@ it('shows the expected leftover from the current pace', function (): void {
 
     $this->get(route('dashboard'))
         ->assertOk()
-        ->assertSee(money(125_455))
+        ->assertSee(money_number(125_455))
         ->assertSee('Fuel')
         ->assertSee('Rent');
 });
@@ -60,15 +60,6 @@ it('finds the due date in a payday period spanning two months', function (): voi
         ->and($service->dueDate($period, null))->toBeNull();
 });
 
-it('offers the no-spend button until something is recorded', function (): void {
-    Livewire::test('pages::today')
-        ->assertSee("I didn't spend today")
-        ->call('markNoSpend')
-        ->assertDontSee("I didn't spend today");
-
-    expect(DayMark::query()->count())->toBe(1);
-});
-
 it('orders categories by how close they are to their budget', function (): void {
     Transaction::factory()->for($this->user)->for($this->period)->for(Category::query()->where('name', 'Groceries')->firstOrFail())
         ->create(['amount' => 85_000, 'occurred_on' => '2026-10-02']);
@@ -82,4 +73,24 @@ it('cannot tick off another user\'s line', function (): void {
     $foreign = BudgetLine::factory()->create();
 
     Livewire::test('pages::today')->call('togglePaid', $foreign->id)->assertNotFound();
+});
+
+it('shows the empty state until something is recorded', function (): void {
+    $this->get(route('dashboard'))->assertSee('data-test="empty-state"', false);
+});
+
+it('keeps the no-spend button visible and undoable', function (): void {
+    Livewire::test('pages::today')
+        ->call('markNoSpend')
+        ->assertSee('data-test="no-spend-marked"', false)
+        ->call('unmarkNoSpend')
+        ->assertSee('data-test="no-spend"', false);
+
+    expect(DayMark::query()->count())->toBe(0);
+});
+
+it('warns when the expected leftover is negative', function (): void {
+    Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 400_000, 'occurred_on' => '2026-10-05']);
+
+    $this->get(route('dashboard'))->assertSee('data-test="negative-alert"', false)->assertSee('Fuel');
 });

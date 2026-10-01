@@ -23,14 +23,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $timezone
  * @property string $reminder_time
  * @property bool $reminder_enabled
+ * @property bool $due_reminder_enabled
  * @property int $reserve_pct
  * @property int|null $surplus_pocket_id
  * @property int|null $surplus_account_id
  * @property CarbonImmutable|null $onboarded_at
+ * @property CarbonImmutable|null $notifications_onboarded_at
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
-#[Fillable(['period_mode', 'payday_day', 'income', 'currency', 'locale', 'timezone', 'reminder_time', 'reminder_enabled', 'reserve_pct', 'surplus_pocket_id', 'surplus_account_id', 'onboarded_at'])]
+#[Fillable(['period_mode', 'payday_day', 'income', 'currency', 'locale', 'timezone', 'reminder_time', 'reminder_enabled', 'due_reminder_enabled', 'reserve_pct', 'surplus_pocket_id', 'surplus_account_id', 'onboarded_at', 'notifications_onboarded_at'])]
 class BudgetSetting extends Model
 {
     /** @use HasFactory<BudgetSettingFactory> */
@@ -51,6 +53,8 @@ class BudgetSetting extends Model
             'reminder_enabled' => 'boolean',
             'reserve_pct' => 'integer',
             'onboarded_at' => 'datetime',
+            'due_reminder_enabled' => 'boolean',
+            'notifications_onboarded_at' => 'datetime',
         ];
     }
 

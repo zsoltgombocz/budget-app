@@ -104,6 +104,24 @@ final readonly class Money implements JsonSerializable, Stringable
         return str_replace("\u{202F}", "\u{00A0}", (string) $formatted);
     }
 
+    /**
+     * The number without the currency, grouped for the locale, with a real minus sign:
+     * 12951 HUF → "12 951", −8400 → "−8 400".
+     */
+    public function formatNumber(?string $locale = null, bool $withDecimals = false): string
+    {
+        $formatter = new NumberFormatter($locale ?? app()->getLocale(), NumberFormatter::DECIMAL);
+        $decimals = $withDecimals ? $this->currency->decimals() : 0;
+        $formatter->setAttribute(NumberFormatter::MIN_FRACTION_DIGITS, $decimals);
+        $formatter->setAttribute(NumberFormatter::MAX_FRACTION_DIGITS, $decimals);
+
+        $major = $this->amount / $this->currency->minorPerMajor();
+        $formatted = (string) $formatter->format(abs($major));
+        $formatted = str_replace("\u{202F}", "\u{00A0}", $formatted);
+
+        return ($this->amount < 0 && round(abs($major), $decimals) > 0 ? "\u{2212}" : '').$formatted;
+    }
+
     public function __toString(): string
     {
         return $this->format();

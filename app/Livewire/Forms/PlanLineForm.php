@@ -6,6 +6,7 @@ use App\Enums\CalcMode;
 use App\Enums\Currency;
 use App\Enums\LineType;
 use App\Models\BudgetLine;
+use App\Support\Icons;
 use App\Support\Money;
 use Illuminate\Validation\Rule;
 use Livewire\Form;
@@ -103,7 +104,7 @@ class PlanLineForm extends Form
             'activeFrom' => ['nullable', 'date'],
             'activeTo' => ['nullable', 'date', 'after_or_equal:activeFrom'],
             'note' => ['nullable', 'string', 'max:255'],
-            'icon' => ['nullable', 'string', 'max:40', 'regex:/^[a-z0-9-]*$/'],
+            'icon' => ['nullable', 'string', Rule::in(['', ...Icons::CATEGORY])],
             'color' => ['nullable', 'string', 'max:20', 'alpha'],
         ]);
 

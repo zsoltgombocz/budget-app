@@ -7,6 +7,7 @@ use App\Enums\PeriodMode;
 use App\Models\Period;
 use App\Models\User;
 use App\Notifications\DailyReminder;
+use App\Notifications\DueItemsReminder;
 use App\Notifications\PaydayReminder;
 use App\Notifications\PeriodEndReminder;
 use Carbon\CarbonImmutable;
@@ -21,6 +22,8 @@ final readonly class NotificationScheduler
     public const string PAYDAY_TIME = '08:00';
 
     public const string PERIOD_END_TIME = '09:00';
+
+    public const string DUE_ITEMS_TIME = '08:00';
 
     public function __construct(
         private PeriodService $periods,
@@ -61,6 +64,15 @@ final readonly class NotificationScheduler
             $sent[] = 'payday';
         }
 
+        if ($settings->due_reminder_enabled && $time >= self::DUE_ITEMS_TIME) {
+            $due = $this->dueToday($period, $today);
+
+            if ($due !== [] && $this->claim('due-items', $user, $today)) {
+                $user->notify(new DueItemsReminder($due));
+                $sent[] = 'due-items';
+            }
+        }
+
         if ($period->ends_on->isSameDay($today)
             && $time >= self::PERIOD_END_TIME
             && $this->claim('period-end', $user, $today)) {
@@ -86,6 +98,24 @@ final readonly class NotificationScheduler
         }
 
         return $transfers;
+    }
+
+    /**
+     * Unticked fixed items whose due date is today.
+     *
+     * @return list<array{name: string, amount: int}>
+     */
+    private function dueToday(Period $period, CarbonImmutable $today): array
+    {
+        $due = [];
+
+        foreach ($this->overviews->fixedItems($period, resolve(PlanService::class)->linesFor($period)) as $item) {
+            if (! $item->paid && $item->dueOn?->isSameDay($today)) {
+                $due[] = ['name' => $item->line->categoryName, 'amount' => $item->line->planned()];
+            }
+        }
+
+        return $due;
     }
 
     private function claim(string $type, User $user, CarbonImmutable $day): bool

@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\Transaction;
 use App\Notifications\BudgetAlert;
 use App\Notifications\DailyReminder;
+use App\Notifications\DueItemsReminder;
 use App\Notifications\PaydayReminder;
 use App\Notifications\PeriodEndReminder;
 use App\Services\NotificationScheduler;
@@ -101,4 +102,21 @@ it('alerts when a spending crosses 80 percent of the budget', function (): void 
 
 it('sends push notifications through the web push channel', function (): void {
     expect(new DailyReminder('2026-10-14')->via($this->user))->toBe([WebPushChannel::class]);
+});
+
+it('reminds about fixed items due today at 8:00', function (): void {
+    BudgetLine::query()->whereRelation('category', 'name', 'Rent')->update(['due_day' => 14]);
+
+    expect($this->scheduler->run($this->user, budapest('2026-10-14 07:59')))->not->toContain('due-items')
+        ->and($this->scheduler->run($this->user, budapest('2026-10-14 08:01')))->toContain('due-items')
+        ->and($this->scheduler->run($this->user, budapest('2026-10-14 09:00')))->not->toContain('due-items');
+
+    Notification::assertSentTo($this->user, DueItemsReminder::class, fn ($n): bool => $n->items === [['name' => 'Rent', 'amount' => 200_000]]);
+});
+
+it('respects the due reminder setting', function (): void {
+    $this->user->settings()->update(['due_reminder_enabled' => false]);
+    BudgetLine::query()->whereRelation('category', 'name', 'Rent')->update(['due_day' => 14]);
+
+    expect($this->scheduler->run($this->user, budapest('2026-10-14 08:30')))->not->toContain('due-items');
 });
