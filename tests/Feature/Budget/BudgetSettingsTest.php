@@ -14,7 +14,6 @@ it('updates the budget settings', function (): void {
         ->set('periodMode', 'payday')
         ->set('paydayDay', 10)
         ->set('locale', 'en')
-        ->set('reminderTime', '21:15')
         ->set('surplusTarget', 'account:'.$account->id)
         ->call('save')
         ->assertHasNoErrors();
@@ -24,7 +23,6 @@ it('updates the budget settings', function (): void {
     expect($settings->period_mode)->toBe(PeriodMode::Payday)
         ->and($settings->payday_day)->toBe(10)
         ->and($settings->locale)->toBe('en')
-        ->and($settings->reminder_time)->toStartWith('21:15')
         ->and($settings->surplus_account_id)->toBe($account->id);
 });
 

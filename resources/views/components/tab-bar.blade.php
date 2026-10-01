@@ -21,8 +21,13 @@
                 </div>
             @else
                 <a href="{{ route($tab['route']) }}" wire:navigate
-                   x-data="{ active: false }"
-                   x-init="const sync = () => active = location.pathname === @js(parse_url(route($tab['route']), PHP_URL_PATH)) || location.pathname.startsWith(@js(parse_url(route($tab['route']), PHP_URL_PATH)) + '/'); sync(); document.addEventListener('livewire:navigated', sync)"
+                   x-data="{
+                        active: false,
+                        path: @js(parse_url(route($tab['route']), PHP_URL_PATH)),
+                        matches(pathname) { return pathname === this.path || pathname.startsWith(this.path + '/') },
+                   }"
+                   x-init="active = matches(location.pathname); document.addEventListener('livewire:navigated', () => active = matches(location.pathname)); window.addEventListener('tab-selected', e => active = matches(e.detail))"
+                   x-on:click="if (location.pathname !== path) document.documentElement.classList.add('navigating'); window.dispatchEvent(new CustomEvent('tab-selected', { detail: path }))"
                    class="flex flex-col items-center gap-[3px] text-[11px]"
                    :class="active ? 'font-semibold text-ink' : 'font-medium text-zinc-500'"
                    :aria-current="active ? 'page' : null">

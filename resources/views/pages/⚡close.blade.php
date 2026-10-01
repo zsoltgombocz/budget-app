@@ -229,7 +229,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
 @endphp
 
 <div>
-<div class="flex min-h-[calc(100dvh-var(--safe-top)-env(safe-area-inset-bottom))] flex-col pb-[110px]"
+<div class="flex min-h-[calc(100dvh-var(--safe-top)-env(safe-area-inset-bottom))] flex-col pb-[calc(10rem+env(safe-area-inset-bottom))]"
      wire:key="wizard-{{ $step }}-{{ $incomeActual }}"
      x-data="closeWizard({
         leftover: {{ $preview ? max(0, $preview->leftover()) : 0 }},

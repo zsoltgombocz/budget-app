@@ -43,33 +43,30 @@ test('email verification status is unchanged when email address is unchanged', f
     expect($user->refresh()->email_verified_at)->not->toBeNull();
 });
 
-test('user can delete their account', function (): void {
+test('user can delete their account by typing their email', function (): void {
     $user = User::factory()->create();
 
     $this->actingAs($user);
 
-    $response = Livewire::test('pages::settings.delete-user-modal')
-        ->set('password', 'password')
-        ->call('deleteUser');
-
-    $response
+    Livewire::test('pages::settings.delete-user-form')
+        ->set('confirmation', strtoupper($user->email))
+        ->call('deleteUser')
         ->assertHasNoErrors()
         ->assertRedirect('/');
 
     expect($user->fresh())->toBeNull();
-    expect(auth()->check())->toBeFalse();
+    $this->assertGuest();
 });
 
-test('correct password must be provided to delete account', function (): void {
+test('the email must match to delete the account', function (): void {
     $user = User::factory()->create();
 
     $this->actingAs($user);
 
-    $response = Livewire::test('pages::settings.delete-user-modal')
-        ->set('password', 'wrong-password')
-        ->call('deleteUser');
-
-    $response->assertHasErrors(['password']);
+    Livewire::test('pages::settings.delete-user-form')
+        ->set('confirmation', 'someone@else.com')
+        ->call('deleteUser')
+        ->assertHasErrors(['confirmation']);
 
     expect($user->fresh())->not->toBeNull();
 });

@@ -160,17 +160,11 @@ return [
     |
     */
 
+    // Passwordless: sign-in is a magic link (App\Http\Controllers\MagicLinkController) or a passkey.
     'features' => [
-        Features::registration(),
-        Features::resetPasswords(),
         Features::emailVerification(),
-        Features::twoFactorAuthentication([
-            'confirm' => true,
-            'confirmPassword' => true,
-            // 'window' => 0
-        ]),
         Features::passkeys([
-            'confirmPassword' => true,
+            'confirmPassword' => false,
         ]),
     ],
 

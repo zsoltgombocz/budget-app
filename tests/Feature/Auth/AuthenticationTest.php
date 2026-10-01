@@ -1,67 +1,97 @@
 <?php
 
+use App\Actions\Auth\SendMagicLink;
 use App\Models\User;
-use Laravel\Fortify\Features;
+use App\Notifications\MagicLoginLink;
+use Illuminate\Support\Facades\Notification;
+use Livewire\Livewire;
 
-test('login screen can be rendered', function (): void {
-    $response = $this->get(route('login'));
-
-    $response->assertOk();
+test('login screen offers a magic link and a passkey, no password', function (): void {
+    $this->get(route('login'))
+        ->assertOk()
+        ->assertSee('data-test="magic-link-email"', false)
+        ->assertDontSee('type="password"', false);
 });
 
-test('users can authenticate using the login screen', function (): void {
+test('a sign-in link is emailed to existing users', function (): void {
+    Notification::fake();
     $user = User::factory()->create();
 
-    $response = $this->post(route('login.store'), [
-        'email' => $user->email,
-        'password' => 'password',
-    ]);
+    Livewire::test('auth.magic-link-form')
+        ->set('email', strtoupper($user->email))
+        ->call('send')
+        ->assertHasNoErrors()
+        ->assertSet('sentTo', strtolower($user->email));
 
-    $response
-        ->assertSessionHasNoErrors()
-        ->assertRedirect(route('dashboard', absolute: false));
-
-    $this->assertAuthenticated();
+    Notification::assertSentTo($user, MagicLoginLink::class);
 });
 
-test('users can not authenticate with invalid password', function (): void {
-    $user = User::factory()->create();
+test('unknown addresses get the same answer but no email', function (): void {
+    Notification::fake();
 
-    $response = $this->post(route('login.store'), [
-        'email' => $user->email,
-        'password' => 'wrong-password',
-    ]);
+    Livewire::test('auth.magic-link-form')
+        ->set('email', 'nobody@example.com')
+        ->call('send')
+        ->assertSet('sentTo', 'nobody@example.com');
 
-    $response->assertSessionHasErrorsIn('email');
+    Notification::assertNothingSent();
+    expect(User::query()->count())->toBe(0);
+});
+
+test('the link signs in once, after confirming on the page', function (): void {
+    Notification::fake();
+    $user = User::factory()->unverified()->create();
+    resolve(SendMagicLink::class)->handle($user->email);
+
+    $token = null;
+    Notification::assertSentTo($user, MagicLoginLink::class, function (MagicLoginLink $notification) use (&$token): bool {
+        $token = $notification->token;
+
+        return true;
+    });
+
+    $this->get(route('magic-link.show', $token))->assertOk()->assertSee('data-test="magic-link-confirm"', false);
+    $this->assertGuest();
+
+    $this->post(route('magic-link.login', $token))->assertRedirect(route('dashboard'));
+    $this->assertAuthenticatedAs($user);
+    expect($user->refresh()->hasVerifiedEmail())->toBeTrue();
+
+    auth()->logout();
+    $this->post(route('magic-link.login', $token))->assertRedirect(route('login'));
+    $this->assertGuest();
+});
+
+test('an unknown or expired link does not sign in', function (): void {
+    $this->post(route('magic-link.login', 'not-a-real-token'))->assertRedirect(route('login'))->assertSessionHas('status');
 
     $this->assertGuest();
 });
 
-test('users with two factor enabled are redirected to two factor challenge', function (): void {
-    $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
+test('password sign-in is switched off', function (): void {
+    $user = User::factory()->create();
 
-    Features::twoFactorAuthentication([
-        'confirm' => true,
-        'confirmPassword' => true,
-    ]);
+    $this->post(route('login.store'), ['email' => $user->email, 'password' => 'password']);
 
-    $user = User::factory()->withTwoFactor()->create();
-
-    $response = $this->post(route('login.store'), [
-        'email' => $user->email,
-        'password' => 'password',
-    ]);
-
-    $response->assertRedirect(route('two-factor.login'));
     $this->assertGuest();
+});
+
+test('sending links is rate limited', function (): void {
+    Notification::fake();
+    $user = User::factory()->create();
+    $component = Livewire::test('auth.magic-link-form')->set('email', $user->email);
+
+    foreach (range(1, 5) as $attempt) {
+        $component->call('send')->call('again')->set('email', $user->email);
+    }
+
+    $component->call('send')->assertHasErrors('email');
 });
 
 test('users can logout', function (): void {
-    $user = User::factory()->create();
+    $this->actingAs(onboardedUser());
 
-    $response = $this->actingAs($user)->post(route('logout'));
-
-    $response->assertRedirect(route('home'));
+    Livewire::test('pages::settings.index')->call('logout')->assertRedirect('/');
 
     $this->assertGuest();
 });

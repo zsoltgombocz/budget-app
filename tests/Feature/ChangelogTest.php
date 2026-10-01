@@ -35,6 +35,6 @@ it('shows the changelog in the user\'s language', function (): void {
 it('shows the version in settings and the new version sheet in the app', function (): void {
     $this->actingAs(onboardedUser());
 
-    $this->get(route('budget.edit'))->assertSee('data-test="app-version"', false)->assertSee(config('app.version'));
+    $this->get(route('settings'))->assertSee(route('changelog'))->assertSee(config('app.version'));
     $this->get(route('dashboard'))->assertSee('data-test="new-version"', false);
 });

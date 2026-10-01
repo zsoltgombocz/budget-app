@@ -6,6 +6,17 @@
  */
 return [
     [
+        'version' => '1.5.0',
+        'date' => '2026-10-01',
+        'changes' => [
+            ['hu' => 'Jelszó nélküli belépés: e-mailes belépési link vagy passkey. A regisztrációhoz elég a név és az e-mail-cím.', 'en' => 'Passwordless sign-in: an emailed sign-in link or a passkey. Registering needs only a name and email.'],
+            ['hu' => 'Új beállítások: menüből érhető el minden szekció, mindenhol van vissza gomb.', 'en' => 'New settings: every section opens from a menu and has a back button.'],
+            ['hu' => 'Az értesítések külön oldalt kaptak, a változás azonnal mentődik.', 'en' => 'Notifications have their own page and save instantly.'],
+            ['hu' => 'Gyorsabb navigáció: a menüpont azonnal kijelölődik, és töltésjelző mutatja a betöltést.', 'en' => 'Snappier navigation: the tab lights up instantly and a loader shows the page is coming.'],
+            ['hu' => 'Onboarding: animált lépések, a gombok nem takarják a tartalmat, működik a „Most nem”.', 'en' => 'Onboarding: animated steps, buttons no longer cover content, “Not now” works.'],
+        ],
+    ],
+    [
         'version' => '1.4.1',
         'date' => '2026-10-01',
         'changes' => [

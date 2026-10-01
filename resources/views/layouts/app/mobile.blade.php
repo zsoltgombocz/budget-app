@@ -7,6 +7,7 @@
     </head>
     <body class="min-h-dvh bg-bg font-sans text-ink antialiased">
         <x-splash />
+        <div id="nav-progress" aria-hidden="true"></div>
 
         <div class="mx-auto min-h-dvh w-full max-w-lg">
             <main @class([

@@ -478,7 +478,7 @@ new #[Title('Plan')] class extends Component {
                 </details>
             </div>
 
-            <x-ui.button x-on:click="saveLine()" ::disabled="saving" ::class="saving && 'is-busy'" class="mt-2 w-full shrink-0" data-test="save-line">{{ __('Save') }}</x-ui.button>
+            <x-ui.button x-on:click="saveLine()" ::disabled="saving" class="mt-2 w-full shrink-0" data-test="save-line">{{ __('Save') }}</x-ui.button>
         </div>
     </div>
 
