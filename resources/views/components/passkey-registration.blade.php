@@ -66,23 +66,17 @@
     }"
 >
     <template x-if="!supported">
-        <flux:text>{{ __('Passkeys are not supported in this browser.') }}</flux:text>
+        <p class="px-1 text-[13px] text-muted">{{ __('Passkeys are not supported in this browser.') }}</p>
     </template>
 
     <template x-if="supported && !showForm">
         <div>
-            <flux:button
-                variant="primary"
-                icon="plus"
-                x-on:click="showForm = true"
-            >
-                {{ __('Add passkey') }}
-            </flux:button>
+            <x-ui.button icon="add" class="w-full" x-on:click="showForm = true" data-test="add-passkey">{{ __('Add passkey') }}</x-ui.button>
         </div>
     </template>
 
     <template x-if="supported && showForm">
-        <div class="space-y-4 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-4">
+        <div class="space-y-4 rounded-card bg-surface p-[18px]">
             <flux:input
                 label="{{ __('Passkey name') }}"
                 x-model="name"

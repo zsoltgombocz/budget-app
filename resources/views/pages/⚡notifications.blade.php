@@ -56,6 +56,10 @@ new #[Title('Notifications')] #[Layout('layouts::app', ['tabs' => false])] class
      x-data="{
         busy: false,
         supported: window.budgetPush.supported(),
+        notNow() {
+            try { localStorage.setItem('push-prompt-dismissed', '1') } catch (e) {}
+            $wire.finish(false)
+        },
         async enable() {
             this.busy = true
             let ok = false
@@ -100,6 +104,6 @@ new #[Title('Notifications')] #[Layout('layouts::app', ['tabs' => false])] class
 
     <div class="mt-auto flex flex-col gap-1.5 px-4 pb-[42px] pt-6">
         <x-ui.button x-on:click="enable()" ::disabled="busy || ! supported" data-test="enable-notifications">{{ __('Enable notifications') }}</x-ui.button>
-        <button type="button" x-on:click="try { localStorage.setItem('push-prompt-dismissed', '1') } catch (e) {}; $wire.finish(false)" class="h-11 text-[15px] text-muted" data-test="not-now">{{ __('Not now') }}</button>
+        <button type="button" x-on:click="notNow()" class="h-11 text-[15px] text-muted" data-test="not-now">{{ __('Not now') }}</button>
     </div>
 </div>

@@ -165,7 +165,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
     ];
 @endphp
 
-<div class="flex min-h-[calc(100dvh-var(--safe-top)-env(safe-area-inset-bottom))] flex-col pb-[110px]"
+<div class="flex min-h-[calc(100dvh-var(--safe-top)-env(safe-area-inset-bottom))] flex-col pb-[calc(10rem+env(safe-area-inset-bottom))]"
      x-data="{
         field: null,
         value: '',
@@ -199,6 +199,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
     </div>
     <x-ui.steps :current="$step" :total="$this::STEPS" />
 
+    <div wire:key="step-{{ $step }}" class="step-enter">
     <div class="px-6 pt-[22px]">
         <h1 class="text-[28px] font-semibold leading-tight tracking-[-0.03em] text-pretty">{{ $titles[$step][0] }}</h1>
         <p class="mt-1.5 text-sm leading-normal text-pretty text-muted">{{ $titles[$step][1] }}</p>
@@ -314,6 +315,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                 <p class="mt-3 px-1 text-xs leading-snug text-muted">{{ __('This only decides where the month-end leftover goes after the reserve. You can change it later in Settings.') }}</p>
                 @break
         @endswitch
+    </div>
     </div>
 
     <div class="fixed inset-x-0 bottom-0 z-20 mx-auto flex max-w-lg gap-2.5 bg-gradient-to-t from-bg via-bg to-transparent px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-6">

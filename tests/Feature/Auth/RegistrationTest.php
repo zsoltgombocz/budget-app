@@ -1,27 +1,46 @@
 <?php
 
-use Laravel\Fortify\Features;
-
-beforeEach(function (): void {
-    $this->skipUnlessFortifyHas(Features::registration());
-});
+use App\Models\User;
+use App\Notifications\MagicLoginLink;
+use Illuminate\Support\Facades\Notification;
+use Livewire\Livewire;
 
 test('registration screen can be rendered', function (): void {
-    $response = $this->get(route('register'));
-
-    $response->assertOk();
+    $this->get(route('register'))->assertOk()->assertDontSee('type="password"', false);
 });
 
-test('new users can register', function (): void {
-    $response = $this->post(route('register.store'), [
-        'name' => 'John Doe',
-        'email' => 'test@example.com',
-        'password' => 'password',
-        'password_confirmation' => 'password',
-    ]);
+test('registering creates the account and emails a sign-in link', function (): void {
+    Notification::fake();
 
-    $response->assertSessionHasNoErrors()
-        ->assertRedirect(route('dashboard', absolute: false));
+    Livewire::test('auth.magic-link-form', ['register' => true])
+        ->set('name', 'Test User')
+        ->set('email', 'Test@Example.com')
+        ->call('send')
+        ->assertHasNoErrors();
 
-    $this->assertAuthenticated();
+    $user = User::query()->where('email', 'test@example.com')->sole();
+
+    expect($user->name)->toBe('Test User')
+        ->and($user->hasVerifiedEmail())->toBeFalse();
+    Notification::assertSentTo($user, MagicLoginLink::class);
+});
+
+test('registering an existing address only sends a sign-in link', function (): void {
+    Notification::fake();
+    $user = User::factory()->create(['name' => 'Original']);
+
+    Livewire::test('auth.magic-link-form', ['register' => true])
+        ->set('name', 'Someone Else')
+        ->set('email', $user->email)
+        ->call('send');
+
+    expect(User::query()->count())->toBe(1)->and($user->refresh()->name)->toBe('Original');
+    Notification::assertSentTo($user, MagicLoginLink::class);
+});
+
+test('a name is required to register', function (): void {
+    Livewire::test('auth.magic-link-form', ['register' => true])
+        ->set('email', 'new@example.com')
+        ->call('send')
+        ->assertHasErrors('name');
 });

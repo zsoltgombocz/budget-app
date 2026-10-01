@@ -240,19 +240,19 @@ select:focus[data-flux-control] {
 
 /* Every page (also after wire:navigate) fades up; its blocks follow in a short stagger. */
 .page-enter {
-    animation: page-in 260ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation: page-in 180ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
 .page-enter > * > * {
-    animation: item-in 380ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation: item-in 260ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
-.page-enter > * > *:nth-child(2) { animation-delay: 40ms; }
-.page-enter > * > *:nth-child(3) { animation-delay: 80ms; }
-.page-enter > * > *:nth-child(4) { animation-delay: 120ms; }
-.page-enter > * > *:nth-child(5) { animation-delay: 160ms; }
-.page-enter > * > *:nth-child(6) { animation-delay: 200ms; }
-.page-enter > * > *:nth-child(n + 7) { animation-delay: 240ms; }
+.page-enter > * > *:nth-child(2) { animation-delay: 20ms; }
+.page-enter > * > *:nth-child(3) { animation-delay: 40ms; }
+.page-enter > * > *:nth-child(4) { animation-delay: 60ms; }
+.page-enter > * > *:nth-child(5) { animation-delay: 80ms; }
+.page-enter > * > *:nth-child(6) { animation-delay: 100ms; }
+.page-enter > * > *:nth-child(n + 7) { animation-delay: 120ms; }
 
 /* Fixed overlays (sheets, bars) inside pages must not be animated as blocks. */
 .page-enter > * > .fixed {
@@ -262,30 +262,6 @@ select:focus[data-flux-control] {
 [role='progressbar'] > div {
     transform-origin: left center;
     animation: bar-grow 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both 120ms;
-}
-
-/* Loading state: Livewire marks the element that started a request with data-loading. */
-button[data-loading],
-a[data-loading],
-.is-busy {
-    position: relative;
-    pointer-events: none;
-    opacity: 0.75;
-}
-
-button[data-loading]::after,
-.is-busy::after {
-    content: '';
-    position: absolute;
-    right: 14px;
-    top: 50%;
-    width: 16px;
-    height: 16px;
-    margin-top: -8px;
-    border-radius: 9999px;
-    border: 2px solid currentColor;
-    border-right-color: transparent;
-    animation: spin 700ms linear infinite;
 }
 
 /* App launch splash (installed app, first load of a session). */
@@ -320,6 +296,52 @@ html.splash.splash-out #app-splash {
     .page-enter > * > *,
     [role='progressbar'] > div,
     #app-splash .splash-icon {
+        animation: none !important;
+    }
+}
+
+/* Onboarding / wizard step change. */
+@keyframes step-in {
+    from { opacity: 0; transform: translateX(16px); }
+    to { opacity: 1; transform: none; }
+}
+
+.step-enter {
+    animation: step-in 280ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+/* Navigation feedback: an instant top bar and a dimmed page while the next page loads. */
+@keyframes nav-progress {
+    0% { transform: scaleX(0); }
+    40% { transform: scaleX(0.55); }
+    100% { transform: scaleX(0.9); }
+}
+
+#nav-progress {
+    position: fixed;
+    inset: var(--safe-top) 0 auto 0;
+    z-index: 70;
+    height: 3px;
+    background: var(--app-accent);
+    transform-origin: left center;
+    transform: scaleX(0);
+    opacity: 0;
+    pointer-events: none;
+}
+
+html.navigating #nav-progress {
+    opacity: 1;
+    animation: nav-progress 1.6s cubic-bezier(0.1, 0.6, 0.2, 1) forwards;
+}
+
+html.navigating main {
+    opacity: 0.55;
+    transition: opacity 120ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .step-enter,
+    html.navigating #nav-progress {
         animation: none !important;
     }
 }
