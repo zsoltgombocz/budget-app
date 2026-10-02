@@ -94,6 +94,24 @@ it('puts a new loan into the plan as a repayment line straight away', function (
         ->and($line->category->refresh()->name)->toBe('Mortgage');
 });
 
+it('keeps the installment due day on the repayment line', function (): void {
+    $data = ($this->page)()->loanData(null);
+    $data['name'] = 'Car loan';
+    $data['amounts']['principal'] = '3000000';
+    $data['amounts']['installment'] = '60000';
+    $data['amounts']['dueDay'] = '15';
+
+    expect(($this->page)()->saveLoan($data, resolve(SaveLoan::class))['ok'])->toBeTrue();
+
+    $loan = Loan::query()->where('name', 'Car loan')->sole();
+    expect(BudgetLine::query()->where('loan_id', $loan->id)->value('due_day'))->toBe(15)
+        ->and(($this->page)()->loanData($loan->id)['amounts']['dueDay'])->toBe('15');
+
+    $data = ($this->page)()->loanData($loan->id);
+    $data['amounts']['dueDay'] = '32';
+    expect(($this->page)()->saveLoan($data, resolve(SaveLoan::class))['errors'])->toHaveKey('dueDay');
+});
+
 it('gives loans that had no plan line their repayment line on migrate', function (): void {
     $loan = Loan::factory()->for($this->user)->create(['installment' => 60_000, 'insurance' => 0]);
     auth()->logout();

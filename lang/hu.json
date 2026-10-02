@@ -757,5 +757,6 @@
     "Planned costs and budgets": "Tervezett kiadások és keretek",
     "Put aside in the reserve": "Félretétel a tartalékba",
     "Expected leftover": "Várható maradék",
-    "Reserve: :fixed fixed + :share from the leftover": "Tartalék: :fixed fix + :share a maradékból"
+    "Reserve: :fixed fixed + :share from the leftover": "Tartalék: :fixed fix + :share a maradékból",
+    "Day of the month; you get a reminder that morning": "A hónap napja; aznap reggel emlékeztetünk"
 }

@@ -325,9 +325,10 @@ new #[Title('Plan')] class extends Component {
                                 @if ($editing)
                                     <span wire:sort:handle class="cursor-grab touch-none text-faint" aria-label="{{ __('Drag to reorder') }}"><x-ui.icon name="drag_indicator" :size="20" /></span>
                                 @endif
+                                <x-ui.icon-tile :icon="Icons::forCategory($line->category?->icon)" :size="36" data-test="line-icon" />
                                 @if ($type === LineType::Loan && $line->loan_id !== null && ! $editing)
                                     {{-- A repayment follows its loan, so it opens the loan itself. --}}
-                                    <a href="{{ route('pockets', ['hitel' => $line->loan_id]) }}" wire:navigate class="flex min-w-0 flex-1 items-baseline justify-between gap-3 text-left" data-test="open-loan-{{ $line->loan_id }}">
+                                    <a href="{{ route('pockets', ['hitel' => $line->loan_id, 'vissza' => 'terv']) }}" wire:navigate class="flex min-w-0 flex-1 items-center justify-between gap-3 text-left" data-test="open-loan-{{ $line->loan_id }}">
                                         <span class="min-w-0">
                                             <span class="block truncate text-[15px]">{{ $line->category?->name }}</span>
                                             @if ($subtitle)<span class="num mt-0.5 block truncate text-xs text-muted">{{ $subtitle }}</span>@endif
@@ -335,7 +336,7 @@ new #[Title('Plan')] class extends Component {
                                         <span class="num shrink-0 text-[15px] font-medium">{{ money_number($this->plannedAmount($line)) }}</span>
                                     </a>
                                 @else
-                                    <button type="button" x-on:click="openLine({{ $line->id }})" class="flex min-w-0 flex-1 items-baseline justify-between gap-3 text-left">
+                                    <button type="button" x-on:click="openLine({{ $line->id }})" class="flex min-w-0 flex-1 items-center justify-between gap-3 text-left">
                                         <span class="min-w-0">
                                             <span class="block truncate text-[15px]">{{ $line->category?->name }}</span>
                                             @if ($subtitle)<span class="num mt-0.5 block truncate text-xs text-muted">{{ $subtitle }}</span>@endif
@@ -354,7 +355,7 @@ new #[Title('Plan')] class extends Component {
                     @endforeach
                 </div>
                 @if ($type === LineType::Loan)
-                    <a href="{{ route('pockets', ['hitel' => 'uj']) }}" wire:navigate class="flex w-full items-center gap-2 border-b border-line py-[13px] text-[15px] font-medium text-accent" data-test="add-loan">
+                    <a href="{{ route('pockets', ['hitel' => 'uj', 'vissza' => 'terv']) }}" wire:navigate class="flex w-full items-center gap-2 border-b border-line py-[13px] text-[15px] font-medium text-accent" data-test="add-loan">
                         <x-ui.icon name="add" :size="20" />{{ __('New loan') }}
                     </a>
                 @elseif ($editing)
