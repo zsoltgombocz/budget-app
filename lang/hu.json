@@ -699,5 +699,6 @@
     "Wrong admin sign-in code": "Hibás admin belépőkód",
     "Your admin sign-in code is :code. Type it on the admin login page:": "Az admin belépőkódod: :code. Írd be az admin belépő oldalon:",
     "admin": "admin",
-    "admins": "adminok"
+    "admins": "adminok",
+    "Checking…": "Ellenőrzés…"
 }
