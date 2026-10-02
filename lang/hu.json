@@ -558,7 +558,6 @@
     "due on day :day": "esedékes: minden hó :day.",
     "e.g., MacBook Pro, iPhone": "pl. MacBook Pro, iPhone",
     "filled from the month-end leftover": "hó végi maradékból töltődik",
-    "installment, the loan details are on the Pockets screen": "részlet, a hitel adatai a Perselyeknél",
     "into :pocket": "→ :pocket",
     "into :pocket · prepay step :step": "→ :pocket · lépcső :step",
     "log in": "belépés",
@@ -703,5 +702,6 @@
     "Has not finished the setup wizard yet.": "Még nem fejezte be a beállító varázslót.",
     "You are invited to :app": "Meghívtak a :app appba",
     "You are invited to :app: plan your month, record spending in two taps and see the expected leftover.": "Meghívtak a :app appba: tervezd meg a hónapod, rögzítsd a költéseket két koppintással, és lásd, mennyi marad a hó végén.",
-    "Loan repayments": "Hiteltörlesztés"
+    "Loan repayments": "Hiteltörlesztés",
+    "monthly installment, tap for the loan details": "havi részlet, koppints a hitel adataiért"
 }
