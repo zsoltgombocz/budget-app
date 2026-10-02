@@ -91,3 +91,13 @@ it('splits nothing when the plan is over the income', function (): void {
         ->and($forecast->allocation->toSurplus)->toBe(0)
         ->and($forecast->hasReserve)->toBeFalse();
 });
+
+it('puts a fixed amount of the leftover into the reserve instead of a share', function (): void {
+    $calculator = new AllocationCalculator;
+
+    expect($calculator->allocate(80_000, 100, true, reserveFixed: 30_000))
+        ->toReserve->toBe(30_000)->toSurplus->toBe(50_000)
+        // Never more than the leftover, and never past the target.
+        ->and($calculator->allocate(20_000, 0, true, reserveFixed: 30_000)->toReserve)->toBe(20_000)
+        ->and($calculator->allocate(80_000, 0, true, reserveBalance: 290_000, reserveTarget: 300_000, reserveFixed: 30_000)->toReserve)->toBe(10_000);
+});

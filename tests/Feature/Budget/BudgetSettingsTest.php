@@ -74,3 +74,42 @@ it('ignores another user\'s leftover target', function (): void {
 
     expect(auth()->user()->settings()->refresh()->surplus_account_id)->toBeNull();
 });
+
+it('creates the reserve from the plan with its monthly saving and target', function (): void {
+    $user = onboardedUser();
+    $this->actingAs($user);
+
+    $page = Livewire::test('pages::plan');
+    expect($page->instance()->reserveData()['exists'])->toBeFalse();
+
+    $result = $page->instance()->saveReserve(['monthly' => '25000', 'target' => '300000', 'fixed' => '']);
+    expect($result['ok'])->toBeTrue();
+
+    $reserve = Pocket::query()->where('is_reserve', true)->sole();
+    expect($reserve->target_amount)->toBe(300_000)
+        ->and(BudgetLine::query()->where('pocket_id', $reserve->id)->value('amount'))->toBe(25_000);
+
+    // Saving again updates the same line instead of adding one.
+    $page->instance()->saveReserve(['monthly' => '30000', 'target' => '', 'fixed' => '']);
+    expect(BudgetLine::query()->where('pocket_id', $reserve->id)->count())->toBe(1)
+        ->and(BudgetLine::query()->where('pocket_id', $reserve->id)->value('amount'))->toBe(30_000)
+        ->and($reserve->refresh()->target_amount)->toBeNull();
+
+    expect($page->instance()->saveReserve(['monthly' => 'sok', 'target' => '', 'fixed' => ''])['errors'])->toHaveKey('monthly');
+});
+
+it('switches the leftover rule between a share and a fixed amount', function (): void {
+    $user = onboardedUser(['reserve_pct' => 50]);
+    $this->actingAs($user);
+    Pocket::factory()->for($user)->create(['is_reserve' => true, 'balance' => 0, 'target_amount' => null]);
+
+    $page = Livewire::test('pages::plan')->call('setReserveMode', 'fixed');
+    expect($user->settings()->refresh()->reserve_fixed)->toBe(0);
+
+    $page->instance()->saveReserve(['monthly' => '', 'target' => '', 'fixed' => '40000']);
+    expect($user->settings()->refresh()->reserve_fixed)->toBe(40_000)
+        ->and($page->instance()->monthEnd->allocation->toReserve)->toBe(40_000);
+
+    $page->call('setReserveMode', 'pct');
+    expect($user->settings()->refresh()->reserve_fixed)->toBeNull();
+});

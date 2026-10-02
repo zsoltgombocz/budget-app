@@ -38,3 +38,20 @@ it('goes back to the plan when the loan opened from there is cancelled', functio
         ->click('[data-test="loan-sheet"] >> text='.__('Cancel'))
         ->assertPathIs('/terv');
 });
+
+it('creates a reserve from the plan with the numpad', function (): void {
+    $this->actingAs(onboardedUser());
+
+    visit(route('plan'))->on()->mobile()
+        ->click('[data-test="create-reserve"]')
+        ->assertVisible('[data-test="reserve-sheet"]')
+        ->click('[data-test="reserve-monthly"]')
+        ->click('[data-test="reserve-sheet"] [data-key="2"]:visible')
+        ->click('[data-test="reserve-sheet"] [data-key="5"]:visible')
+        ->click('[data-test="reserve-sheet"] [data-key="000"]:visible')
+        ->click('[data-test="pad-done"]:visible')
+        ->click('[data-test="save-reserve"]')
+        ->assertVisible('[data-test="reserve-row"] >> nth=0');
+
+    expect(BudgetLine::query()->whereNotNull('pocket_id')->value('amount'))->toBe(25_000);
+});

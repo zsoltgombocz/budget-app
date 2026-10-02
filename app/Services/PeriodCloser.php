@@ -71,6 +71,7 @@ final readonly class PeriodCloser
             hasReserve: $reserve !== null,
             reserveBalance: $reserveBalanceAfterDeposits,
             reserveTarget: $reserve?->target_amount,
+            reserveFixed: $settings->reserve_fixed,
         );
 
         if (! $coverDeficit && $allocation->leftover < 0) {

@@ -139,6 +139,24 @@ it('can be skipped for an empty plan', function (): void {
         ->and($user->periods()->count())->toBe(1);
 });
 
+it('saves a fixed leftover amount for the reserve', function (): void {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test('pages::onboarding')
+        ->set('income', '500000')->call('next')
+        ->set('periodMode', 'calendar')->call('next')
+        ->call('next')->call('next')
+        ->set('shared', false)->call('next')
+        ->set('hasLoan', false)->call('next')
+        ->call('next')
+        ->set('reserveMode', 'fixed')->set('reserveFixed', '30000')
+        ->call('finish')
+        ->assertHasNoErrors();
+
+    expect($user->settings()->refresh()->reserve_fixed)->toBe(30_000);
+});
+
 it('keeps a reserve pocket with a target even without a monthly amount', function (): void {
     $user = User::factory()->create();
     $this->actingAs($user);
@@ -231,9 +249,14 @@ it('works out where the leftover of the entered plan would go', function (): voi
         ->set('reservePct', 50)
         ->set('reserveTarget', '50000');
 
-    // 500 000 - 300 000 planned - 20 000 put aside = 180 000 left; half is 90 000, capped at the 50 000 target.
-    expect($wizard->instance()->leftoverPreview)->toBe(['income' => 500_000, 'planned' => 300_000, 'reserveMonthly' => 20_000, 'leftover' => 180_000, 'toReserve' => 50_000, 'toSurplus' => 130_000, 'reserveOn' => true])
-        ->and($wizard->html())->toContain(money(70_000));
+    // 500 000 - 300 000 planned - 20 000 put aside = 180 000 left; half would be 90 000, but the
+    // 50 000 target leaves room for only 30 000 next to the monthly 20 000.
+    expect($wizard->instance()->leftoverPreview)->toBe(['income' => 500_000, 'planned' => 300_000, 'reserveMonthly' => 20_000, 'leftover' => 180_000, 'toReserve' => 30_000, 'toSurplus' => 150_000, 'reserveOn' => true])
+        ->and($wizard->html())->toContain(money(50_000));
+
+    $wizard->set('reserveMode', 'fixed')->set('reserveFixed', '10000');
+    expect($wizard->instance()->leftoverPreview['toReserve'])->toBe(10_000);
+    $wizard->set('reserveMode', 'pct');
 
     $wizard->set('included.14', false);
     expect($wizard->instance()->leftoverPreview)->toBe(['income' => 500_000, 'planned' => 300_000, 'reserveMonthly' => 0, 'leftover' => 200_000, 'toReserve' => 0, 'toSurplus' => 200_000, 'reserveOn' => false]);

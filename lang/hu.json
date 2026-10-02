@@ -749,7 +749,6 @@
     "No, leave the reserve alone": "Nem, a tartalék maradjon",
     "Nothing moves. The gap is only recorded in the closing.": "Nem mozdul pénz, a hiányt csak rögzítjük a zárásban.",
     "Not covered": "Nincs fedezve",
-    "On top of the monthly amount, this share of the leftover also goes to the reserve until it reaches the target:": "A havi félretételen felül a maradékból ekkora rész menjen még a tartalékba, amíg el nem éri a célt:",
     "A month with your numbers": "Egy hónap a te számaiddal",
     "Planned costs and budgets": "Tervezett kiadások és keretek",
     "Put aside in the reserve": "Félretétel a tartalékba",
@@ -767,5 +766,13 @@
     "Something missing? After the wizard you can add more budgets on the Plan screen, e.g. for a pet or a hobby.": "Hiányzik valami? A varázsló után a Terv oldalon további kereteket is felvehetsz, például háziállatra vagy hobbira.",
     "At closing it is listed as a manual transfer and we remind you to move it there.": "Záráskor „kézi utalás” tételként jelenik meg, és emlékeztetünk, hogy utald át.",
     "At closing it is added to this pocket in the app.": "Záráskor az appban ehhez a perselyhez adódik.",
-    "Nothing is moved: the money simply stays on your account.": "Nem mozdul semmi: a pénz egyszerűen a számládon marad."
+    "Nothing is moved: the money simply stays on your account.": "Nem mozdul semmi: a pénz egyszerűen a számládon marad.",
+    "A fixed amount": "Fix összeg",
+    "A share": "Százalék",
+    "Amount from the leftover": "Összeg a maradékból",
+    "Balance: :amount": "Egyenleg: :amount",
+    "Create a reserve pocket": "Tartalék persely létrehozása",
+    "Empty means no limit": "Üresen hagyva nincs felső határ",
+    "It is worth lowering a budget.": "Érdemes csökkenteni egy keretet.",
+    "On top of the monthly amount, this much of the leftover also goes to the reserve until it reaches the target:": "A havi félretételen felül a maradékból ennyi menjen még a tartalékba, amíg el nem éri a célt:"
 }

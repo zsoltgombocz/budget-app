@@ -83,6 +83,15 @@ it('covers a deficit from the reserve', function (): void {
         ->and($this->reserve->refresh()->balance)->toBe(0);
 });
 
+it('puts a fixed amount of the leftover into the reserve when the rule is a fixed amount', function (): void {
+    $this->user->settings()->update(['reserve_fixed' => 30_000, 'reserve_pct' => 100]);
+    $this->reserve->update(['target_amount' => null]);
+
+    $close = resolve(PeriodCloser::class)->close($this->user, $this->period);
+
+    expect($close->to_reserve)->toBe(30_000);
+});
+
 it('leaves the reserve alone when the user chooses not to cover the deficit', function (): void {
     spend($this->user, $this->period, $this->fuel, 400_000);
 
