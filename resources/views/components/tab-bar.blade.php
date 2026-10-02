@@ -8,23 +8,50 @@
     ];
 @endphp
 
-{{-- Record button: floats above the tab bar, hides while scrolling down, comes back on scroll up. --}}
+{{--
+    Record button: floats above the tab bar and slides down behind it while scrolling down.
+    Scrolling up brings it back, but only when the last finger drag pointed up the page (or
+    there is no touch, e.g. a mouse): the iOS rubber-band bounce after a hard fling down scrolls
+    up on its own and must not count. Hidden on the settings pages.
+--}}
 <button type="button"
         x-data="{
             visible: true,
-            lastY: window.scrollY,
+            allowed: true,
+            anchorY: 0,
+            touchY: null,
+            lastDrag: null,
+            hiddenOn: @js(array_map(fn (string $name): string => (string) parse_url(route($name), PHP_URL_PATH), ['settings', 'install', 'changelog'])),
+            syncPage() {
+                this.allowed = ! this.hiddenOn.some(path => location.pathname === path || location.pathname.startsWith(path + '/'))
+                this.visible = true
+                this.anchorY = window.scrollY
+            },
+            onTouchMove(y) {
+                if (this.touchY !== null && Math.abs(y - this.touchY) > 4) this.lastDrag = y > this.touchY ? 'up' : 'down'
+                this.touchY = y
+            },
             onScroll() {
                 const y = window.scrollY
-                if (Math.abs(y - this.lastY) < 6) return
-                this.visible = y < this.lastY || y < 80
-                this.lastY = y
+                if (y < 80) { this.visible = true; this.anchorY = y; return }
+                if (this.visible) {
+                    if (y < this.anchorY) this.anchorY = y
+                    else if (y > this.anchorY + 8) { this.visible = false; this.anchorY = y }
+                } else if (y > this.anchorY) {
+                    this.anchorY = y
+                } else if (y < this.anchorY - 24 && this.lastDrag !== 'down') {
+                    this.visible = true
+                    this.anchorY = y
+                }
             },
         }"
+        x-on:touchstart.window.passive="touchY = $event.touches[0]?.clientY ?? null"
+        x-on:touchmove.window.passive="onTouchMove($event.touches[0]?.clientY ?? 0)"
         x-on:scroll.window.passive="onScroll()"
-        x-init="document.addEventListener('livewire:navigated', () => { visible = true; lastY = window.scrollY })"
+        x-init="syncPage(); document.addEventListener('livewire:navigated', () => syncPage())"
         x-on:click="$dispatch('open-entry')"
-        class="fixed right-5 bottom-[calc(82px+env(safe-area-inset-bottom)+16px)] z-30 flex size-[58px] items-center justify-center rounded-[20px] bg-accent text-accent-ink shadow-[0_10px_24px_color-mix(in_srgb,var(--app-accent)_32%,transparent)] transition duration-200 ease-out active:scale-95"
-        :class="visible ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-[calc(100%+110px)] opacity-0'"
+        class="fixed right-5 bottom-[calc(82px+env(safe-area-inset-bottom)+16px)] z-20 flex size-[58px] items-center justify-center rounded-[20px] bg-accent text-accent-ink shadow-[0_10px_24px_color-mix(in_srgb,var(--app-accent)_32%,transparent)] transition-transform active:scale-95"
+        :class="visible && allowed ? 'translate-y-0 duration-300 ease-out' : 'pointer-events-none translate-y-[calc(100%_+_160px)] duration-[400ms] ease-in'"
         aria-label="{{ __('Record spending') }}" data-test="tab-entry">
     <x-ui.icon name="add" :size="32" :weight="500" />
 </button>

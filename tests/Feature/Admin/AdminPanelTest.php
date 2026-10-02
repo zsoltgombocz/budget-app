@@ -5,6 +5,7 @@ use App\Filament\Pages\Auth\Login;
 use App\Filament\Resources\Admins\Pages\ManageAdmins;
 use App\Filament\Resources\Users\Pages\ManageUsers;
 use App\Models\Admin;
+use App\Models\BudgetSetting;
 use App\Models\User;
 use App\Notifications\AdminSignInLink;
 use App\Notifications\Invitation;
@@ -38,6 +39,15 @@ it('lets admins in', function (): void {
     $this->actingAs($admin, 'admin')->get('/admin')->assertOk();
     $this->actingAs($admin, 'admin')->get('/admin/users')->assertOk()->assertSee('Bea Kovács');
     expect(Gate::forUser($admin)->allows('viewPulse'))->toBeTrue();
+});
+
+it('links the Nightwatch dashboard from the admin menu', function (): void {
+    config(['budget.nightwatch_url' => 'https://nightwatch.laravel.com/eu/environments/test/dashboard']);
+
+    $this->actingAs(Admin::factory()->create(), 'admin')
+        ->get('/admin')
+        ->assertOk()
+        ->assertSee('https://nightwatch.laravel.com/eu/environments/test/dashboard', false);
 });
 
 it('signs an admin in with the emailed code', function (): void {
@@ -90,11 +100,13 @@ it('signs an admin in with the button in the email, once', function (): void {
 });
 
 it('shows who finished the setup wizard', function (): void {
+    // Ids must not line up with the admin's id, or the user scope would hide the bug.
+    User::factory()->count(2)->create();
     $this->actingAs(Admin::factory()->create(), 'admin');
     $done = onboardedUser();
-    $done->settings()->update(['onboarded_at' => now()]);
+    BudgetSetting::withoutGlobalScopes()->where('user_id', $done->id)->update(['onboarded_at' => now()]);
     $started = User::factory()->create();
-    $started->settings();
+    BudgetSetting::factory()->for($started)->create(['onboarded_at' => null]);
 
     Livewire::test(ManageUsers::class)
         ->assertTableColumnStateSet('onboarded', true, $done)

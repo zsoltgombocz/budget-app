@@ -57,7 +57,8 @@ class UserResource extends Resource
     {
         return $table
             // "Onboarded": the user finished the setup wizard (budget_settings.onboarded_at).
-            ->modifyQueryUsing(fn (Builder $query): Builder => $query->withExists(['budgetSetting as onboarded' => fn (Builder $settings): Builder => $settings->whereNotNull('onboarded_at')]))
+            // BelongsToUser scopes budget settings to the signed-in user; the admin looks at everyone.
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->withExists(['budgetSetting as onboarded' => fn (Builder $settings): Builder => $settings->withoutGlobalScopes()->whereNotNull('onboarded_at')]))
             ->defaultSort('created_at', 'desc')
             ->columns([
                 TextColumn::make('name')->label(__('Name'))->searchable()->sortable()
