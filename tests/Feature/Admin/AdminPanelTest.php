@@ -89,6 +89,18 @@ it('signs an admin in with the button in the email, once', function (): void {
     $this->assertGuest('admin');
 });
 
+it('shows who finished the setup wizard', function (): void {
+    $this->actingAs(Admin::factory()->create(), 'admin');
+    $done = onboardedUser();
+    $done->settings()->update(['onboarded_at' => now()]);
+    $started = User::factory()->create();
+    $started->settings();
+
+    Livewire::test(ManageUsers::class)
+        ->assertTableColumnStateSet('onboarded', true, $done)
+        ->assertTableColumnStateSet('onboarded', false, $started);
+});
+
 it('sends nothing to an address that is not an admin', function (): void {
     Notification::fake();
     $user = User::factory()->create();

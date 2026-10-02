@@ -642,7 +642,6 @@
     "Disabled": "Letiltva",
     "Invited": "Meghívva",
     "Active": "Aktív",
-    "Set up": "Beállítva",
     "Last seen": "Utoljára aktív",
     "Joined": "Csatlakozott",
     "Send invite again": "Meghívó újraküldése",
@@ -700,5 +699,8 @@
     "Your admin sign-in code is :code. Type it on the admin login page:": "Az admin belépőkódod: :code. Írd be az admin belépő oldalon:",
     "admin": "admin",
     "admins": "adminok",
-    "Checking…": "Ellenőrzés…"
+    "Checking…": "Ellenőrzés…",
+    "Setup done": "Varázsló kész",
+    "Finished the setup wizard.": "Végigment a beállító varázslón.",
+    "Has not finished the setup wizard yet.": "Még nem fejezte be a beállító varázslót."
 }
