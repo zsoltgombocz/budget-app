@@ -1,6 +1,7 @@
 <?php
 
 use App\Livewire\Pulse\SecurityEvents as SecurityEventsCard;
+use App\Models\Admin;
 use App\Models\User;
 use App\Support\SecurityEvents;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +23,7 @@ it('records a wrong sign-in code and shows it on the monitoring card', function 
 
     expect(DB::table('pulse_entries')->where('type', SecurityEvents::TYPE)->count())->toBe(1);
 
-    $this->actingAs(User::factory()->admin()->create());
+    $this->actingAs(Admin::factory()->create(), 'admin');
     Livewire::test(SecurityEventsCard::class, ['lazy' => false])
         ->assertSee(__('Wrong sign-in code'))
         ->assertSee('127.0.0.1');

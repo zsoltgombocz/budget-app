@@ -3,8 +3,6 @@
 namespace App\Models;
 
 use Database\Factories\UserFactory;
-use Filament\Models\Contracts\FilamentUser;
-use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -26,7 +24,6 @@ use NotificationChannels\WebPush\HasPushSubscriptions;
  * @property string $name
  * @property string $email
  * @property Carbon|null $email_verified_at
- * @property bool $is_admin
  * @property Carbon|null $invited_at
  * @property Carbon|null $disabled_at
  * @property Carbon|null $last_seen_at
@@ -38,9 +35,9 @@ use NotificationChannels\WebPush\HasPushSubscriptions;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'email', 'password', 'is_admin', 'invited_at', 'disabled_at'])]
+#[Fillable(['name', 'email', 'password', 'invited_at', 'disabled_at'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
-class User extends Authenticatable implements FilamentUser, HasLocalePreference, MustVerifyEmail, PasskeyUser
+class User extends Authenticatable implements HasLocalePreference, MustVerifyEmail, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, HasPushSubscriptions, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
@@ -49,7 +46,6 @@ class User extends Authenticatable implements FilamentUser, HasLocalePreference,
      * @var array<string, mixed>
      */
     protected $attributes = [
-        'is_admin' => false,
         'invited_at' => null,
         'disabled_at' => null,
         'last_seen_at' => null,
@@ -64,20 +60,11 @@ class User extends Authenticatable implements FilamentUser, HasLocalePreference,
     {
         return [
             'email_verified_at' => 'datetime',
-            'is_admin' => 'boolean',
             'invited_at' => 'datetime',
             'disabled_at' => 'datetime',
             'last_seen_at' => 'datetime',
             'password' => 'hashed',
         ];
-    }
-
-    /**
-     * Only active admins open the admin panel.
-     */
-    public function canAccessPanel(Panel $panel): bool
-    {
-        return $this->is_admin && ! $this->isDisabled();
     }
 
     /**

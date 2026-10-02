@@ -35,7 +35,7 @@ class MagicLinkController extends Controller
             $user->markEmailAsVerified();
         }
 
-        Auth::login($user, remember: true);
+        Auth::guard('web')->login($user, remember: true);
         $request->session()->regenerate();
 
         return redirect()->intended(route('dashboard'));

@@ -29,6 +29,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'push/no-spend/*',
         ]);
 
+        // The monitoring dashboard belongs to the admin panel, so its guests go to the admin login.
+        $middleware->redirectGuestsTo(fn (Request $request): string => $request->is(trim(config()->string('pulse.path', 'pulse'), '/').'*')
+            ? route('filament.admin.auth.login')
+            : route('login'));
+
         $middleware->alias([
             'onboarded' => EnsureOnboarded::class,
         ]);
