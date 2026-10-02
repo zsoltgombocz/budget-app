@@ -1,5 +1,5 @@
 <div id="app-splash" aria-hidden="true">
-    <span class="splash-icon flex size-20 items-center justify-center rounded-[26px] bg-accent text-accent-ink shadow-[0_18px_40px_rgba(75,216,138,0.35)]">
+    <span class="splash-icon flex size-20 items-center justify-center rounded-[26px] bg-accent text-accent-ink shadow-[0_18px_40px_color-mix(in_srgb,var(--app-accent)_35%,transparent)]">
         <x-app-logo-icon class="size-11" />
     </span>
     <span class="text-lg font-semibold tracking-[-0.02em]">{{ config('app.name') }}</span>

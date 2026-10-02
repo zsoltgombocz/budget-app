@@ -13,6 +13,7 @@ return [
             ['hu' => 'A perselynél külön fül a pénzmozgásnak és a beállításoknak.', 'en' => 'Pockets have separate tabs for moving money and for settings.'],
             ['hu' => 'Görgetés után is teljesen feljönnek az ablakok, és az onboardingban megjelenik a számbillentyűzet.', 'en' => 'Sheets open fully even after scrolling, and the numpad shows up in onboarding.'],
             ['hu' => 'A fejléc nem homályosodik el a státuszsáv alatt, és iPhone-on a belépőkód felajánlható az e-mailből.', 'en' => 'The header no longer blurs under the status bar, and iPhone can offer the sign-in code from the email.'],
+            ['hu' => 'Ha olyan címmel lépsz be, amihez nincs fiók, e-mailben szólunk, hogy előbb regisztrálj.', 'en' => 'Signing in with an address that has no account now emails you to register first.'],
         ],
     ],
     [

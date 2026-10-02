@@ -14,7 +14,7 @@
             @if ($tab === null)
                 <div class="flex justify-center">
                     <button type="button" x-data x-on:click="$dispatch('open-entry')"
-                            class="-mt-6 flex size-[58px] items-center justify-center rounded-[20px] bg-accent text-accent-ink shadow-[0_10px_24px_rgba(75,216,138,0.32),0_0_0_6px_var(--app-bg)] transition active:scale-95"
+                            class="-mt-6 flex size-[58px] items-center justify-center rounded-[20px] bg-accent text-accent-ink shadow-[0_10px_24px_color-mix(in_srgb,var(--app-accent)_32%,transparent),0_0_0_6px_var(--app-bg)] transition active:scale-95"
                             aria-label="{{ __('Record spending') }}" data-test="tab-entry">
                         <x-ui.icon name="add" :size="32" :weight="500" />
                     </button>

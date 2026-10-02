@@ -29,6 +29,11 @@ class AppServiceProvider extends ServiceProvider
 
         // Compile the design's presentational components with Blaze.
         Blaze::optimize()->in(resource_path('views/components/ui'));
+
+        // The dev stack sends blue emails, like its app theme.
+        if ($this->app->environment('staging')) {
+            config(['mail.markdown.theme' => 'dev']);
+        }
     }
 
     /**

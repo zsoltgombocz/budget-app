@@ -630,5 +630,8 @@
     "Everyday spending you record.": "Napi költés, amit rögzítesz.",
     "At closing the monthly amount goes into the pocket.": "Záráskor a havi összeg a perselybe kerül.",
     "Optional.": "Nem kötelező.",
-    "Monthly, after tax.": "Havonta, adózás után."
+    "Monthly, after tax.": "Havonta, adózás után.",
+    "No account for this address yet": "Ehhez a címhez még nincs fiók",
+    "Someone tried to sign in with this email address, but it has no account yet.": "Valaki ezzel az e-mail-címmel próbált belépni, de ehhez még nem tartozik fiók.",
+    "If it was you, register with this address and you get your sign-in code right away:": "Ha te voltál, regisztrálj ezzel a címmel, és azonnal megkapod a belépőkódot:"
 }

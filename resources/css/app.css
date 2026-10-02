@@ -107,6 +107,21 @@
         --color-accent-content: var(--app-accent-strong);
         --color-accent-foreground: #06210F;
     }
+
+    /* The dev stack (APP_ENV=staging) is blue like its icon, so it never passes for production. */
+    html[data-build="dev"] {
+        --app-accent: #2563EB;
+        --app-accent-strong: #1D4ED8;
+        --color-accent-ink: #FFFFFF;
+        --color-accent-foreground: #FFFFFF;
+    }
+
+    html.dark[data-build="dev"] {
+        --app-accent: #5B9BFF;
+        --app-accent-strong: #5B9BFF;
+        --color-accent-ink: #04112B;
+        --color-accent-foreground: #04112B;
+    }
 }
 
 @layer base {

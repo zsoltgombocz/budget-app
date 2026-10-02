@@ -4,7 +4,9 @@ namespace App\Actions\Auth;
 
 use App\Models\User;
 use App\Notifications\MagicLoginLink;
+use App\Notifications\NoAccountForEmail;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 
 final class SendMagicLink
@@ -21,8 +23,8 @@ final class SendMagicLink
 
     /**
      * Email a single-use sign-in link. With a name, an account is created first when the
-     * address is new. Unknown addresses without a name get nothing, but the caller shows the
-     * same message either way so the form does not reveal which addresses have an account.
+     * address is new. Unknown addresses without a name get a "register first" email instead; the
+     * caller shows the same message either way so the form does not reveal which addresses have an account.
      */
     public function handle(string $email, ?string $name = null): ?User
     {
@@ -38,6 +40,8 @@ final class SendMagicLink
         }
 
         if ($user === null) {
+            Notification::route('mail', $email)->notifyNow(new NoAccountForEmail);
+
             return null;
         }
 
