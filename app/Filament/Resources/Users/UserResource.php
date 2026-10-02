@@ -56,7 +56,8 @@ class UserResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query): Builder => $query->withExists('budgetSetting'))
+            // "Onboarded": the user finished the setup wizard (budget_settings.onboarded_at).
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->withExists(['budgetSetting as onboarded' => fn (Builder $settings): Builder => $settings->whereNotNull('onboarded_at')]))
             ->defaultSort('created_at', 'desc')
             ->columns([
                 TextColumn::make('name')->label(__('Name'))->searchable()->sortable()
@@ -68,7 +69,8 @@ class UserResource extends Resource
                         __('Invited') => 'warning',
                         default => 'success',
                     }),
-                IconColumn::make('budget_setting_exists')->label(__('Set up'))->boolean(),
+                IconColumn::make('onboarded')->label(__('Setup done'))->boolean()
+                    ->tooltip(fn (bool $state): string => $state ? __('Finished the setup wizard.') : __('Has not finished the setup wizard yet.')),
                 TextColumn::make('last_seen_at')->label(__('Last seen'))->since()->sortable()->placeholder('–'),
                 TextColumn::make('created_at')->label(__('Joined'))->date('Y. m. d.')->sortable(),
                 TextColumn::make('email')->label(__('Email'))->searchable()->toggleable(isToggledHiddenByDefault: true),
