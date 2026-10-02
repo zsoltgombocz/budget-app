@@ -13,7 +13,7 @@ return [
     'dev_gate_password' => env('DEV_GATE_PASSWORD'),
 
     /*
-     * Host of the admin panel and the monitoring dashboard, e.g. budget-admin.miraglia.cc.
+     * Host of the admin panel and the monitoring dashboard, e.g. admin.moneysight.app.
      */
     'admin_domain' => env('ADMIN_DOMAIN'),
 

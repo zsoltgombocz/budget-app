@@ -1,7 +1,7 @@
 {
     "id": "/ma",
-    "name": "Budget DEV",
-    "short_name": "Budget DEV",
+    "name": "MoneySight DEV",
+    "short_name": "MoneySight DEV",
     "description": "Havi költségvetés: tervezés, gyors rögzítés, várható maradék.",
     "lang": "hu",
     "start_url": "/ma",

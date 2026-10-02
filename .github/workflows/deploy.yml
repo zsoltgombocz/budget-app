@@ -11,8 +11,8 @@ concurrency:
   group: deploy-${{ github.ref_name }}
   cancel-in-progress: false
 
-# main deploys production (budget.miraglia.cc, image tag "latest"); develop deploys the dev
-# stack (budget-dev.miraglia.cc, image tag "develop").
+# main deploys production (moneysight.app + admin.moneysight.app, image tag "latest"); develop deploys the dev
+# stack (dev.moneysight.app, image tag "develop").
 env:
   IMAGE: ghcr.io/${{ github.repository }}
   IMAGE_TAG: ${{ github.ref_name == 'main' && 'latest' || 'develop' }}

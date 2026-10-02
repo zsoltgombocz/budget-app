@@ -656,9 +656,7 @@
     "Spendings recorded, last 24 hours": "Rögzített költések, utolsó 24 óra",
     "Wrong password.": "Hibás jelszó.",
     "Your account is disabled.": "A fiókod le van tiltva.",
-    "You are invited to Budget": "Meghívást kaptál a Budgetbe",
     "Hi :name!": "Szia :name!",
-    "You are invited to Budget: plan your month, record spending in two taps and see the expected leftover.": "Meghívtak a Budgetbe: tervezd meg a hónapod, rögzítsd a költéseket két koppintással, és lásd, mennyi marad a hó végén.",
     "Accept the invite": "Meghívó elfogadása",
     "The button signs you in and works once, for :days days. Later you can sign in any time with your email: we send a code.": "A gombbal belépsz; egyszer használhatod, :days napig. Később bármikor beléphetsz az e-mail-címeddel: küldünk egy kódot.",
     "Tip: open the app on your phone and add it to the Home Screen.": "Tipp: nyisd meg az appot a telefonodon, és tedd ki a kezdőképernyőre.",
@@ -702,5 +700,7 @@
     "Checking…": "Ellenőrzés…",
     "Setup done": "Varázsló kész",
     "Finished the setup wizard.": "Végigment a beállító varázslón.",
-    "Has not finished the setup wizard yet.": "Még nem fejezte be a beállító varázslót."
+    "Has not finished the setup wizard yet.": "Még nem fejezte be a beállító varázslót.",
+    "You are invited to :app": "Meghívtak a :app appba",
+    "You are invited to :app: plan your month, record spending in two taps and see the expected leftover.": "Meghívtak a :app appba: tervezd meg a hónapod, rögzítsd a költéseket két koppintással, és lásd, mennyi marad a hó végén."
 }

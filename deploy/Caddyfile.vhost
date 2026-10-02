@@ -1,10 +1,10 @@
-# Reference copy of /opt/caddy/vhost/budget-app (and budget-app-dev) on the VPS, imported from the shared
-# Caddy container's main Caddyfile. Caddy does not read this file directly.
-# Both hosts are proxied by Cloudflare, so TLS uses the *.miraglia.cc origin certificate
-# (one level deep only, hence budget-dev rather than dev.budget).
+# Reference copy of the vhosts on the VPS (/opt/caddy/vhost/budget-app, budget-app-dev and
+# budget-app-admin), imported from the shared Caddy container's main Caddyfile. Caddy does not
+# read this file directly. moneysight.app is proxied by Cloudflare, so TLS uses the Cloudflare
+# origin certificate for moneysight.app and *.moneysight.app.
 
-budget.miraglia.cc {
-    tls /etc/ssl/cert/miraglia_cc.cert.pem /etc/ssl/private/miraglia_cc.key.pem
+moneysight.app {
+    tls /etc/ssl/cert/moneysight_app.cert.pem /etc/ssl/private/moneysight_app.key.pem
 
     root * /var/www/budget-app/public
     encode zstd gzip
@@ -19,7 +19,7 @@ budget.miraglia.cc {
     file_server
 
     log {
-        output file /var/log/caddy/budget_miraglia_cc.access.log {
+        output file /var/log/caddy/moneysight_app.access.log {
             roll_size 50mb
             roll_keep 5
             roll_keep_for 14d
@@ -29,8 +29,8 @@ budget.miraglia.cc {
     }
 }
 
-budget-dev.miraglia.cc {
-    tls /etc/ssl/cert/miraglia_cc.cert.pem /etc/ssl/private/miraglia_cc.key.pem
+dev.moneysight.app {
+    tls /etc/ssl/cert/moneysight_app.cert.pem /etc/ssl/private/moneysight_app.key.pem
 
     root * /var/www/budget-app-dev/public
     encode zstd gzip
@@ -46,7 +46,7 @@ budget-dev.miraglia.cc {
     file_server
 
     log {
-        output file /var/log/caddy/budget_dev_miraglia_cc.access.log {
+        output file /var/log/caddy/dev_moneysight_app.access.log {
             roll_size 50mb
             roll_keep 5
             roll_keep_for 14d
@@ -57,8 +57,8 @@ budget-dev.miraglia.cc {
 }
 
 # Admin panel (Filament) and monitoring (Pulse) of production, served by the same container.
-budget-admin.miraglia.cc {
-    tls /etc/ssl/cert/miraglia_cc.cert.pem /etc/ssl/private/miraglia_cc.key.pem
+admin.moneysight.app {
+    tls /etc/ssl/cert/moneysight_app.cert.pem /etc/ssl/private/moneysight_app.key.pem
 
     root * /var/www/budget-app/public
     encode zstd gzip
@@ -75,7 +75,7 @@ budget-admin.miraglia.cc {
     file_server
 
     log {
-        output file /var/log/caddy/budget_admin_miraglia_cc.access.log {
+        output file /var/log/caddy/admin_moneysight_app.access.log {
             roll_size 50mb
             roll_keep 5
             roll_keep_for 14d

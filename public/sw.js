@@ -1,5 +1,5 @@
 /*
- * Budget service worker.
+ * MoneySight service worker.
  * - Hashed build assets and icons: cache first.
  * - Page navigations: network first; the dashboard's last state is kept for offline use.
  * - Everything else (Livewire updates, POSTs): network only.
@@ -81,12 +81,12 @@ self.addEventListener('push', (event) => {
     try {
         payload = event.data ? event.data.json() : {}
     } catch (error) {
-        payload = { title: 'Budget', body: event.data ? event.data.text() : '' }
+        payload = { title: 'MoneySight', body: event.data ? event.data.text() : '' }
     }
 
     const data = payload.data || {}
 
-    event.waitUntil(self.registration.showNotification(payload.title || 'Budget', {
+    event.waitUntil(self.registration.showNotification(payload.title || 'MoneySight', {
         body: payload.body || '',
         icon: payload.icon || '/icons/icon-192.png',
         badge: payload.badge || '/icons/badge-96.png',
