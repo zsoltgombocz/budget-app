@@ -1,5 +1,8 @@
 <?php
 
+use App\Models\Admin;
+use Illuminate\Support\Facades\Notification;
+
 it('turns the dev password button busy on the first tap so it cannot be sent twice', function (): void {
     config(['budget.dev_gate_password' => 'secret-dev']);
 
@@ -18,4 +21,16 @@ it('turns the dev password button busy on the first tap so it cannot be sent twi
     JS);
 
     expect($state)->toBe(['disabled' => true, 'label' => 'Checking…']);
+});
+
+it('lets an admin sign in on the dev stack without the dev password', function (): void {
+    config(['budget.dev_gate_password' => 'secret-dev']);
+    Notification::fake();
+    Admin::factory()->create(['email' => 'boss@example.com']);
+
+    visit('/admin/login')
+        ->type('#form\.email', 'boss@example.com')
+        ->click('button[type=submit]')
+        ->assertSee('boss@example.com')
+        ->assertPathIs('/admin/login');
 });

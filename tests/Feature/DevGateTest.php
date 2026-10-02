@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\DevGate;
+use Illuminate\Http\Request;
 
 beforeEach(function (): void {
     config(['budget.dev_gate_password' => 'secret-dev']);
@@ -37,6 +38,22 @@ it('stops accepting the cookie when the password changes', function (): void {
     config(['budget.dev_gate_password' => 'new-secret']);
 
     $this->withCookie(DevGate::COOKIE, $cookie)->get(route('login'))->assertRedirect(route('dev-gate'));
+});
+
+it('leaves the admin panel and the monitoring to the admin sign-in', function (): void {
+    $this->get('/admin/login')->assertOk();
+    $this->get('/admin')->assertRedirect(route('filament.admin.auth.login'));
+    $this->get('/pulse')->assertRedirect(route('filament.admin.auth.login'));
+});
+
+it('lets the Livewire requests of the admin pages through, but not those of the app', function (): void {
+    $fromAdmin = Request::create('/livewire/update', 'POST', server: ['HTTP_X_LIVEWIRE' => '1', 'HTTP_REFERER' => 'https://dev.example.com/admin/login']);
+    $fromApp = Request::create('/livewire/update', 'POST', server: ['HTTP_X_LIVEWIRE' => '1', 'HTTP_REFERER' => 'https://dev.example.com/login']);
+    $sneaky = Request::create('/livewire/update', 'POST', server: ['HTTP_X_LIVEWIRE' => '1', 'HTTP_REFERER' => 'https://dev.example.com/administrator']);
+
+    expect(DevGate::isAdminRequest($fromAdmin))->toBeTrue()
+        ->and(DevGate::isAdminRequest($fromApp))->toBeFalse()
+        ->and(DevGate::isAdminRequest($sneaky))->toBeFalse();
 });
 
 it('keeps the health check open for the deploy script', function (): void {
