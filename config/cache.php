@@ -1,5 +1,7 @@
 <?php
 
+use Carbon\CarbonImmutable;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 return [
@@ -131,6 +133,12 @@ return [
     |
     */
 
-    'serializable_classes' => false,
+    // Pulse caches its card data (collections of plain objects and dates); nothing else is allowed.
+    'serializable_classes' => [
+        Carbon\Carbon::class,
+        CarbonImmutable::class,
+        Collection::class,
+        stdClass::class,
+    ],
 
 ];

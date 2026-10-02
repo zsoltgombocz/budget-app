@@ -9,52 +9,49 @@
 @endphp
 
 {{--
-    Record button: floats above the tab bar. On a phone it follows the finger: dragging the page
-    up (scrolling down) slides it away, a clear drag down brings it back. The iOS rubber-band
-    bounce happens without a finger, so it never brings the button back. Without touch (mouse,
-    trackpad) the scroll position decides. Hidden on the settings pages.
+    Record button: floats above the tab bar and slides down behind it while scrolling down.
+    Scrolling up brings it back, but only when the last finger drag pointed up the page (or
+    there is no touch, e.g. a mouse): the iOS rubber-band bounce after a hard fling down scrolls
+    up on its own and must not count. Hidden on the settings pages.
 --}}
 <button type="button"
         x-data="{
             visible: true,
             allowed: true,
-            touchY: null,
-            touched: false,
             anchorY: 0,
+            touchY: null,
+            lastDrag: null,
             hiddenOn: @js(array_map(fn (string $name): string => (string) parse_url(route($name), PHP_URL_PATH), ['settings', 'install', 'changelog'])),
             syncPage() {
                 this.allowed = ! this.hiddenOn.some(path => location.pathname === path || location.pathname.startsWith(path + '/'))
                 this.visible = true
                 this.anchorY = window.scrollY
             },
-            nearTop() { return window.scrollY < 80 },
             onTouchMove(y) {
-                if (this.touchY === null) { this.touchY = y; return }
-                const moved = y - this.touchY
-                if (moved < -8) { if (! this.nearTop()) this.visible = false; this.touchY = y }
-                else if (moved > 24) { this.visible = true; this.touchY = y }
+                if (this.touchY !== null && Math.abs(y - this.touchY) > 4) this.lastDrag = y > this.touchY ? 'up' : 'down'
+                this.touchY = y
             },
             onScroll() {
-                if (this.nearTop()) { this.visible = true; return }
-                if (this.touched) return
                 const y = window.scrollY
+                if (y < 80) { this.visible = true; this.anchorY = y; return }
                 if (this.visible) {
                     if (y < this.anchorY) this.anchorY = y
                     else if (y > this.anchorY + 8) { this.visible = false; this.anchorY = y }
-                } else {
-                    if (y > this.anchorY) this.anchorY = y
-                    else if (y < this.anchorY - 24) { this.visible = true; this.anchorY = y }
+                } else if (y > this.anchorY) {
+                    this.anchorY = y
+                } else if (y < this.anchorY - 24 && this.lastDrag !== 'down') {
+                    this.visible = true
+                    this.anchorY = y
                 }
             },
         }"
-        x-on:touchstart.window.passive="touched = true; touchY = $event.touches[0]?.clientY ?? null"
+        x-on:touchstart.window.passive="touchY = $event.touches[0]?.clientY ?? null"
         x-on:touchmove.window.passive="onTouchMove($event.touches[0]?.clientY ?? 0)"
-        x-on:touchend.window.passive="touchY = null"
         x-on:scroll.window.passive="onScroll()"
         x-init="syncPage(); document.addEventListener('livewire:navigated', () => syncPage())"
         x-on:click="$dispatch('open-entry')"
-        class="fixed right-5 bottom-[calc(82px+env(safe-area-inset-bottom)+16px)] z-40 flex size-[58px] items-center justify-center rounded-[20px] bg-accent text-accent-ink shadow-[0_10px_24px_color-mix(in_srgb,var(--app-accent)_32%,transparent)] transition-transform active:scale-95"
-        :class="visible && allowed ? 'translate-y-0 duration-300 ease-out' : 'pointer-events-none translate-y-[calc(100%_+_160px)] duration-300 ease-in'"
+        class="fixed right-5 bottom-[calc(82px+env(safe-area-inset-bottom)+16px)] z-20 flex size-[58px] items-center justify-center rounded-[20px] bg-accent text-accent-ink shadow-[0_10px_24px_color-mix(in_srgb,var(--app-accent)_32%,transparent)] transition-transform active:scale-95"
+        :class="visible && allowed ? 'translate-y-0 duration-300 ease-out' : 'pointer-events-none translate-y-[calc(100%_+_160px)] duration-[400ms] ease-in'"
         aria-label="{{ __('Record spending') }}" data-test="tab-entry">
     <x-ui.icon name="add" :size="32" :weight="500" />
 </button>

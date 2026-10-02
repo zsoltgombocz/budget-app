@@ -19,7 +19,7 @@ it('marks the tab and shows the loader as soon as it is tapped', function (): vo
     expect($state)->toBe(['active' => 'page', 'navigating' => true]);
 });
 
-it('slides the record button away when the finger scrolls down and brings it back on a clear drag up, ignoring the bounce', function (): void {
+it('slides the record button away on any scroll down and ignores the bounce after a fling down', function (): void {
     $this->actingAs(onboardedUser());
 
     $page = visit(route('plan'))->on()->mobile()->resize(390, 500);
@@ -32,37 +32,47 @@ it('slides the record button away when the finger scrolls down and brings it bac
                 const point = new Touch({ identifier: 1, target: document.body, clientX: 200, clientY: y })
                 window.dispatchEvent(new TouchEvent(type, { touches: type === 'touchend' ? [] : [point], bubbles: true }))
             }
+            const scrollTo = async y => { window.scrollTo(0, y); await wait(60) }
             const max = document.documentElement.scrollHeight - window.innerHeight
             await wait(600)
             const atTop = visible()
 
-            // Finger moves up: the page scrolls down.
-            touch('touchstart', 400)
-            window.scrollTo(0, max)
-            touch('touchmove', 370)
-            touch('touchend', 0)
-            await wait(50)
-            const down = visible()
+            // A slow scroll down hides it, no fling needed.
+            await scrollTo(100)
+            await scrollTo(120)
+            const slowDown = visible()
 
-            // The rubber band springs back with no finger on the screen.
-            window.scrollTo(0, max - 40)
-            await wait(50)
-            window.scrollTo(0, max)
-            await wait(50)
+            // Fling down to the end (finger moves up), then the rubber band springs back.
+            touch('touchstart', 400)
+            touch('touchmove', 380)
+            touch('touchmove', 300)
+            touch('touchend', 0)
+            await scrollTo(max)
+            await scrollTo(max - 40)
+            await scrollTo(max)
             const afterBounce = visible()
 
-            // A small wobble of the finger is not a scroll up, a clear drag down is.
+            // Dragging the page down (finger moves down) scrolls up and brings it back.
             touch('touchstart', 300)
-            touch('touchmove', 312)
-            await wait(50)
-            const nudged = visible()
-            touch('touchmove', 345)
-            await wait(50)
-            return { atTop, down, afterBounce, nudged, up: visible() }
+            touch('touchmove', 320)
+            touch('touchmove', 360)
+            await scrollTo(max - 60)
+            touch('touchend', 0)
+            return { atTop, slowDown, afterBounce, up: visible() }
         }
     JS);
 
-    expect($states)->toBe(['atTop' => true, 'down' => false, 'afterBounce' => false, 'nudged' => false, 'up' => true]);
+    expect($states)->toBe(['atTop' => true, 'slowDown' => false, 'afterBounce' => false, 'up' => true]);
+});
+
+it('slides behind the tab bar', function (): void {
+    $this->actingAs(onboardedUser());
+
+    $page = visit(route('plan'))->on()->mobile();
+
+    $layers = $page->script("() => ({ button: getComputedStyle(document.querySelector('[data-test=\"tab-entry\"]')).zIndex, nav: getComputedStyle(document.querySelector('nav[aria-label]')).zIndex })");
+
+    expect((int) $layers['button'])->toBeLessThan((int) $layers['nav']);
 });
 
 it('has no record button on the settings pages', function (): void {
