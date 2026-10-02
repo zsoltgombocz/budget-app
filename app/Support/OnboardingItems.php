@@ -33,7 +33,7 @@ final class OnboardingItems
                 ['name' => 'Shared pocket', 'type' => LineType::Sinking->value, 'icon' => 'favorite', 'color' => 'pink', 'pocket' => ['name' => 'Shared pocket', 'is_shared' => true], 'hint' => 'Your share of the joint savings.'],
             ],
             'loan' => [
-                ['name' => 'Loan', 'type' => LineType::Loan->value, 'icon' => 'account_balance', 'color' => 'rose', 'loan' => true, 'hint' => 'The monthly installment including insurance. It comes off the plan by itself, you do not record it. The principal and the APR can be added later: Plan, Loan repayments.'],
+                ['name' => 'Loan', 'type' => LineType::Loan->value, 'icon' => 'account_balance', 'color' => 'rose', 'loan' => true, 'hint' => 'The monthly installment including insurance. A fixed line in the plan, you do not record it as spending. The principal and the APR can be added later: Plan, Loan repayments.'],
                 ['name' => 'Prepayment fund', 'type' => LineType::Sinking->value, 'icon' => 'trending_down', 'color' => 'lime', 'pocket' => ['name' => 'Prepayment fund', 'prepay_step' => 500_000], 'hint' => 'Put aside monthly for prepaying the loan. When it reaches 500 000 Ft, the app shows how much the installment would drop.'],
             ],
             'daily' => [

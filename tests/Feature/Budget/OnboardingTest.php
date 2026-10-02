@@ -174,7 +174,7 @@ it('creates no reserve pocket when the reserve is switched off', function (): vo
         ->call('next')
         ->set('included.14', false)
         ->set('reserveTarget', '300000')
-        ->assertSee(__('No reserve pocket: the whole month-end leftover goes to the target below, and nothing covers a month when you spend more than came in. You can add one later under Pockets.'))
+        ->assertSee(__('No reserve pocket: the whole month-end leftover goes to the target below. You can add one later under Pockets.'))
         ->call('finish')
         ->assertHasNoErrors();
 

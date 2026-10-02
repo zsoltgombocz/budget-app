@@ -36,6 +36,9 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
 
     public bool $saveTargetAsDefault = false;
 
+    /** Take a deficit from the reserve pocket; the user decides on the split step. */
+    public bool $coverDeficit = true;
+
     /** @var list<int> pockets whose prepayment was recorded after closing */
     public array $prepaid = [];
 
@@ -95,7 +98,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
     public function close(PeriodCloser $closer): void
     {
         $user = $this->user();
-        $closer->close($user, $this->period, $this->incomeActual, $this->toReserve, $this->surplusTarget);
+        $closer->close($user, $this->period, $this->incomeActual, $this->toReserve, $this->surplusTarget, $this->coverDeficit);
 
         if ($this->saveTargetAsDefault && $this->surplusTarget !== null) {
             [$type, $id] = array_pad(explode(':', $this->surplusTarget, 2), 2, null);
@@ -139,7 +142,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
     #[Computed]
     public function preview(): ClosePreview
     {
-        return app(PeriodCloser::class)->preview($this->user(), $this->period, $this->incomeActual, $this->toReserve, $this->surplusTarget);
+        return app(PeriodCloser::class)->preview($this->user(), $this->period, $this->incomeActual, $this->toReserve, $this->surplusTarget, $this->coverDeficit);
     }
 
     #[Computed]
@@ -308,7 +311,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         @endphp
         <div class="px-6 pt-[22px]">
             <h1 class="text-[28px] font-semibold tracking-[-0.03em]">{{ $preview->leftover() >= 0 ? __('Split the leftover') : __('Cover the deficit') }}</h1>
-            <div class="mt-1 text-sm text-muted">{{ $preview->leftover() >= 0 ? __('Where should the :month leftover go?', ['month' => Dates::monthInSentence($period->starts_on, true)]) : __('The deficit is taken from the reserve, never from an overdraft.') }}</div>
+            <div class="mt-1 text-sm text-muted">{{ $preview->leftover() >= 0 ? __('Where should the :month leftover go?', ['month' => Dates::monthInSentence($period->starts_on, true)]) : __('You choose whether the deficit is taken from the reserve.') }}</div>
         </div>
         <x-ui.amount :value="$preview->leftover()" size="xl" :tone="$preview->leftover() >= 0 ? 'accent' : 'danger'" class="px-6 pt-[26px]" />
 
@@ -363,9 +366,24 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
                 </div>
             @endif
         @else
-            <div class="mx-4 mt-6 rounded-[22px] bg-surface px-[18px] py-1">
+            @if ($hasReserve)
+                <div class="mx-4 mt-6">
+                    <div class="px-1.5 pb-2 text-[13px] text-muted">{{ __('You spent more than came in. Do you take the gap from the reserve?') }}</div>
+                    <div class="grid gap-2" data-test="cover-deficit">
+                        <x-ui.choice :selected="$coverDeficit" wire:click="$set('coverDeficit', true)" class="rounded-btn px-4 py-3 text-left" data-test="cover-yes">
+                            <span class="block text-[15px] font-semibold">{{ __('Yes, take it from the reserve') }}</span>
+                            <span class="mt-1 block text-[13px] font-normal leading-snug text-muted">{{ __('The reserve pocket goes down by the gap, as far as its balance allows.') }}</span>
+                        </x-ui.choice>
+                        <x-ui.choice :selected="! $coverDeficit" wire:click="$set('coverDeficit', false)" class="rounded-btn px-4 py-3 text-left" data-test="cover-no">
+                            <span class="block text-[15px] font-semibold">{{ __('No, leave the reserve alone') }}</span>
+                            <span class="mt-1 block text-[13px] font-normal leading-snug text-muted">{{ __('Nothing moves. The gap is only recorded in the closing.') }}</span>
+                        </x-ui.choice>
+                    </div>
+                </div>
+            @endif
+            <div class="mx-4 mt-4 rounded-[22px] bg-surface px-[18px] py-1">
                 <div class="num flex justify-between border-b border-line py-[13px] text-[15px]"><span class="text-ink-2">{{ __('Taken from the reserve') }}</span><span>{{ money(-$allocation->fromReserve) }}</span></div>
-                <div @class(['num flex justify-between py-[13px] text-[15px]', 'text-danger' => $allocation->uncovered > 0])><span>{{ __('Not covered by the reserve') }}</span><span>{{ money(-$allocation->uncovered) }}</span></div>
+                <div @class(['num flex justify-between py-[13px] text-[15px]', 'text-danger' => $allocation->uncovered > 0])><span>{{ __('Not covered') }}</span><span>{{ money(-$allocation->uncovered) }}</span></div>
             </div>
         @endif
 

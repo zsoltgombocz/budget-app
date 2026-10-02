@@ -292,7 +292,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
         3 => [__('Which currency?'), __('Every amount in the plan is in this currency.')],
         4 => [__('Housing and monthly fees'), __('What you pay from your own account every month. Switch off what you do not have, leave empty what you do not know yet.')],
         5 => [__('Do you share costs with someone?'), __('For example a joint account with your partner that you both transfer to every month.')],
-        6 => [__('Do you have a loan?'), __('Its monthly installment goes into the plan and comes off by itself. The principal and the APR can come later.')],
+        6 => [__('Do you have a loan?'), __('Its monthly installment is a fixed line in the plan, you do not record it as spending. The principal and the APR can come later.')],
         7 => [__('Everyday spending'), __('Monthly budgets for what you record day by day. Rough numbers are fine, you can change them any time.')],
         8 => [__('Reserve and leftover'), __('Two choices: do you want a reserve, and what happens to the money left at month end.')],
     ];
@@ -474,7 +474,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                     <x-ui.toggle :on="$reserveOn" wire:click="$set('included.{{ $reserveIndex }}', {{ $reserveOn ? 'false' : 'true' }})" :aria-label="__('Reserve pocket')" class="mt-2" data-test="reserve-toggle" />
                 </div>
                 @if ($reserveOn)
-                    <p class="mt-3 text-[13px] leading-relaxed text-muted">{{ __('If in a month you spend more than came in, the gap is covered from here, never from an overdraft.') }}</p>
+                    <p class="mt-3 text-[13px] leading-relaxed text-muted">{{ __('Money you put aside for the unexpected. If a month ends in the red, at closing you choose whether to take the gap from here.') }}</p>
                     @foreach ([
                         ['field' => 'amounts.'.$reserveIndex, 'value' => $amounts[$reserveIndex] ?? '', 'label' => __('Put aside every month'), 'hint' => __('Planned like a fixed cost and moved into the pocket at closing. 0 is fine too.'), 'fallback' => '0'],
                         ['field' => 'reserveTarget', 'value' => $reserveTarget, 'label' => __('Target'), 'hint' => __('Until the pocket reaches it, the month-end leftover also tops it up. Empty means no limit.'), 'fallback' => '–'],
@@ -490,7 +490,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                     @error('amounts.'.$reserveIndex)<p class="mt-1.5 px-1 text-xs text-danger">{{ $message }}</p>@enderror
                     @error('reserveTarget')<p class="mt-1.5 px-1 text-xs text-danger">{{ $message }}</p>@enderror
                 @else
-                    <p class="mt-3 text-[13px] leading-relaxed text-muted">{{ __('No reserve pocket: the whole month-end leftover goes to the target below, and nothing covers a month when you spend more than came in. You can add one later under Pockets.') }}</p>
+                    <p class="mt-3 text-[13px] leading-relaxed text-muted">{{ __('No reserve pocket: the whole month-end leftover goes to the target below. You can add one later under Pockets.') }}</p>
                 @endif
             </div>
 
@@ -533,7 +533,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                         {{ __('Your plan uses up the whole income, so nothing is left to share out.') }}
                     @else
                         {{ __('Your plan is :gap over the income a month.', ['gap' => money(-$preview['leftover'], $currency)]) }}
-                        {{ $preview['reserveOn'] ? __('The reserve covers the gap while it has money; it is worth lowering a budget.') : __('Nothing covers the gap; it is worth lowering a budget.') }}
+                        {{ __('It is worth lowering a budget before you start.') }}
                     @endif
                 </p>
                 <p class="mt-1.5 text-xs leading-snug text-muted">{{ __('The real numbers come at closing, from what you actually spent. You can change all of this later in Settings.') }}</p>

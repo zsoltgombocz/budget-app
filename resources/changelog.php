@@ -14,6 +14,7 @@ return [
             ['hu' => 'A varázslóban a hitel adatai (tőke, THM, futamidő) is megadhatók, a tartalék és a hó végi maradék lépés pedig a te számaidból mutatja, hová megy a pénz.', 'en' => 'In the wizard the loan details (principal, APR, term) can be entered, and the reserve and leftover step shows with your numbers where the money goes.'],
             ['hu' => 'Új hitel felvételekor a törlesztő magától bekerül a tervbe a „Hiteltörlesztés” csoportba, rögzíteni nem kell.', 'en' => 'A new loan puts its installment into the plan under “Loan repayments” by itself, nothing to record.'],
             ['hu' => 'A Terv oldalról is felvehetsz hitelt, és a törlesztőre koppintva megnyílnak a hitel adatai.', 'en' => 'Loans can be added from the Plan too, and tapping a repayment opens the loan.'],
+            ['hu' => 'Mínuszos hónap zárásakor te döntöd el, hogy a hiányt levonjuk-e a tartalékból; magától semmi nem mozdul.', 'en' => 'When a month closes in the red, you decide whether the gap is taken from the reserve; nothing moves on its own.'],
             ['hu' => 'Letiltott fiókkal nem lehet belépőkódot kérni.', 'en' => 'A disabled account cannot request a sign-in code.'],
         ],
     ],

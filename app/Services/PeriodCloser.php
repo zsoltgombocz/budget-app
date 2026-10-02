@@ -38,7 +38,11 @@ final readonly class PeriodCloser
      * @param  int|null  $toReserve  manual split of a positive leftover; the rest goes to the surplus target
      * @param  string|null  $surplusTarget  'account:ID', 'pocket:ID' or 'none' for this closing only; null uses the settings
      */
-    public function preview(User $user, Period $period, ?int $incomeActual = null, ?int $toReserve = null, ?string $surplusTarget = null): ClosePreview
+    /**
+     * A deficit is taken from the reserve only when $coverDeficit is true (the user's choice on
+     * the closing screen); otherwise it stays uncovered and nothing moves.
+     */
+    public function preview(User $user, Period $period, ?int $incomeActual = null, ?int $toReserve = null, ?string $surplusTarget = null, bool $coverDeficit = true): ClosePreview
     {
         $lines = $this->plans->linesFor($period);
         $settings = $user->settings();
@@ -68,6 +72,16 @@ final readonly class PeriodCloser
             reserveBalance: $reserveBalanceAfterDeposits,
             reserveTarget: $reserve?->target_amount,
         );
+
+        if (! $coverDeficit && $allocation->leftover < 0) {
+            $allocation = new Allocation(
+                leftover: $allocation->leftover,
+                toReserve: 0,
+                toSurplus: 0,
+                fromReserve: 0,
+                uncovered: -$allocation->leftover,
+            );
+        }
 
         if ($toReserve !== null && $reserve !== null && $allocation->leftover > 0) {
             $toReserve = max(0, min($toReserve, $allocation->leftover));
@@ -132,15 +146,15 @@ final readonly class PeriodCloser
         );
     }
 
-    public function close(User $user, Period $period, ?int $incomeActual = null, ?int $toReserve = null, ?string $surplusTarget = null): PeriodClose
+    public function close(User $user, Period $period, ?int $incomeActual = null, ?int $toReserve = null, ?string $surplusTarget = null, bool $coverDeficit = true): PeriodClose
     {
         if (! $period->isOpen()) {
             throw ValidationException::withMessages(['period' => __('This period is already closed.')]);
         }
 
-        $close = DB::transaction(function () use ($user, $period, $incomeActual, $toReserve, $surplusTarget): PeriodClose {
+        $close = DB::transaction(function () use ($user, $period, $incomeActual, $toReserve, $surplusTarget, $coverDeficit): PeriodClose {
             $lines = $this->plans->linesFor($period);
-            $preview = $this->preview($user, $period, $incomeActual, $toReserve, $surplusTarget);
+            $preview = $this->preview($user, $period, $incomeActual, $toReserve, $surplusTarget, $coverDeficit);
             $closedOn = $period->ends_on->toDateString();
 
             foreach ($preview->pocketDeposits as $deposit) {
