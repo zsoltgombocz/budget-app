@@ -8,7 +8,9 @@ use App\Enums\LineType;
  * The plan lines the setup wizard offers, grouped by the wizard step that asks about them.
  * Names and hints are translation keys, translated when the lines are created.
  *
- * @phpstan-type Item array{name: string, type: string, icon: string, color: string, hint: string, is_quick_entry?: bool, loan?: bool, pocket?: array{name: string, is_reserve?: bool, is_shared?: bool, prepay_step?: int}}
+ * Lines with 'off' => true are offered switched off: common, but not for everyone.
+ *
+ * @phpstan-type Item array{name: string, type: string, icon: string, color: string, hint: string, off?: bool, is_quick_entry?: bool, loan?: bool, pocket?: array{name: string, is_reserve?: bool, is_shared?: bool, prepay_step?: int}}
  */
 final class OnboardingItems
 {
@@ -22,6 +24,9 @@ final class OnboardingItems
                 ['name' => 'Housing', 'type' => LineType::Fixed->value, 'icon' => 'home', 'color' => 'sky', 'hint' => 'Rent or other housing costs paid from your own account.'],
                 ['name' => 'Utilities', 'type' => LineType::Fixed->value, 'icon' => 'bolt', 'color' => 'amber', 'hint' => 'Electricity, gas, water, common costs. Leave 0 if they are paid from a joint account.'],
                 ['name' => 'Phone and internet', 'type' => LineType::Fixed->value, 'icon' => 'smartphone', 'color' => 'indigo', 'hint' => 'Monthly mobile and home internet fees.'],
+                ['name' => 'Subscriptions', 'type' => LineType::Fixed->value, 'icon' => 'subscriptions', 'color' => 'red', 'off' => true, 'hint' => 'Streaming, music, cloud storage, apps: everything billed monthly, added up.'],
+                ['name' => 'Gym and sport', 'type' => LineType::Fixed->value, 'icon' => 'fitness_center', 'color' => 'lime', 'off' => true, 'hint' => 'Gym pass, club or class fees you pay every month.'],
+                ['name' => 'Insurance', 'type' => LineType::Fixed->value, 'icon' => 'receipt_long', 'color' => 'blue', 'off' => true, 'hint' => 'Home, car or life insurance. A yearly fee can go in as a twelfth each month.'],
             ],
             'shared' => [
                 ['name' => 'Shared contribution', 'type' => LineType::Transfer->value, 'icon' => 'group', 'color' => 'violet', 'hint' => 'What you transfer to the joint account every month. Costs paid from there (e.g. utilities) should be 0 above.'],

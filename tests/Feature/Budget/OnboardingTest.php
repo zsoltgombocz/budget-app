@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\PeriodMode;
+use App\Models\BudgetLine;
 use App\Models\User;
 use App\Support\OnboardingItems;
 use Database\Seeders\CategoryTemplateSeeder;
@@ -27,11 +28,11 @@ it('builds a combined plan from the answers: shared costs and a loan in one pass
         ->set('currency', 'HUF')->call('next')
         ->assertSet('step', 4)
         ->set('amounts.0', '180000')->call('next')
-        ->set('shared', true)->set('amounts.3', '120000')->call('next')
-        ->set('hasLoan', true)->set('amounts.5', '87549')->call('next')
-        ->set('amounts.7', '90000')->call('next')
+        ->set('shared', true)->set('amounts.6', '120000')->call('next')
+        ->set('hasLoan', true)->set('amounts.8', '87549')->call('next')
+        ->set('amounts.10', '90000')->call('next')
         ->assertSet('step', 8)
-        ->set('amounts.11', '20000')
+        ->set('amounts.14', '20000')
         ->set('reserveTarget', '300000')
         ->set('reservePct', 50)
         ->set('surplusTarget', 'investment')
@@ -74,6 +75,30 @@ it('leaves out the groups answered with no', function (): void {
     expect($names)->not->toContain('Utilities', 'Shared contribution', 'Loan', 'Prepayment fund')
         ->and($names)->toContain('Housing', 'Groceries', 'Reserve')
         ->and($user->loans()->count())->toBe(0);
+});
+
+it('offers subscriptions, gym and insurance switched off', function (): void {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test('pages::onboarding')
+        ->set('income', '500000')->call('next')
+        ->set('periodMode', 'calendar')->call('next')
+        ->call('next')
+        ->assertSet('included.3', false)->assertSet('included.4', false)->assertSet('included.5', false)
+        ->set('included.3', true)->set('amounts.3', '6990')
+        ->call('next')
+        ->set('shared', false)->call('next')
+        ->set('hasLoan', false)->call('next')
+        ->call('next')
+        ->call('finish')
+        ->assertHasNoErrors();
+
+    $names = $user->categories()->pluck('name');
+
+    expect($names)->toContain('Subscriptions')
+        ->and($names)->not->toContain('Gym and sport', 'Insurance')
+        ->and(BudgetLine::query()->whereRelation('category', 'name', 'Subscriptions')->value('amount'))->toBe(6_990);
 });
 
 it('asks for a yes or no before moving past a question', function (): void {
@@ -126,7 +151,7 @@ it('creates a reserve pocket when only a target is given', function (): void {
         ->set('shared', false)->call('next')
         ->set('hasLoan', false)->call('next')
         ->call('next')
-        ->set('included.11', false)
+        ->set('included.14', false)
         ->set('reserveTarget', '2500.50')
         ->set('surplusTarget', 'pocket')
         ->call('finish')

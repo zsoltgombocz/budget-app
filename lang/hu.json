@@ -707,7 +707,6 @@
     "Do you share costs with someone?": "Közösen fizettek valamit?",
     "Everyday spending": "Napi költések",
     "For example a joint account with your partner that you both transfer to every month.": "Például közös számla a pároddal, amire mindketten utaltok minden hónapban.",
-    "Housing and bills": "Lakhatás és számlák",
     "Its monthly installment goes into the plan and comes off by itself. The principal and the APR can come later.": "A havi törlesztő bekerül a tervbe és magától levonódik, nem kell rögzítened. A tőkét és a THM-et később is megadhatod.",
     "Month-end leftover": "Hó végi maradék",
     "Monthly amounts": "Havi összegek",
@@ -723,5 +722,11 @@
     "Yes, we have a joint account": "Igen, van közös számlánk",
     "Rent or other housing costs paid from your own account.": "Albérlet vagy más lakhatási költség, amit a saját számládról fizetsz.",
     "The monthly installment including insurance. It comes off the plan by itself, you do not record it. The principal and the APR can be added later: Plan, Loan repayments.": "A havi törlesztőrészlet a biztosítással együtt. Magától levonódik a tervből, nem kell rögzítened. A tőkét és a THM-et később is megadhatod: Terv, Hiteltörlesztés.",
-    "Put aside monthly for prepaying the loan. When it reaches 500 000 Ft, the app shows how much the installment would drop.": "Havi félretétel a hitel előtörlesztésére. Ha eléri az 500 000 Ft-ot, az app megmutatja, mennyivel csökkenne a részlet."
+    "Put aside monthly for prepaying the loan. When it reaches 500 000 Ft, the app shows how much the installment would drop.": "Havi félretétel a hitel előtörlesztésére. Ha eléri az 500 000 Ft-ot, az app megmutatja, mennyivel csökkenne a részlet.",
+    "Housing and monthly fees": "Lakhatás és havi díjak",
+    "Subscriptions": "Előfizetések",
+    "Gym and sport": "Edzőterem és sport",
+    "Streaming, music, cloud storage, apps: everything billed monthly, added up.": "Streaming, zene, felhőtárhely, appok: minden, ami havonta terhel, összeadva.",
+    "Gym pass, club or class fees you pay every month.": "Edzőtermi bérlet, klub- vagy óradíj, amit havonta fizetsz.",
+    "Home, car or life insurance. A yearly fee can go in as a twelfth each month.": "Lakás-, autó- vagy életbiztosítás. Az éves díjat beírhatod havonta egytizenkettedként."
 }

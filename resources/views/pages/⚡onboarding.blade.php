@@ -65,9 +65,9 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
             return;
         }
 
-        $count = count(OnboardingItems::all());
-        $this->amounts = array_fill(0, $count, '');
-        $this->included = array_fill(0, $count, true);
+        $items = OnboardingItems::all();
+        $this->amounts = array_fill(0, count($items), '');
+        $this->included = array_map(fn (array $entry): bool => ! ($entry['item']['off'] ?? false), $items);
     }
 
     public function next(): void
@@ -227,7 +227,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
         1 => [__('How much do you earn?'), __('Your monthly net income. The plan starts from this.')],
         2 => [__('When does your month start?'), __('Plan from payday to payday, or by calendar month.')],
         3 => [__('Which currency?'), __('Every amount in the plan is in this currency.')],
-        4 => [__('Housing and bills'), __('What you pay from your own account every month. Switch off what you do not have, leave empty what you do not know yet.')],
+        4 => [__('Housing and monthly fees'), __('What you pay from your own account every month. Switch off what you do not have, leave empty what you do not know yet.')],
         5 => [__('Do you share costs with someone?'), __('For example a joint account with your partner that you both transfer to every month.')],
         6 => [__('Do you have a loan?'), __('Its monthly installment goes into the plan and comes off by itself. The principal and the APR can come later.')],
         7 => [__('Everyday spending'), __('Monthly budgets for what you record day by day. Rough numbers are fine, you can change them any time.')],

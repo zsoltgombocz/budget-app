@@ -14,7 +14,8 @@ class CategoryTemplateSeeder extends Seeder
      */
     public function run(): void
     {
-        $groups = OnboardingItems::groups();
+        // The fixed templates keep their classic lines; the optional ones are the wizard's.
+        $groups = array_map(fn (array $items): array => array_values(array_filter($items, fn (array $item): bool => ! ($item['off'] ?? false))), OnboardingItems::groups());
         $basic = [...$groups['fixed'], ...$groups['daily'], ...$groups['reserve']];
 
         $templates = [
