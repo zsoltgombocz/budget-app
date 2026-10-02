@@ -8,6 +8,11 @@ install.listen()
 window.budgetPush = push
 window.budgetInstall = install
 
+// The app's confirmation dialog (components/confirm-dialog): resolves true on confirm.
+window.appConfirm = (options) => new Promise((resolve) => {
+    window.dispatchEvent(new CustomEvent('app-confirm', { detail: { ...options, resolve } }))
+})
+
 document.addEventListener('alpine:init', () => registerNumpad(window.Alpine))
 
 window.addEventListener('load', () => push.sync())

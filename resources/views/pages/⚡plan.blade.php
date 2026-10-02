@@ -835,7 +835,7 @@ new #[Title('Plan')] class extends Component {
             }
         },
         async removeLine() {
-            if (! confirm(@js(__('Remove this line from the plan?')))) return
+            if (! await window.appConfirm({ title: @js(__('Remove this line from the plan?')), body: @js(__('Past spending keeps its category; only the plan changes from now on.')), confirm: @js(__('Remove')), danger: true })) return
             await $wire.deleteLine(this.line.lineId)
             this.sheet = null
         },

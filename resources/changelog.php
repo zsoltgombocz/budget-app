@@ -12,6 +12,8 @@ return [
             ['hu' => 'A Terv alján „Hó végi maradék” kártya: bevétel, terv, tartalék félretétel, várható maradék, és ott állítod be, hová menjen a maradék.', 'en' => 'A “Month-end leftover” card at the bottom of the Plan: income, plan, reserve saving, expected leftover, and where the leftover goes is set right there.'],
             ['hu' => 'A Tervben minden tétel mellett ott a kategória ikonja.', 'en' => 'Every plan line shows its category icon.'],
             ['hu' => 'A hitelnél megadható a törlesztő esedékességének napja, és a Tervből megnyitott hitel szerkesztése után visszakerülsz a Tervre.', 'en' => 'A loan has a due day for its installment, and a loan opened from the Plan returns you to the Plan.'],
+            ['hu' => 'Törlés előtt az app saját, egyértelmű megerősítő ablaka kérdez rá.', 'en' => 'Before deleting, the app asks in its own clear confirmation dialog.'],
+            ['hu' => 'Persely törlésekor a havi félretétele is kikerül a Tervből.', 'en' => 'Deleting a pocket also removes its monthly saving from the plan.'],
             ['hu' => 'A nyelv és az időzóna a Megjelenés beállításokba költözött.', 'en' => 'Language and time zone moved to the Appearance settings.'],
         ],
     ],

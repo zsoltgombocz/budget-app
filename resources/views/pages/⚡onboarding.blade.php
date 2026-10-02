@@ -347,7 +347,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
         open(name, current, label = '', decimals = null, suffix = null) {
             this.field = name; this.fieldLabel = label; this.value = String(current ?? '').replace('.', ',')
             this.fieldDecimals = decimals ?? this.decimals
-            this.fieldSuffix = suffix ?? @js($currency->symbol())
+            this.fieldSuffix = suffix ?? @js($currency->symbol());
         },
         press(key) {
             let v = this.value

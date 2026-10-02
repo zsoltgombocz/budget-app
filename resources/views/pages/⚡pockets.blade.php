@@ -754,7 +754,7 @@ new #[Title('Pockets and loans')] class extends Component {
             if (result.ok) { this.sheet = null; this.spendNote = ''; this.spendCategory = '' }
         },
         async removePocket() {
-            if (! confirm(@js(__('Delete this pocket? Its monthly saving is removed from the plan too.')))) return
+            if (! await window.appConfirm({ title: @js(__('Delete this pocket?')), body: @js(__('Its monthly saving is removed from the plan too. Its balance is not moved anywhere.')), confirm: @js(__('Delete')), danger: true })) return
             await $wire.deletePocket(this.form.id)
             this.sheet = null
         },
