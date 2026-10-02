@@ -211,10 +211,17 @@ it('saves the optional loan details from the loan step', function (): void {
         ->and($loan->remaining_months)->toBe(180);
 });
 
+it('starts with no extra share of the leftover for the reserve', function (): void {
+    $this->actingAs(User::factory()->create());
+
+    Livewire::test('pages::onboarding')->assertSet('reservePct', 0);
+});
+
 it('works out where the leftover of the entered plan would go', function (): void {
     $this->actingAs(User::factory()->create());
 
     $wizard = Livewire::test('pages::onboarding')
+        ->set('step', 8)
         ->set('income', '500000')
         ->set('shared', false)
         ->set('hasLoan', false)
@@ -224,11 +231,12 @@ it('works out where the leftover of the entered plan would go', function (): voi
         ->set('reservePct', 50)
         ->set('reserveTarget', '50000');
 
-    // 500 000 - 320 000 = 180 000 left; half is 90 000, capped at the 50 000 target.
-    expect($wizard->instance()->leftoverPreview)->toBe(['leftover' => 180_000, 'toReserve' => 50_000, 'toSurplus' => 130_000, 'reserveOn' => true]);
+    // 500 000 - 300 000 planned - 20 000 put aside = 180 000 left; half is 90 000, capped at the 50 000 target.
+    expect($wizard->instance()->leftoverPreview)->toBe(['income' => 500_000, 'planned' => 300_000, 'reserveMonthly' => 20_000, 'leftover' => 180_000, 'toReserve' => 50_000, 'toSurplus' => 130_000, 'reserveOn' => true])
+        ->and($wizard->html())->toContain(money(70_000));
 
     $wizard->set('included.14', false);
-    expect($wizard->instance()->leftoverPreview)->toBe(['leftover' => 200_000, 'toReserve' => 0, 'toSurplus' => 200_000, 'reserveOn' => false]);
+    expect($wizard->instance()->leftoverPreview)->toBe(['income' => 500_000, 'planned' => 300_000, 'reserveMonthly' => 0, 'leftover' => 200_000, 'toReserve' => 0, 'toSurplus' => 200_000, 'reserveOn' => false]);
 });
 
 it('skips the wizard once onboarded', function (): void {

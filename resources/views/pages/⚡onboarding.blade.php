@@ -60,7 +60,8 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
 
     public string $reserveTarget = '';
 
-    public int $reservePct = 100;
+    /** Share of the month-end leftover that goes to the reserve on top of the monthly amount. */
+    public int $reservePct = 0;
 
     public string $surplusTarget = 'investment';
 
@@ -144,22 +145,29 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
      * What the plan entered so far leaves at month end and where that leftover would go,
      * shown on the last step so the reserve settings are easy to follow.
      *
-     * @return array{leftover: int, toReserve: int, toSurplus: int, reserveOn: bool}
+     * @return array{income: int, planned: int, reserveMonthly: int, leftover: int, toReserve: int, toSurplus: int, reserveOn: bool}
      */
     #[Computed]
     public function leftoverPreview(): array
     {
         $currency = $this->currencyEnum;
         $income = Money::parse($this->income === '' ? '0' : $this->income, $currency) ?? 0;
+        $reserveOn = $this->reserveIsOn();
         $planned = 0;
+        $reserveMonthly = 0;
 
         foreach ($this->includedIndexes() as $index) {
             $amount = $this->amounts[$index] ?? '';
-            $planned += $amount === '' ? 0 : (Money::parse($amount, $currency) ?? 0);
+            $value = $amount === '' ? 0 : (Money::parse($amount, $currency) ?? 0);
+
+            if ($index === $this->reserveIndex()) {
+                $reserveMonthly = $value;
+            } else {
+                $planned += $value;
+            }
         }
 
-        $leftover = $income - $planned;
-        $reserveOn = $this->reserveIsOn();
+        $leftover = $income - $planned - $reserveMonthly;
         $target = $this->reserveTarget === '' ? null : Money::parse($this->reserveTarget, $currency);
         $toReserve = 0;
 
@@ -168,7 +176,15 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
             $toReserve = $target === null ? $toReserve : min($toReserve, $target);
         }
 
-        return ['leftover' => $leftover, 'toReserve' => $toReserve, 'toSurplus' => max(0, $leftover - $toReserve), 'reserveOn' => $reserveOn];
+        return [
+            'income' => $income,
+            'planned' => $planned,
+            'reserveMonthly' => $reserveMonthly,
+            'leftover' => $leftover,
+            'toReserve' => $toReserve,
+            'toSurplus' => max(0, $leftover - $toReserve),
+            'reserveOn' => $reserveOn,
+        ];
     }
 
     public function reserveIndex(): int
@@ -462,7 +478,6 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                 $reserveIndex = $this->reserveIndex();
                 $reserveOn = $included[$reserveIndex] ?? true;
                 $preview = $this->leftoverPreview;
-                $targetName = $surplusTarget === 'pocket' ? __('the savings pocket') : __('the investment account');
             @endphp
             <div class="rounded-[22px] bg-surface px-4 py-4" data-test="reserve-card">
                 <div class="flex items-start gap-3">
@@ -497,7 +512,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
             <div class="mb-2.5 mt-7 px-1.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted">{{ __('If money is left at month end') }}</div>
             <div class="rounded-[22px] bg-surface px-4 py-4">
                 @if ($reserveOn)
-                    <div class="text-[13px] text-muted">{{ __('This share goes to the reserve until it reaches the target:') }}</div>
+                    <div class="text-[13px] text-muted">{{ __('On top of the monthly amount, this share of the leftover also goes to the reserve until it reaches the target:') }}</div>
                     <div class="mt-2 grid grid-cols-4 gap-2">
                         @foreach ([0, 25, 50, 100] as $pct)
                             <x-ui.choice :selected="$reservePct === $pct" wire:click="$set('reservePct', {{ $pct }})" class="num h-11 rounded-xl text-[15px]">{{ $pct }}%</x-ui.choice>
@@ -520,23 +535,29 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
             </div>
 
             <div class="mt-3 rounded-[22px] border border-accent/30 bg-accent/8 px-4 py-4" data-test="leftover-preview">
-                <div class="flex items-center gap-2 text-[13px] font-semibold text-accent"><x-ui.icon name="info" :size="18" />{{ __('With your numbers') }}</div>
-                <p class="mt-1.5 text-[13px] leading-relaxed text-ink-2">
-                    @if ($preview['leftover'] > 0)
-                        {{ __('Your plan leaves about :leftover a month.', ['leftover' => money($preview['leftover'], $currency)]) }}
-                        @if ($preview['toReserve'] > 0)
-                            {{ __(':reserve goes to the reserve, :rest to :target.', ['reserve' => money($preview['toReserve'], $currency), 'rest' => money($preview['toSurplus'], $currency), 'target' => $targetName]) }}
-                        @else
-                            {{ __('All of it goes to :target.', ['target' => $targetName]) }}
-                        @endif
-                    @elseif ($preview['leftover'] === 0)
-                        {{ __('Your plan uses up the whole income, so nothing is left to share out.') }}
-                    @else
-                        {{ __('Your plan is :gap over the income a month.', ['gap' => money(-$preview['leftover'], $currency)]) }}
-                        {{ __('It is worth lowering a budget before you start.') }}
+                <div class="flex items-center gap-2 text-[13px] font-semibold text-accent"><x-ui.icon name="info" :size="18" />{{ __('A month with your numbers') }}</div>
+                <div class="num mt-2 text-[13px]">
+                    <div class="flex justify-between py-1"><span class="text-muted">{{ __('Income') }}</span><span>{{ money($preview['income'], $currency) }}</span></div>
+                    <div class="flex justify-between py-1"><span class="text-muted">{{ __('Planned costs and budgets') }}</span><span>−{{ money($preview['planned'], $currency) }}</span></div>
+                    @if ($preview['reserveOn'])
+                        <div class="flex justify-between py-1"><span class="text-muted">{{ __('Put aside in the reserve') }}</span><span>−{{ money($preview['reserveMonthly'], $currency) }}</span></div>
                     @endif
-                </p>
-                <p class="mt-1.5 text-xs leading-snug text-muted">{{ __('The real numbers come at closing, from what you actually spent. You can change all of this later in Settings.') }}</p>
+                    <div @class(['flex justify-between border-t border-accent/20 pt-1.5 mt-1 font-semibold', 'text-danger' => $preview['leftover'] < 0])><span>{{ __('Expected leftover') }}</span><span>{{ money($preview['leftover'], $currency) }}</span></div>
+                </div>
+                @if ($preview['leftover'] > 0)
+                    <div class="mt-3 text-[13px] font-semibold">{{ __('Put aside every month') }}</div>
+                    <div class="num mt-1 text-[13px]">
+                        @if ($preview['reserveOn'])
+                            <div class="flex justify-between py-1"><span class="text-muted">{{ __('Reserve: :fixed fixed + :share from the leftover', ['fixed' => money($preview['reserveMonthly'], $currency), 'share' => money($preview['toReserve'], $currency)]) }}</span><span class="font-semibold">{{ money($preview['reserveMonthly'] + $preview['toReserve'], $currency) }}</span></div>
+                        @endif
+                        <div class="flex justify-between py-1"><span class="text-muted">{{ $surplusTarget === 'pocket' ? __('Savings pocket') : __('Investment account') }}</span><span class="font-semibold">{{ money($preview['toSurplus'], $currency) }}</span></div>
+                    </div>
+                @elseif ($preview['leftover'] === 0)
+                    <p class="mt-2 text-[13px] leading-relaxed text-ink-2">{{ __('Your plan uses up the whole income, so nothing is left to share out.') }}</p>
+                @else
+                    <p class="mt-2 text-[13px] leading-relaxed text-ink-2">{{ __('Your plan is :gap over the income a month.', ['gap' => money(-$preview['leftover'], $currency)]) }} {{ __('It is worth lowering a budget before you start.') }}</p>
+                @endif
+                <p class="mt-2 text-xs leading-snug text-muted">{{ __('The real numbers come at closing, from what you actually spent. You can change all of this later in Settings.') }}</p>
             </div>
         @endif
     </div>
