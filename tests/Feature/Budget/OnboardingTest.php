@@ -253,6 +253,15 @@ it('shows a hint for every line', function (): void {
         ->assertSee('Leave 0 if they are paid from a joint account.');
 });
 
+it('tells that more lines can be added later on the plan', function (): void {
+    $this->actingAs(User::factory()->create());
+
+    Livewire::test('pages::onboarding')
+        ->set('step', 4)->assertSee('data-test="more-later"', false)
+        ->set('step', 7)->assertSee('data-test="more-later"', false)
+        ->set('step', 5)->set('shared', true)->assertDontSee('data-test="more-later"', false);
+});
+
 it('explains what the leftover targets mean', function (): void {
     $this->actingAs(User::factory()->create());
 

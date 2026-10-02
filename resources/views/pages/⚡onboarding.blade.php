@@ -471,6 +471,14 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                     </div>
                 @endforeach
             </div>
+            @if (in_array($group, ['fixed', 'daily'], true))
+                <p class="mt-3 flex gap-2 px-1.5 text-xs leading-snug text-muted" data-test="more-later">
+                    <x-ui.icon name="add" :size="16" class="mt-px shrink-0 text-accent" />
+                    <span>{{ $group === 'fixed'
+                        ? __('Something missing? After the wizard you can add any number of fixed items on the Plan screen, e.g. each subscription on its own with its due day.')
+                        : __('Something missing? After the wizard you can add more budgets on the Plan screen, e.g. for a pet or a hobby.') }}</span>
+                </p>
+            @endif
         @endif
 
         @if ($step === 8)
