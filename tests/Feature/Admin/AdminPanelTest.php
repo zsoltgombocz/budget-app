@@ -9,7 +9,6 @@ use App\Models\BudgetSetting;
 use App\Models\User;
 use App\Notifications\AdminSignInLink;
 use App\Notifications\Invitation;
-use App\Notifications\MagicLoginLink;
 use Filament\Facades\Filament;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification;
@@ -193,15 +192,20 @@ it('disables and enables a user', function (): void {
     expect($user->refresh()->isDisabled())->toBeFalse();
 });
 
-it('signs a disabled user out and sends no sign-in code', function (): void {
+it('signs a disabled user out and refuses to start a sign-in', function (): void {
     Notification::fake();
     $user = User::factory()->disabled()->create();
 
     $this->actingAs($user)->get(route('settings'))->assertRedirect(route('login'));
     $this->assertGuest();
 
-    Livewire::test('auth.magic-link-form')->set('email', $user->email)->call('send');
-    Notification::assertNotSentTo($user, MagicLoginLink::class);
+    Livewire::test('auth.magic-link-form')
+        ->set('email', strtoupper($user->email))
+        ->call('send')
+        ->assertHasErrors(['email'])
+        ->assertSee(__('Your account is disabled.'))
+        ->assertSet('sentTo', null);
+    Notification::assertNothingSent();
 });
 
 it('remembers when a user was last seen', function (): void {

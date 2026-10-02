@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Auth\SendMagicLink;
+use App\Models\User;
 use App\Support\SecurityEvents;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
@@ -41,6 +42,13 @@ new class extends Component {
         }
 
         RateLimiter::hit($key, 600);
+
+        // A disabled account cannot even start signing in: say so right away, send nothing.
+        if (User::query()->where('email', Str::lower(trim($this->email)))->first()?->isDisabled()) {
+            SecurityEvents::record('disabled_user');
+
+            throw ValidationException::withMessages(['email' => __('Your account is disabled.')]);
+        }
 
         $sendMagicLink->handle($this->email, $this->register ? $this->name : null);
 
