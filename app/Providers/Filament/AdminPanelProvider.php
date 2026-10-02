@@ -41,7 +41,7 @@ class AdminPanelProvider extends PanelProvider
             ->authGuard('admin')
             ->login(Login::class)
             ->routes(fn () => Route::get('login/link/{token}', LinkSignIn::class)->name('auth.link'))
-            ->brandName('Budget admin')
+            ->brandName(fn (): string => config()->string('app.name').' admin')
             // Production is green like the app; the dev stack is blue like its app.
             ->colors([
                 'primary' => app()->environment('staging') ? Color::Blue : Color::hex('#1FB866'),
