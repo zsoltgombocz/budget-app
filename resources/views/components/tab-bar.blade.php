@@ -8,23 +8,38 @@
     ];
 @endphp
 
-{{-- Record button: floats above the tab bar, hides while scrolling down, comes back on scroll up. --}}
+{{--
+    Record button: floats above the tab bar, slides down behind it while scrolling down and
+    comes back after a clear scroll up. The position is clamped to the real scroll range, so
+    the iOS rubber-band bounce at the top or bottom never counts as scrolling.
+--}}
 <button type="button"
         x-data="{
             visible: true,
-            lastY: window.scrollY,
+            anchorY: 0,
+            position() {
+                const max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight)
+                return Math.min(Math.max(window.scrollY, 0), max)
+            },
             onScroll() {
-                const y = window.scrollY
-                if (Math.abs(y - this.lastY) < 6) return
-                this.visible = y < this.lastY || y < 80
-                this.lastY = y
+                const y = this.position()
+                if (y < 80) { this.visible = true; this.anchorY = y; return }
+                if (this.visible) {
+                    // Track the highest point since the button came back; hide after 8px down.
+                    if (y < this.anchorY) this.anchorY = y
+                    else if (y > this.anchorY + 8) { this.visible = false; this.anchorY = y }
+                } else {
+                    // Track the lowest point since it went away; show after a clear 24px up.
+                    if (y > this.anchorY) this.anchorY = y
+                    else if (y < this.anchorY - 24) { this.visible = true; this.anchorY = y }
+                }
             },
         }"
         x-on:scroll.window.passive="onScroll()"
-        x-init="document.addEventListener('livewire:navigated', () => { visible = true; lastY = window.scrollY })"
+        x-init="anchorY = position(); document.addEventListener('livewire:navigated', () => { visible = true; anchorY = position() })"
         x-on:click="$dispatch('open-entry')"
-        class="fixed right-5 bottom-[calc(82px+env(safe-area-inset-bottom)+16px)] z-30 flex size-[58px] items-center justify-center rounded-[20px] bg-accent text-accent-ink shadow-[0_10px_24px_color-mix(in_srgb,var(--app-accent)_32%,transparent)] transition duration-200 ease-out active:scale-95"
-        :class="visible ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-[calc(100%+110px)] opacity-0'"
+        class="fixed right-5 bottom-[calc(82px+env(safe-area-inset-bottom)+16px)] z-30 flex size-[58px] items-center justify-center rounded-[20px] bg-accent text-accent-ink shadow-[0_10px_24px_color-mix(in_srgb,var(--app-accent)_32%,transparent)] transition-transform duration-300 ease-[cubic-bezier(0.2,0.7,0.2,1)] active:scale-95"
+        :class="visible ? 'translate-y-0' : 'pointer-events-none translate-y-[calc(100%+120px)]'"
         aria-label="{{ __('Record spending') }}" data-test="tab-entry">
     <x-ui.icon name="add" :size="32" :weight="500" />
 </button>

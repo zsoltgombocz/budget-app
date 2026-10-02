@@ -19,7 +19,7 @@ it('marks the tab and shows the loader as soon as it is tapped', function (): vo
     expect($state)->toBe(['active' => 'page', 'navigating' => true]);
 });
 
-it('hides the record button while scrolling down and brings it back on scroll up', function (): void {
+it('slides the record button away while scrolling down and brings it back on a clear scroll up', function (): void {
     $this->actingAs(onboardedUser());
 
     $page = visit(route('plan'))->on()->mobile()->resize(390, 500);
@@ -28,17 +28,32 @@ it('hides the record button while scrolling down and brings it back on scroll up
         async () => {
             const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
             const button = document.querySelector('[data-test="tab-entry"]')
-            const visible = () => ! button.className.includes('opacity-0')
+            const visible = () => document.querySelector('[data-test="tab-entry"]').className.includes('translate-y-0')
+            const max = document.documentElement.scrollHeight - window.innerHeight
+            const scrollTo = async y => { window.scrollTo(0, y); await wait(150) }
             await wait(600)
             const atTop = visible()
-            window.scrollTo(0, 400)
-            await wait(300)
+            await scrollTo(max)
             const down = visible()
-            window.scrollTo(0, 200)
-            await wait(300)
-            return { atTop, down, up: visible() }
+            await scrollTo(max - 12)
+            const nudgedUp = visible()
+            await scrollTo(max)
+
+            // iOS rubber band at the bottom: scrollY overshoots and comes back to the end.
+            const original = Object.getOwnPropertyDescriptor(window, 'scrollY')
+            Object.defineProperty(window, 'scrollY', { configurable: true, get: () => max + 60 })
+            window.dispatchEvent(new Event('scroll'))
+            await wait(50)
+            Object.defineProperty(window, 'scrollY', { configurable: true, get: () => max })
+            window.dispatchEvent(new Event('scroll'))
+            await wait(50)
+            const afterBounce = visible()
+            Object.defineProperty(window, 'scrollY', original)
+
+            await scrollTo(max - 60)
+            return { atTop, down, nudgedUp, afterBounce, up: visible() }
         }
     JS);
 
-    expect($states)->toBe(['atTop' => true, 'down' => false, 'up' => true]);
+    expect($states)->toBe(['atTop' => true, 'down' => false, 'nudgedUp' => false, 'afterBounce' => false, 'up' => true]);
 });
