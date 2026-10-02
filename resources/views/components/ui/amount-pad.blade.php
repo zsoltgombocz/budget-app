@@ -5,9 +5,10 @@
     activeLabel, display() and press() from the surrounding Alpine scope; "Done" clears active.
 --}}
 <div x-show="active" x-cloak class="absolute inset-0 z-10 flex flex-col justify-end" data-test="amount-pad">
-    <div class="absolute inset-0 bg-black/40" x-on:click="active = null"></div>
+    <div x-show="active" x-transition.opacity class="absolute inset-0 bg-black/40" x-on:click="active = null"></div>
     <div x-show="active"
          x-transition:enter="transition duration-200 ease-out" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
+         x-transition:leave="transition duration-150 ease-in" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full"
          class="relative rounded-t-[26px] bg-surface-2 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-12px_40px_rgba(0,0,0,0.35)]">
         <div class="flex items-center justify-between gap-3">
             <span class="truncate text-sm font-medium text-muted" x-text="activeLabel"></span>

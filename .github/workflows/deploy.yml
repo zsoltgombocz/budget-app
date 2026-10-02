@@ -72,20 +72,12 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
 
-      - name: Ship the compose file and restart on the VPS
+      - name: Ship the stack files and deploy on the VPS
         if: env.DEPLOY_SSH_KEY != ''
         run: |
-          scp -o StrictHostKeyChecking=accept-new deploy/docker-compose.yml "$DEPLOY_TARGET:$STACK_DIR/docker-compose.yml"
-          ssh -o StrictHostKeyChecking=accept-new "$DEPLOY_TARGET" "STACK_DIR=$STACK_DIR sh -s" <<'REMOTE'
-            set -e
-            cd "$STACK_DIR"
-            docker compose pull app queue scheduler
-            docker compose up -d --remove-orphans
-            docker compose exec -T app php artisan migrate --force
-            docker compose exec -T app php artisan db:seed --class=CategoryTemplateSeeder --force
-            docker compose exec -T scheduler php artisan schedule:clear-cache
-            docker image prune -f
-          REMOTE
+          scp -o StrictHostKeyChecking=accept-new deploy/docker-compose.yml deploy/deploy.sh "$DEPLOY_TARGET:$STACK_DIR/"
+          # Backs up the database, migrates and health-checks; rolls back to the previous image on failure.
+          ssh -o StrictHostKeyChecking=accept-new "$DEPLOY_TARGET" "sh $STACK_DIR/deploy.sh"
 
       - name: Skipped (deploy secrets missing)
         if: env.DEPLOY_SSH_KEY == ''

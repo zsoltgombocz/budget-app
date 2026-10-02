@@ -186,6 +186,7 @@ new #[Title('Month')] class extends Component {
         <div class="flex gap-2">
             <x-ui.icon-button icon="chevron_left" :label="__('Previous period')" wire:click="showPeriod({{ $this->neighbours['previous'] ?? 0 }})" :disabled="$this->neighbours['previous'] === null" class="disabled:opacity-30" data-test="previous-period" />
             <x-ui.icon-button icon="chevron_right" :label="__('Next period')" wire:click="showPeriod({{ $this->neighbours['next'] ?? 0 }})" :disabled="$this->neighbours['next'] === null" class="disabled:opacity-30" />
+            <x-ui.icon-button icon="settings" :href="route('settings')" wire:navigate :label="__('Settings')" data-test="open-settings" />
         </div>
     </div>
 
@@ -268,8 +269,8 @@ new #[Title('Month')] class extends Component {
 
     {{-- Transaction actions --}}
     <div x-show="selected" x-cloak class="fixed inset-0 z-50" role="dialog" aria-modal="true">
-        <div class="absolute inset-0 bg-black/55" x-on:click="selected = null"></div>
-        <div class="absolute inset-x-0 bottom-0 mx-auto max-w-lg rounded-t-[30px] bg-surface px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-2" x-show="selected" x-transition:enter="transition duration-300 ease-out" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0">
+        <div x-show="selected" x-transition.opacity class="absolute inset-0 bg-black/55" x-on:click="selected = null"></div>
+        <div class="absolute inset-x-0 bottom-0 mx-auto max-w-lg rounded-t-[30px] bg-surface px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-2" x-show="selected" x-transition:enter="transition duration-300 ease-out" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0" x-transition:leave="transition duration-200 ease-in" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full">
             <div class="mx-auto h-[5px] w-9 rounded-full bg-ink/18"></div>
             <div class="py-5 text-center">
                 <div class="text-sm text-muted" x-text="selected?.title"></div>

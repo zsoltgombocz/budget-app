@@ -111,7 +111,7 @@ new #[Title('Today')] class extends Component {
 @endphp
 
 <div @class(['min-h-dvh', 'bg-[radial-gradient(120%_40%_at_30%_0%,rgba(242,85,90,0.12),rgba(242,85,90,0)_70%)]' => $negative])>
-    <div class="flex items-center justify-between px-5 pt-2.5">
+    <div class="flex items-center justify-between px-5 pt-6">
         <div class="flex h-[34px] items-center gap-2 rounded-full bg-surface px-3.5 text-[13px] font-medium text-ink-2" data-test="period-chip">
             <span @class(['size-1.5 rounded-full', 'bg-danger' => $negative, 'bg-accent' => ! $negative])></span>
             <span class="num">{{ \App\Support\Dates::range($period->starts_on, $period->ends_on) }} · {{ __(':day. day', ['day' => max(1, $period->elapsedDays($overview->today))]) }}</span>

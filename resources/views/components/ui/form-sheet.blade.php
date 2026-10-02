@@ -7,9 +7,10 @@
     and pad (an x-ui.amount-pad that slides over the footer).
 --}}
 <div x-show="{{ $show }}" x-cloak class="fixed inset-0 z-50" role="dialog" aria-modal="true">
-    <div class="absolute inset-0 bg-black/55" x-on:click="{{ $close }}"></div>
+    <div x-show="{{ $show }}" x-transition.opacity class="absolute inset-0 bg-black/55" x-on:click="{{ $close }}"></div>
     <div x-show="{{ $show }}"
          x-transition:enter="transition duration-300 ease-out" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
+         x-transition:leave="transition duration-200 ease-in" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full"
          {{ $attributes->class([
              'absolute inset-x-0 bottom-0 mx-auto flex max-w-lg flex-col overflow-hidden rounded-t-[30px] bg-surface text-ink',
              'top-[calc(var(--safe-top)+0.75rem)]' => $full,

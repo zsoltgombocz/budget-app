@@ -1,4 +1,6 @@
-@props(['title', 'subtitle' => null])
+@props(['title', 'subtitle' => null, 'settings' => true])
+
+{{-- Tab page header; the settings button sits top right on every main tab. --}}
 
 <div {{ $attributes->class(['flex items-end justify-between gap-3 px-6 pt-3.5']) }}>
     <div class="min-w-0">
@@ -7,5 +9,10 @@
             <div class="num mt-0.5 text-[13px] text-muted">{{ $subtitle }}</div>
         @endif
     </div>
-    {{ $actions ?? '' }}
+    <div class="flex shrink-0 gap-2">
+        {{ $actions ?? '' }}
+        @if ($settings)
+            <x-ui.icon-button icon="settings" :href="route('settings')" wire:navigate :label="__('Settings')" data-test="open-settings" />
+        @endif
+    </div>
 </div>
