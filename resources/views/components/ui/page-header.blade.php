@@ -7,5 +7,7 @@
             <div class="num mt-0.5 text-[13px] text-muted">{{ $subtitle }}</div>
         @endif
     </div>
-    {{ $actions ?? '' }}
+    <div class="flex shrink-0 gap-2">
+        {{ $actions ?? '' }}
+    </div>
 </div>

@@ -5,7 +5,13 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 new #[Title('Register')] #[Layout('layouts::auth')] class extends Component {
-    //
+    /**
+     * Production is invite only; the page exists only while registration is open.
+     */
+    public function mount(): void
+    {
+        abort_unless(config()->boolean('budget.registration_open'), 404);
+    }
 }; ?>
 
 <div class="flex flex-col gap-6">

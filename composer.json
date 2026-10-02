@@ -10,10 +10,13 @@
     "license": "MIT",
     "require": {
         "php": "^8.4",
+        "filament/filament": "^5.9",
         "laravel-notification-channels/webpush": "^13.0",
         "laravel/chisel": "^0.1.0",
         "laravel/fortify": "^1.37.2",
         "laravel/framework": "^13.17",
+        "laravel/nightwatch": "^1.30",
+        "laravel/pulse": "^1.8",
         "laravel/tinker": "^3.0",
         "livewire/blaze": "^1.0",
         "livewire/flux": "^2.13.1",

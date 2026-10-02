@@ -1,12 +1,13 @@
 @props(['title' => null, 'tabs' => true])
 
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark" @env('staging') data-build="dev" @endenv>
     <head>
         @include('partials.head')
     </head>
     <body class="min-h-dvh bg-bg font-sans text-ink antialiased">
         <x-splash />
+        <div id="status-shield" aria-hidden="true"></div>
         <div id="nav-progress" aria-hidden="true"></div>
 
         <div class="mx-auto min-h-dvh w-full max-w-lg">

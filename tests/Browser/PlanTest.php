@@ -14,6 +14,7 @@ it('edits a plan amount with the numpad and saves it', function (): void {
         ->click('[data-key="del"]:visible')->click('[data-key="del"]:visible')->click('[data-key="del"]:visible')
         ->click('[data-key="del"]:visible')->click('[data-key="del"]:visible')
         ->click('[data-key="7"]:visible')->click('[data-key="5"]:visible')->click('[data-key="000"]:visible')
+        ->click('[data-test="pad-done"]:visible')
         ->click('[data-test="save-line"]')
         ->waitForText('Plan updated.')
         ->assertSee('75,000')

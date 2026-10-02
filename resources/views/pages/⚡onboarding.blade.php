@@ -168,10 +168,11 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
 <div class="flex min-h-[calc(100dvh-var(--safe-top)-env(safe-area-inset-bottom))] flex-col pb-[calc(10rem+env(safe-area-inset-bottom))]"
      x-data="{
         field: null,
+        fieldLabel: '',
         value: '',
         decimals: {{ $currency->decimals() }},
         formatter: new Intl.NumberFormat(@js(str_replace('_', '-', app()->getLocale())), { maximumFractionDigits: 0, useGrouping: 'always' }),
-        open(name, current) { this.field = name; this.value = String(current ?? '').replace('.', ',') },
+        open(name, current, label = '') { this.field = name; this.fieldLabel = label; this.value = String(current ?? '').replace('.', ',') },
         press(key) {
             let v = this.value
             if (key === 'del') v = v.slice(0, -1)
@@ -208,7 +209,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
     <div class="px-4 pt-6">
         @switch($step)
             @case(1)
-                <button type="button" x-on:click="open('income', $wire.income)" class="w-full rounded-card bg-surface px-5 py-6 text-left" data-test="onboarding-income">
+                <button type="button" x-on:click="open('income', $wire.income, @js(__('Monthly net income')))" class="w-full rounded-card bg-surface px-5 py-6 text-left" data-test="onboarding-income">
                     <span class="block text-[13px] text-muted">{{ __('Monthly net income') }}</span>
                     <span class="num mt-1 flex items-baseline gap-2"><span class="text-[44px] font-semibold tracking-[-0.04em]" :class="$wire.income === '' && 'text-faint'" x-text="show($wire.income)"></span><span class="text-xl text-muted">{{ $currency->symbol() }}</span></span>
                 </button>
@@ -274,7 +275,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                                     @if (! empty($item['hint']))
                                         <p class="mt-3 text-[13px] leading-relaxed text-muted">{{ __($item['hint']) }}</p>
                                     @endif
-                                    <button type="button" x-on:click="open('amounts.{{ $index }}', $wire.amounts[{{ $index }}])"
+                                    <button type="button" x-on:click="open('amounts.{{ $index }}', $wire.amounts[{{ $index }}], @js(__($item['name'])))"
                                             class="mt-3 flex h-12 w-full items-center justify-between rounded-[14px] bg-surface-2 px-4 text-left" data-test="amount-{{ $index }}">
                                         <span class="text-[13px] text-muted">{{ __('Monthly amount') }}</span>
                                         <span class="num text-[17px] font-semibold">
@@ -290,7 +291,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                 @break
 
             @case(6)
-                <button type="button" x-on:click="open('reserveTarget', $wire.reserveTarget)" class="w-full rounded-card bg-surface px-5 py-4 text-left">
+                <button type="button" x-on:click="open('reserveTarget', $wire.reserveTarget, @js(__('Reserve target')))" class="w-full rounded-card bg-surface px-5 py-4 text-left">
                     <span class="block text-[13px] text-muted">{{ __('Reserve target') }}</span>
                     <span class="num mt-1 flex items-baseline gap-2"><span class="text-[30px] font-semibold" :class="$wire.reserveTarget === '' && 'text-faint'" x-text="show($wire.reserveTarget, '–')"></span><span class="text-muted">{{ $currency->symbol() }}</span></span>
                     <span class="mt-1 block text-xs text-muted">{{ __('Leave empty for no reserve cap.') }}</span>
@@ -328,10 +329,15 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
 
     {{-- Numpad sheet for every amount on the wizard --}}
     <div x-show="field" x-cloak class="fixed inset-0 z-50" role="dialog" aria-modal="true">
-        <div class="absolute inset-0 bg-black/55" x-on:click="field = null"></div>
-        <div class="absolute inset-x-0 bottom-0 mx-auto max-w-lg rounded-t-[30px] bg-surface px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2" x-show="field" x-transition:enter="transition duration-300 ease-out" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0">
+        <div x-show="field" x-transition.opacity class="absolute inset-0 bg-black/55" x-on:click="field = null"></div>
+        <div class="absolute inset-x-0 bottom-0 mx-auto max-w-lg rounded-t-[30px] bg-surface px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2" x-show="field" x-transition:enter="transition duration-300 ease-out" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0" x-transition:leave="transition duration-200 ease-in" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full">
             <div class="mx-auto h-[5px] w-9 rounded-full bg-ink/18"></div>
-            <div class="num flex items-baseline justify-center gap-2 py-5"><span class="text-[52px] font-semibold tracking-[-0.04em]" x-text="show(value)"></span><span class="text-2xl text-muted">{{ $currency->symbol() }}</span></div>
+            <div class="mt-1 grid h-11 grid-cols-[72px_1fr_72px] items-center">
+                <button type="button" class="text-left text-[15px] text-muted" x-on:click="field = null">{{ __('Cancel') }}</button>
+                <div class="truncate text-center text-base font-semibold" x-text="fieldLabel"></div>
+                <span></span>
+            </div>
+            <div class="num flex items-baseline justify-center gap-2 py-4"><span class="text-[52px] font-semibold tracking-[-0.04em]" x-text="show(value)"></span><span class="text-2xl text-muted">{{ $currency->symbol() }}</span></div>
             <x-ui.numpad :decimal="$currency->decimals() > 0" />
             <x-ui.button x-on:click="apply()" class="mt-3 w-full" data-test="numpad-done">{{ __('Done') }}</x-ui.button>
         </div>

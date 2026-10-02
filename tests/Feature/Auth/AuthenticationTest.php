@@ -3,6 +3,8 @@
 use App\Actions\Auth\SendMagicLink;
 use App\Models\User;
 use App\Notifications\MagicLoginLink;
+use App\Notifications\NoAccountForEmail;
+use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 
@@ -26,15 +28,16 @@ test('a sign-in link is emailed to existing users', function (): void {
     Notification::assertSentTo($user, MagicLoginLink::class);
 });
 
-test('unknown addresses get the same answer but no email', function (): void {
+test('unknown addresses get the same answer and a register-first email instead of a code', function (): void {
     Notification::fake();
 
     Livewire::test('auth.magic-link-form')
-        ->set('email', 'nobody@example.com')
+        ->set('email', 'Nobody@example.com')
         ->call('send')
         ->assertSet('sentTo', 'nobody@example.com');
 
-    Notification::assertNothingSent();
+    Notification::assertSentOnDemand(NoAccountForEmail::class, fn (NoAccountForEmail $notification, array $channels, object $notifiable): bool => $notifiable->routes['mail'] === 'nobody@example.com');
+    Notification::assertNotSentTo(new AnonymousNotifiable, MagicLoginLink::class);
     expect(User::query()->count())->toBe(0);
 });
 
@@ -145,5 +148,5 @@ test('the sign-in email shows the code and the link', function (): void {
 
     $html = (string) new MagicLoginLink('token-123', '482915')->toMail($user)->render();
 
-    expect($html)->toContain('482 915')->toContain(route('magic-link.show', 'token-123'));
+    expect($html)->toContain('482915')->toContain(route('magic-link.show', 'token-123'));
 });

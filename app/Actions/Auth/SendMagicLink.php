@@ -4,7 +4,10 @@ namespace App\Actions\Auth;
 
 use App\Models\User;
 use App\Notifications\MagicLoginLink;
+use App\Notifications\NoAccountForEmail;
+use App\Support\SecurityEvents;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 
 final class SendMagicLink
@@ -21,8 +24,8 @@ final class SendMagicLink
 
     /**
      * Email a single-use sign-in link. With a name, an account is created first when the
-     * address is new. Unknown addresses without a name get nothing, but the caller shows the
-     * same message either way so the form does not reveal which addresses have an account.
+     * address is new. Unknown addresses without a name get a "register first" email instead; the
+     * caller shows the same message either way so the form does not reveal which addresses have an account.
      */
     public function handle(string $email, ?string $name = null): ?User
     {
@@ -37,12 +40,20 @@ final class SendMagicLink
             ]);
         }
 
-        if ($user === null) {
+        if ($user?->isDisabled()) {
+            SecurityEvents::record('disabled_user');
+
             return null;
         }
 
-        $token = Str::random(64);
-        Cache::put(self::cacheKey($token), $user->id, now()->addMinutes(self::MINUTES));
+        if ($user === null) {
+            SecurityEvents::record('unknown_email');
+            Notification::route('mail', $email)->notifyNow(new NoAccountForEmail);
+
+            return null;
+        }
+
+        $token = $this->issueLink($user, self::MINUTES);
 
         // The code is for the installed app: links open the browser, which has its own session.
         $code = (string) random_int(100000, 999999);
@@ -54,13 +65,25 @@ final class SendMagicLink
     }
 
     /**
+     * Store a single-use sign-in link token for the user and return it.
+     */
+    public function issueLink(User $user, int $minutes): string
+    {
+        $token = Str::random(64);
+        Cache::put(self::cacheKey($token), $user->id, now()->addMinutes($minutes));
+
+        return $token;
+    }
+
+    /**
      * Use up a token and return its user, or null when it is unknown, expired or used.
      */
     public function consume(string $token): ?User
     {
         $userId = Cache::pull(self::cacheKey($token));
+        $user = is_int($userId) ? User::query()->find($userId) : null;
 
-        return is_int($userId) ? User::query()->find($userId) : null;
+        return $user?->isDisabled() ? null : $user;
     }
 
     /**
@@ -86,8 +109,9 @@ final class SendMagicLink
         }
 
         Cache::forget($key);
+        $user = User::query()->find($entry['user']);
 
-        return User::query()->find($entry['user']);
+        return $user?->isDisabled() ? null : $user;
     }
 
     public static function codeKey(string $email): string

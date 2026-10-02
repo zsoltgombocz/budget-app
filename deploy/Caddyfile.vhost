@@ -1,6 +1,7 @@
-# Reference copy of /opt/caddy/vhost/budget-app on the VPS, imported from the shared
+# Reference copy of /opt/caddy/vhost/budget-app (and budget-app-dev) on the VPS, imported from the shared
 # Caddy container's main Caddyfile. Caddy does not read this file directly.
-# budget.miraglia.cc is proxied by Cloudflare, so TLS uses the *.miraglia.cc origin certificate.
+# Both hosts are proxied by Cloudflare, so TLS uses the *.miraglia.cc origin certificate
+# (one level deep only, hence budget-dev rather than dev.budget).
 
 budget.miraglia.cc {
     tls /etc/ssl/cert/miraglia_cc.cert.pem /etc/ssl/private/miraglia_cc.key.pem
@@ -19,6 +20,62 @@ budget.miraglia.cc {
 
     log {
         output file /var/log/caddy/budget_miraglia_cc.access.log {
+            roll_size 50mb
+            roll_keep 5
+            roll_keep_for 14d
+        }
+
+        format console
+    }
+}
+
+budget-dev.miraglia.cc {
+    tls /etc/ssl/cert/miraglia_cc.cert.pem /etc/ssl/private/miraglia_cc.key.pem
+
+    root * /var/www/budget-app-dev/public
+    encode zstd gzip
+    header X-Robots-Tag "noindex, nofollow"
+
+    header /build/* Cache-Control "public, max-age=31536000, immutable"
+    header /sw.js Cache-Control "no-cache"
+    header /manifest.webmanifest Content-Type "application/manifest+json"
+
+    php_fastcgi budget-app-dev:9000 {
+        root /var/www/html/public
+    }
+    file_server
+
+    log {
+        output file /var/log/caddy/budget_dev_miraglia_cc.access.log {
+            roll_size 50mb
+            roll_keep 5
+            roll_keep_for 14d
+        }
+
+        format console
+    }
+}
+
+# Admin panel (Filament) and monitoring (Pulse) of production, served by the same container.
+budget-admin.miraglia.cc {
+    tls /etc/ssl/cert/miraglia_cc.cert.pem /etc/ssl/private/miraglia_cc.key.pem
+
+    root * /var/www/budget-app/public
+    encode zstd gzip
+    header X-Robots-Tag "noindex, nofollow"
+    redir / /admin
+
+    header /build/* Cache-Control "public, max-age=31536000, immutable"
+    header /sw.js Cache-Control "no-cache"
+    header /manifest.webmanifest Content-Type "application/manifest+json"
+
+    php_fastcgi budget-app:9000 {
+        root /var/www/html/public
+    }
+    file_server
+
+    log {
+        output file /var/log/caddy/budget_admin_miraglia_cc.access.log {
             roll_size 50mb
             roll_keep 5
             roll_keep_for 14d
