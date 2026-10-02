@@ -233,7 +233,7 @@ new #[Title('Plan')] class extends Component {
     {
         return match ($type) {
             LineType::Transfer => $this->user()->settings()->period_mode === PeriodMode::Payday ? __('Payday transfers') : __('Transfers'),
-            LineType::Loan => __('Loans'),
+            LineType::Loan => __('Loan repayments'),
             LineType::Fixed => __('Fixed costs'),
             LineType::Sinking => __('Monthly saving into pockets'),
             LineType::Variable => __('Variable spending'),
