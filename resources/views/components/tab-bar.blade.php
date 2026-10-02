@@ -9,37 +9,52 @@
 @endphp
 
 {{--
-    Record button: floats above the tab bar, slides down behind it while scrolling down and
-    comes back after a clear scroll up. The position is clamped to the real scroll range, so
-    the iOS rubber-band bounce at the top or bottom never counts as scrolling.
+    Record button: floats above the tab bar. On a phone it follows the finger: dragging the page
+    up (scrolling down) slides it away, a clear drag down brings it back. The iOS rubber-band
+    bounce happens without a finger, so it never brings the button back. Without touch (mouse,
+    trackpad) the scroll position decides. Hidden on the settings pages.
 --}}
 <button type="button"
         x-data="{
             visible: true,
+            allowed: true,
+            touchY: null,
+            touched: false,
             anchorY: 0,
-            position() {
-                const max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight)
-                return Math.min(Math.max(window.scrollY, 0), max)
+            hiddenOn: @js(array_map(fn (string $name): string => (string) parse_url(route($name), PHP_URL_PATH), ['settings', 'install', 'changelog'])),
+            syncPage() {
+                this.allowed = ! this.hiddenOn.some(path => location.pathname === path || location.pathname.startsWith(path + '/'))
+                this.visible = true
+                this.anchorY = window.scrollY
+            },
+            nearTop() { return window.scrollY < 80 },
+            onTouchMove(y) {
+                if (this.touchY === null) { this.touchY = y; return }
+                const moved = y - this.touchY
+                if (moved < -8) { if (! this.nearTop()) this.visible = false; this.touchY = y }
+                else if (moved > 24) { this.visible = true; this.touchY = y }
             },
             onScroll() {
-                const y = this.position()
-                if (y < 80) { this.visible = true; this.anchorY = y; return }
+                if (this.nearTop()) { this.visible = true; return }
+                if (this.touched) return
+                const y = window.scrollY
                 if (this.visible) {
-                    // Track the highest point since the button came back; hide after 8px down.
                     if (y < this.anchorY) this.anchorY = y
                     else if (y > this.anchorY + 8) { this.visible = false; this.anchorY = y }
                 } else {
-                    // Track the lowest point since it went away; show after a clear 24px up.
                     if (y > this.anchorY) this.anchorY = y
                     else if (y < this.anchorY - 24) { this.visible = true; this.anchorY = y }
                 }
             },
         }"
+        x-on:touchstart.window.passive="touched = true; touchY = $event.touches[0]?.clientY ?? null"
+        x-on:touchmove.window.passive="onTouchMove($event.touches[0]?.clientY ?? 0)"
+        x-on:touchend.window.passive="touchY = null"
         x-on:scroll.window.passive="onScroll()"
-        x-init="anchorY = position(); document.addEventListener('livewire:navigated', () => { visible = true; anchorY = position() })"
+        x-init="syncPage(); document.addEventListener('livewire:navigated', () => syncPage())"
         x-on:click="$dispatch('open-entry')"
-        class="fixed right-5 bottom-[calc(82px+env(safe-area-inset-bottom)+16px)] z-30 flex size-[58px] items-center justify-center rounded-[20px] bg-accent text-accent-ink shadow-[0_10px_24px_color-mix(in_srgb,var(--app-accent)_32%,transparent)] transition-transform duration-300 ease-[cubic-bezier(0.2,0.7,0.2,1)] active:scale-95"
-        :class="visible ? 'translate-y-0' : 'pointer-events-none translate-y-[calc(100%+120px)]'"
+        class="fixed right-5 bottom-[calc(82px+env(safe-area-inset-bottom)+16px)] z-40 flex size-[58px] items-center justify-center rounded-[20px] bg-accent text-accent-ink shadow-[0_10px_24px_color-mix(in_srgb,var(--app-accent)_32%,transparent)] transition-transform active:scale-95"
+        :class="visible && allowed ? 'translate-y-0 duration-300 ease-out' : 'pointer-events-none translate-y-[calc(100%_+_160px)] duration-300 ease-in'"
         aria-label="{{ __('Record spending') }}" data-test="tab-entry">
     <x-ui.icon name="add" :size="32" :weight="500" />
 </button>

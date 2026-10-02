@@ -19,7 +19,7 @@ it('marks the tab and shows the loader as soon as it is tapped', function (): vo
     expect($state)->toBe(['active' => 'page', 'navigating' => true]);
 });
 
-it('slides the record button away while scrolling down and brings it back on a clear scroll up', function (): void {
+it('slides the record button away when the finger scrolls down and brings it back on a clear drag up, ignoring the bounce', function (): void {
     $this->actingAs(onboardedUser());
 
     $page = visit(route('plan'))->on()->mobile()->resize(390, 500);
@@ -27,33 +27,50 @@ it('slides the record button away while scrolling down and brings it back on a c
     $states = $page->script(<<<'JS'
         async () => {
             const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
-            const button = document.querySelector('[data-test="tab-entry"]')
             const visible = () => document.querySelector('[data-test="tab-entry"]').className.includes('translate-y-0')
+            const touch = (type, y) => {
+                const point = new Touch({ identifier: 1, target: document.body, clientX: 200, clientY: y })
+                window.dispatchEvent(new TouchEvent(type, { touches: type === 'touchend' ? [] : [point], bubbles: true }))
+            }
             const max = document.documentElement.scrollHeight - window.innerHeight
-            const scrollTo = async y => { window.scrollTo(0, y); await wait(150) }
             await wait(600)
             const atTop = visible()
-            await scrollTo(max)
-            const down = visible()
-            await scrollTo(max - 12)
-            const nudgedUp = visible()
-            await scrollTo(max)
 
-            // iOS rubber band at the bottom: scrollY overshoots and comes back to the end.
-            const original = Object.getOwnPropertyDescriptor(window, 'scrollY')
-            Object.defineProperty(window, 'scrollY', { configurable: true, get: () => max + 60 })
-            window.dispatchEvent(new Event('scroll'))
+            // Finger moves up: the page scrolls down.
+            touch('touchstart', 400)
+            window.scrollTo(0, max)
+            touch('touchmove', 370)
+            touch('touchend', 0)
             await wait(50)
-            Object.defineProperty(window, 'scrollY', { configurable: true, get: () => max })
-            window.dispatchEvent(new Event('scroll'))
+            const down = visible()
+
+            // The rubber band springs back with no finger on the screen.
+            window.scrollTo(0, max - 40)
+            await wait(50)
+            window.scrollTo(0, max)
             await wait(50)
             const afterBounce = visible()
-            Object.defineProperty(window, 'scrollY', original)
 
-            await scrollTo(max - 60)
-            return { atTop, down, nudgedUp, afterBounce, up: visible() }
+            // A small wobble of the finger is not a scroll up, a clear drag down is.
+            touch('touchstart', 300)
+            touch('touchmove', 312)
+            await wait(50)
+            const nudged = visible()
+            touch('touchmove', 345)
+            await wait(50)
+            return { atTop, down, afterBounce, nudged, up: visible() }
         }
     JS);
 
-    expect($states)->toBe(['atTop' => true, 'down' => false, 'nudgedUp' => false, 'afterBounce' => false, 'up' => true]);
+    expect($states)->toBe(['atTop' => true, 'down' => false, 'afterBounce' => false, 'nudged' => false, 'up' => true]);
+});
+
+it('has no record button on the settings pages', function (): void {
+    $this->actingAs(onboardedUser());
+
+    $page = visit(route('settings'))->on()->mobile();
+
+    $visible = $page->script("async () => { await new Promise(r => setTimeout(r, 600)); return document.querySelector('[data-test=\"tab-entry\"]').className.includes('translate-y-0') }");
+
+    expect($visible)->toBeFalse();
 });
