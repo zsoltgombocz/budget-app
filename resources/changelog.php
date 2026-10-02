@@ -6,6 +6,17 @@
  */
 return [
     [
+        'version' => '1.7.0',
+        'date' => '2026-10-02',
+        'changes' => [
+            ['hu' => 'Az app új neve MoneySight, új címe moneysight.app.', 'en' => 'The app is now called MoneySight, at moneysight.app.'],
+            ['hu' => 'Új beállító varázsló: sablon helyett végigkérdez (közös kassza, hitel, napi költések), így bármilyen kombináció összeáll. Ki is hagyható.', 'en' => 'New setup wizard: instead of a preset it asks about each part (shared costs, a loan, daily spending), so any mix works. It can be skipped too.'],
+            ['hu' => 'Új hitel felvételekor a törlesztő magától bekerül a tervbe a „Hiteltörlesztés” csoportba, rögzíteni nem kell.', 'en' => 'A new loan puts its installment into the plan under “Loan repayments” by itself, nothing to record.'],
+            ['hu' => 'A Terv oldalról is felvehetsz hitelt, és a törlesztőre koppintva megnyílnak a hitel adatai.', 'en' => 'Loans can be added from the Plan too, and tapping a repayment opens the loan.'],
+            ['hu' => 'Letiltott fiókkal nem lehet belépőkódot kérni.', 'en' => 'A disabled account cannot request a sign-in code.'],
+        ],
+    ],
+    [
         'version' => '1.6.0',
         'date' => '2026-10-01',
         'changes' => [

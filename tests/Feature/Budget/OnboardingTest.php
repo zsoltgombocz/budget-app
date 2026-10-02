@@ -1,8 +1,8 @@
 <?php
 
-use App\Enums\Currency;
 use App\Enums\PeriodMode;
 use App\Models\User;
+use App\Support\OnboardingItems;
 use Database\Seeders\CategoryTemplateSeeder;
 use Livewire\Livewire;
 
@@ -17,7 +17,7 @@ it('sends new users to the wizard', function (): void {
     $this->get(route('onboarding'))->assertOk();
 });
 
-it('builds the plan from the wizard answers', function (): void {
+it('builds a combined plan from the answers: shared costs and a loan in one pass', function (): void {
     $user = User::factory()->create();
     $this->actingAs($user);
 
@@ -25,11 +25,13 @@ it('builds the plan from the wizard answers', function (): void {
         ->set('income', '609 000')->call('next')
         ->set('periodMode', 'payday')->set('paydayDay', 31)->call('next')
         ->set('currency', 'HUF')->call('next')
-        ->set('templateKey', 'with_loan')->call('next')
-        ->assertSet('step', 5)
-        ->set('amounts.0', '180000')
-        ->set('amounts.8', '87549')
-        ->call('next')
+        ->assertSet('step', 4)
+        ->set('amounts.0', '180000')->call('next')
+        ->set('shared', true)->set('amounts.3', '120000')->call('next')
+        ->set('hasLoan', true)->set('amounts.5', '87549')->call('next')
+        ->set('amounts.7', '90000')->call('next')
+        ->assertSet('step', 8)
+        ->set('amounts.11', '20000')
         ->set('reserveTarget', '300000')
         ->set('reservePct', 50)
         ->set('surplusTarget', 'investment')
@@ -38,17 +40,53 @@ it('builds the plan from the wizard answers', function (): void {
         ->assertRedirect(route('notifications.onboarding'));
 
     $settings = $user->refresh()->settings();
+    $names = $user->categories()->pluck('name');
 
     expect($settings->isOnboarded())->toBeTrue()
         ->and($settings->income)->toBe(609_000)
         ->and($settings->period_mode)->toBe(PeriodMode::Payday)
         ->and($settings->payday_day)->toBe(31)
-        ->and($settings->currency)->toBe(Currency::HUF)
         ->and($settings->reserve_pct)->toBe(50)
-        ->and($settings->surplus_account_id)->not->toBeNull()
-        ->and($user->budgetLines()->sum('amount'))->toBe(267_549)
+        ->and($names)->toContain('Shared contribution', 'Shared pocket', 'Loan', 'Prepayment fund', 'Groceries', 'Reserve')
+        ->and($user->budgetLines()->sum('amount'))->toBe(180_000 + 120_000 + 87_549 + 90_000 + 20_000)
+        ->and($user->loans()->value('installment'))->toBe(87_549)
         ->and($user->pockets()->where('is_reserve', true)->value('target_amount'))->toBe(300_000)
         ->and($user->periods()->count())->toBe(1);
+});
+
+it('leaves out the groups answered with no', function (): void {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test('pages::onboarding')
+        ->set('income', '500000')->call('next')
+        ->set('periodMode', 'calendar')->call('next')
+        ->call('next')
+        ->set('included.1', false)->call('next')
+        ->set('shared', false)->call('next')
+        ->set('hasLoan', false)->call('next')
+        ->call('next')
+        ->call('finish')
+        ->assertHasNoErrors();
+
+    $names = $user->categories()->pluck('name');
+
+    expect($names)->not->toContain('Utilities', 'Shared contribution', 'Loan', 'Prepayment fund')
+        ->and($names)->toContain('Housing', 'Groceries', 'Reserve')
+        ->and($user->loans()->count())->toBe(0);
+});
+
+it('asks for a yes or no before moving past a question', function (): void {
+    $this->actingAs(User::factory()->create());
+
+    Livewire::test('pages::onboarding')
+        ->set('step', 5)
+        ->call('next')
+        ->assertHasErrors('shared')
+        ->assertSet('step', 5)
+        ->assertDontSee('Shared contribution')
+        ->set('shared', true)
+        ->assertSee('Shared contribution');
 });
 
 it('validates each step before moving on', function (): void {
@@ -61,7 +99,22 @@ it('validates each step before moving on', function (): void {
         ->assertSet('step', 1);
 });
 
-it('creates a reserve pocket for the empty template when a target is given', function (): void {
+it('can be skipped for an empty plan', function (): void {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test('pages::onboarding')
+        ->set('income', '450 000')
+        ->call('skip')
+        ->assertRedirect(route('notifications.onboarding'));
+
+    expect($user->settings()->refresh()->isOnboarded())->toBeTrue()
+        ->and($user->settings()->income)->toBe(450_000)
+        ->and($user->categories()->count())->toBe(0)
+        ->and($user->periods()->count())->toBe(1);
+});
+
+it('creates a reserve pocket when only a target is given', function (): void {
     $user = User::factory()->create();
     $this->actingAs($user);
 
@@ -69,8 +122,11 @@ it('creates a reserve pocket for the empty template when a target is given', fun
         ->set('income', '1000')->call('next')
         ->set('periodMode', 'calendar')->call('next')
         ->set('currency', 'EUR')->call('next')
-        ->set('templateKey', 'empty')->call('next')
         ->call('next')
+        ->set('shared', false)->call('next')
+        ->set('hasLoan', false)->call('next')
+        ->call('next')
+        ->set('included.11', false)
         ->set('reserveTarget', '2500.50')
         ->set('surplusTarget', 'pocket')
         ->call('finish')
@@ -87,30 +143,11 @@ it('skips the wizard once onboarded', function (): void {
     Livewire::test('pages::onboarding')->assertRedirect(route('dashboard'));
 });
 
-it('skips template lines that were switched off', function (): void {
-    $user = User::factory()->create();
-    $this->actingAs($user);
-
-    Livewire::test('pages::onboarding')
-        ->set('income', '500000')->call('next')
-        ->set('periodMode', 'calendar')->call('next')
-        ->call('next')
-        ->set('templateKey', 'couple')->call('next')
-        ->set('included.1', false)
-        ->call('next')
-        ->call('finish')
-        ->assertHasNoErrors();
-
-    expect($user->categories()->pluck('name'))->not->toContain('Utilities')
-        ->and($user->categories()->count())->toBe(9);
-});
-
-it('shows a hint for every template line', function (): void {
+it('shows a hint for every line', function (): void {
     $this->actingAs(User::factory()->create());
 
     Livewire::test('pages::onboarding')
-        ->set('income', '500000')->call('next')->call('next')->call('next')
-        ->set('templateKey', 'couple')->call('next')
+        ->set('step', 4)
         ->assertSee('Leave 0 if they are paid from a joint account.');
 });
 
@@ -118,7 +155,19 @@ it('explains what the leftover targets mean', function (): void {
     $this->actingAs(User::factory()->create());
 
     Livewire::test('pages::onboarding')
-        ->set('step', 6)
+        ->set('step', 8)
         ->assertSee('listed as a manual transfer')
         ->assertSee('added to a “Savings” pocket');
+});
+
+it('has Hungarian text for every line it offers', function (): void {
+    $hungarian = json_decode((string) file_get_contents(lang_path('hu.json')), true);
+
+    $missing = collect(OnboardingItems::all())
+        ->flatMap(fn (array $entry): array => array_filter([$entry['item']['name'], $entry['item']['hint'], $entry['item']['pocket']['name'] ?? null]))
+        ->reject(fn (string $text): bool => isset($hungarian[$text]))
+        ->values()
+        ->all();
+
+    expect($missing)->toBe([]);
 });
