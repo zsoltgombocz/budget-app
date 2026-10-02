@@ -37,3 +37,6 @@ yarn-error.log
 /opencode.jsonc
 /.claude/settings.local.json
 /tests/Browser/Screenshots
+
+# Specs, design and planning notes stay local
+/docs/

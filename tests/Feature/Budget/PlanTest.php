@@ -149,16 +149,24 @@ it('offers a new loan from the repayment section even without loans', function (
     $this->get(route('plan'))
         ->assertOk()
         ->assertSee(__('Loan repayments'))
-        ->assertSee(route('pockets', ['hitel' => 'uj']), false);
+        ->assertSee(e(route('pockets', ['hitel' => 'uj', 'vissza' => 'terv'])), false);
 });
 
 it('opens the loan itself from its repayment line', function (): void {
     $loan = Loan::factory()->for($this->user)->create(['name' => 'Car loan', 'installment' => 40_000, 'insurance' => 0]);
     SaveLoan::addPlanLine($this->user, $loan);
 
-    $this->get(route('plan'))->assertSee(route('pockets', ['hitel' => $loan->id]), false);
+    $this->get(route('plan'))->assertSee(e(route('pockets', ['hitel' => $loan->id, 'vissza' => 'terv'])), false);
 
-    $this->get(route('pockets', ['hitel' => $loan->id]))->assertOk()->assertSee('openLoan: '.$loan->id, false);
+    // Opened from the plan, the loan sheet returns there when it closes.
+    $this->get(route('pockets', ['hitel' => $loan->id, 'vissza' => 'terv']))->assertOk()
+        ->assertSee('openLoan: '.$loan->id, false)
+        ->assertSee("returnTo: '".str_replace('/', '\\/', route('plan'))."'", false);
+    $this->get(route('pockets', ['hitel' => $loan->id]))->assertOk()->assertSee('returnTo: null', false);
     $this->get(route('pockets', ['hitel' => 'uj']))->assertOk()->assertSee("openLoan: 'new'", false);
     $this->get(route('pockets', ['hitel' => 999_999]))->assertOk()->assertSee('openLoan: null', false);
+});
+
+it('shows each line with its category icon', function (): void {
+    $this->get(route('plan'))->assertOk()->assertSee('data-test="line-icon"', false);
 });

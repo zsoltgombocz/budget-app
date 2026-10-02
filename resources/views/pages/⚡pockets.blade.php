@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Budget\DeletePocket;
 use App\Actions\Budget\MovePocketMoney;
 use App\Actions\Budget\PayFromPocket;
 use App\Enums\LineType;
@@ -171,10 +172,11 @@ new #[Title('Pockets and loans')] class extends Component {
         return ['ok' => true, 'errors' => []];
     }
 
-    public function deletePocket(int $pocketId): void
+    public function deletePocket(int $pocketId, DeletePocket $deletePocket): void
     {
-        $this->user()->pockets()->findOrFail($pocketId)->delete();
+        $deletePocket->handle($this->user()->pockets()->findOrFail($pocketId));
         unset($this->pockets);
+        $this->dispatch('budget-updated');
     }
 
     /**
@@ -195,6 +197,7 @@ new #[Title('Pockets and loans')] class extends Component {
                 'insurance' => $this->input($loan?->insurance),
                 'thm' => $loan?->thm === null ? '' : str_replace('.', ',', rtrim(rtrim(number_format($loan->thm, 3, '.', ''), '0'), '.')),
                 'months' => $loan?->remaining_months === null ? '' : (string) $loan->remaining_months,
+                'dueDay' => (string) ($loan?->budgetLines()->value('due_day') ?? ''),
             ],
         ];
     }
@@ -216,6 +219,7 @@ new #[Title('Pockets and loans')] class extends Component {
             'insurance' => $amounts['insurance'] ?? null,
             'thm' => $thm === '' ? null : $thm,
             'months' => ($amounts['months'] ?? '') === '' ? null : $amounts['months'],
+            'dueDay' => ($amounts['dueDay'] ?? '') === '' ? null : $amounts['dueDay'],
             'prepayMode' => $data['prepayMode'] ?? null,
         ], [
             'name' => ['required', 'string', 'max:80'],
@@ -225,6 +229,7 @@ new #[Title('Pockets and loans')] class extends Component {
             'insurance' => ['nullable', $this->moneyRule()],
             'thm' => ['nullable', 'numeric', 'between:0,100'],
             'months' => ['nullable', 'integer', 'between:1,600'],
+            'dueDay' => ['nullable', 'integer', 'between:1,31'],
             'prepayMode' => ['required', Rule::enum(PrepayMode::class)],
         ]);
 
@@ -243,7 +248,7 @@ new #[Title('Pockets and loans')] class extends Component {
             'thm' => $thm === '' ? null : (float) $thm,
             'remaining_months' => ($amounts['months'] ?? '') === '' ? null : (int) $amounts['months'],
             'prepay_mode' => PrepayMode::from((string) $data['prepayMode']),
-        ], $id !== null ? $this->user()->loans()->findOrFail($id) : null);
+        ], $id !== null ? $this->user()->loans()->findOrFail($id) : null, ($amounts['dueDay'] ?? '') === '' ? null : (int) $amounts['dueDay']);
 
         unset($this->loans);
         $this->dispatch('budget-updated');
@@ -401,8 +406,10 @@ new #[Title('Pockets and loans')] class extends Component {
     // ?hitel=ID opens that loan, ?hitel=uj a new one (links from the plan's repayment section).
     $loanQuery = request()->query('hitel');
     $openLoan = $loanQuery === 'uj' ? 'new' : (is_numeric($loanQuery) && $loans->contains('id', (int) $loanQuery) ? (int) $loanQuery : null);
+    // Opened from the plan: closing the loan sheet (save or cancel) goes back there.
+    $returnTo = $openLoan !== null && request()->query('vissza') === 'terv' ? route('plan') : null;
 @endphp
-<div x-data="pocketsPage({ decimals: {{ $decimals }}, locale: @js(str_replace('_', '-', app()->getLocale())), cover: @js($cover), openLoan: @js($openLoan) })">
+<div x-data="pocketsPage({ decimals: {{ $decimals }}, locale: @js(str_replace('_', '-', app()->getLocale())), cover: @js($cover), openLoan: @js($openLoan), returnTo: @js($returnTo) })">
     <x-ui.page-header :title="__('Pockets')" :subtitle="__('Saved in total: :amount', ['amount' => money((int) $pockets->sum('balance'))])">
         <x-slot name="actions">
             <x-ui.icon-button icon="add" x-on:click="sheet = 'new'" :label="__('Add')" data-test="add" />
@@ -616,6 +623,7 @@ new #[Title('Pockets and loans')] class extends Component {
         <x-ui.form-group :title="__('Monthly payment')">
             <x-ui.amount-row name="installment" :label="__('Installment')" error="installment" data-test="loan-installment" />
             <x-ui.amount-row name="insurance" :label="__('Insurance')" error="insurance" data-test="loan-insurance" />
+            <x-ui.amount-row name="dueDay" :label="__('Due day')" :hint="__('Day of the month; you get a reminder that morning')" error="dueDay" data-test="loan-due-day" />
         </x-ui.form-group>
         <x-ui.form-group :title="__('Balance')">
             <x-ui.amount-row name="principal" :label="__('Outstanding principal')" :hint="__('Without interest')" error="principal" data-test="loan-principal" />
@@ -653,7 +661,7 @@ new #[Title('Pockets and loans')] class extends Component {
 
 @script
 <script>
-    Alpine.data('pocketsPage', ({ decimals, locale, cover, openLoan }) => ({
+    Alpine.data('pocketsPage', ({ decimals, locale, cover, openLoan, returnTo }) => ({
         sheet: null,
         moveMode: 'deposit',
         pocketTab: 'money',
@@ -672,7 +680,15 @@ new #[Title('Pockets and loans')] class extends Component {
         init() {
             this.$watch('sheet', open => document.documentElement.classList.toggle('overflow-hidden', !! open))
             if (openLoan !== null) {
-                this.openLoan(openLoan === 'new' ? null : openLoan)
+                this.openLoan(openLoan === 'new' ? null : openLoan).then(() => {
+                    if (! returnTo) return
+                    const stop = this.$watch('sheet', open => {
+                        if (open) return
+                        stop?.()
+                        // Let the sheet slide away, then go back where the loan was opened from.
+                        setTimeout(() => Livewire.navigate(returnTo), 200)
+                    })
+                })
                 history.replaceState(null, '', location.pathname)
             }
             if (cover?.pocketId) {
@@ -691,19 +707,20 @@ new #[Title('Pockets and loans')] class extends Component {
         },
 
         focus(name, label = '') { this.active = name; this.activeLabel = label },
-        allowsDecimals(name) { return name === 'thm' ? 3 : (name === 'months' ? 0 : this.decimals) },
+        allowsDecimals(name) { return name === 'thm' ? 3 : (name === 'months' || name === 'dueDay' ? 0 : this.decimals) },
         press(key) {
             if (! this.active) return
             const places = this.allowsDecimals(this.active)
             let value = String(this.fields[this.active] ?? '')
             if (key === 'del') value = value.slice(0, -1)
             else if (key === ',') { if (places > 0 && ! value.includes(',')) value = (value || '0') + ',' }
-            else if (key === '000') { if (value && ! value.includes(',')) value += '000' }
+            else if (key === '000') { if (value && ! value.includes(',') && this.active !== 'dueDay') value += '000' }
             else {
                 const fraction = value.split(',')[1]
                 if (fraction !== undefined && fraction.length >= places) return
                 if (value === '0') value = ''
                 value += key
+                if (this.active === 'dueDay' && parseInt(value, 10) > 31) value = key
             }
             this.fields[this.active] = value.slice(0, 12)
         },
@@ -737,7 +754,7 @@ new #[Title('Pockets and loans')] class extends Component {
             if (result.ok) { this.sheet = null; this.spendNote = ''; this.spendCategory = '' }
         },
         async removePocket() {
-            if (! confirm(@js(__('Delete this pocket?')))) return
+            if (! await window.appConfirm({ title: @js(__('Delete this pocket?')), body: @js(__('Its monthly saving is removed from the plan too. Its balance is not moved anywhere.')), confirm: @js(__('Delete')), danger: true })) return
             await $wire.deletePocket(this.form.id)
             this.sheet = null
         },

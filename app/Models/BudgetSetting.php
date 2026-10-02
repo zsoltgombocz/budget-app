@@ -25,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property bool $reminder_enabled
  * @property bool $due_reminder_enabled
  * @property int $reserve_pct
+ * @property int|null $reserve_fixed
  * @property int|null $surplus_pocket_id
  * @property int|null $surplus_account_id
  * @property CarbonImmutable|null $onboarded_at
@@ -32,7 +33,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
-#[Fillable(['period_mode', 'payday_day', 'income', 'currency', 'locale', 'timezone', 'reminder_time', 'reminder_enabled', 'due_reminder_enabled', 'reserve_pct', 'surplus_pocket_id', 'surplus_account_id', 'onboarded_at', 'notifications_onboarded_at'])]
+#[Fillable(['period_mode', 'payday_day', 'income', 'currency', 'locale', 'timezone', 'reminder_time', 'reminder_enabled', 'due_reminder_enabled', 'reserve_pct', 'reserve_fixed', 'surplus_pocket_id', 'surplus_account_id', 'onboarded_at', 'notifications_onboarded_at'])]
 class BudgetSetting extends Model
 {
     /** @use HasFactory<BudgetSettingFactory> */
@@ -52,6 +53,7 @@ class BudgetSetting extends Model
             'income' => 'integer',
             'reminder_enabled' => 'boolean',
             'reserve_pct' => 'integer',
+            'reserve_fixed' => 'integer',
             'onboarded_at' => 'datetime',
             'due_reminder_enabled' => 'boolean',
             'notifications_onboarded_at' => 'datetime',

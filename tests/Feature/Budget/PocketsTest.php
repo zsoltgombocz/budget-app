@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Budget\DeletePocket;
 use App\Actions\Budget\MovePocketMoney;
 use App\Actions\Budget\RecordPrepayment;
 use App\Actions\Budget\SaveLoan;
@@ -69,6 +70,21 @@ it('saves a loan with a decimal APR and syncs its plan line', function (): void 
         ->and($loan->refresh()->thm)->toBe(11.5);
 });
 
+it('removes the monthly saving from the plan when its pocket is deleted', function (): void {
+    $pocket = Pocket::factory()->for($this->user)->create(['name' => 'Reserve', 'is_reserve' => true]);
+    $saving = Category::factory()->for($this->user)->create(['name' => 'Reserve', 'type' => 'sinking']);
+    $line = BudgetLine::factory()->for($this->user)->for($saving)->create(['amount' => 25_000, 'pocket_id' => $pocket->id]);
+    $transferCategory = Category::factory()->for($this->user)->create(['name' => 'Shared contribution', 'type' => 'transfer']);
+    $transfer = BudgetLine::factory()->for($this->user)->for($transferCategory)->create(['amount' => 50_000, 'pocket_id' => $pocket->id]);
+
+    ($this->page)()->deletePocket($pocket->id, resolve(DeletePocket::class));
+
+    expect(Pocket::query()->find($pocket->id))->toBeNull()
+        ->and(BudgetLine::query()->find($line->id))->toBeNull()
+        ->and($saving->refresh()->trashed())->toBeTrue()
+        ->and($transfer->refresh()->pocket_id)->toBeNull();
+});
+
 it('puts a new loan into the plan as a repayment line straight away', function (): void {
     $data = ($this->page)()->loanData(null);
     $data['name'] = 'Home loan';
@@ -92,6 +108,24 @@ it('puts a new loan into the plan as a repayment line straight away', function (
 
     expect(BudgetLine::query()->where('loan_id', $loan->id)->count())->toBe(1)
         ->and($line->category->refresh()->name)->toBe('Mortgage');
+});
+
+it('keeps the installment due day on the repayment line', function (): void {
+    $data = ($this->page)()->loanData(null);
+    $data['name'] = 'Car loan';
+    $data['amounts']['principal'] = '3000000';
+    $data['amounts']['installment'] = '60000';
+    $data['amounts']['dueDay'] = '15';
+
+    expect(($this->page)()->saveLoan($data, resolve(SaveLoan::class))['ok'])->toBeTrue();
+
+    $loan = Loan::query()->where('name', 'Car loan')->sole();
+    expect(BudgetLine::query()->where('loan_id', $loan->id)->value('due_day'))->toBe(15)
+        ->and(($this->page)()->loanData($loan->id)['amounts']['dueDay'])->toBe('15');
+
+    $data = ($this->page)()->loanData($loan->id);
+    $data['amounts']['dueDay'] = '32';
+    expect(($this->page)()->saveLoan($data, resolve(SaveLoan::class))['errors'])->toHaveKey('dueDay');
 });
 
 it('gives loans that had no plan line their repayment line on migrate', function (): void {

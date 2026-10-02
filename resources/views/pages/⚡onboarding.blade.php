@@ -6,6 +6,7 @@ use App\Enums\LineType;
 use App\Enums\PeriodMode;
 use App\Models\CategoryTemplate;
 use App\Models\User;
+use App\Services\AllocationCalculator;
 use App\Support\Icons;
 use App\Support\Money;
 use App\Support\OnboardingItems;
@@ -62,6 +63,11 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
 
     /** Share of the month-end leftover that goes to the reserve on top of the monthly amount. */
     public int $reservePct = 0;
+
+    /** 'pct': a share of the leftover goes to the reserve; 'fixed': a fixed amount of it. */
+    public string $reserveMode = 'pct';
+
+    public string $reserveFixed = '';
 
     public string $surplusTarget = 'investment';
 
@@ -169,12 +175,17 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
 
         $leftover = $income - $planned - $reserveMonthly;
         $target = $this->reserveTarget === '' ? null : Money::parse($this->reserveTarget, $currency);
-        $toReserve = 0;
 
-        if ($reserveOn && $leftover > 0) {
-            $toReserve = intdiv($leftover * $this->reservePct, 100);
-            $toReserve = $target === null ? $toReserve : min($toReserve, $target);
-        }
+        // Same rule as at closing: the monthly saving counts towards the target first.
+        $allocation = app(AllocationCalculator::class)->allocate(
+            leftover: max(0, $leftover),
+            reservePct: $this->reservePct,
+            hasReserve: $reserveOn,
+            reserveBalance: $reserveMonthly,
+            reserveTarget: $target,
+            reserveFixed: $this->reserveMode === 'fixed' ? (Money::parse($this->reserveFixed === '' ? '0' : $this->reserveFixed, $currency) ?? 0) : null,
+        );
+        $toReserve = $allocation->toReserve;
 
         return [
             'income' => $income,
@@ -182,7 +193,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
             'reserveMonthly' => $reserveMonthly,
             'leftover' => $leftover,
             'toReserve' => $toReserve,
-            'toSurplus' => max(0, $leftover - $toReserve),
+            'toSurplus' => $allocation->toSurplus,
             'reserveOn' => $reserveOn,
         ];
     }
@@ -219,6 +230,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
             reservePct: $this->reservePct,
             surplusTarget: $this->surplusTarget === 'pocket' ? 'pocket' : 'investment',
             included: $includedIndexes,
+            reserveFixed: $withReserve && $this->reserveMode === 'fixed' ? (Money::parse($this->reserveFixed === '' ? '0' : $this->reserveFixed, $currency) ?? 0) : null,
             loanDetails: $withLoan ? [
                 'principal' => $this->loanPrincipal === '' ? null : Money::parse($this->loanPrincipal, $currency),
                 'thm' => $this->loanThm === '' ? null : (float) str_replace(',', '.', $this->loanThm),
@@ -278,6 +290,8 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                 ...$amountRules,
                 'reserveTarget' => ['nullable', $money],
                 'reservePct' => ['required', 'integer', 'between:0,100'],
+                'reserveMode' => ['required', Rule::in(['pct', 'fixed'])],
+                'reserveFixed' => ['nullable', $money],
                 'surplusTarget' => ['required', Rule::in(['investment', 'pocket'])],
             ],
             default => $amountRules,
@@ -333,7 +347,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
         open(name, current, label = '', decimals = null, suffix = null) {
             this.field = name; this.fieldLabel = label; this.value = String(current ?? '').replace('.', ',')
             this.fieldDecimals = decimals ?? this.decimals
-            this.fieldSuffix = suffix ?? @js($currency->symbol())
+            this.fieldSuffix = suffix ?? @js($currency->symbol());
         },
         press(key) {
             let v = this.value
@@ -471,6 +485,14 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                     </div>
                 @endforeach
             </div>
+            @if (in_array($group, ['fixed', 'daily'], true))
+                <p class="mt-3 flex gap-2 px-1.5 text-xs leading-snug text-muted" data-test="more-later">
+                    <x-ui.icon name="add" :size="16" class="mt-px shrink-0 text-accent" />
+                    <span>{{ $group === 'fixed'
+                        ? __('Something missing? After the wizard you can add any number of fixed items on the Plan screen, e.g. each subscription on its own with its due day.')
+                        : __('Something missing? After the wizard you can add more budgets on the Plan screen, e.g. for a pet or a hobby.') }}</span>
+                </p>
+            @endif
         @endif
 
         @if ($step === 8)
@@ -512,12 +534,24 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
             <div class="mb-2.5 mt-7 px-1.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted">{{ __('If money is left at month end') }}</div>
             <div class="rounded-[22px] bg-surface px-4 py-4">
                 @if ($reserveOn)
-                    <div class="text-[13px] text-muted">{{ __('On top of the monthly amount, this share of the leftover also goes to the reserve until it reaches the target:') }}</div>
-                    <div class="mt-2 grid grid-cols-4 gap-2">
-                        @foreach ([0, 25, 50, 100] as $pct)
-                            <x-ui.choice :selected="$reservePct === $pct" wire:click="$set('reservePct', {{ $pct }})" class="num h-11 rounded-xl text-[15px]">{{ $pct }}%</x-ui.choice>
-                        @endforeach
+                    <div class="text-[13px] text-muted">{{ __('On top of the monthly amount, this much of the leftover also goes to the reserve until it reaches the target:') }}</div>
+                    <div class="mt-2 grid grid-cols-2 gap-[3px] rounded-xl bg-bg p-[3px]">
+                        <button type="button" wire:click="$set('reserveMode', 'pct')" @class(['h-9 rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $reserveMode === 'pct', 'text-muted' => $reserveMode !== 'pct']) data-test="reserve-mode-pct">{{ __('A share') }}</button>
+                        <button type="button" wire:click="$set('reserveMode', 'fixed')" @class(['h-9 rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $reserveMode === 'fixed', 'text-muted' => $reserveMode !== 'fixed']) data-test="reserve-mode-fixed">{{ __('A fixed amount') }}</button>
                     </div>
+                    @if ($reserveMode === 'fixed')
+                        <button type="button" x-on:click="open('reserveFixed', $wire.reserveFixed, @js(__('Amount from the leftover')))" class="mt-2 flex h-12 w-full items-center justify-between rounded-[14px] bg-surface-2 px-4 text-left" data-test="reserve-fixed">
+                            <span class="text-[13px] text-muted">{{ __('Amount from the leftover') }}</span>
+                            <span class="num text-[17px] font-semibold"><span :class="! $wire.reserveFixed && 'text-faint'" x-text="show($wire.reserveFixed, '0')"></span> <span class="text-sm font-medium text-muted">{{ $currency->symbol() }}</span></span>
+                        </button>
+                        @error('reserveFixed')<p class="mt-1.5 px-1 text-xs text-danger">{{ $message }}</p>@enderror
+                    @else
+                        <div class="mt-2 grid grid-cols-4 gap-2">
+                            @foreach ([0, 25, 50, 100] as $pct)
+                                <x-ui.choice :selected="$reservePct === $pct" wire:click="$set('reservePct', {{ $pct }})" class="num h-11 rounded-xl text-[15px]">{{ $pct }}%</x-ui.choice>
+                            @endforeach
+                        </div>
+                    @endif
                     <div class="mt-4 text-[13px] text-muted">{{ __('The rest goes to:') }}</div>
                 @else
                     <div class="text-[13px] text-muted">{{ __('All of it goes to:') }}</div>

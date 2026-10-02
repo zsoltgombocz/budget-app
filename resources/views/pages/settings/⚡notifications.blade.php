@@ -39,8 +39,6 @@ new #[Title('Notifications')] class extends Component {
             'due_reminder_enabled' => $this->dueReminderEnabled,
             'reminder_time' => $this->reminderTime,
         ]);
-
-        $this->dispatch('app-toast', title: __('Settings saved.'));
     }
 
     public function sendTestNotification(): void

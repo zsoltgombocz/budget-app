@@ -42,6 +42,8 @@
             <x-toast-host :tabs="$tabs" />
         @endpersist
 
+        <x-confirm-dialog />
+
         @persist('toast')
             <flux:toast.group position="top end">
                 <flux:toast />

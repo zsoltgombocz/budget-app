@@ -17,9 +17,9 @@ new #[Title('Settings')] class extends Component {
     $user = auth()->user();
     $groups = [
         [
-            ['route' => 'budget.edit', 'icon' => 'tune', 'title' => __('Budget'), 'subtitle' => __('Period, currency, language, leftover rule')],
+            ['route' => 'budget.edit', 'icon' => 'tune', 'title' => __('Budget'), 'subtitle' => __('Period and base currency')],
             ['route' => 'notifications.edit', 'icon' => 'notifications', 'title' => __('Notifications'), 'subtitle' => __('Daily reminder, due items, this device')],
-            ['route' => 'appearance.edit', 'icon' => 'palette', 'title' => __('Appearance'), 'subtitle' => __('Dark, light or system')],
+            ['route' => 'appearance.edit', 'icon' => 'palette', 'title' => __('Appearance'), 'subtitle' => __('Theme, language and time zone')],
         ],
         [
             ['route' => 'profile.edit', 'icon' => 'person', 'title' => __('Profile'), 'subtitle' => __('Name, email, delete account')],
@@ -33,7 +33,7 @@ new #[Title('Settings')] class extends Component {
 @endphp
 
 <div class="pb-6">
-    <div class="flex items-center gap-3 px-4 pt-3">
+    <div class="flex items-center gap-3 px-4 pt-6">
         <x-ui.icon-button icon="arrow_back" :href="route('dashboard')" wire:navigate :label="__('Back')" />
         <h1 class="text-[30px] font-semibold tracking-[-0.03em]">{{ __('Settings') }}</h1>
     </div>

@@ -24,6 +24,7 @@ final readonly class CompleteOnboarding
      * @param  'investment'|'pocket'  $surplusTarget
      * @param  list<int>|null  $included  template item indexes to create, null for all
      * @param  array{principal?: int|null, thm?: float|null, months?: int|null}  $loanDetails  optional details of the loan line's loan
+     * @param  int|null  $reserveFixed  a fixed amount of the leftover for the reserve instead of the share
      */
     public function handle(
         User $user,
@@ -38,8 +39,9 @@ final readonly class CompleteOnboarding
         string $surplusTarget,
         ?array $included = null,
         array $loanDetails = [],
+        ?int $reserveFixed = null,
     ): void {
-        DB::transaction(function () use ($user, $income, $periodMode, $paydayDay, $currency, $template, $amounts, $reserveTarget, $reservePct, $surplusTarget, $included, $loanDetails): void {
+        DB::transaction(function () use ($user, $income, $periodMode, $paydayDay, $currency, $template, $amounts, $reserveTarget, $reservePct, $surplusTarget, $included, $loanDetails, $reserveFixed): void {
             $categories = $this->applyTemplate->handle($user, $template, $included);
 
             foreach ($categories as $index => $category) {
@@ -88,6 +90,7 @@ final readonly class CompleteOnboarding
                 'currency' => $currency,
                 'locale' => app()->getLocale(),
                 'reserve_pct' => $reservePct,
+                'reserve_fixed' => $reserveFixed,
                 'surplus_pocket_id' => $surplusPocketId,
                 'surplus_account_id' => $surplusAccountId,
                 'onboarded_at' => now(),
