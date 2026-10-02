@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Budget\DeletePocket;
 use App\Actions\Budget\MovePocketMoney;
 use App\Actions\Budget\RecordPrepayment;
 use App\Actions\Budget\SaveLoan;
@@ -67,6 +68,21 @@ it('saves a loan with a decimal APR and syncs its plan line', function (): void 
     expect(($this->page)()->saveLoan($data, resolve(SaveLoan::class))['ok'])->toBeTrue()
         ->and($line->refresh()->amount)->toBe(77_000)
         ->and($loan->refresh()->thm)->toBe(11.5);
+});
+
+it('removes the monthly saving from the plan when its pocket is deleted', function (): void {
+    $pocket = Pocket::factory()->for($this->user)->create(['name' => 'Reserve', 'is_reserve' => true]);
+    $saving = Category::factory()->for($this->user)->create(['name' => 'Reserve', 'type' => 'sinking']);
+    $line = BudgetLine::factory()->for($this->user)->for($saving)->create(['amount' => 25_000, 'pocket_id' => $pocket->id]);
+    $transferCategory = Category::factory()->for($this->user)->create(['name' => 'Shared contribution', 'type' => 'transfer']);
+    $transfer = BudgetLine::factory()->for($this->user)->for($transferCategory)->create(['amount' => 50_000, 'pocket_id' => $pocket->id]);
+
+    ($this->page)()->deletePocket($pocket->id, resolve(DeletePocket::class));
+
+    expect(Pocket::query()->find($pocket->id))->toBeNull()
+        ->and(BudgetLine::query()->find($line->id))->toBeNull()
+        ->and($saving->refresh()->trashed())->toBeTrue()
+        ->and($transfer->refresh()->pocket_id)->toBeNull();
 });
 
 it('puts a new loan into the plan as a repayment line straight away', function (): void {

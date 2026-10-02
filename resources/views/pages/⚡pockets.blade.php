@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Budget\DeletePocket;
 use App\Actions\Budget\MovePocketMoney;
 use App\Actions\Budget\PayFromPocket;
 use App\Enums\LineType;
@@ -171,10 +172,11 @@ new #[Title('Pockets and loans')] class extends Component {
         return ['ok' => true, 'errors' => []];
     }
 
-    public function deletePocket(int $pocketId): void
+    public function deletePocket(int $pocketId, DeletePocket $deletePocket): void
     {
-        $this->user()->pockets()->findOrFail($pocketId)->delete();
+        $deletePocket->handle($this->user()->pockets()->findOrFail($pocketId));
         unset($this->pockets);
+        $this->dispatch('budget-updated');
     }
 
     /**
@@ -752,7 +754,7 @@ new #[Title('Pockets and loans')] class extends Component {
             if (result.ok) { this.sheet = null; this.spendNote = ''; this.spendCategory = '' }
         },
         async removePocket() {
-            if (! confirm(@js(__('Delete this pocket?')))) return
+            if (! confirm(@js(__('Delete this pocket? Its monthly saving is removed from the plan too.')))) return
             await $wire.deletePocket(this.form.id)
             this.sheet = null
         },

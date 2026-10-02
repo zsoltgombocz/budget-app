@@ -111,7 +111,6 @@
     "Delete account": "Fiók törlése",
     "Delete entry": "Tétel törlése",
     "Delete this entry?": "Törlöd ezt a tételt?",
-    "Delete this pocket?": "Törlöd ezt a perselyt?",
     "Delete your account and all of its resources": "A fiók és minden adatának törlése",
     "Deletes the plan, every period, spending, pocket and loan, then starts onboarding again. Your login stays.": "Törli a tervet, minden periódust, költést, perselyt és hitelt, majd újraindul a beállítás. A belépésed megmarad.",
     "Deletes your account and every budget data for good.": "Véglegesen törli a fiókodat és minden költségvetési adatodat.",
@@ -774,5 +773,6 @@
     "Create a reserve pocket": "Tartalék persely létrehozása",
     "Empty means no limit": "Üresen hagyva nincs felső határ",
     "It is worth lowering a budget.": "Érdemes csökkenteni egy keretet.",
-    "On top of the monthly amount, this much of the leftover also goes to the reserve until it reaches the target:": "A havi félretételen felül a maradékból ennyi menjen még a tartalékba, amíg el nem éri a célt:"
+    "On top of the monthly amount, this much of the leftover also goes to the reserve until it reaches the target:": "A havi félretételen felül a maradékból ennyi menjen még a tartalékba, amíg el nem éri a célt:",
+    "Delete this pocket? Its monthly saving is removed from the plan too.": "Törlöd a perselyt? A havi félretétele is kikerül a Tervből."
 }
