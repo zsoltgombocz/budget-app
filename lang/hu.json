@@ -764,5 +764,8 @@
     "Theme, language and time zone": "Téma, nyelv és időzóna",
     "Where the leftover goes is set on the Plan screen, next to the numbers it is worked out from.": "Hogy hová menjen a maradék, azt a Terv oldalon állítod be, a számok mellett, amikből kijön.",
     "Something missing? After the wizard you can add any number of fixed items on the Plan screen, e.g. each subscription on its own with its due day.": "Hiányzik valami? A varázsló után a Terv oldalon bármennyi fix tételt felvehetsz, például minden előfizetést külön, az esedékesség napjával.",
-    "Something missing? After the wizard you can add more budgets on the Plan screen, e.g. for a pet or a hobby.": "Hiányzik valami? A varázsló után a Terv oldalon további kereteket is felvehetsz, például háziállatra vagy hobbira."
+    "Something missing? After the wizard you can add more budgets on the Plan screen, e.g. for a pet or a hobby.": "Hiányzik valami? A varázsló után a Terv oldalon további kereteket is felvehetsz, például háziállatra vagy hobbira.",
+    "At closing it is listed as a manual transfer and we remind you to move it there.": "Záráskor „kézi utalás” tételként jelenik meg, és emlékeztetünk, hogy utald át.",
+    "At closing it is added to this pocket in the app.": "Záráskor az appban ehhez a perselyhez adódik.",
+    "Nothing is moved: the money simply stays on your account.": "Nem mozdul semmi: a pénz egyszerűen a számládon marad."
 }

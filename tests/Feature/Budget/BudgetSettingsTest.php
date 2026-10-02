@@ -17,8 +17,8 @@ it('updates the period and the base currency', function (): void {
         ->set('periodMode', 'payday')
         ->set('paydayDay', 10)
         ->set('currency', 'EUR')
-        ->call('save')
-        ->assertHasNoErrors();
+        ->assertHasNoErrors()
+        ->assertNotDispatched('app-toast');
 
     $settings = $user->settings()->refresh();
 
@@ -59,6 +59,7 @@ it('shows the month-end leftover on the plan and saves the leftover rule there',
     Livewire::test('pages::plan')
         ->call('setReservePct', 50)
         ->call('setSurplusTarget', 'account:'.$account->id)
+        ->assertNotDispatched('app-toast')
         ->assertSee(money(25_000 + 62_500));
 
     $settings = $user->settings()->refresh();

@@ -37,8 +37,6 @@ new #[Title('Appearance settings')] class extends Component {
 
             return;
         }
-
-        $this->dispatch('app-toast', title: __('Settings saved.'));
     }
 
     private function user(): User

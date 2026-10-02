@@ -154,7 +154,6 @@ new #[Title('Plan')] class extends Component {
 
         $this->user()->settings()->update(['reserve_pct' => $pct]);
         unset($this->monthEnd);
-        $this->dispatch('app-toast', title: __('Settings saved.'));
     }
 
     /**
@@ -168,7 +167,6 @@ new #[Title('Plan')] class extends Component {
         $pocketId = $type === 'pocket' ? $user->pockets()->where('is_reserve', false)->whereKey((int) $id)->value('id') : null;
 
         $user->settings()->update(['surplus_account_id' => $accountId, 'surplus_pocket_id' => $pocketId]);
-        $this->dispatch('app-toast', title: __('Settings saved.'));
     }
 
     #[Computed]
@@ -464,12 +462,18 @@ new #[Title('Plan')] class extends Component {
                     @endforeach
                 </div>
             @endif
-            <div class="mt-4">
-                <x-ui.select :label="$monthEnd->hasReserve ? __('The rest goes to:') : __('All of it goes to:')" x-on:change="$wire.setSurplusTarget($event.target.value)" data-test="surplus-target">
-                    @foreach ($this->surplusTargets as $value => $name)
-                        <option value="{{ $value }}" @selected($value === $currentTarget)>{{ $name }}</option>
-                    @endforeach
-                </x-ui.select>
+            <div class="mt-4 text-[13px] text-muted">{{ $monthEnd->hasReserve ? __('The rest goes to:') : __('All of it goes to:') }}</div>
+            <div class="mt-2 grid gap-2" data-test="surplus-target">
+                @foreach ($this->surplusTargets as $value => $name)
+                    <x-ui.choice :selected="$value === $currentTarget" wire:click="setSurplusTarget('{{ $value }}')" class="rounded-btn px-4 py-3 text-left" wire:key="target-{{ $value ?: 'none' }}">
+                        <span class="block text-[15px] font-semibold">{{ $name }}</span>
+                        <span class="mt-0.5 block text-[13px] font-normal leading-snug text-muted">{{ match (true) {
+                            str_starts_with($value, 'account:') => __('At closing it is listed as a manual transfer and we remind you to move it there.'),
+                            str_starts_with($value, 'pocket:') => __('At closing it is added to this pocket in the app.'),
+                            default => __('Nothing is moved: the money simply stays on your account.'),
+                        } }}</span>
+                    </x-ui.choice>
+                @endforeach
             </div>
 
             @if ($monthEnd->leftover > 0)

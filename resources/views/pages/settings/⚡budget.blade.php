@@ -26,6 +26,18 @@ new #[Title('Budget settings')] class extends Component {
         $this->currency = $settings->currency->value;
     }
 
+    /**
+     * Every choice is saved right away; a payday period waits until the day is picked.
+     */
+    public function updated(): void
+    {
+        if ($this->periodMode === PeriodMode::Payday->value && $this->paydayDay === null) {
+            return;
+        }
+
+        $this->save();
+    }
+
     public function save(): void
     {
         $user = $this->user();
@@ -43,7 +55,6 @@ new #[Title('Budget settings')] class extends Component {
         ]);
 
         $this->dispatch('budget-updated');
-        $this->dispatch('app-toast', title: __('Settings saved.'));
     }
 
     public function resetBudget(ResetBudget $resetBudget): void
@@ -99,7 +110,6 @@ new #[Title('Budget settings')] class extends Component {
                 <x-ui.button variant="secondary" size="md" :href="route('plan')" wire:navigate class="mt-3">{{ __('Open the plan') }}</x-ui.button>
             </x-ui.card>
 
-            <x-ui.button type="submit" class="w-full" data-test="save-budget-settings">{{ __('Save') }}</x-ui.button>
         </form>
 
         <x-ui.card class="mt-6 border border-danger/28 !bg-danger/8 p-[18px]" x-data="{ confirming: false }">
