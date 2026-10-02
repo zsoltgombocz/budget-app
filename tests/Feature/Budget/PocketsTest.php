@@ -3,6 +3,7 @@
 use App\Actions\Budget\MovePocketMoney;
 use App\Actions\Budget\RecordPrepayment;
 use App\Actions\Budget\SaveLoan;
+use App\Enums\LineType;
 use App\Enums\PrepayMode;
 use App\Models\BudgetLine;
 use App\Models\Category;
@@ -66,6 +67,40 @@ it('saves a loan with a decimal APR and syncs its plan line', function (): void 
     expect(($this->page)()->saveLoan($data, resolve(SaveLoan::class))['ok'])->toBeTrue()
         ->and($line->refresh()->amount)->toBe(77_000)
         ->and($loan->refresh()->thm)->toBe(11.5);
+});
+
+it('puts a new loan into the plan as a repayment line straight away', function (): void {
+    $data = ($this->page)()->loanData(null);
+    $data['name'] = 'Home loan';
+    $data['amounts']['principal'] = '10000000';
+    $data['amounts']['installment'] = '85000';
+    $data['amounts']['insurance'] = '2549';
+
+    expect(($this->page)()->saveLoan($data, resolve(SaveLoan::class))['ok'])->toBeTrue();
+
+    $loan = Loan::query()->where('name', 'Home loan')->sole();
+    $line = BudgetLine::query()->where('loan_id', $loan->id)->sole();
+
+    expect($line->amount)->toBe(87_549)
+        ->and($line->category->type)->toBe(LineType::Loan)
+        ->and($line->category->name)->toBe('Home loan');
+
+    // Saving it again keeps one line and follows the new name.
+    $data = ($this->page)()->loanData($loan->id);
+    $data['name'] = 'Mortgage';
+    ($this->page)()->saveLoan($data, resolve(SaveLoan::class));
+
+    expect(BudgetLine::query()->where('loan_id', $loan->id)->count())->toBe(1)
+        ->and($line->category->refresh()->name)->toBe('Mortgage');
+});
+
+it('gives loans that had no plan line their repayment line on migrate', function (): void {
+    $loan = Loan::factory()->for($this->user)->create(['installment' => 60_000, 'insurance' => 0]);
+    auth()->logout();
+
+    (require database_path('migrations/2026_10_02_104027_add_plan_lines_for_loans_without_one.php'))->up();
+
+    expect(BudgetLine::query()->withoutGlobalScopes()->where('loan_id', $loan->id)->value('amount'))->toBe(60_000);
 });
 
 it('records a prepayment from the linked pocket', function (): void {

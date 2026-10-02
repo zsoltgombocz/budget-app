@@ -8,7 +8,7 @@ use App\Models\CategoryTemplate;
 use App\Models\User;
 use App\Support\Icons;
 use App\Support\Money;
-use Illuminate\Database\Eloquent\Collection;
+use App\Support\OnboardingItems;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -16,8 +16,18 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
+/**
+ * Setup wizard. Instead of picking a preset it walks through every part of a plan and asks
+ * about each one (shared costs? a loan?), so any combination comes out of one pass. Every
+ * line can be switched off, and the whole wizard can be skipped.
+ */
 new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] class extends Component {
-    public const int STEPS = 6;
+    public const int STEPS = 8;
+
+    /**
+     * Wizard step => the group of plan lines it asks about.
+     */
+    public const array GROUP_STEPS = [4 => 'fixed', 5 => 'shared', 6 => 'loan', 7 => 'daily', 8 => 'reserve'];
 
     public int $step = 1;
 
@@ -29,13 +39,24 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
 
     public string $currency = 'HUF';
 
-    public string $templateKey = 'basic';
+    /** Shares costs through a joint account (step 5); null until answered. */
+    public ?bool $shared = null;
+
+    /** Has a loan (step 6); null until answered. */
+    public ?bool $hasLoan = null;
 
     /** @var array<int, string> */
     public array $amounts = [];
 
     /** @var array<int, bool> */
     public array $included = [];
+
+    /** Optional loan details on the loan step; the installment is the loan line's amount. */
+    public string $loanPrincipal = '';
+
+    public string $loanThm = '';
+
+    public string $loanMonths = '';
 
     public string $reserveTarget = '';
 
@@ -47,18 +68,18 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
     {
         if ($this->user()->settings()->isOnboarded()) {
             $this->redirectRoute('dashboard', navigate: true);
+
+            return;
         }
+
+        $items = OnboardingItems::all();
+        $this->amounts = array_fill(0, count($items), '');
+        $this->included = array_map(fn (array $entry): bool => ! ($entry['item']['off'] ?? false), $items);
     }
 
     public function next(): void
     {
         $this->validateStep();
-
-        if ($this->step === 4) {
-            $count = count($this->template->items);
-            $this->amounts = array_fill(0, $count, '');
-            $this->included = array_fill(0, $count, true);
-        }
 
         $this->step = min(self::STEPS, $this->step + 1);
     }
@@ -77,42 +98,134 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
 
         $currency = Currency::from($this->currency);
 
-        $completeOnboarding->handle(
-            user: $this->user(),
-            income: (int) Money::parse($this->income, $currency),
-            periodMode: PeriodMode::from($this->periodMode),
-            paydayDay: $this->paydayDay,
-            currency: $currency,
-            template: $this->template,
-            amounts: array_map(fn (string $amount): int => $amount === '' ? 0 : (int) Money::parse($amount, $currency), $this->amounts),
-            reserveTarget: $this->reserveTarget === '' ? null : Money::parse($this->reserveTarget, $currency),
-            reservePct: $this->reservePct,
-            surplusTarget: $this->surplusTarget === 'pocket' ? 'pocket' : 'investment',
-            included: array_keys(array_filter($this->included)),
-        );
-
-        $this->redirectRoute('notifications.onboarding', navigate: true);
-    }
-
-    #[Computed]
-    public function template(): CategoryTemplate
-    {
-        return CategoryTemplate::query()->where('key', $this->templateKey)->firstOrFail();
+        $this->complete($completeOnboarding, $currency, includedIndexes: $this->includedIndexes());
     }
 
     /**
-     * @return Collection<int, CategoryTemplate>
+     * Start with an empty plan: everything is set up later on the Plan screen and in Settings.
+     */
+    public function skip(CompleteOnboarding $completeOnboarding): void
+    {
+        $currency = Currency::tryFrom($this->currency) ?? Currency::HUF;
+
+        if ($this->income !== '' && Money::parse($this->income, $currency) === null) {
+            $this->income = '';
+        }
+
+        $this->complete($completeOnboarding, $currency, includedIndexes: []);
+    }
+
+    /**
+     * @return array<int, array{group: string, item: array<string, mixed>}>
      */
     #[Computed]
-    public function templates(): Collection
+    public function items(): array
     {
-        return CategoryTemplate::query()->orderBy('sort')->get();
+        return OnboardingItems::all();
+    }
+
+    /**
+     * Indexes of the lines on a wizard step.
+     *
+     * @return list<int>
+     */
+    public function indexesFor(string $group): array
+    {
+        return array_keys(array_filter($this->items, fn (array $entry): bool => $entry['group'] === $group));
     }
 
     #[Computed]
     public function currencyEnum(): Currency
     {
         return Currency::tryFrom($this->currency) ?? Currency::HUF;
+    }
+
+    /**
+     * What the plan entered so far leaves at month end and where that leftover would go,
+     * shown on the last step so the reserve settings are easy to follow.
+     *
+     * @return array{leftover: int, toReserve: int, toSurplus: int, reserveOn: bool}
+     */
+    #[Computed]
+    public function leftoverPreview(): array
+    {
+        $currency = $this->currencyEnum;
+        $income = Money::parse($this->income === '' ? '0' : $this->income, $currency) ?? 0;
+        $planned = 0;
+
+        foreach ($this->includedIndexes() as $index) {
+            $amount = $this->amounts[$index] ?? '';
+            $planned += $amount === '' ? 0 : (Money::parse($amount, $currency) ?? 0);
+        }
+
+        $leftover = $income - $planned;
+        $reserveOn = $this->reserveIsOn();
+        $target = $this->reserveTarget === '' ? null : Money::parse($this->reserveTarget, $currency);
+        $toReserve = 0;
+
+        if ($reserveOn && $leftover > 0) {
+            $toReserve = intdiv($leftover * $this->reservePct, 100);
+            $toReserve = $target === null ? $toReserve : min($toReserve, $target);
+        }
+
+        return ['leftover' => $leftover, 'toReserve' => $toReserve, 'toSurplus' => max(0, $leftover - $toReserve), 'reserveOn' => $reserveOn];
+    }
+
+    public function reserveIndex(): int
+    {
+        return $this->indexesFor('reserve')[0];
+    }
+
+    private function reserveIsOn(): bool
+    {
+        return $this->included[$this->reserveIndex()] ?? true;
+    }
+
+    /**
+     * @param  list<int>  $includedIndexes
+     */
+    private function complete(CompleteOnboarding $completeOnboarding, Currency $currency, array $includedIndexes): void
+    {
+        $plan = new CategoryTemplate(['key' => 'wizard', 'name' => 'Wizard', 'items' => array_column($this->items, 'item')]);
+        $withReserve = in_array($this->reserveIndex(), $includedIndexes, true);
+        $withLoan = $this->hasLoan === true && in_array($this->indexesFor('loan')[0], $includedIndexes, true);
+
+        $completeOnboarding->handle(
+            user: $this->user(),
+            income: (int) Money::parse($this->income === '' ? '0' : $this->income, $currency),
+            periodMode: PeriodMode::tryFrom($this->periodMode) ?? PeriodMode::Calendar,
+            paydayDay: $this->paydayDay,
+            currency: $currency,
+            template: $plan,
+            amounts: array_map(fn (string $amount): int => $amount === '' ? 0 : (int) Money::parse($amount, $currency), $this->amounts),
+            // Without a reserve pocket there is no target and no share of the leftover for it.
+            reserveTarget: ! $withReserve || $this->reserveTarget === '' ? null : Money::parse($this->reserveTarget, $currency),
+            reservePct: $this->reservePct,
+            surplusTarget: $this->surplusTarget === 'pocket' ? 'pocket' : 'investment',
+            included: $includedIndexes,
+            loanDetails: $withLoan ? [
+                'principal' => $this->loanPrincipal === '' ? null : Money::parse($this->loanPrincipal, $currency),
+                'thm' => $this->loanThm === '' ? null : (float) str_replace(',', '.', $this->loanThm),
+                'months' => $this->loanMonths === '' ? null : (int) $this->loanMonths,
+            ] : [],
+        );
+
+        $this->redirectRoute('notifications.onboarding', navigate: true);
+    }
+
+    /**
+     * Lines that are switched on, leaving out the groups answered with "no".
+     *
+     * @return list<int>
+     */
+    private function includedIndexes(): array
+    {
+        $skipped = array_keys(array_filter(['shared' => $this->shared === false, 'loan' => $this->hasLoan === false]));
+
+        return array_values(array_filter(
+            array_keys($this->items),
+            fn (int $index): bool => ($this->included[$index] ?? true) && ! in_array($this->items[$index]['group'], $skipped, true),
+        ));
     }
 
     private function validateStep(): void
@@ -124,6 +237,12 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
             }
         };
 
+        $amountRules = [];
+
+        foreach ($this->indexesFor(self::GROUP_STEPS[$this->step] ?? '') as $index) {
+            $amountRules["amounts.{$index}"] = ['nullable', $money];
+        }
+
         $rules = match ($this->step) {
             1 => ['income' => ['required', $money]],
             2 => [
@@ -131,17 +250,28 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                 'paydayDay' => [Rule::requiredIf($this->periodMode === PeriodMode::Payday->value), 'nullable', 'integer', 'between:1,31'],
             ],
             3 => ['currency' => ['required', Rule::enum(Currency::class)]],
-            4 => ['templateKey' => ['required', Rule::exists('category_templates', 'key')]],
-            5 => ['amounts' => ['array'], 'amounts.*' => ['nullable', $money]],
+            5 => ['shared' => ['required', 'boolean'], ...$amountRules],
             6 => [
+                'hasLoan' => ['required', 'boolean'],
+                ...$amountRules,
+                'loanPrincipal' => ['nullable', $money],
+                'loanThm' => ['nullable', 'regex:/^\d{1,2}([.,]\d{1,3})?$/'],
+                'loanMonths' => ['nullable', 'integer', 'between:1,600'],
+            ],
+            8 => [
+                ...$amountRules,
                 'reserveTarget' => ['nullable', $money],
                 'reservePct' => ['required', 'integer', 'between:0,100'],
                 'surplusTarget' => ['required', Rule::in(['investment', 'pocket'])],
             ],
-            default => [],
+            default => $amountRules,
         };
 
-        $this->validate($rules);
+        $this->validate($rules, [
+            'shared.required' => __('Choose yes or no.'),
+            'hasLoan.required' => __('Choose yes or no.'),
+            'loanThm.regex' => __('Enter the APR as a percentage, e.g. 7,9.'),
+        ]);
     }
 
     private function user(): User
@@ -153,16 +283,26 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
     }
 }; ?>
 
+
 @php
     $currency = $this->currencyEnum;
     $titles = [
         1 => [__('How much do you earn?'), __('Your monthly net income. The plan starts from this.')],
         2 => [__('When does your month start?'), __('Plan from payday to payday, or by calendar month.')],
         3 => [__('Which currency?'), __('Every amount in the plan is in this currency.')],
-        4 => [__('Pick a starting point'), __('Everything can be changed later.')],
-        5 => [__('Fill in the amounts'), __('Only what you pay from your own account, monthly. Switch off what you do not need, leave empty what you do not know yet.')],
-        6 => [__('What happens to the leftover?'), __('At month end the leftover fills the reserve first, the rest goes to your chosen target.')],
+        4 => [__('Housing and monthly fees'), __('What you pay from your own account every month. Switch off what you do not have, leave empty what you do not know yet.')],
+        5 => [__('Do you share costs with someone?'), __('For example a joint account with your partner that you both transfer to every month.')],
+        6 => [__('Do you have a loan?'), __('Its monthly installment is a fixed line in the plan, you do not record it as spending. The principal and the APR can come later.')],
+        7 => [__('Everyday spending'), __('Monthly budgets for what you record day by day. Rough numbers are fine, you can change them any time.')],
+        8 => [__('Reserve and leftover'), __('Two choices: do you want a reserve, and what happens to the money left at month end.')],
     ];
+    $question = match ($step) {
+        5 => ['model' => 'shared', 'value' => $shared, 'yes' => __('Yes, we have a joint account'), 'no' => __('No, I pay everything myself')],
+        6 => ['model' => 'hasLoan', 'value' => $hasLoan, 'yes' => __('Yes, I repay a loan'), 'no' => __('No loan')],
+        default => null,
+    };
+    $group = $this::GROUP_STEPS[$step] ?? null;
+    $showItems = $group !== null && $group !== 'reserve' && ($question === null || $question['value'] === true);
 @endphp
 
 <div class="flex min-h-[calc(100dvh-var(--safe-top)-env(safe-area-inset-bottom))] flex-col pb-[calc(10rem+env(safe-area-inset-bottom))]"
@@ -172,13 +312,19 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
         value: '',
         decimals: {{ $currency->decimals() }},
         formatter: new Intl.NumberFormat(@js(str_replace('_', '-', app()->getLocale())), { maximumFractionDigits: 0, useGrouping: 'always' }),
-        open(name, current, label = '') { this.field = name; this.fieldLabel = label; this.value = String(current ?? '').replace('.', ',') },
+        fieldDecimals: {{ $currency->decimals() }},
+        fieldSuffix: @js($currency->symbol()),
+        open(name, current, label = '', decimals = null, suffix = null) {
+            this.field = name; this.fieldLabel = label; this.value = String(current ?? '').replace('.', ',')
+            this.fieldDecimals = decimals ?? this.decimals
+            this.fieldSuffix = suffix ?? @js($currency->symbol())
+        },
         press(key) {
             let v = this.value
             if (key === 'del') v = v.slice(0, -1)
-            else if (key === ',') { if (this.decimals > 0 && ! v.includes(',')) v = (v || '0') + ',' }
+            else if (key === ',') { if (this.fieldDecimals > 0 && ! v.includes(',')) v = (v || '0') + ',' }
             else if (key === '000') { if (v && ! v.includes(',')) v += '000' }
-            else { const f = v.split(',')[1]; if (f !== undefined && f.length >= this.decimals) return; if (v === '0') v = ''; v += key }
+            else { const f = v.split(',')[1]; if (f !== undefined && f.length >= this.fieldDecimals) return; if (v === '0') v = ''; v += key }
             this.value = v.slice(0, 12)
         },
         show(raw, fallback = '0') {
@@ -207,115 +353,192 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
     </div>
 
     <div class="px-4 pt-6">
-        @switch($step)
-            @case(1)
-                <button type="button" x-on:click="open('income', $wire.income, @js(__('Monthly net income')))" class="w-full rounded-card bg-surface px-5 py-6 text-left" data-test="onboarding-income">
-                    <span class="block text-[13px] text-muted">{{ __('Monthly net income') }}</span>
-                    <span class="num mt-1 flex items-baseline gap-2"><span class="text-[44px] font-semibold tracking-[-0.04em]" :class="$wire.income === '' && 'text-faint'" x-text="show($wire.income)"></span><span class="text-xl text-muted">{{ $currency->symbol() }}</span></span>
-                </button>
-                @error('income')<p class="mt-2 px-2 text-xs text-danger">{{ $message }}</p>@enderror
-                @break
-
-            @case(2)
-                <div class="grid gap-2">
-                    @foreach (PeriodMode::cases() as $mode)
-                        <x-ui.choice :selected="$periodMode === $mode->value" wire:click="$set('periodMode', '{{ $mode->value }}')" class="rounded-btn px-4 py-4 text-left text-[15px]">
-                            {{ $mode->label() }}
-                        </x-ui.choice>
-                    @endforeach
+        @if ($step === 1)
+            <button type="button" x-on:click="open('income', $wire.income, @js(__('Monthly net income')))" class="w-full rounded-card bg-surface px-5 py-6 text-left" data-test="onboarding-income">
+                <span class="block text-[13px] text-muted">{{ __('Monthly net income') }}</span>
+                <span class="num mt-1 flex items-baseline gap-2"><span class="text-[44px] font-semibold tracking-[-0.04em]" :class="$wire.income === '' && 'text-faint'" x-text="show($wire.income)"></span><span class="text-xl text-muted">{{ $currency->symbol() }}</span></span>
+            </button>
+            @error('income')<p class="mt-2 px-2 text-xs text-danger">{{ $message }}</p>@enderror
+            <div class="mt-6 rounded-card border border-dashed border-line px-5 py-4">
+                <div class="text-[15px] font-medium">{{ __('Rather build the plan yourself?') }}</div>
+                <p class="mt-1 text-[13px] leading-snug text-muted">{{ __('Skip the questions and start with an empty plan. You add the lines on the Plan screen, the rest is in Settings.') }}</p>
+                <x-ui.button variant="secondary" size="md" wire:click="skip" class="mt-3 w-full" data-test="onboarding-skip">{{ __('Skip, I set it up myself') }}</x-ui.button>
+            </div>
+        @elseif ($step === 2)
+            <div class="grid gap-2">
+                @foreach (PeriodMode::cases() as $mode)
+                    <x-ui.choice :selected="$periodMode === $mode->value" wire:click="$set('periodMode', '{{ $mode->value }}')" class="rounded-btn px-4 py-4 text-left text-[15px]">
+                        {{ $mode->label() }}
+                    </x-ui.choice>
+                @endforeach
+            </div>
+            @if ($periodMode === 'payday')
+                <div class="mt-5 px-1 text-[13px] text-muted">{{ __('Payday (day of month)') }}</div>
+                <div class="mt-2 grid grid-cols-7 gap-1.5" data-test="payday-grid">
+                    @for ($day = 1; $day <= 31; $day++)
+                        <x-ui.choice :selected="$paydayDay === $day" wire:click="$set('paydayDay', {{ $day }})" class="num aspect-square rounded-xl text-sm">{{ $day }}</x-ui.choice>
+                    @endfor
                 </div>
-                @if ($periodMode === 'payday')
-                    <div class="mt-5 px-1 text-[13px] text-muted">{{ __('Payday (day of month)') }}</div>
-                    <div class="mt-2 grid grid-cols-7 gap-1.5" data-test="payday-grid">
-                        @for ($day = 1; $day <= 31; $day++)
-                            <x-ui.choice :selected="$paydayDay === $day" wire:click="$set('paydayDay', {{ $day }})" class="num aspect-square rounded-xl text-sm">{{ $day }}</x-ui.choice>
-                        @endfor
-                    </div>
-                    <p class="mt-2 px-1 text-xs text-muted">{{ __('If the month is shorter, the last day counts.') }}</p>
-                @endif
-                @break
+                <p class="mt-2 px-1 text-xs text-muted">{{ __('If the month is shorter, the last day counts.') }}</p>
+            @endif
+        @elseif ($step === 3)
+            <div class="grid grid-cols-4 gap-2">
+                @foreach (Currency::cases() as $option)
+                    <x-ui.choice :selected="$currency === $option" wire:click="$set('currency', '{{ $option->value }}')" class="h-14 rounded-btn text-[15px]">{{ $option->value }}</x-ui.choice>
+                @endforeach
+            </div>
+        @endif
 
-            @case(3)
-                <div class="grid grid-cols-4 gap-2">
-                    @foreach (Currency::cases() as $option)
-                        <x-ui.choice :selected="$currency === $option" wire:click="$set('currency', '{{ $option->value }}')" class="h-14 rounded-btn text-[15px]">{{ $option->value }}</x-ui.choice>
-                    @endforeach
-                </div>
-                @break
+        @if ($question !== null)
+            <div class="grid gap-2" data-test="question-{{ $question['model'] }}">
+                <x-ui.choice :selected="$question['value'] === true" wire:click="$set('{{ $question['model'] }}', true)" class="rounded-btn px-4 py-4 text-left text-[15px]" data-test="answer-yes">{{ $question['yes'] }}</x-ui.choice>
+                <x-ui.choice :selected="$question['value'] === false" wire:click="$set('{{ $question['model'] }}', false)" class="rounded-btn px-4 py-4 text-left text-[15px]" data-test="answer-no">{{ $question['no'] }}</x-ui.choice>
+            </div>
+            @error($question['model'])<p class="mt-2 px-2 text-xs text-danger">{{ $message }}</p>@enderror
+            @if ($showItems)
+                <div class="mb-2.5 mt-6 px-1.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted">{{ __('Monthly amounts') }}</div>
+            @endif
+        @endif
 
-            @case(4)
-                <div class="grid gap-2">
-                    @foreach ($this->templates as $template)
-                        <x-ui.choice :selected="$templateKey === $template->key" wire:click="$set('templateKey', '{{ $template->key }}')" class="rounded-btn px-4 py-4 text-left" wire:key="template-{{ $template->key }}">
-                            <span class="block text-[15px] font-semibold">{{ __($template->name) }}</span>
-                            <span class="mt-1 block text-[13px] font-normal leading-snug text-muted">{{ __($template->description ?? '') }}</span>
-                        </x-ui.choice>
-                    @endforeach
-                </div>
-                @break
-
-            @case(5)
-                @if (empty($this->template->items))
-                    <x-ui.empty-state icon="list_alt" :title="__('Empty plan')">{{ __('You start with an empty plan and add lines on the Plan screen.') }}</x-ui.empty-state>
-                @else
-                    <div class="flex flex-col gap-2.5">
-                        @foreach ($this->template->items as $index => $item)
-                            @php $on = $included[$index] ?? true; @endphp
-                            <div wire:key="item-{{ $index }}" class="rounded-[22px] bg-surface px-4 py-4" data-test="template-item">
-                                <div class="flex items-start gap-3">
-                                    <x-ui.icon-tile :icon="Icons::forCategory($item['icon'] ?? null)" :size="40" class="{{ $on ? '' : 'opacity-40' }}" />
-                                    <div class="min-w-0 flex-1 pt-0.5 {{ $on ? '' : 'opacity-40' }}">
-                                        <div class="text-[15px] font-medium leading-snug">{{ __($item['name']) }}</div>
-                                        <div class="mt-0.5 text-xs text-muted">{{ LineType::from($item['type'])->label() }}</div>
-                                    </div>
-                                    <x-ui.toggle :on="$on" wire:click="$set('included.{{ $index }}', {{ $on ? 'false' : 'true' }})" :aria-label="__($item['name'])" class="mt-2" />
-                                </div>
-
-                                @if ($on)
-                                    @if (! empty($item['hint']))
-                                        <p class="mt-3 text-[13px] leading-relaxed text-muted">{{ __($item['hint']) }}</p>
-                                    @endif
-                                    <button type="button" x-on:click="open('amounts.{{ $index }}', $wire.amounts[{{ $index }}], @js(__($item['name'])))"
-                                            class="mt-3 flex h-12 w-full items-center justify-between rounded-[14px] bg-surface-2 px-4 text-left" data-test="amount-{{ $index }}">
-                                        <span class="text-[13px] text-muted">{{ __('Monthly amount') }}</span>
-                                        <span class="num text-[17px] font-semibold">
-                                            <span :class="! $wire.amounts[{{ $index }}] && 'text-faint'" x-text="show($wire.amounts[{{ $index }}], '0')"></span>
-                                            <span class="text-sm font-medium text-muted">{{ $currency->symbol() }}</span>
-                                        </span>
-                                    </button>
-                                @endif
+        @if ($showItems)
+            <div class="flex flex-col gap-2.5">
+                @foreach ($this->indexesFor($group) as $index)
+                    @php
+                        $item = $this->items[$index]['item'];
+                        $on = $included[$index] ?? true;
+                    @endphp
+                    <div wire:key="item-{{ $index }}" class="rounded-[22px] bg-surface px-4 py-4" data-test="template-item">
+                        <div class="flex items-start gap-3">
+                            <x-ui.icon-tile :icon="Icons::forCategory($item['icon'] ?? null)" :size="40" class="{{ $on ? '' : 'opacity-40' }}" />
+                            <div class="min-w-0 flex-1 pt-0.5 {{ $on ? '' : 'opacity-40' }}">
+                                <div class="text-[15px] font-medium leading-snug">{{ __($item['name']) }}</div>
+                                <div class="mt-0.5 text-xs text-muted">{{ LineType::from($item['type'])->label() }}</div>
                             </div>
+                            <x-ui.toggle :on="$on" wire:click="$set('included.{{ $index }}', {{ $on ? 'false' : 'true' }})" :aria-label="__($item['name'])" class="mt-2" />
+                        </div>
+
+                        @if ($on)
+                            @if (! empty($item['hint']))
+                                <p class="mt-3 text-[13px] leading-relaxed text-muted">{{ __($item['hint']) }}</p>
+                            @endif
+                            <button type="button" x-on:click="open('amounts.{{ $index }}', $wire.amounts[{{ $index }}], @js(__($item['name'])))"
+                                    class="mt-3 flex h-12 w-full items-center justify-between rounded-[14px] bg-surface-2 px-4 text-left" data-test="amount-{{ $index }}">
+                                <span class="text-[13px] text-muted">{{ __('Monthly amount') }}</span>
+                                <span class="num text-[17px] font-semibold">
+                                    <span :class="! $wire.amounts[{{ $index }}] && 'text-faint'" x-text="show($wire.amounts[{{ $index }}], '0')"></span>
+                                    <span class="text-sm font-medium text-muted">{{ $currency->symbol() }}</span>
+                                </span>
+                            </button>
+                            @error('amounts.'.$index)<p class="mt-1.5 px-1 text-xs text-danger">{{ $message }}</p>@enderror
+                            @if ($item['loan'] ?? false)
+                                <div class="mt-4 border-t border-line pt-3" data-test="loan-details">
+                                    <div class="text-[13px] font-medium">{{ __('Loan details (optional)') }}</div>
+                                    <p class="mt-0.5 text-xs leading-snug text-muted">{{ __('With these the app shows the payoff and what a prepayment saves. You find them on your loan statement; you can add them later too: Plan, Loan repayments.') }}</p>
+                                    @foreach ([
+                                        ['field' => 'loanPrincipal', 'label' => __('Outstanding principal'), 'decimals' => null, 'suffix' => null],
+                                        ['field' => 'loanThm', 'label' => __('APR (%)'), 'decimals' => 3, 'suffix' => '%'],
+                                        ['field' => 'loanMonths', 'label' => __('Months left'), 'decimals' => 0, 'suffix' => __('months')],
+                                    ] as $detail)
+                                        <button type="button" x-on:click="open(@js($detail['field']), $wire.{{ $detail['field'] }}, @js($detail['label']), @js($detail['decimals']), @js($detail['suffix']))"
+                                                class="mt-2 flex h-12 w-full items-center justify-between rounded-[14px] bg-surface-2 px-4 text-left" data-test="{{ $detail['field'] }}">
+                                            <span class="text-[13px] text-muted">{{ $detail['label'] }}</span>
+                                            <span class="num text-[17px] font-semibold">
+                                                <span :class="! $wire.{{ $detail['field'] }} && 'text-faint'" x-text="show($wire.{{ $detail['field'] }}, '–')"></span>
+                                                <span class="text-sm font-medium text-muted">{{ $detail['suffix'] ?? $currency->symbol() }}</span>
+                                            </span>
+                                        </button>
+                                        @error($detail['field'])<p class="mt-1.5 px-1 text-xs text-danger">{{ $message }}</p>@enderror
+                                    @endforeach
+                                </div>
+                            @endif
+                        @endif
+                    </div>
+                @endforeach
+            </div>
+        @endif
+
+        @if ($step === 8)
+            @php
+                $reserveIndex = $this->reserveIndex();
+                $reserveOn = $included[$reserveIndex] ?? true;
+                $preview = $this->leftoverPreview;
+                $targetName = $surplusTarget === 'pocket' ? __('the savings pocket') : __('the investment account');
+            @endphp
+            <div class="rounded-[22px] bg-surface px-4 py-4" data-test="reserve-card">
+                <div class="flex items-start gap-3">
+                    <x-ui.icon-tile icon="shield" :size="40" class="{{ $reserveOn ? '' : 'opacity-40' }}" />
+                    <div class="min-w-0 flex-1 pt-0.5">
+                        <div class="text-[15px] font-medium leading-snug">{{ __('Reserve pocket') }}</div>
+                        <div class="mt-0.5 text-xs text-muted">{{ __('A pocket for the unexpected') }}</div>
+                    </div>
+                    <x-ui.toggle :on="$reserveOn" wire:click="$set('included.{{ $reserveIndex }}', {{ $reserveOn ? 'false' : 'true' }})" :aria-label="__('Reserve pocket')" class="mt-2" data-test="reserve-toggle" />
+                </div>
+                @if ($reserveOn)
+                    <p class="mt-3 text-[13px] leading-relaxed text-muted">{{ __('Money you put aside for the unexpected. If a month ends in the red, at closing you choose whether to take the gap from here.') }}</p>
+                    @foreach ([
+                        ['field' => 'amounts.'.$reserveIndex, 'value' => $amounts[$reserveIndex] ?? '', 'label' => __('Put aside every month'), 'hint' => __('Planned like a fixed cost and moved into the pocket at closing. 0 is fine too.'), 'fallback' => '0'],
+                        ['field' => 'reserveTarget', 'value' => $reserveTarget, 'label' => __('Target'), 'hint' => __('Until the pocket reaches it, the month-end leftover also tops it up. Empty means no limit.'), 'fallback' => '–'],
+                    ] as $row)
+                        <button type="button" x-on:click="open(@js($row['field']), @js($row['value']), @js($row['label']))" class="mt-3 w-full rounded-[14px] bg-surface-2 px-4 py-3 text-left">
+                            <span class="flex items-center justify-between">
+                                <span class="text-[13px] text-muted">{{ $row['label'] }}</span>
+                                <span class="num text-[17px] font-semibold"><span @class(['text-faint' => $row['value'] === ''])>{{ $row['value'] === '' ? $row['fallback'] : money_number(Money::parse($row['value'], $currency) ?? 0, $currency) }}</span> <span class="text-sm font-medium text-muted">{{ $currency->symbol() }}</span></span>
+                            </span>
+                            <span class="mt-1 block text-xs leading-snug text-muted">{{ $row['hint'] }}</span>
+                        </button>
+                    @endforeach
+                    @error('amounts.'.$reserveIndex)<p class="mt-1.5 px-1 text-xs text-danger">{{ $message }}</p>@enderror
+                    @error('reserveTarget')<p class="mt-1.5 px-1 text-xs text-danger">{{ $message }}</p>@enderror
+                @else
+                    <p class="mt-3 text-[13px] leading-relaxed text-muted">{{ __('No reserve pocket: the whole month-end leftover goes to the target below. You can add one later under Pockets.') }}</p>
+                @endif
+            </div>
+
+            <div class="mb-2.5 mt-7 px-1.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted">{{ __('If money is left at month end') }}</div>
+            <div class="rounded-[22px] bg-surface px-4 py-4">
+                @if ($reserveOn)
+                    <div class="text-[13px] text-muted">{{ __('This share goes to the reserve until it reaches the target:') }}</div>
+                    <div class="mt-2 grid grid-cols-4 gap-2">
+                        @foreach ([0, 25, 50, 100] as $pct)
+                            <x-ui.choice :selected="$reservePct === $pct" wire:click="$set('reservePct', {{ $pct }})" class="num h-11 rounded-xl text-[15px]">{{ $pct }}%</x-ui.choice>
                         @endforeach
                     </div>
+                    <div class="mt-4 text-[13px] text-muted">{{ __('The rest goes to:') }}</div>
+                @else
+                    <div class="text-[13px] text-muted">{{ __('All of it goes to:') }}</div>
                 @endif
-                @break
-
-            @case(6)
-                <button type="button" x-on:click="open('reserveTarget', $wire.reserveTarget, @js(__('Reserve target')))" class="w-full rounded-card bg-surface px-5 py-4 text-left">
-                    <span class="block text-[13px] text-muted">{{ __('Reserve target') }}</span>
-                    <span class="num mt-1 flex items-baseline gap-2"><span class="text-[30px] font-semibold" :class="$wire.reserveTarget === '' && 'text-faint'" x-text="show($wire.reserveTarget, '–')"></span><span class="text-muted">{{ $currency->symbol() }}</span></span>
-                    <span class="mt-1 block text-xs text-muted">{{ __('Leave empty for no reserve cap.') }}</span>
-                </button>
-                <div class="mt-5 px-1 text-[13px] text-muted">{{ __('Share of the leftover going to the reserve (%)') }}</div>
-                <div class="mt-2 grid grid-cols-4 gap-2">
-                    @foreach ([25, 50, 75, 100] as $pct)
-                        <x-ui.choice :selected="$reservePct === $pct" wire:click="$set('reservePct', {{ $pct }})" class="num h-12 rounded-xl text-[15px]">{{ $pct }}%</x-ui.choice>
-                    @endforeach
-                </div>
-                <div class="mt-5 px-1 text-[13px] text-muted">{{ __('The rest goes to') }}</div>
                 <div class="mt-2 grid gap-2" data-test="surplus-options">
-                    <x-ui.choice :selected="$surplusTarget === 'investment'" wire:click="$set('surplusTarget', 'investment')" class="rounded-btn px-4 py-4 text-left">
+                    <x-ui.choice :selected="$surplusTarget === 'investment'" wire:click="$set('surplusTarget', 'investment')" class="rounded-btn px-4 py-3 text-left">
                         <span class="block text-[15px] font-semibold">{{ __('Investment account') }}</span>
                         <span class="mt-1 block text-[13px] font-normal leading-snug text-muted">{{ __('At closing the rest is listed as a manual transfer and we remind you to move it to your broker or investment account. The app does not track its balance (yet).') }}</span>
                     </x-ui.choice>
-                    <x-ui.choice :selected="$surplusTarget === 'pocket'" wire:click="$set('surplusTarget', 'pocket')" class="rounded-btn px-4 py-4 text-left">
+                    <x-ui.choice :selected="$surplusTarget === 'pocket'" wire:click="$set('surplusTarget', 'pocket')" class="rounded-btn px-4 py-3 text-left">
                         <span class="block text-[15px] font-semibold">{{ __('Savings pocket') }}</span>
                         <span class="mt-1 block text-[13px] font-normal leading-snug text-muted">{{ __('At closing the rest is added to a “Savings” pocket in the app: you see its balance under Pockets and can take money out of it.') }}</span>
                     </x-ui.choice>
                 </div>
-                <p class="mt-3 px-1 text-xs leading-snug text-muted">{{ __('This only decides where the month-end leftover goes after the reserve. You can change it later in Settings.') }}</p>
-                @break
-        @endswitch
+            </div>
+
+            <div class="mt-3 rounded-[22px] border border-accent/30 bg-accent/8 px-4 py-4" data-test="leftover-preview">
+                <div class="flex items-center gap-2 text-[13px] font-semibold text-accent"><x-ui.icon name="info" :size="18" />{{ __('With your numbers') }}</div>
+                <p class="mt-1.5 text-[13px] leading-relaxed text-ink-2">
+                    @if ($preview['leftover'] > 0)
+                        {{ __('Your plan leaves about :leftover a month.', ['leftover' => money($preview['leftover'], $currency)]) }}
+                        @if ($preview['toReserve'] > 0)
+                            {{ __(':reserve goes to the reserve, :rest to :target.', ['reserve' => money($preview['toReserve'], $currency), 'rest' => money($preview['toSurplus'], $currency), 'target' => $targetName]) }}
+                        @else
+                            {{ __('All of it goes to :target.', ['target' => $targetName]) }}
+                        @endif
+                    @elseif ($preview['leftover'] === 0)
+                        {{ __('Your plan uses up the whole income, so nothing is left to share out.') }}
+                    @else
+                        {{ __('Your plan is :gap over the income a month.', ['gap' => money(-$preview['leftover'], $currency)]) }}
+                        {{ __('It is worth lowering a budget before you start.') }}
+                    @endif
+                </p>
+                <p class="mt-1.5 text-xs leading-snug text-muted">{{ __('The real numbers come at closing, from what you actually spent. You can change all of this later in Settings.') }}</p>
+            </div>
+        @endif
     </div>
     </div>
 
@@ -337,8 +560,10 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                 <div class="truncate text-center text-base font-semibold" x-text="fieldLabel"></div>
                 <span></span>
             </div>
-            <div class="num flex items-baseline justify-center gap-2 py-4"><span class="text-[52px] font-semibold tracking-[-0.04em]" x-text="show(value)"></span><span class="text-2xl text-muted">{{ $currency->symbol() }}</span></div>
-            <x-ui.numpad :decimal="$currency->decimals() > 0" />
+            <div class="num flex items-baseline justify-center gap-2 py-4"><span class="text-[52px] font-semibold tracking-[-0.04em]" x-text="show(value)"></span><span class="text-2xl text-muted" x-text="fieldSuffix"></span></div>
+            {{-- The decimal key only where the field takes decimals (the APR); amounts in forint get 000. --}}
+            <div x-show="fieldDecimals > 0"><x-ui.numpad :decimal="true" /></div>
+            <div x-show="fieldDecimals === 0"><x-ui.numpad :decimal="false" /></div>
             <x-ui.button x-on:click="apply()" class="mt-3 w-full" data-test="numpad-done">{{ __('Done') }}</x-ui.button>
         </div>
     </div>

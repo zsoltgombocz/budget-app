@@ -83,6 +83,29 @@ it('covers a deficit from the reserve', function (): void {
         ->and($this->reserve->refresh()->balance)->toBe(0);
 });
 
+it('leaves the reserve alone when the user chooses not to cover the deficit', function (): void {
+    spend($this->user, $this->period, $this->fuel, 400_000);
+
+    $close = resolve(PeriodCloser::class)->close($this->user, $this->period, coverDeficit: false);
+
+    expect($close->leftover)->toBe(-100_000)
+        ->and($close->from_reserve)->toBe(0)
+        ->and($close->breakdown['allocation']['uncovered'])->toBe(100_000)
+        ->and($this->reserve->refresh()->balance)->toBe(80_000);
+});
+
+it('asks on the closing screen whether to take the deficit from the reserve', function (): void {
+    spend($this->user, $this->period, $this->fuel, 400_000);
+
+    Livewire::test('pages::close', ['period' => $this->period->id])
+        ->set('step', 2)
+        ->assertSee(__('You spent more than came in. Do you take the gap from the reserve?'))
+        ->set('coverDeficit', false)
+        ->call('close');
+
+    expect($this->reserve->refresh()->balance)->toBe(80_000);
+});
+
 it('moves planned pocket savings into their pockets', function (): void {
     $category = Category::factory()->for($this->user)->create(['name' => 'Holiday', 'type' => 'sinking']);
     BudgetLine::factory()->for($this->user)->for($category)->create(['amount' => 25_000, 'pocket_id' => $this->savings->id]);

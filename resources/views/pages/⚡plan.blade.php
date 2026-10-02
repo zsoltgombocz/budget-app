@@ -233,7 +233,7 @@ new #[Title('Plan')] class extends Component {
     {
         return match ($type) {
             LineType::Transfer => $this->user()->settings()->period_mode === PeriodMode::Payday ? __('Payday transfers') : __('Transfers'),
-            LineType::Loan => __('Loans'),
+            LineType::Loan => __('Loan repayments'),
             LineType::Fixed => __('Fixed costs'),
             LineType::Sinking => __('Monthly saving into pockets'),
             LineType::Variable => __('Variable spending'),
@@ -301,7 +301,8 @@ new #[Title('Plan')] class extends Component {
 
     @foreach ($types as $type)
         @php $lines = $this->groups[$type->value]; @endphp
-        @continue($lines->isEmpty() && ! $editing)
+        {{-- The repayment section always shows, so a loan can be added from the plan. --}}
+        @continue($lines->isEmpty() && ! $editing && $type !== LineType::Loan)
         <section wire:key="group-{{ $type->value }}" class="mt-[22px] px-4">
             <x-ui.section-label :label="$this->sectionTitle($type)" :aside="trans_choice('{0} no items|{1} :count item|[2,*] :count items', $lines->count(), ['count' => $lines->count()])" />
             <div class="rounded-[22px] bg-surface px-[18px] py-0.5">
@@ -311,7 +312,7 @@ new #[Title('Plan')] class extends Component {
                             $hasToggle = $type === LineType::Variable && $line->amount_avg !== null && $line->amount_max !== null;
                             $subtitle = match (true) {
                                 $type === LineType::Loan && $line->loan !== null && $line->loan->principal_balance > 0 => __('principal :amount', ['amount' => money($line->loan->principal_balance)]).($line->loan->remaining_months ? ' · '.trans_choice('{1} :count month left|[2,*] :count months left', $line->loan->remaining_months, ['count' => $line->loan->remaining_months]) : ''),
-                                $type === LineType::Loan => __('installment, the loan details are on the Pockets screen'),
+                                $type === LineType::Loan => __('monthly installment, tap for the loan details'),
                                 $line->pocket !== null && $line->pocket->prepay_step !== null => __('into :pocket · prepay step :step', ['pocket' => $line->pocket->name, 'step' => money($line->pocket->prepay_step)]),
                                 $line->pocket !== null => __('into :pocket', ['pocket' => $line->pocket->name]),
                                 $line->due_day !== null => __('due on day :day', ['day' => $line->due_day]),
@@ -324,13 +325,24 @@ new #[Title('Plan')] class extends Component {
                                 @if ($editing)
                                     <span wire:sort:handle class="cursor-grab touch-none text-faint" aria-label="{{ __('Drag to reorder') }}"><x-ui.icon name="drag_indicator" :size="20" /></span>
                                 @endif
-                                <button type="button" x-on:click="openLine({{ $line->id }})" class="flex min-w-0 flex-1 items-baseline justify-between gap-3 text-left">
-                                    <span class="min-w-0">
-                                        <span class="block truncate text-[15px]">{{ $line->category?->name }}</span>
-                                        @if ($subtitle)<span class="num mt-0.5 block truncate text-xs text-muted">{{ $subtitle }}</span>@endif
-                                    </span>
-                                    <span class="num shrink-0 text-[15px] font-medium">{{ money_number($this->plannedAmount($line)) }}</span>
-                                </button>
+                                @if ($type === LineType::Loan && $line->loan_id !== null && ! $editing)
+                                    {{-- A repayment follows its loan, so it opens the loan itself. --}}
+                                    <a href="{{ route('pockets', ['hitel' => $line->loan_id]) }}" wire:navigate class="flex min-w-0 flex-1 items-baseline justify-between gap-3 text-left" data-test="open-loan-{{ $line->loan_id }}">
+                                        <span class="min-w-0">
+                                            <span class="block truncate text-[15px]">{{ $line->category?->name }}</span>
+                                            @if ($subtitle)<span class="num mt-0.5 block truncate text-xs text-muted">{{ $subtitle }}</span>@endif
+                                        </span>
+                                        <span class="num shrink-0 text-[15px] font-medium">{{ money_number($this->plannedAmount($line)) }}</span>
+                                    </a>
+                                @else
+                                    <button type="button" x-on:click="openLine({{ $line->id }})" class="flex min-w-0 flex-1 items-baseline justify-between gap-3 text-left">
+                                        <span class="min-w-0">
+                                            <span class="block truncate text-[15px]">{{ $line->category?->name }}</span>
+                                            @if ($subtitle)<span class="num mt-0.5 block truncate text-xs text-muted">{{ $subtitle }}</span>@endif
+                                        </span>
+                                        <span class="num shrink-0 text-[15px] font-medium">{{ money_number($this->plannedAmount($line)) }}</span>
+                                    </button>
+                                @endif
                             </div>
                             @if ($hasToggle)
                                 <div class="mt-2.5 grid grid-cols-2 gap-[3px] rounded-xl bg-bg p-[3px]">
@@ -341,7 +353,11 @@ new #[Title('Plan')] class extends Component {
                         </div>
                     @endforeach
                 </div>
-                @if ($editing)
+                @if ($type === LineType::Loan)
+                    <a href="{{ route('pockets', ['hitel' => 'uj']) }}" wire:navigate class="flex w-full items-center gap-2 border-b border-line py-[13px] text-[15px] font-medium text-accent" data-test="add-loan">
+                        <x-ui.icon name="add" :size="20" />{{ __('New loan') }}
+                    </a>
+                @elseif ($editing)
                     <button type="button" x-on:click="openNew(@js($type->value))" class="flex w-full items-center gap-2 border-b border-line py-[13px] text-[15px] font-medium text-accent" data-test="add-{{ $type->value }}">
                         <x-ui.icon name="add" :size="20" />{{ __('New item') }}
                     </button>

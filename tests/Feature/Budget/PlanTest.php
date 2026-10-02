@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Budget\SaveLoan;
 use App\Actions\Budget\SavePlanLine;
 use App\Enums\CalcMode;
 use App\Models\BudgetLine;
@@ -142,4 +143,22 @@ it('cannot edit another user\'s line', function (): void {
     $foreign = BudgetLine::factory()->create();
 
     Livewire::test('pages::plan')->call('lineData', $foreign->id)->assertNotFound();
+});
+
+it('offers a new loan from the repayment section even without loans', function (): void {
+    $this->get(route('plan'))
+        ->assertOk()
+        ->assertSee(__('Loan repayments'))
+        ->assertSee(route('pockets', ['hitel' => 'uj']), false);
+});
+
+it('opens the loan itself from its repayment line', function (): void {
+    $loan = Loan::factory()->for($this->user)->create(['name' => 'Car loan', 'installment' => 40_000, 'insurance' => 0]);
+    SaveLoan::addPlanLine($this->user, $loan);
+
+    $this->get(route('plan'))->assertSee(route('pockets', ['hitel' => $loan->id]), false);
+
+    $this->get(route('pockets', ['hitel' => $loan->id]))->assertOk()->assertSee('openLoan: '.$loan->id, false);
+    $this->get(route('pockets', ['hitel' => 'uj']))->assertOk()->assertSee("openLoan: 'new'", false);
+    $this->get(route('pockets', ['hitel' => 999_999]))->assertOk()->assertSee('openLoan: null', false);
 });

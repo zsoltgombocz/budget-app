@@ -397,7 +397,12 @@ new #[Title('Pockets and loans')] class extends Component {
     $coverAmount = (int) request()->query('fedezes', 0);
     $cover = $coverAmount > 0 && $reserve ? ['pocketId' => $reserve->id, 'amount' => str_replace('.', ',', \App\Support\Money::toInput(min($coverAmount, max(0, $reserve->balance)), $this->currency))] : null;
 @endphp
-<div x-data="pocketsPage({ decimals: {{ $decimals }}, locale: @js(str_replace('_', '-', app()->getLocale())), cover: @js($cover) })">
+@php
+    // ?hitel=ID opens that loan, ?hitel=uj a new one (links from the plan's repayment section).
+    $loanQuery = request()->query('hitel');
+    $openLoan = $loanQuery === 'uj' ? 'new' : (is_numeric($loanQuery) && $loans->contains('id', (int) $loanQuery) ? (int) $loanQuery : null);
+@endphp
+<div x-data="pocketsPage({ decimals: {{ $decimals }}, locale: @js(str_replace('_', '-', app()->getLocale())), cover: @js($cover), openLoan: @js($openLoan) })">
     <x-ui.page-header :title="__('Pockets')" :subtitle="__('Saved in total: :amount', ['amount' => money((int) $pockets->sum('balance'))])">
         <x-slot name="actions">
             <x-ui.icon-button icon="add" x-on:click="sheet = 'new'" :label="__('Add')" data-test="add" />
@@ -648,7 +653,7 @@ new #[Title('Pockets and loans')] class extends Component {
 
 @script
 <script>
-    Alpine.data('pocketsPage', ({ decimals, locale, cover }) => ({
+    Alpine.data('pocketsPage', ({ decimals, locale, cover, openLoan }) => ({
         sheet: null,
         moveMode: 'deposit',
         pocketTab: 'money',
@@ -666,6 +671,10 @@ new #[Title('Pockets and loans')] class extends Component {
 
         init() {
             this.$watch('sheet', open => document.documentElement.classList.toggle('overflow-hidden', !! open))
+            if (openLoan !== null) {
+                this.openLoan(openLoan === 'new' ? null : openLoan)
+                history.replaceState(null, '', location.pathname)
+            }
             if (cover?.pocketId) {
                 this.openPocket(cover.pocketId).then(() => { this.moveMode = 'budget'; this.fields.move = String(cover.amount) })
                 history.replaceState(null, '', location.pathname)
