@@ -38,5 +38,5 @@ yarn-error.log
 /.claude/settings.local.json
 /tests/Browser/Screenshots
 
-# Local planning notes
-/docs/PLAN.md
+# Specs, design and planning notes stay local
+/docs/
