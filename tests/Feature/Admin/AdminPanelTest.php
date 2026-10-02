@@ -41,6 +41,15 @@ it('lets admins in', function (): void {
     expect(Gate::forUser($admin)->allows('viewPulse'))->toBeTrue();
 });
 
+it('links the Nightwatch dashboard from the admin menu', function (): void {
+    config(['budget.nightwatch_url' => 'https://nightwatch.laravel.com/eu/environments/test/dashboard']);
+
+    $this->actingAs(Admin::factory()->create(), 'admin')
+        ->get('/admin')
+        ->assertOk()
+        ->assertSee('https://nightwatch.laravel.com/eu/environments/test/dashboard', false);
+});
+
 it('signs an admin in with the emailed code', function (): void {
     Notification::fake();
     $admin = Admin::factory()->create(['email' => 'boss@example.com']);

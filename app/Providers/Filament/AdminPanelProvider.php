@@ -61,6 +61,12 @@ class AdminPanelProvider extends PanelProvider
                     ->icon(Heroicon::OutlinedChartBar)
                     ->url(fn (): string => url(config()->string('pulse.path', 'pulse')))
                     ->sort(2),
+                NavigationItem::make('nightwatch')
+                    ->label('Nightwatch')
+                    ->icon(Heroicon::OutlinedArrowTopRightOnSquare)
+                    ->url(fn (): string => config()->string('budget.nightwatch_url', ''), shouldOpenInNewTab: true)
+                    ->visible(fn (): bool => config()->string('budget.nightwatch_url', '') !== '')
+                    ->sort(3),
             ])
             ->middleware([
                 EncryptCookies::class,

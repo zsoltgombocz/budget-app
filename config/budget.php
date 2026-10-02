@@ -16,4 +16,9 @@ return [
      * Host of the admin panel and the monitoring dashboard, e.g. budget-admin.miraglia.cc.
      */
     'admin_domain' => env('ADMIN_DOMAIN'),
+
+    /*
+     * Laravel Nightwatch dashboard of production, linked from the admin menu. Empty hides the link.
+     */
+    'nightwatch_url' => env('NIGHTWATCH_DASHBOARD_URL', 'https://nightwatch.laravel.com/eu/environments/a2e22eba-0c1a-4407-94d4-5141b72e3981/dashboard'),
 ];
