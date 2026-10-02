@@ -132,7 +132,7 @@ return [
 
     'middleware' => [
         'web',
-        'auth',
+        'auth:admin',
         Authorize::class,
     ],
 

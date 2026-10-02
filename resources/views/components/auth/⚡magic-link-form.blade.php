@@ -68,7 +68,7 @@ new class extends Component {
             $user->markEmailAsVerified();
         }
 
-        Auth::login($user, remember: true);
+        Auth::guard('web')->login($user, remember: true);
         session()->regenerate();
 
         $this->redirectIntended(route('dashboard'));

@@ -31,6 +31,9 @@ final class SecurityEvents
             'invalid_link' => __('Expired or reused sign-in link'),
             'wrong_dev_password' => __('Wrong dev password'),
             'disabled_user' => __('Disabled user tried to sign in'),
+            'unknown_admin_email' => __('Admin sign-in with an unknown email'),
+            'wrong_admin_code' => __('Wrong admin sign-in code'),
+            'invalid_admin_link' => __('Expired or reused admin sign-in link'),
             default => $event,
         };
     }

@@ -2,8 +2,9 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Auth\LinkSignIn;
+use App\Filament\Pages\Auth\Login;
 use App\Filament\Widgets\UsageStats;
-use App\Http\Middleware\TrackUserActivity;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -19,12 +20,12 @@ use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\Route;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 /**
- * Admin panel on its own host (budget.admin_domain). It has no login page of its own:
- * guests are sent to the app's passwordless sign-in on the same host, and only admins
- * get in (User::canAccessPanel).
+ * Admin panel on its own host (budget.admin_domain), with its own accounts (App\Models\Admin,
+ * "admin" guard) and a passwordless login: an emailed code or sign-in link.
  */
 class AdminPanelProvider extends PanelProvider
 {
@@ -37,6 +38,9 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->domain(is_string($domain) && $domain !== '' ? $domain : null)
+            ->authGuard('admin')
+            ->login(Login::class)
+            ->routes(fn () => Route::get('login/link/{token}', LinkSignIn::class)->name('auth.link'))
             ->brandName('Budget admin')
             ->colors([
                 'primary' => Color::Blue,
@@ -70,8 +74,6 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
-                // Keeps last_seen_at fresh; disabled admins are already refused by canAccessPanel.
-                TrackUserActivity::class,
             ]);
     }
 }

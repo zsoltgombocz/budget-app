@@ -11,7 +11,6 @@ use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -21,7 +20,6 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Auth;
 
 class UserResource extends Resource
 {
@@ -52,9 +50,6 @@ class UserResource extends Resource
             ->components([
                 TextInput::make('name')->label(__('Name'))->required()->maxLength(80),
                 TextInput::make('email')->label(__('Email'))->email()->required()->maxLength(255)->unique(ignoreRecord: true),
-                Toggle::make('is_admin')->label(__('Admin'))
-                    ->helperText(__('Admins open this panel and the monitoring.'))
-                    ->disabled(fn (?User $record): bool => $record?->is(Auth::user()) ?? false),
             ]);
     }
 
@@ -74,13 +69,11 @@ class UserResource extends Resource
                         default => 'success',
                     }),
                 IconColumn::make('budget_setting_exists')->label(__('Set up'))->boolean(),
-                IconColumn::make('is_admin')->label(__('Admin'))->boolean(),
                 TextColumn::make('last_seen_at')->label(__('Last seen'))->since()->sortable()->placeholder('–'),
                 TextColumn::make('created_at')->label(__('Joined'))->date('Y. m. d.')->sortable(),
                 TextColumn::make('email')->label(__('Email'))->searchable()->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                TernaryFilter::make('is_admin')->label(__('Admin')),
                 TernaryFilter::make('disabled_at')->label(__('Disabled'))->nullable(),
             ])
             ->recordActions([
@@ -99,7 +92,7 @@ class UserResource extends Resource
                         ->label(__('Disable'))
                         ->icon(Heroicon::OutlinedNoSymbol)
                         ->color('danger')
-                        ->visible(fn (User $record): bool => ! $record->isDisabled() && ! $record->is(Auth::user()))
+                        ->visible(fn (User $record): bool => ! $record->isDisabled())
                         ->requiresConfirmation()
                         ->modalDescription(__('They are signed out and cannot sign in until you enable them again. Their data stays.'))
                         ->action(fn (User $record) => $record->forceFill(['disabled_at' => now()])->save()),
@@ -109,7 +102,6 @@ class UserResource extends Resource
                         ->visible(fn (User $record): bool => $record->isDisabled())
                         ->action(fn (User $record) => $record->forceFill(['disabled_at' => null])->save()),
                     DeleteAction::make()
-                        ->visible(fn (User $record): bool => ! $record->is(Auth::user()))
                         ->modalDescription(__('Deletes the account and all of its data. This cannot be undone.')),
                 ]),
             ]);

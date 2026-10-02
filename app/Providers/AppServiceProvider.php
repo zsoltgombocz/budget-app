@@ -3,8 +3,9 @@
 namespace App\Providers;
 
 use App\Livewire\Pulse\SecurityEvents;
-use App\Models\User;
+use App\Models\Admin;
 use Carbon\CarbonImmutable;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -34,8 +35,8 @@ class AppServiceProvider extends ServiceProvider
         // Compile the design's presentational components with Blaze.
         Blaze::optimize()->in(resource_path('views/components/ui'));
 
-        // Monitoring (Pulse) is for active admins, like the admin panel.
-        Gate::define('viewPulse', fn (User $user): bool => $user->is_admin && ! $user->isDisabled());
+        // Monitoring (Pulse) is for admins (the "admin" guard), like the admin panel.
+        Gate::define('viewPulse', fn (?Authenticatable $user = null): bool => $user instanceof Admin);
         Livewire::component('pulse.security-events', SecurityEvents::class);
 
         // The dev stack sends blue emails, like its app theme.

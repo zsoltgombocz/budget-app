@@ -2,37 +2,29 @@
 
 namespace App\Console\Commands;
 
-use App\Actions\Admin\InviteUser;
-use App\Models\User;
+use App\Models\Admin;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 
-#[Signature('budget:make-admin {email : Email address of the admin} {--name= : Name, when the account has to be created (it gets an invite)}')]
-#[Description('Make a user an admin of the admin panel and the monitoring')]
+#[Signature('budget:make-admin {email : Email address of the admin} {--name= : Name of the admin (defaults to the part before the @)}')]
+#[Description('Add an admin account for the admin panel and the monitoring')]
 class MakeAdmin extends Command
 {
-    public function handle(InviteUser $inviteUser): int
+    public function handle(): int
     {
         $email = Str::lower(trim((string) $this->argument('email')));
-        $user = User::query()->where('email', $email)->first();
+        $name = $this->option('name');
 
-        if ($user === null) {
-            $name = $this->option('name');
+        $admin = Admin::query()->firstOrCreate(['email' => $email], [
+            'name' => is_string($name) && $name !== '' ? $name : Str::before($email, '@'),
+            'password' => Str::random(64),
+        ]);
 
-            if (! is_string($name) || $name === '') {
-                $this->error("No account for {$email}. Pass --name to create it and send an invite.");
-
-                return self::FAILURE;
-            }
-
-            $user = $inviteUser->handle($name, $email);
-            $this->info("Invited {$email}.");
-        }
-
-        $user->forceFill(['is_admin' => true, 'disabled_at' => null])->save();
-        $this->info("{$email} is an admin now.");
+        $this->info($admin->wasRecentlyCreated
+            ? "Admin {$email} added. Sign in on the admin login page with a code sent to this address."
+            : "{$email} is already an admin.");
 
         return self::SUCCESS;
     }
