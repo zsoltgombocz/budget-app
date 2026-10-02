@@ -661,9 +661,9 @@
     "Hi :name!": "Szia :name!",
     "You are invited to Budget: plan your month, record spending in two taps and see the expected leftover.": "Meghívtak a Budgetbe: tervezd meg a hónapod, rögzítsd a költéseket két koppintással, és lásd, mennyi marad a hó végén.",
     "Accept the invite": "Meghívó elfogadása",
-    "The button signs you in and works once, for :days days. Later you can sign in any time with your email: we send a code.": "A gomb belépteti, egyszer használható, :days napig. Később bármikor beléphetsz az e-mail-címeddel: küldünk egy kódot.",
+    "The button signs you in and works once, for :days days. Later you can sign in any time with your email: we send a code.": "A gombbal belépsz; egyszer használhatod, :days napig. Később bármikor beléphetsz az e-mail-címeddel: küldünk egy kódot.",
     "Tip: open the app on your phone and add it to the Home Screen.": "Tipp: nyisd meg az appot a telefonodon, és tedd ki a kezdőképernyőre.",
-    "The app is invite only for now. If you are waiting for an invite, ask the person who invites you to use this address.": "Az app egyelőre csak meghívóval használható. Ha meghívót vársz, kérd meg a meghívót, hogy erre a címre küldje.",
+    "The app is invite only for now. If you are waiting for an invite, ask the person who invites you to use this address.": "Az app egyelőre csak meghívóval használható. Ha meghívót vársz, szólj annak, aki meghív, hogy erre a címre küldje.",
     "Monitoring": "Monitoring",
     "Wrong sign-in code": "Hibás belépőkód",
     "Too many sign-in attempts": "Túl sok belépési kísérlet",
@@ -699,5 +699,6 @@
     "Wrong admin sign-in code": "Hibás admin belépőkód",
     "Your admin sign-in code is :code. Type it on the admin login page:": "Az admin belépőkódod: :code. Írd be az admin belépő oldalon:",
     "admin": "admin",
-    "admins": "adminok"
+    "admins": "adminok",
+    "Checking…": "Ellenőrzés…"
 }

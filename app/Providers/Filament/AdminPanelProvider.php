@@ -42,8 +42,9 @@ class AdminPanelProvider extends PanelProvider
             ->login(Login::class)
             ->routes(fn () => Route::get('login/link/{token}', LinkSignIn::class)->name('auth.link'))
             ->brandName('Budget admin')
+            // Production is green like the app; the dev stack is blue like its app.
             ->colors([
-                'primary' => Color::Blue,
+                'primary' => app()->environment('staging') ? Color::Blue : Color::hex('#1FB866'),
             ])
             ->darkMode(true)
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
