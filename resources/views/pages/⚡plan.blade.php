@@ -12,7 +12,9 @@ use App\Models\BudgetLine;
 use App\Models\Loan;
 use App\Models\Pocket;
 use App\Models\User;
+use App\Services\AllocationCalculator;
 use App\Services\BudgetCalculator;
+use App\Services\Data\MonthEndForecast;
 use App\Services\Data\PlanSummary;
 use App\Services\PeriodService;
 use App\Services\PlanService;
@@ -141,6 +143,71 @@ new #[Title('Plan')] class extends Component {
         $line->update(['calc_mode' => $calcMode]);
         $this->refreshPlan();
         $this->dispatch('budget-updated');
+    }
+
+    /**
+     * Share of the month-end leftover that goes to the reserve (the leftover rule), saved at once.
+     */
+    public function setReservePct(int $pct): void
+    {
+        abort_unless(in_array($pct, [0, 25, 50, 75, 100], true), 422);
+
+        $this->user()->settings()->update(['reserve_pct' => $pct]);
+        unset($this->monthEnd);
+        $this->dispatch('app-toast', title: __('Settings saved.'));
+    }
+
+    /**
+     * Where the rest of the leftover goes: 'account:ID', 'pocket:ID' or '' (stays on the account).
+     */
+    public function setSurplusTarget(string $target): void
+    {
+        $user = $this->user();
+        [$type, $id] = array_pad(explode(':', $target, 2), 2, null);
+        $accountId = $type === 'account' ? $user->accounts()->whereKey((int) $id)->value('id') : null;
+        $pocketId = $type === 'pocket' ? $user->pockets()->where('is_reserve', false)->whereKey((int) $id)->value('id') : null;
+
+        $user->settings()->update(['surplus_account_id' => $accountId, 'surplus_pocket_id' => $pocketId]);
+        $this->dispatch('app-toast', title: __('Settings saved.'));
+    }
+
+    #[Computed]
+    public function monthEnd(): MonthEndForecast
+    {
+        $user = $this->user();
+        $reserve = $user->pockets()->where('is_reserve', true)->first();
+        $calculator = app(BudgetCalculator::class);
+
+        return app(AllocationCalculator::class)->monthEnd(
+            $this->summary,
+            $calculator->planLines($this->lines),
+            $user->settings()->reserve_pct,
+            $reserve?->id,
+            $reserve->balance ?? 0,
+            $reserve?->target_amount,
+        );
+    }
+
+    /**
+     * Leftover targets: 'account:ID' / 'pocket:ID' => name.
+     *
+     * @return array<string, string>
+     */
+    #[Computed]
+    public function surplusTargets(): array
+    {
+        $user = $this->user();
+        $targets = ['' => __('Stays on the account')];
+
+        foreach ($user->accounts()->orderBy('name')->get() as $account) {
+            $targets['account:'.$account->id] = $account->name;
+        }
+
+        foreach ($user->pockets()->where('is_reserve', false)->orderBy('sort')->get() as $pocket) {
+            $targets['pocket:'.$pocket->id] = $pocket->name;
+        }
+
+        return $targets;
     }
 
     /**
@@ -370,6 +437,55 @@ new #[Title('Plan')] class extends Component {
             </div>
         </section>
     @endforeach
+
+    @php
+        $monthEnd = $this->monthEnd;
+        $settings = $this->user()->settings();
+        $currentTarget = $settings->surplus_account_id !== null ? 'account:'.$settings->surplus_account_id : ($settings->surplus_pocket_id !== null ? 'pocket:'.$settings->surplus_pocket_id : '');
+        $targetName = $this->surplusTargets[$currentTarget] ?? __('Stays on the account');
+    @endphp
+    <section class="mt-[22px] px-4" data-test="month-end">
+        <x-ui.section-label :label="__('Month-end leftover')" />
+        <div class="rounded-[22px] bg-surface px-[18px] py-4">
+            <div class="num text-[13px]">
+                <div class="flex justify-between py-1"><span class="text-muted">{{ __('Income') }}</span><span>{{ money($monthEnd->income) }}</span></div>
+                <div class="flex justify-between py-1"><span class="text-muted">{{ __('Planned costs and budgets') }}</span><span>−{{ money($monthEnd->planned) }}</span></div>
+                @if ($monthEnd->hasReserve)
+                    <div class="flex justify-between py-1"><span class="text-muted">{{ __('Put aside in the reserve') }}</span><span>−{{ money($monthEnd->reserveMonthly) }}</span></div>
+                @endif
+                <div @class(['mt-1 flex justify-between border-t border-line pt-2 text-[15px] font-semibold', 'text-danger' => $monthEnd->leftover < 0, 'text-accent' => $monthEnd->leftover > 0])><span>{{ __('Expected leftover') }}</span><span>{{ money($monthEnd->leftover) }}</span></div>
+            </div>
+
+            @if ($monthEnd->hasReserve)
+                <div class="mt-4 text-[13px] text-muted">{{ __('On top of the monthly amount, this share of the leftover also goes to the reserve until it reaches the target:') }}</div>
+                <div class="mt-2 grid grid-cols-5 gap-1.5">
+                    @foreach ([0, 25, 50, 75, 100] as $pct)
+                        <x-ui.choice :selected="$settings->reserve_pct === $pct" wire:click="setReservePct({{ $pct }})" class="num h-10 rounded-xl text-[13px]" data-test="reserve-pct-{{ $pct }}">{{ $pct }}%</x-ui.choice>
+                    @endforeach
+                </div>
+            @endif
+            <div class="mt-4">
+                <x-ui.select :label="$monthEnd->hasReserve ? __('The rest goes to:') : __('All of it goes to:')" x-on:change="$wire.setSurplusTarget($event.target.value)" data-test="surplus-target">
+                    @foreach ($this->surplusTargets as $value => $name)
+                        <option value="{{ $value }}" @selected($value === $currentTarget)>{{ $name }}</option>
+                    @endforeach
+                </x-ui.select>
+            </div>
+
+            @if ($monthEnd->leftover > 0)
+                <div class="num mt-4 rounded-2xl bg-bg px-3.5 py-3 text-[13px]">
+                    <div class="font-semibold">{{ __('Put aside every month') }}</div>
+                    @if ($monthEnd->hasReserve)
+                        <div class="mt-1 flex justify-between py-0.5"><span class="text-muted">{{ __('Reserve: :fixed fixed + :share from the leftover', ['fixed' => money($monthEnd->reserveMonthly), 'share' => money($monthEnd->allocation->toReserve)]) }}</span><span class="font-semibold">{{ money($monthEnd->toReserveTotal()) }}</span></div>
+                    @endif
+                    <div class="flex justify-between py-0.5"><span class="text-muted">{{ $targetName }}</span><span class="font-semibold">{{ money($monthEnd->allocation->toSurplus) }}</span></div>
+                </div>
+            @elseif ($monthEnd->leftover < 0)
+                <p class="mt-3 text-[13px] leading-snug text-danger">{{ __('Your plan is :gap over the income a month.', ['gap' => money(-$monthEnd->leftover)]) }}</p>
+            @endif
+            <p class="mt-3 text-xs leading-snug text-muted">{{ __('Planned figures. At closing the real leftover is shared out the same way, and you can adjust it there.') }}</p>
+        </div>
+    </section>
 
     @if (! $editing)
         <div class="px-4 pt-5">

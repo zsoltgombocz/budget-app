@@ -21,7 +21,6 @@
     "A new verification link has been sent to your email address.": "Új megerősítő linket küldtünk az e-mail-címedre.",
     "APR": "THM",
     "APR (%)": "THM (%)",
-    "Account: listed as a manual transfer at closing. Pocket: added to the pocket balance in the app.": "Számla: záráskor kézi utalásként jelenik meg. Persely: az appban a persely egyenlegét növeli.",
     "Active from": "Aktív ettől",
     "Active period": "Érvényességi időszak",
     "Active until": "Aktív eddig",
@@ -107,7 +106,6 @@
     "Daily reminder": "Napi emlékeztető",
     "Daily reminder, due items, this device": "Napi emlékeztető, esedékes tételek, ez az eszköz",
     "Dark": "Sötét",
-    "Dark, light or system": "Sötét, világos vagy a rendszer szerint",
     "Date": "Dátum",
     "Delete": "Törlés",
     "Delete account": "Fiók törlése",
@@ -327,7 +325,6 @@
     "Period closed": "Periódus lezárva",
     "Period closed. A new one has started.": "Periódus lezárva, új indult.",
     "Period, currency, language and reminders": "Periódus, deviza, nyelv és emlékeztetők",
-    "Period, currency, language, leftover rule": "Periódus, deviza, nyelv, maradék szabály",
     "Phone and internet": "Telefon és internet",
     "Pick a starting point": "Válassz kiindulópontot",
     "Plan": "Terv",
@@ -758,5 +755,12 @@
     "Put aside in the reserve": "Félretétel a tartalékba",
     "Expected leftover": "Várható maradék",
     "Reserve: :fixed fixed + :share from the leftover": "Tartalék: :fixed fix + :share a maradékból",
-    "Day of the month; you get a reminder that morning": "A hónap napja; aznap reggel emlékeztetünk"
+    "Day of the month; you get a reminder that morning": "A hónap napja; aznap reggel emlékeztetünk",
+    "Month-end leftover": "Hó végi maradék",
+    "Period and base currency": "Periódus és alapdeviza",
+    "Planned figures. At closing the real leftover is shared out the same way, and you can adjust it there.": "Tervezett számok. Záráskor a valódi maradékot ugyanígy osztjuk el, és ott még módosíthatod.",
+    "Reminders and the day boundary follow this time zone.": "Az emlékeztetők és a nap határa ezt az időzónát követik.",
+    "Theme": "Téma",
+    "Theme, language and time zone": "Téma, nyelv és időzóna",
+    "Where the leftover goes is set on the Plan screen, next to the numbers it is worked out from.": "Hogy hová menjen a maradék, azt a Terv oldalon állítod be, a számok mellett, amikből kijön."
 }

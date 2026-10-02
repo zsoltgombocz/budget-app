@@ -3,6 +3,9 @@
 namespace App\Services;
 
 use App\Services\Data\Allocation;
+use App\Services\Data\MonthEndForecast;
+use App\Services\Data\PlanLine;
+use App\Services\Data\PlanSummary;
 use InvalidArgumentException;
 
 final class AllocationCalculator
@@ -51,6 +54,39 @@ final class AllocationCalculator
             toSurplus: $leftover - $toReserve,
             fromReserve: 0,
             uncovered: 0,
+        );
+    }
+
+    /**
+     * The month-end picture of a plan, before anything is spent: income minus the planned
+     * lines leaves the expected leftover, split by the leftover rule. The monthly saving into
+     * the reserve pocket is shown on its own, and counts towards the reserve balance first.
+     *
+     * @param  list<PlanLine>  $lines
+     */
+    public function monthEnd(PlanSummary $summary, array $lines, int $reservePct, ?int $reservePocketId, int $reserveBalance = 0, ?int $reserveTarget = null): MonthEndForecast
+    {
+        $reserveMonthly = 0;
+
+        foreach ($lines as $line) {
+            if ($reservePocketId !== null && $line->pocketId === $reservePocketId) {
+                $reserveMonthly += $line->planned();
+            }
+        }
+
+        return new MonthEndForecast(
+            income: $summary->income,
+            planned: $summary->totalExpenses - $reserveMonthly,
+            reserveMonthly: $reserveMonthly,
+            leftover: $summary->leftover,
+            allocation: $this->allocate(
+                leftover: max(0, $summary->leftover),
+                reservePct: $reservePct,
+                hasReserve: $reservePocketId !== null,
+                reserveBalance: $reserveBalance + $reserveMonthly,
+                reserveTarget: $reserveTarget,
+            ),
+            hasReserve: $reservePocketId !== null,
         );
     }
 }
