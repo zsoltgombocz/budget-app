@@ -139,7 +139,7 @@ it('can be skipped for an empty plan', function (): void {
         ->and($user->periods()->count())->toBe(1);
 });
 
-it('creates a reserve pocket when only a target is given', function (): void {
+it('keeps a reserve pocket with a target even without a monthly amount', function (): void {
     $user = User::factory()->create();
     $this->actingAs($user);
 
@@ -151,7 +151,6 @@ it('creates a reserve pocket when only a target is given', function (): void {
         ->set('shared', false)->call('next')
         ->set('hasLoan', false)->call('next')
         ->call('next')
-        ->set('included.14', false)
         ->set('reserveTarget', '2500.50')
         ->set('surplusTarget', 'pocket')
         ->call('finish')
@@ -160,6 +159,76 @@ it('creates a reserve pocket when only a target is given', function (): void {
     expect($user->settings()->refresh()->income)->toBe(100_000)
         ->and($user->pockets()->where('is_reserve', true)->value('target_amount'))->toBe(250_050)
         ->and($user->settings()->surplus_pocket_id)->not->toBeNull();
+});
+
+it('creates no reserve pocket when the reserve is switched off', function (): void {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test('pages::onboarding')
+        ->set('income', '1000')->call('next')
+        ->set('periodMode', 'calendar')->call('next')
+        ->call('next')->call('next')
+        ->set('shared', false)->call('next')
+        ->set('hasLoan', false)->call('next')
+        ->call('next')
+        ->set('included.14', false)
+        ->set('reserveTarget', '300000')
+        ->assertSee(__('No reserve pocket: the whole month-end leftover goes to the target below, and nothing covers a month when you spend more than came in. You can add one later under Pockets.'))
+        ->call('finish')
+        ->assertHasNoErrors();
+
+    expect($user->pockets()->where('is_reserve', true)->exists())->toBeFalse();
+});
+
+it('saves the optional loan details from the loan step', function (): void {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test('pages::onboarding')
+        ->set('income', '609000')->call('next')
+        ->set('periodMode', 'calendar')->call('next')
+        ->call('next')->call('next')
+        ->set('shared', false)->call('next')
+        ->set('hasLoan', true)
+        ->set('amounts.8', '87549')
+        ->set('loanThm', '99,9999')
+        ->call('next')
+        ->assertHasErrors('loanThm')
+        ->set('loanPrincipal', '10 000 000')
+        ->set('loanThm', '7,9')
+        ->set('loanMonths', '180')
+        ->call('next')
+        ->call('next')
+        ->call('finish')
+        ->assertHasNoErrors();
+
+    $loan = $user->loans()->sole();
+
+    expect($loan->installment)->toBe(87_549)
+        ->and($loan->principal_balance)->toBe(10_000_000)
+        ->and($loan->thm)->toBe(7.9)
+        ->and($loan->remaining_months)->toBe(180);
+});
+
+it('works out where the leftover of the entered plan would go', function (): void {
+    $this->actingAs(User::factory()->create());
+
+    $wizard = Livewire::test('pages::onboarding')
+        ->set('income', '500000')
+        ->set('shared', false)
+        ->set('hasLoan', false)
+        ->set('amounts.0', '200000')
+        ->set('amounts.10', '100000')
+        ->set('amounts.14', '20000')
+        ->set('reservePct', 50)
+        ->set('reserveTarget', '50000');
+
+    // 500 000 - 320 000 = 180 000 left; half is 90 000, capped at the 50 000 target.
+    expect($wizard->instance()->leftoverPreview)->toBe(['leftover' => 180_000, 'toReserve' => 50_000, 'toSurplus' => 130_000, 'reserveOn' => true]);
+
+    $wizard->set('included.14', false);
+    expect($wizard->instance()->leftoverPreview)->toBe(['leftover' => 200_000, 'toReserve' => 0, 'toSurplus' => 200_000, 'reserveOn' => false]);
 });
 
 it('skips the wizard once onboarded', function (): void {

@@ -23,6 +23,7 @@ final readonly class CompleteOnboarding
      * @param  array<int, int>  $amounts  template item index => planned amount
      * @param  'investment'|'pocket'  $surplusTarget
      * @param  list<int>|null  $included  template item indexes to create, null for all
+     * @param  array{principal?: int|null, thm?: float|null, months?: int|null}  $loanDetails  optional details of the loan line's loan
      */
     public function handle(
         User $user,
@@ -36,8 +37,9 @@ final readonly class CompleteOnboarding
         int $reservePct,
         string $surplusTarget,
         ?array $included = null,
+        array $loanDetails = [],
     ): void {
-        DB::transaction(function () use ($user, $income, $periodMode, $paydayDay, $currency, $template, $amounts, $reserveTarget, $reservePct, $surplusTarget, $included): void {
+        DB::transaction(function () use ($user, $income, $periodMode, $paydayDay, $currency, $template, $amounts, $reserveTarget, $reservePct, $surplusTarget, $included, $loanDetails): void {
             $categories = $this->applyTemplate->handle($user, $template, $included);
 
             foreach ($categories as $index => $category) {
@@ -47,6 +49,14 @@ final readonly class CompleteOnboarding
 
                 if ($loanId !== null && ($amounts[$index] ?? 0) > 0) {
                     $user->loans()->whereKey($loanId)->update(['installment' => $amounts[$index]]);
+                }
+
+                if ($loanId !== null) {
+                    $user->loans()->whereKey($loanId)->update(array_filter([
+                        'principal_balance' => $loanDetails['principal'] ?? null,
+                        'thm' => $loanDetails['thm'] ?? null,
+                        'remaining_months' => $loanDetails['months'] ?? null,
+                    ], fn (int|float|null $value): bool => $value !== null));
                 }
             }
 
