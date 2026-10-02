@@ -8,9 +8,13 @@
 
         <livewire:auth.magic-link-form />
 
-        <div class="text-center text-sm text-muted">
-            {{ __('Don\'t have an account?') }}
-            <a href="{{ route('register') }}" wire:navigate class="font-medium text-accent">{{ __('Sign up') }}</a>
-        </div>
+        @if (config('budget.registration_open'))
+            <div class="text-center text-sm text-muted">
+                {{ __('Don\'t have an account?') }}
+                <a href="{{ route('register') }}" wire:navigate class="font-medium text-accent">{{ __('Sign up') }}</a>
+            </div>
+        @else
+            <p class="text-center text-sm text-muted">{{ __('The app is invite only for now.') }}</p>
+        @endif
     </div>
 </x-layouts::auth>

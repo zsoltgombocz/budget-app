@@ -38,7 +38,8 @@ COPY . .
 COPY --from=assets /app/public/build ./public/build
 
 RUN composer dump-autoload --optimize --classmap-authoritative --no-dev --no-scripts \
-    && php artisan package:discover --ansi
+    && php artisan package:discover --ansi \
+    && php artisan filament:assets --ansi
 
 # public/ is a shared-volume mount point at runtime so the Caddy container can serve
 # static files directly. Keep the built copy at public-image/ and re-seed the volume

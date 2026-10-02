@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Auth\SendMagicLink;
+use App\Support\SecurityEvents;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
@@ -22,6 +23,8 @@ new class extends Component {
 
     public function send(SendMagicLink $sendMagicLink): void
     {
+        abort_if($this->register && ! config()->boolean('budget.registration_open'), 404);
+
         $this->validate([
             'name' => $this->register ? ['required', 'string', 'max:80'] : ['nullable'],
             'email' => ['required', 'string', 'email', 'max:255'],
@@ -30,6 +33,8 @@ new class extends Component {
         $key = 'magic-link:'.Str::lower($this->email).'|'.request()->ip();
 
         if (RateLimiter::tooManyAttempts($key, 5)) {
+            SecurityEvents::record('sign_in_throttled');
+
             throw ValidationException::withMessages([
                 'email' => __('Too many attempts. Please try again in :seconds seconds.', ['seconds' => RateLimiter::availableIn($key)]),
             ]);
@@ -53,6 +58,7 @@ new class extends Component {
         $user = $sendMagicLink->consumeCode($this->sentTo, $this->code);
 
         if ($user === null) {
+            SecurityEvents::record('wrong_code');
             $this->reset('code');
 
             throw ValidationException::withMessages(['code' => __('The code is wrong or has expired.')]);

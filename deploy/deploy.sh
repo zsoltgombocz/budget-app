@@ -32,7 +32,7 @@ if [ -n "$(docker compose ps --status running -q mariadb)" ]; then
     ls -1t backups/db-*.sql.gz | tail -n +15 | xargs -r rm --
 fi
 
-docker compose pull app queue scheduler
+docker compose pull app queue scheduler pulse
 docker compose up -d --remove-orphans
 docker compose exec -T app php artisan migrate --force
 docker compose exec -T app php artisan db:seed --class=CategoryTemplateSeeder --force

@@ -14,7 +14,9 @@ return [
             ['hu' => 'Görgetés után is teljesen feljönnek az ablakok, és az onboardingban megjelenik a számbillentyűzet.', 'en' => 'Sheets open fully even after scrolling, and the numpad shows up in onboarding.'],
             ['hu' => 'A fejléc nem homályosodik el a státuszsáv alatt, és iPhone-on a belépőkód felajánlható az e-mailből.', 'en' => 'The header no longer blurs under the status bar, and iPhone can offer the sign-in code from the email.'],
             ['hu' => 'Ha olyan címmel lépsz be, amihez nincs fiók, e-mailben szólunk, hogy előbb regisztrálj.', 'en' => 'Signing in with an address that has no account now emails you to register first.'],
-            ['hu' => 'A beállítások minden fő oldal jobb felső sarkából elérhetők, és a Mégse minden ablakot szépen lecsúsztat.', 'en' => 'Settings open from the top right of every main tab, and Cancel slides every sheet away.'],
+            ['hu' => 'A Beállítások bekerült a menübe; a + gomb lebeg, görgetéskor eltűnik, felfelé görgetve előjön.', 'en' => 'Settings is in the tab bar now; the + button floats, hides while scrolling down and comes back on scroll up.'],
+            ['hu' => 'A Mégse minden ablakot szépen lecsúsztat.', 'en' => 'Cancel slides every sheet away.'],
+            ['hu' => 'Az app meghívásos lett: új fiókot meghívóval lehet létrehozni.', 'en' => 'The app is invite only: new accounts come with an invite.'],
         ],
     ],
     [

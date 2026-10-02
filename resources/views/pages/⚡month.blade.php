@@ -186,7 +186,6 @@ new #[Title('Month')] class extends Component {
         <div class="flex gap-2">
             <x-ui.icon-button icon="chevron_left" :label="__('Previous period')" wire:click="showPeriod({{ $this->neighbours['previous'] ?? 0 }})" :disabled="$this->neighbours['previous'] === null" class="disabled:opacity-30" data-test="previous-period" />
             <x-ui.icon-button icon="chevron_right" :label="__('Next period')" wire:click="showPeriod({{ $this->neighbours['next'] ?? 0 }})" :disabled="$this->neighbours['next'] === null" class="disabled:opacity-30" />
-            <x-ui.icon-button icon="settings" :href="route('settings')" wire:navigate :label="__('Settings')" data-test="open-settings" />
         </div>
     </div>
 

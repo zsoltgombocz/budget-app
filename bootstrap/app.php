@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Middleware\DevGate;
 use App\Http\Middleware\EnsureOnboarded;
 use App\Http\Middleware\SetUserLocale;
+use App\Http\Middleware\TrackUserActivity;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -18,6 +20,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(at: '*');
 
         $middleware->web(append: [
+            DevGate::class,
+            TrackUserActivity::class,
             SetUserLocale::class,
         ]);
 

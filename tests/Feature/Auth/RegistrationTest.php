@@ -5,6 +5,25 @@ use App\Notifications\MagicLoginLink;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 
+beforeEach(function (): void {
+    config(['budget.registration_open' => true]);
+});
+
+test('registration is closed when the app is invite only', function (): void {
+    config(['budget.registration_open' => false]);
+
+    $this->get(route('register'))->assertNotFound();
+    $this->get(route('login'))->assertDontSee(route('register'));
+
+    Livewire::test('auth.magic-link-form', ['register' => true])
+        ->set('name', 'Anna')
+        ->set('email', 'anna@example.com')
+        ->call('send')
+        ->assertNotFound();
+
+    expect(User::query()->count())->toBe(0);
+});
+
 test('registration screen can be rendered', function (): void {
     $this->get(route('register'))->assertOk()->assertDontSee('type="password"', false);
 });

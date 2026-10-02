@@ -22,9 +22,17 @@ class NoAccountForEmail extends Notification
 
     public function toMail(AnonymousNotifiable $notifiable): MailMessage
     {
-        return (new MailMessage)
+        $message = (new MailMessage)
             ->subject(__('No account for this address yet'))
-            ->line(__('Someone tried to sign in with this email address, but it has no account yet.'))
+            ->line(__('Someone tried to sign in with this email address, but it has no account yet.'));
+
+        if (! config()->boolean('budget.registration_open')) {
+            return $message
+                ->line(__('The app is invite only for now. If you are waiting for an invite, ask the person who invites you to use this address.'))
+                ->line(__('If you did not ask for it, just ignore this email.'));
+        }
+
+        return $message
             ->line(__('If it was you, register with this address and you get your sign-in code right away:'))
             ->action(__('Register'), route('register'))
             ->line(__('If you did not ask for it, just ignore this email.'));

@@ -1,11 +1,16 @@
 <?php
 
+use App\Http\Controllers\DevGateController;
 use App\Http\Controllers\MagicLinkController;
 use App\Http\Controllers\NoSpendFromNotificationController;
 use App\Http\Controllers\PushSubscriptionController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/ma')->name('home');
+
+// Shared password page of the dev stack (see the DevGate middleware).
+Route::get('dev', [DevGateController::class, 'show'])->name('dev-gate');
+Route::post('dev', [DevGateController::class, 'check'])->middleware('throttle:20,1')->name('dev-gate.check');
 
 Route::middleware('guest')->group(function (): void {
     Route::livewire('regisztracio', 'pages::auth.register')->name('register');

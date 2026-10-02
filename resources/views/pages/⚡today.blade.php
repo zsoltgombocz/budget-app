@@ -116,7 +116,6 @@ new #[Title('Today')] class extends Component {
             <span @class(['size-1.5 rounded-full', 'bg-danger' => $negative, 'bg-accent' => ! $negative])></span>
             <span class="num">{{ \App\Support\Dates::range($period->starts_on, $period->ends_on) }} · {{ __(':day. day', ['day' => max(1, $period->elapsedDays($overview->today))]) }}</span>
         </div>
-        <x-ui.icon-button icon="settings" :href="route('settings')" wire:navigate :label="__('Settings')" data-test="open-settings" />
     </div>
 
     <section class="px-6 pb-[26px] pt-[30px]" data-test="expected-leftover">

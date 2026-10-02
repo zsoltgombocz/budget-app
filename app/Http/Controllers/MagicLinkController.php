@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\Auth\SendMagicLink;
 use App\Models\User;
+use App\Support\SecurityEvents;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,6 +26,8 @@ class MagicLinkController extends Controller
         $user = $magicLinks->consume($token);
 
         if (! $user instanceof User) {
+            SecurityEvents::record('invalid_link');
+
             return to_route('login')->with('status', __('This sign-in link has expired or was already used. Request a new one.'));
         }
 

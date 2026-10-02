@@ -1,0 +1,19 @@
+<?php
+
+return [
+    /*
+     * Whether anyone can sign up. Production is invite only: admins invite people from
+     * the admin panel. The dev stack keeps it open for testing.
+     */
+    'registration_open' => (bool) env('REGISTRATION_OPEN', false),
+
+    /*
+     * Shared password in front of the whole app (dev stack). Empty turns the gate off.
+     */
+    'dev_gate_password' => env('DEV_GATE_PASSWORD'),
+
+    /*
+     * Host of the admin panel and the monitoring dashboard, e.g. budget-admin.miraglia.cc.
+     */
+    'admin_domain' => env('ADMIN_DOMAIN'),
+];
