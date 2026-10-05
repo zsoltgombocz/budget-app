@@ -6,6 +6,13 @@
  */
 return [
     [
+        'version' => '1.8.1',
+        'date' => '2026-10-05',
+        'changes' => [
+            ['hu' => 'A várható hó végi maradék nem vetíti előre a költési tempót: egy nagyobb egyszeri vásárlás nem mutat többé hamis, több százezres mínuszt. Minden kategória a keretével, vagy ha már túllépted, az eddig elköltött összeggel számít.', 'en' => 'The expected month-end leftover no longer extrapolates your spending pace: one bigger purchase no longer shows a false deficit of hundreds of thousands. Each category counts with its budget, or with what you spent if you are already over it.'],
+        ],
+    ],
+    [
         'version' => '1.8.0',
         'date' => '2026-10-02',
         'changes' => [
