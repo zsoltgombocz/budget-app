@@ -18,18 +18,18 @@ beforeEach(function (): void {
     $this->fuel = Category::query()->where('name', 'Fuel')->firstOrFail();
 });
 
-it('shows the expected leftover from the current pace', function (): void {
-    // Day 11 of 31: 30 000 spent on fuel projects to 84 545, over the 60 000 plan.
-    Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 30_000, 'occurred_on' => '2026-10-05']);
+it('shows the expected leftover from the plan and the overspending so far', function (): void {
+    // 75 000 spent on fuel is over the 60 000 plan, so fuel counts with 75 000 (not extrapolated by pace).
+    Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 75_000, 'occurred_on' => '2026-10-05']);
 
     $overview = resolve(OverviewService::class)->forUser($this->user);
 
-    expect($overview->forecast->expectedLeftover)->toBe(500_000 - 200_000 - 84_545 - 90_000)
+    expect($overview->forecast->expectedLeftover)->toBe(500_000 - 200_000 - 75_000 - 90_000)
         ->and($overview->forecast->remainingDays)->toBe(21);
 
     $this->get(route('dashboard'))
         ->assertOk()
-        ->assertSee(money_number(125_455))
+        ->assertSee(money_number(135_000))
         ->assertSee('Fuel')
         ->assertSee('Rent');
 });

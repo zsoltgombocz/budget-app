@@ -14,7 +14,7 @@ function forecastPlan(): array
     ];
 }
 
-it('trusts the plan before the fifth day', function (): void {
+it('trusts the plan while spending stays within it', function (): void {
     $forecast = new ForecastService()->forecast(forecastPlan(), 500_000, [3 => 20_000], totalDays: 30, elapsedDays: 4);
 
     expect($forecast->expectedLeftover)->toBe(50_000)
@@ -22,19 +22,19 @@ it('trusts the plan before the fifth day', function (): void {
         ->and($forecast->committed)->toBe(300_000);
 });
 
-it('projects spending linearly from the fifth day', function (): void {
-    $forecast = new ForecastService()->forecast(forecastPlan(), 500_000, [3 => 30_000, 4 => 10_000], totalDays: 30, elapsedDays: 10);
+it('does not extrapolate a one-off purchase over the rest of the period', function (): void {
+    $forecast = new ForecastService()->forecast(forecastPlan(), 500_000, [3 => 91_000, 4 => 10_000], totalDays: 31, elapsedDays: 5);
 
-    // Fuel: 30 000 × 30 / 10 = 90 000 > 60 000 plan; groceries projection 30 000 < 90 000 plan.
-    expect($forecast->variableExpected)->toBe(180_000)
-        ->and($forecast->expectedLeftover)->toBe(20_000);
+    // Fuel counts with what was spent (91 000), not 91 000 × 31 / 5; groceries stay at the 90 000 plan.
+    expect($forecast->variableExpected)->toBe(181_000)
+        ->and($forecast->expectedLeftover)->toBe(19_000);
 });
 
 it('never expects less than what was already spent', function (): void {
     $service = new ForecastService;
 
-    expect($service->expectedSpend(planned: 60_000, spent: 70_000, totalDays: 30, elapsedDays: 2))->toBe(70_000)
-        ->and($service->expectedSpend(planned: 60_000, spent: 70_000, totalDays: 30, elapsedDays: 30))->toBe(70_000);
+    expect($service->expectedSpend(planned: 60_000, spent: 70_000))->toBe(70_000)
+        ->and($service->expectedSpend(planned: 60_000, spent: 20_000))->toBe(60_000);
 });
 
 it('includes spending in categories without a plan line', function (): void {
