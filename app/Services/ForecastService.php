@@ -10,16 +10,11 @@ use App\Services\Data\PlanLine;
 final class ForecastService
 {
     /**
-     * Before this day of the period the plan is trusted over the linear projection.
-     */
-    public const int PROJECTION_START_DAY = 5;
-
-    /**
      * Expected end-of-period leftover at the current spending pace.
      *
      * Fixed, transfer, loan and sinking lines always count with their planned amount.
-     * Variable categories count with max(plan, spent, linear projection) from day 5 on,
-     * and with max(plan, spent) before that.
+     * Variable categories count with max(plan, spent): a one-off purchase is not
+     * extrapolated over the rest of the period.
      *
      * @param  list<PlanLine>  $lines
      * @param  array<int, int>  $spentByCategory  category id => spent amount
@@ -60,7 +55,7 @@ final class ForecastService
                 categoryName: $names[$categoryId] ?? '',
                 planned: $planned,
                 spent: $spent,
-                expected: $this->expectedSpend($planned, $spent, $totalDays, $elapsedDays),
+                expected: $this->expectedSpend($planned, $spent),
             );
         }
 
@@ -83,17 +78,9 @@ final class ForecastService
         );
     }
 
-    public function expectedSpend(int $planned, int $spent, int $totalDays, int $elapsedDays): int
+    public function expectedSpend(int $planned, int $spent): int
     {
-        $expected = max($planned, $spent);
-
-        if ($elapsedDays < self::PROJECTION_START_DAY) {
-            return $expected;
-        }
-
-        $projection = (int) round($spent * $totalDays / $elapsedDays);
-
-        return max($expected, $projection);
+        return max($planned, $spent);
     }
 
     /**
