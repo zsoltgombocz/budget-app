@@ -40,13 +40,13 @@ it('lets admins in', function (): void {
     expect(Gate::forUser($admin)->allows('viewPulse'))->toBeTrue();
 });
 
-it('links the Nightwatch dashboard from the admin menu', function (): void {
-    config(['budget.nightwatch_url' => 'https://nightwatch.laravel.com/eu/environments/test/dashboard']);
+it('links the Sentry issues from the admin menu', function (): void {
+    config(['budget.sentry_url' => 'https://moneysight.sentry.io/issues/']);
 
     $this->actingAs(Admin::factory()->create(), 'admin')
         ->get('/admin')
         ->assertOk()
-        ->assertSee('https://nightwatch.laravel.com/eu/environments/test/dashboard', false);
+        ->assertSee('https://moneysight.sentry.io/issues/', false);
 });
 
 it('signs an admin in with the emailed code', function (): void {

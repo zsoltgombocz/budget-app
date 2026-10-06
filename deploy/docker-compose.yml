@@ -48,15 +48,6 @@ services:
     user: www-data
     command: ["php", "artisan", "pulse:check"]
 
-  # Laravel Nightwatch agent. Starts only with COMPOSE_PROFILES=nightwatch and a NIGHTWATCH_TOKEN
-  # in .env; the app sends its events to nightwatch:2407 (NIGHTWATCH_INGEST_URI).
-  nightwatch:
-    <<: *app
-    container_name: ${STACK_NAME:-budget-app}-nightwatch
-    user: www-data
-    profiles: ["nightwatch"]
-    command: ["php", "artisan", "nightwatch:agent", "--listen-on=0.0.0.0:2407"]
-
   mariadb:
     image: mariadb:11.4
     container_name: ${STACK_NAME:-budget-app}-mariadb

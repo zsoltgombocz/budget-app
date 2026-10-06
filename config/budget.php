@@ -18,7 +18,7 @@ return [
     'admin_domain' => env('ADMIN_DOMAIN'),
 
     /*
-     * Laravel Nightwatch dashboard of production, linked from the admin menu. Empty hides the link.
+     * Sentry issues page of production, linked from the admin menu.
      */
-    'nightwatch_url' => env('NIGHTWATCH_DASHBOARD_URL', 'https://nightwatch.laravel.com/eu/environments/a2e22eba-0c1a-4407-94d4-5141b72e3981/dashboard'),
+    'sentry_url' => env('SENTRY_DASHBOARD_URL') ?: 'https://moneysight.sentry.io/issues/?project=4512205235552336',
 ];

@@ -19,6 +19,10 @@ RUN bun run build
 
 FROM php:8.4-fpm AS app
 
+# Commit the image was built from; Sentry groups errors by it.
+ARG APP_REVISION=""
+ENV SENTRY_RELEASE=${APP_REVISION}
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libicu-dev \
         libzip-dev \

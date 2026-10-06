@@ -4,10 +4,12 @@ use App\Http\Middleware\DevGate;
 use App\Http\Middleware\EnsureOnboarded;
 use App\Http\Middleware\SetUserLocale;
 use App\Http\Middleware\TrackUserActivity;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Sentry\Laravel\Integration;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -39,6 +41,12 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        Integration::handles($exceptions);
+
+        // The same error (class + place) is reported at most 20 times a day, so a hot bug or a
+        // flood cannot use up the Sentry quota; the first reports already open the issue.
+        $exceptions->throttle(fn (Throwable $e): Limit => Limit::perDay(20)->by($e::class.'@'.$e->getFile().':'.$e->getLine()));
+
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request): bool => $request->is('api/*') || $request->expectsJson(),
         );
