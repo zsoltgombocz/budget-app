@@ -216,6 +216,7 @@ new #[Title('Month')] class extends Component {
             <div class="mt-3.5 grid grid-cols-2 gap-2 border-t border-line pt-3.5 text-xs" data-test="close-now">
                 <span><span class="block text-muted">{{ __('If you closed today') }}</span><span @class(['num block text-[17px] font-semibold', 'text-accent' => $closeLeftover >= 0, 'text-danger' => $closeLeftover < 0])>{{ money($closeLeftover) }}</span></span>
                 <span class="text-right"><span class="block text-muted">{{ __('vs. the plan') }}</span><span @class(['num block text-[17px] font-semibold', 'text-accent' => $closeDiff > 0, 'text-danger' => $closeDiff < 0, 'text-muted' => $closeDiff === 0])>{{ $closeDiff > 0 ? '+' : '' }}{{ money($closeDiff) }}</span></span>
+                <span class="col-span-2 text-pretty text-muted">{{ __('Based on your spending so far: what you have not spent yet counts as leftover.') }}</span>
             </div>
             <a href="{{ route('close', $period) }}" wire:navigate class="mt-3.5 flex h-12 items-center justify-center gap-2 rounded-2xl bg-surface-2 text-[15px] font-semibold" data-test="start-close">
                 <x-ui.icon name="task_alt" :size="20" class="text-accent" />{{ __('Close the month') }}
