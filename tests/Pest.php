@@ -45,3 +45,24 @@ function onboardedUser(array $settings = []): User
 
     return $user->refresh();
 }
+
+/**
+ * A GetCurrentExchangeRates answer as MNB sends it: the rates are an escaped XML document.
+ *
+ * @param  array<string, array{0: int, 1: string}>  $rates  code => [unit, value with a decimal comma]
+ */
+function mnbSoapResponse(array $rates, string $date = '2026-10-08'): string
+{
+    $inner = '<MNBCurrentExchangeRates><Day date="'.$date.'">';
+
+    foreach ($rates as $code => [$unit, $value]) {
+        $inner .= '<Rate unit="'.$unit.'" curr="'.$code.'">'.$value.'</Rate>';
+    }
+
+    $inner .= '</Day></MNBCurrentExchangeRates>';
+
+    return '<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body>'
+        .'<GetCurrentExchangeRatesResponse xmlns="http://www.mnb.hu/webservices/" xmlns:i="http://www.w3.org/2001/XMLSchema-instance">'
+        .'<GetCurrentExchangeRatesResult>'.htmlspecialchars($inner, ENT_XML1).'</GetCurrentExchangeRatesResult>'
+        .'</GetCurrentExchangeRatesResponse></s:Body></s:Envelope>';
+}
