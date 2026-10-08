@@ -36,7 +36,7 @@
                 <x-ui.icon name="info" :size="24" x-show="! danger" />
             </div>
             <div class="mt-4 text-lg font-semibold leading-snug" x-text="title"></div>
-            <p class="mt-1.5 text-[14px] leading-relaxed text-muted" x-show="body" x-text="body"></p>
+            <p class="mt-1.5 max-h-[55vh] overflow-y-auto whitespace-pre-line text-[14px] leading-relaxed text-muted" x-show="body" x-text="body"></p>
             <div class="mt-5 grid grid-cols-2 gap-2.5">
                 <x-ui.button variant="secondary" size="md" x-on:click="answer(false)" data-test="confirm-cancel">{{ __('Cancel') }}</x-ui.button>
                 <x-ui.button size="md" x-on:click="answer(true)" ::class="danger && '!bg-danger !text-white'" data-test="confirm-ok"><span x-text="confirmLabel"></span></x-ui.button>

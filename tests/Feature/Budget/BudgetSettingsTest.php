@@ -7,7 +7,7 @@ use App\Models\Category;
 use App\Models\Pocket;
 use Livewire\Livewire;
 
-it('updates the period and the base currency', function (): void {
+it('updates the period right away', function (): void {
     $user = onboardedUser();
     $this->actingAs($user);
 
@@ -16,7 +16,6 @@ it('updates the period and the base currency', function (): void {
     Livewire::test('pages::settings.budget')
         ->set('periodMode', 'payday')
         ->set('paydayDay', 10)
-        ->set('currency', 'EUR')
         ->assertHasNoErrors()
         ->assertNotDispatched('app-toast');
 
@@ -24,7 +23,7 @@ it('updates the period and the base currency', function (): void {
 
     expect($settings->period_mode)->toBe(PeriodMode::Payday)
         ->and($settings->payday_day)->toBe(10)
-        ->and($settings->currency)->toBe(Currency::EUR);
+        ->and($settings->currency)->toBe(Currency::HUF);
 });
 
 it('saves language and time zone from the appearance page right away', function (): void {

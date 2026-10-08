@@ -27,6 +27,7 @@ final class ResetBudget
             $user->loans()->delete();
             $user->accounts()->delete();
             $user->dayMarks()->delete();
+            $user->currencyConversions()->delete();
 
             $user->unsetRelation('budgetSetting');
         });

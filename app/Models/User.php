@@ -197,6 +197,16 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
     }
 
     /**
+     * Base currency changes, oldest first; the newest one is undone first when switching back.
+     *
+     * @return HasMany<CurrencyConversion, $this>
+     */
+    public function currencyConversions(): HasMany
+    {
+        return $this->hasMany(CurrencyConversion::class);
+    }
+
+    /**
      * @return HasMany<PeriodClose, $this>
      */
     public function periodCloses(): HasMany
