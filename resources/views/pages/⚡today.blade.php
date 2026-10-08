@@ -175,6 +175,8 @@ new #[Title('Today')] class extends Component {
         <x-ui.icon name="chevron_right" :size="22" class="text-faint" />
     </button>
 
+    <livewire:capture-inbox />
+
     @if (! $this->hasSpending)
         <x-ui.empty-state icon="receipt_long" :title="__('No spending recorded yet')" class="mx-4 mb-3" data-test="empty-state">
             {{ __('Your income and fixed items are already in. You only need to write down the variable spending – or tap once if you did not spend today.') }}

@@ -16,7 +16,7 @@ it('gives every section a way back to the menu', function (string $route): void 
     $this->actingAs(onboardedUser());
 
     $this->get(route($route))->assertOk()->assertSee('data-test="settings-back"', false)->assertSee(route('settings'));
-})->with(['budget.edit', 'notifications.edit', 'appearance.edit', 'profile.edit', 'security.edit']);
+})->with(['budget.edit', 'notifications.edit', 'capture.edit', 'appearance.edit', 'profile.edit', 'security.edit']);
 
 it('saves notification settings right away', function (): void {
     $user = onboardedUser();
