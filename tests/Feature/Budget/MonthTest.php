@@ -57,7 +57,7 @@ it('shows what the month would close with today, against the plan', function ():
 
     $this->get(route('month'))
         ->assertOk()
-        ->assertSeeInOrder(['data-test="close-now"', 'If you closed today', money($preview->leftover()), 'vs. the plan', '+'.money(75_000)], false);
+        ->assertSeeInOrder(['data-test="close-now"', 'If you closed today', 'vs. the plan', money_number($preview->leftover()), '+'.money(75_000), 'Variable spending so far'], false);
 });
 
 it('does not show the close-now figures for a closed period', function (): void {

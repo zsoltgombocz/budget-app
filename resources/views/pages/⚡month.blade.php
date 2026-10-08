@@ -201,23 +201,32 @@ new #[Title('Month')] class extends Component {
     </div>
 
     <x-ui.card class="mx-4 mb-1 mt-[18px] rounded-[22px] px-[18px] py-4">
-        <div class="num flex items-baseline justify-between text-[13px] text-muted">
-            <span>{{ __('Variable spending so far') }}</span>
-            <span>{{ __('budget :amount', ['amount' => money($forecast->variablePlanned)]) }}</span>
-        </div>
-        <x-ui.amount :value="$forecast->variableSpent" size="lg" class="mt-1 [&>span:first-child]:text-[26px]" />
-        <x-ui.bar :value="$forecast->variablePlanned > 0 ? $forecast->variableSpent / $forecast->variablePlanned : 0" :tone="$forecast->variableSpent > $forecast->variablePlanned ? 'danger' : ($forecast->variablePlanned > 0 && $forecast->variableSpent / $forecast->variablePlanned >= 0.8 ? 'warn' : 'accent')" class="mt-2.5" />
-
         @if ($period->isOpen())
             @php
                 $closeLeftover = $this->closePreview->leftover();
                 $closeDiff = $closeLeftover - $this->closePreview->plannedLeftover();
             @endphp
-            <div class="mt-3.5 grid grid-cols-2 gap-2 border-t border-line pt-3.5 text-xs" data-test="close-now">
-                <span><span class="block text-muted">{{ __('If you closed today') }}</span><span @class(['num block text-[17px] font-semibold', 'text-accent' => $closeLeftover >= 0, 'text-danger' => $closeLeftover < 0])>{{ money($closeLeftover) }}</span></span>
-                <span class="text-right"><span class="block text-muted">{{ __('vs. the plan') }}</span><span @class(['num block text-[17px] font-semibold', 'text-accent' => $closeDiff > 0, 'text-danger' => $closeDiff < 0, 'text-muted' => $closeDiff === 0])>{{ $closeDiff > 0 ? '+' : '' }}{{ money($closeDiff) }}</span></span>
-                <span class="col-span-2 text-pretty text-muted">{{ __('Based on your spending so far: what you have not spent yet counts as leftover.') }}</span>
+            <div class="mb-3.5 border-b border-line pb-3.5" data-test="close-now">
+                <div class="num flex items-baseline justify-between text-[13px] text-muted">
+                    <span>{{ __('If you closed today') }}</span>
+                    <span>{{ __('vs. the plan') }}</span>
+                </div>
+                <div class="mt-1 flex items-baseline justify-between gap-3">
+                    <x-ui.amount :value="$closeLeftover" size="lg" :tone="$closeLeftover >= 0 ? 'accent' : 'danger'" class="[&>span:first-child]:text-[26px]" />
+                    <span @class(['num text-[17px] font-semibold', 'text-accent' => $closeDiff > 0, 'text-danger' => $closeDiff < 0, 'text-muted' => $closeDiff === 0])>{{ $closeDiff > 0 ? '+' : '' }}{{ money($closeDiff) }}</span>
+                </div>
+                <div class="mt-1.5 text-xs text-pretty text-muted">{{ __('Based on your spending so far: what you have not spent yet counts as leftover.') }}</div>
             </div>
+        @endif
+
+        <div class="num flex items-baseline justify-between text-[13px] text-muted">
+            <span>{{ __('Variable spending so far') }}</span>
+            <span>{{ __('budget :amount', ['amount' => money($forecast->variablePlanned)]) }}</span>
+        </div>
+        <x-ui.amount :value="$forecast->variableSpent" class="mt-1" />
+        <x-ui.bar :value="$forecast->variablePlanned > 0 ? $forecast->variableSpent / $forecast->variablePlanned : 0" :tone="$forecast->variableSpent > $forecast->variablePlanned ? 'danger' : ($forecast->variablePlanned > 0 && $forecast->variableSpent / $forecast->variablePlanned >= 0.8 ? 'warn' : 'accent')" class="mt-2.5" />
+
+        @if ($period->isOpen())
             <a href="{{ route('close', $period) }}" wire:navigate class="mt-3.5 flex h-12 items-center justify-center gap-2 rounded-2xl bg-surface-2 text-[15px] font-semibold" data-test="start-close">
                 <x-ui.icon name="task_alt" :size="20" class="text-accent" />{{ __('Close the month') }}
             </a>
