@@ -195,7 +195,7 @@ new #[Title('Automatic capture')] class extends Component {
             <div class="mt-4 text-sm leading-snug text-ink-2">
                 {{-- iPhone: Shortcuts personal automation with the Wallet "Transaction" trigger (iOS 17+). --}}
                 <div x-show="platform === 'ios'" class="flex flex-col gap-3" data-test="guide-ios">
-                    <p class="text-xs text-muted">{{ __('Needs iOS 17 or newer and Apple Pay. Works for payments made with the iPhone or Apple Watch.') }}</p>
+                    <p class="text-xs text-muted">{{ __('Needs iOS 17 or newer. Works for Apple Pay payments made with the iPhone.') }}</p>
                     <ol class="flex flex-col gap-2.5">
                         {!! $step('1', __('Tap :button above and copy the key.', ['button' => $b(__('Key for iPhone'))])) !!}
                         @if ($shortcutUrl)
@@ -217,7 +217,7 @@ new #[Title('Automatic capture')] class extends Component {
 
                 {{-- Android: MacroDroid forwards bank notifications until there is a native app. --}}
                 <div x-show="platform === 'android'" x-cloak class="flex flex-col gap-3" data-test="guide-android">
-                    <p class="text-xs text-muted">{{ __('A web app cannot read notifications, so the free MacroDroid app forwards the payment notifications of the apps you choose. Nothing else is sent.') }}</p>
+                    <p class="text-xs text-muted">{{ __('A web app cannot read notifications, so the free MacroDroid app forwards the notifications of the apps you choose (your bank, Google Wallet). We keep only the payments from them.') }}</p>
                     <ol class="flex flex-col gap-2.5">
                         {!! $step('1', __('Tap :button above and copy the key.', ['button' => $b(__('Key for Android'))])) !!}
                         {!! $step('2', __('Install MacroDroid from Google Play and give it notification access when it asks.')) !!}
@@ -252,7 +252,7 @@ new #[Title('Automatic capture')] class extends Component {
                 <li>{{ __('A card payment in your currency is recorded at once and counts in the expected leftover and in what you can still spend today.') }}</li>
                 <li>{{ __('A payment in another currency, a refund, a possible duplicate of what you typed in, or one from a closed month waits on the Today screen until you decide. Until then it does not count.') }}</li>
                 <li>{{ __('Incoming money, transfers, cash withdrawals and declined payments are skipped. Nothing is ever moved between pockets.') }}</li>
-                <li>{{ __('We keep only the amount, currency, shop and time. The full notification text is kept for at most 7 days to fix reading errors, then deleted.') }}</li>
+                <li>{{ __('We keep only the amount, currency, shop, time and phone type. The full notification text is kept for at most 7 days to fix reading errors, then deleted.') }}</li>
             </ul>
         </x-ui.card>
     </div>

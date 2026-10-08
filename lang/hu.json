@@ -850,7 +850,7 @@
     "Once you move a shop’s payment to another category, its next payments go there by themselves.": "Ha egy bolt fizetését áthelyezed másik kategóriába, a következők maguktól oda kerülnek.",
     "First quick entry category": "Első gyors rögzítési kategória",
     "Set up your phone": "A telefon beállítása",
-    "Needs iOS 17 or newer and Apple Pay. Works for payments made with the iPhone or Apple Watch.": "iOS 17 vagy újabb és Apple Pay kell hozzá. Az iPhone-nal vagy Apple Watch-csal fizetett tételekre működik.",
+    "Needs iOS 17 or newer. Works for Apple Pay payments made with the iPhone.": "iOS 17 vagy újabb kell hozzá. Az iPhone-nal fizetett Apple Pay tételekre működik.",
     "Tap :button above and copy the key.": "Koppints fent a :button gombra, és másold ki a kulcsot.",
     "Add the MoneySight shortcut and paste the key when it asks for it.": "Add hozzá a MoneySight parancsot, és illeszd be a kulcsot, amikor kéri.",
     "In the Shortcuts app open :automation → :plus → :transaction. Choose your cards, set :immediately, then choose the :shortcut shortcut.": "A Parancsok appban nyisd meg: :automation → :plus → :transaction. Válaszd ki a kártyáidat, állítsd be: :immediately, majd válaszd a :shortcut parancsot.",
@@ -866,7 +866,7 @@
     ":amount: Shortcut Input → Amount, :merchant: Shortcut Input → Merchant, :platform: ios.": ":amount: Parancs bemenete → Összeg, :merchant: Parancs bemenete → Kereskedő, :platform: ios.",
     "Pay once, or run the automation by hand: the box at the top shows when it arrives.": "Fizess egyszer, vagy futtasd kézzel az automatizálást: a fenti doboz mutatja, ha megérkezett.",
     "Add the shortcut": "Parancs hozzáadása",
-    "A web app cannot read notifications, so the free MacroDroid app forwards the payment notifications of the apps you choose. Nothing else is sent.": "Webes app nem olvashatja az értesítéseket, ezért az ingyenes MacroDroid app továbbítja a kiválasztott appok fizetési értesítéseit. Mást nem küld.",
+    "A web app cannot read notifications, so the free MacroDroid app forwards the notifications of the apps you choose (your bank, Google Wallet). We keep only the payments from them.": "Webes app nem olvashatja az értesítéseket, ezért az ingyenes MacroDroid app továbbítja a kiválasztott appok (a bankod, a Google Wallet) értesítéseit. Ezekből csak a fizetéseket tartjuk meg.",
     "Install MacroDroid from Google Play and give it notification access when it asks.": "Telepítsd a MacroDroidot a Google Playről, és adj neki értesítés-hozzáférést, amikor kéri.",
     "New macro → trigger :trigger → :received. Choose your bank apps and Google Wallet.": "Új makró → indító: :trigger → :received. Válaszd ki a banki appjaidat és a Google Walletet.",
     "Notification": "Értesítés",
@@ -882,5 +882,5 @@
     "A card payment in your currency is recorded at once and counts in the expected leftover and in what you can still spend today.": "A saját pénznemedben fizetett kártyás tétel azonnal rögzül, és beleszámít a várható maradékba és abba, amit ma még elkölthetsz.",
     "A payment in another currency, a refund, a possible duplicate of what you typed in, or one from a closed month waits on the Today screen until you decide. Until then it does not count.": "A más pénznemű fizetés, a visszatérítés, a kézzel már rögzítettel egyező, vagy lezárt hónapba eső tétel a Ma képernyőn vár, amíg nem döntesz. Addig nem számít bele.",
     "Incoming money, transfers, cash withdrawals and declined payments are skipped. Nothing is ever moved between pockets.": "A bejövő pénzt, az utalásokat, a készpénzfelvételt és az elutasított fizetéseket kihagyjuk. Perselyek között semmi nem mozdul.",
-    "We keep only the amount, currency, shop and time. The full notification text is kept for at most 7 days to fix reading errors, then deleted.": "Csak az összeget, a pénznemet, a boltot és az időpontot tároljuk. A teljes értesítésszöveget legfeljebb 7 napig őrizzük a felismerési hibák javításához, utána töröljük."
+    "We keep only the amount, currency, shop, time and phone type. The full notification text is kept for at most 7 days to fix reading errors, then deleted.": "Csak az összeget, a pénznemet, a boltot, az időpontot és a telefon típusát tároljuk. A teljes értesítésszöveget legfeljebb 7 napig őrizzük a felismerési hibák javításához, utána töröljük."
 }
