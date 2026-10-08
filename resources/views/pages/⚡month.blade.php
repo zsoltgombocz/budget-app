@@ -4,7 +4,9 @@ use App\Enums\LineType;
 use App\Models\Category;
 use App\Models\Period;
 use App\Models\User;
+use App\Services\Data\ClosePreview;
 use App\Services\OverviewService;
+use App\Services\PeriodCloser;
 use App\Services\PeriodService;
 use App\Support\Dates;
 use App\Support\Icons;
@@ -51,7 +53,7 @@ new #[Title('Month')] class extends Component {
     #[On('budget-updated')]
     public function refresh(): void
     {
-        unset($this->period, $this->days, $this->overview, $this->neighbours);
+        unset($this->period, $this->days, $this->overview, $this->neighbours, $this->closePreview);
     }
 
     #[Computed]
@@ -66,6 +68,15 @@ new #[Title('Month')] class extends Component {
         $today = app(PeriodService::class)->today($this->user()->settings());
 
         return app(OverviewService::class)->forPeriod($this->user(), $this->period, $today);
+    }
+
+    /**
+     * What the closing wizard would show if the period were closed today.
+     */
+    #[Computed]
+    public function closePreview(): ClosePreview
+    {
+        return app(PeriodCloser::class)->preview($this->user(), $this->period);
     }
 
     /**
@@ -198,6 +209,14 @@ new #[Title('Month')] class extends Component {
         <x-ui.bar :value="$forecast->variablePlanned > 0 ? $forecast->variableSpent / $forecast->variablePlanned : 0" :tone="$forecast->variableSpent > $forecast->variablePlanned ? 'danger' : ($forecast->variablePlanned > 0 && $forecast->variableSpent / $forecast->variablePlanned >= 0.8 ? 'warn' : 'accent')" class="mt-2.5" />
 
         @if ($period->isOpen())
+            @php
+                $closeLeftover = $this->closePreview->leftover();
+                $closeDiff = $closeLeftover - $this->closePreview->plannedLeftover();
+            @endphp
+            <div class="mt-3.5 grid grid-cols-2 gap-2 border-t border-line pt-3.5 text-xs" data-test="close-now">
+                <span><span class="block text-muted">{{ __('If you closed today') }}</span><span @class(['num block text-[17px] font-semibold', 'text-accent' => $closeLeftover >= 0, 'text-danger' => $closeLeftover < 0])>{{ money($closeLeftover) }}</span></span>
+                <span class="text-right"><span class="block text-muted">{{ __('vs. the plan') }}</span><span @class(['num block text-[17px] font-semibold', 'text-accent' => $closeDiff > 0, 'text-danger' => $closeDiff < 0, 'text-muted' => $closeDiff === 0])>{{ $closeDiff > 0 ? '+' : '' }}{{ money($closeDiff) }}</span></span>
+            </div>
             <a href="{{ route('close', $period) }}" wire:navigate class="mt-3.5 flex h-12 items-center justify-center gap-2 rounded-2xl bg-surface-2 text-[15px] font-semibold" data-test="start-close">
                 <x-ui.icon name="task_alt" :size="20" class="text-accent" />{{ __('Close the month') }}
             </a>

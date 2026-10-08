@@ -27,6 +27,14 @@ final readonly class ClosePreview
         public array $prepayReady,
     ) {}
 
+    /**
+     * What would be left if the period went exactly to plan.
+     */
+    public function plannedLeftover(): int
+    {
+        return $this->incomeActual - $this->plannedTotal;
+    }
+
     public function leftover(): int
     {
         return $this->incomeActual + $this->topUps - $this->actualTotal;

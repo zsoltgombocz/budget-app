@@ -267,14 +267,13 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         @endif
 
         @php
-            $plannedLeftover = $preview->incomeActual - $preview->plannedTotal;
             $variableRows = array_values(array_filter($preview->categories, fn ($row) => $row['type'] === 'variable'));
             $fixedCount = count($preview->categories) - count($variableRows);
             $variableDiff = array_sum(array_column($variableRows, 'diff'));
         @endphp
 
         <div class="mx-4 mb-3 mt-[18px] grid grid-cols-2 gap-3 rounded-[22px] bg-surface px-[18px] py-4">
-            <div><div class="text-xs text-muted">{{ __('Planned leftover') }}</div><div class="num mt-1 text-xl font-semibold text-ink-2">{{ money($plannedLeftover) }}</div></div>
+            <div><div class="text-xs text-muted">{{ __('Planned leftover') }}</div><div class="num mt-1 text-xl font-semibold text-ink-2">{{ money($preview->plannedLeftover()) }}</div></div>
             <div><div class="text-xs text-muted">{{ __('Actual leftover') }}</div><div @class(['num mt-1 text-xl font-semibold', 'text-accent' => $preview->leftover() >= 0, 'text-danger' => $preview->leftover() < 0])>{{ money($preview->leftover()) }}</div></div>
         </div>
 

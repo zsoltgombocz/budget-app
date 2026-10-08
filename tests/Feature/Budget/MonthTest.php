@@ -2,6 +2,7 @@
 
 use App\Models\Category;
 use App\Models\Transaction;
+use App\Services\PeriodCloser;
 use App\Services\PeriodService;
 use Livewire\Livewire;
 
@@ -45,4 +46,24 @@ it('shows the payday and no-spend days in the timeline', function (): void {
     $this->user->dayMarks()->create(['date' => now()->toDateString()]);
 
     $this->get(route('month'))->assertSee('Salary')->assertSee("Didn't spend");
+});
+
+it('shows what the month would close with today, against the plan', function (): void {
+    Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 75_000]);
+
+    $preview = resolve(PeriodCloser::class)->preview($this->user, $this->period);
+
+    expect($preview->leftover() - $preview->plannedLeftover())->toBe(-75_000 + 60_000 + 90_000);
+
+    $this->get(route('month'))
+        ->assertOk()
+        ->assertSeeInOrder(['data-test="close-now"', 'If you closed today', money($preview->leftover()), 'vs. the plan', '+'.money(75_000)], false);
+});
+
+it('does not show the close-now figures for a closed period', function (): void {
+    resolve(PeriodCloser::class)->close($this->user, $this->period, $this->period->income());
+
+    Livewire::withQueryParams(['periodus' => $this->period->id])
+        ->test('pages::month')
+        ->assertDontSee('data-test="close-now"', false);
 });
