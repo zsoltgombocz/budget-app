@@ -4,7 +4,9 @@ use App\Enums\LineType;
 use App\Models\Category;
 use App\Models\Period;
 use App\Models\User;
+use App\Services\Data\ClosePreview;
 use App\Services\OverviewService;
+use App\Services\PeriodCloser;
 use App\Services\PeriodService;
 use App\Support\Dates;
 use App\Support\Icons;
@@ -51,7 +53,7 @@ new #[Title('Month')] class extends Component {
     #[On('budget-updated')]
     public function refresh(): void
     {
-        unset($this->period, $this->days, $this->overview, $this->neighbours);
+        unset($this->period, $this->days, $this->overview, $this->neighbours, $this->closePreview);
     }
 
     #[Computed]
@@ -66,6 +68,15 @@ new #[Title('Month')] class extends Component {
         $today = app(PeriodService::class)->today($this->user()->settings());
 
         return app(OverviewService::class)->forPeriod($this->user(), $this->period, $today);
+    }
+
+    /**
+     * What the closing wizard would show if the period were closed today.
+     */
+    #[Computed]
+    public function closePreview(): ClosePreview
+    {
+        return app(PeriodCloser::class)->preview($this->user(), $this->period);
     }
 
     /**
@@ -190,11 +201,29 @@ new #[Title('Month')] class extends Component {
     </div>
 
     <x-ui.card class="mx-4 mb-1 mt-[18px] rounded-[22px] px-[18px] py-4">
+        @if ($period->isOpen())
+            @php
+                $closeLeftover = $this->closePreview->leftover();
+                $closeDiff = $closeLeftover - $this->closePreview->plannedLeftover();
+            @endphp
+            <div class="mb-3.5 border-b border-line pb-3.5" data-test="close-now">
+                <div class="num flex items-baseline justify-between text-[13px] text-muted">
+                    <span>{{ __('If you closed today') }}</span>
+                    <span>{{ __('vs. the plan') }}</span>
+                </div>
+                <div class="mt-1 flex items-baseline justify-between gap-3">
+                    <x-ui.amount :value="$closeLeftover" size="lg" :tone="$closeLeftover >= 0 ? 'accent' : 'danger'" class="[&>span:first-child]:text-[26px]" />
+                    <span @class(['num text-[17px] font-semibold', 'text-accent' => $closeDiff > 0, 'text-danger' => $closeDiff < 0, 'text-muted' => $closeDiff === 0])>{{ $closeDiff > 0 ? '+' : '' }}{{ money($closeDiff) }}</span>
+                </div>
+                <div class="mt-1.5 text-xs text-pretty text-muted">{{ __('Based on your spending so far: what you have not spent yet counts as leftover.') }}</div>
+            </div>
+        @endif
+
         <div class="num flex items-baseline justify-between text-[13px] text-muted">
             <span>{{ __('Variable spending so far') }}</span>
             <span>{{ __('budget :amount', ['amount' => money($forecast->variablePlanned)]) }}</span>
         </div>
-        <x-ui.amount :value="$forecast->variableSpent" size="lg" class="mt-1 [&>span:first-child]:text-[26px]" />
+        <x-ui.amount :value="$forecast->variableSpent" class="mt-1" />
         <x-ui.bar :value="$forecast->variablePlanned > 0 ? $forecast->variableSpent / $forecast->variablePlanned : 0" :tone="$forecast->variableSpent > $forecast->variablePlanned ? 'danger' : ($forecast->variablePlanned > 0 && $forecast->variableSpent / $forecast->variablePlanned >= 0.8 ? 'warn' : 'accent')" class="mt-2.5" />
 
         @if ($period->isOpen())

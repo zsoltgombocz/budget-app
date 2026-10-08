@@ -6,6 +6,13 @@
  */
 return [
     [
+        'version' => '1.8.2',
+        'date' => '2026-10-08',
+        'changes' => [
+            ['hu' => 'A Hónap oldal tetején látod, mennyivel zárnád a hónapot, ha ma zárnál, és ez mennyivel jobb vagy rosszabb a tervnél. Ugyanaz a szám, mint a zárásnál.', 'en' => 'The top of the Month page shows what you would close the month with if you closed today, and how that compares to the plan. It is the same figure as in the closing.'],
+        ],
+    ],
+    [
         'version' => '1.8.1',
         'date' => '2026-10-05',
         'changes' => [
