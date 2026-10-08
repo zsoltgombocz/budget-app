@@ -1,4 +1,7 @@
 {
+    "Transfer due today": "Ma esedékes utalás",
+    "Due today": "Ma esedékes",
+    "The period has not ended yet. If you close it now, today is its last day and the new month starts today: what you record after closing goes there.": "A periódus még nem ért véget. Ha most zárod, a mai nap lesz az utolsó napja, és az új hónap már ma indul: amit zárás után rögzítesz, az oda kerül.",
     "Enter an amount between 0 and :max.": "Adj meg egy összeget 0 és :max között.",
     "The monthly amounts the Plan puts into pockets. Closing adds them to the pockets’ balances.": "A Tervben perselyekbe tett havi összegek. A zárás ennyivel növeli a perselyek egyenlegét.",
     "+:amount over": "+:amount túllépés",
@@ -454,7 +457,6 @@
     "The money leaves the pocket and is added to this period’s budget, so the expected leftover and the daily budget grow.": "A pénz kikerül a perselyből, és a periódus keretéhez adódik, így nő a várható maradék és a napi keret.",
     "The month-end leftover is waiting. Mark it as transferred in the app.": "A hó végi maradék utalásra vár. Ha kész, jelöld az appban.",
     "The new plan is copied from this one: :income income, :count fixed items": "Az új terv ebből másolódik: :income bevétel, :count fix tétel",
-    "The period has not ended yet. You can still close it early.": "A periódus még nem ért véget, de korábban is lezárhatod.",
     "The plan of this period is frozen, pocket balances are updated and the next period opens with a copy of the plan. Spending can no longer be recorded into this period.": "A periódus terve rögzül, a perselyek egyenlege frissül, és a következő periódus a terv másolatával indul. Ebbe a periódusba utána már nem lehet költést rögzíteni.",
     "The pocket does not have enough money.": "A perselyben nincs elég pénz.",
     "The rest goes to": "A többi ide megy",

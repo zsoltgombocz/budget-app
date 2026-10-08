@@ -193,9 +193,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
     #[Computed]
     public function nextBounds(): array
     {
-        $settings = $this->user()->settings();
-
-        return app(PeriodService::class)->boundsFor($settings->period_mode, $settings->payday_day, $this->period->ends_on->addDay());
+        return app(PeriodCloser::class)->nextBounds($this->user(), $this->period);
     }
 
     /**
@@ -261,7 +259,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
     $period = $this->period;
     $preview = $step <= 3 ? $this->preview : null;
     $currency = user_currency();
-    $month = Dates::monthName($period->starts_on);
+    $month = Dates::monthName($period->nameDate());
 @endphp
 
 <div>
@@ -292,7 +290,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         </div>
 
         @if ($this->isEarly)
-            <div class="mx-4 mt-4 flex gap-2 rounded-[18px] bg-warn/12 px-4 py-3 text-[13px] text-ink-2"><x-ui.icon name="info" :size="18" class="text-warn" />{{ __('The period has not ended yet. You can still close it early.') }}</div>
+            <div class="mx-4 mt-4 flex gap-2 rounded-[18px] bg-warn/12 px-4 py-3 text-[13px] text-ink-2"><x-ui.icon name="info" :size="18" class="text-warn" />{{ __('The period has not ended yet. If you close it now, today is its last day and the new month starts today: what you record after closing goes there.') }}</div>
         @endif
 
         @php
@@ -339,7 +337,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         @endphp
         <div class="px-6 pt-[22px]">
             <h1 class="text-[28px] font-semibold tracking-[-0.03em]">{{ $preview->leftover() >= 0 ? __('Split the leftover') : __('Cover the deficit') }}</h1>
-            <div class="mt-1 text-sm text-muted">{{ $preview->leftover() >= 0 ? __('Where should the :month leftover go?', ['month' => Dates::monthInSentence($period->starts_on, true)]) : __('You choose whether the deficit is taken from the reserve.') }}</div>
+            <div class="mt-1 text-sm text-muted">{{ $preview->leftover() >= 0 ? __('Where should the :month leftover go?', ['month' => Dates::monthInSentence($period->nameDate(), true)]) : __('You choose whether the deficit is taken from the reserve.') }}</div>
         </div>
         <x-ui.amount :value="$preview->leftover()" size="xl" :tone="$preview->leftover() >= 0 ? 'accent' : 'danger'" class="px-6 pt-[26px]" />
 
@@ -434,7 +432,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         @endphp
         <div class="px-6 pt-[22px]">
             <h1 class="text-[28px] font-semibold tracking-[-0.03em]">{{ __('Summary') }}</h1>
-            <div class="mt-1 text-sm text-muted">{{ __('One more look before closing :month.', ['month' => Dates::monthInSentence($period->starts_on)]) }}</div>
+            <div class="mt-1 text-sm text-muted">{{ __('One more look before closing :month.', ['month' => Dates::monthInSentence($period->nameDate())]) }}</div>
         </div>
 
         <div class="num mx-4 mb-3 mt-[18px] rounded-[22px] bg-surface px-[18px] py-1">
@@ -468,7 +466,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         </div>
 
         <div class="mx-4 rounded-[22px] border border-dashed border-ink/14 px-[18px] py-4">
-            <div class="text-[15px] font-semibold">{{ Dates::monthName($nextStart) }} · {{ Dates::range($nextStart, $nextEnd) }}</div>
+            <div class="text-[15px] font-semibold">{{ Dates::monthName(max($nextStart, $nextEnd->subDays(27))) }} · {{ Dates::range($nextStart, $nextEnd) }}</div>
             <div class="mt-1.5 text-[13px] leading-normal text-pretty text-muted">{{ $this->nextPeriodNote }}</div>
         </div>
     @else

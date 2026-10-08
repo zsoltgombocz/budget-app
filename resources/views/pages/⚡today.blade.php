@@ -164,6 +164,23 @@ new #[Title('Today')] class extends Component {
         </div>
     @endforeach
 
+    @if ($period->isOpen())
+        @foreach (array_filter($fixed, fn ($item) => ! $item->paid && $item->dueOn !== null && ! $item->dueOn->greaterThan($overview->today)) as $item)
+            @php
+                $isTransfer = in_array($item->line->type, [\App\Enums\LineType::Transfer, \App\Enums\LineType::Sinking], true);
+                $late = $item->dueOn->lessThan($overview->today);
+            @endphp
+            <div class="mx-4 mb-3 flex items-center gap-3 rounded-[22px] border border-accent/22 bg-accent/10 px-4 py-3.5" wire:key="due-{{ $item->line->lineId }}" data-test="due-item">
+                <x-ui.icon-tile icon="autorenew" tone="accent" />
+                <div class="min-w-0 flex-1">
+                    <div class="num truncate text-[15px] font-semibold">{{ $item->line->categoryName }} · {{ money($item->line->planned()) }}</div>
+                    <div @class(['truncate text-xs', 'text-warn' => $late, 'text-muted' => ! $late])>{{ $late ? __('was due :date', ['date' => \App\Support\Dates::short($item->dueOn)]) : ($isTransfer ? __('Transfer due today') : __('Due today')) }}</div>
+                </div>
+                <x-ui.button size="sm" variant="light" wire:click="togglePaid({{ (int) $item->line->lineId }})" data-test="mark-due-done">{{ $isTransfer ? __('Transferred') : __('Done') }}</x-ui.button>
+            </div>
+        @endforeach
+    @endif
+
     <button type="button" x-data x-on:click="$dispatch('open-entry')" class="mx-4 mb-3 flex w-[calc(100%-2rem)] items-center justify-between rounded-card bg-surface px-5 py-[18px] text-left" data-test="daily-allowance">
         <span>
             <span class="block text-[13px] text-muted">{{ __('You can still spend today') }}</span>

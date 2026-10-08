@@ -94,3 +94,23 @@ it('warns when the expected leftover is negative', function (): void {
 
     $this->get(route('dashboard'))->assertSee('data-test="negative-alert"', false)->assertSee('Fuel');
 });
+
+it('puts fixed items due today or overdue up top until they are done', function (): void {
+    $rent = BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail();
+
+    $rent->update(['due_day' => 20]);
+    Livewire::test('pages::today')->assertDontSee('data-test="due-item"', false);
+
+    $rent->update(['due_day' => 11]);
+    Livewire::test('pages::today')
+        ->assertSee('data-test="due-item"', false)
+        ->assertSee('Due today')
+        ->call('togglePaid', $rent->id)
+        ->assertDontSee('data-test="due-item"', false);
+});
+
+it('marks a fixed item that was due earlier as late', function (): void {
+    BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail()->update(['due_day' => 5]);
+
+    Livewire::test('pages::today')->assertSee('data-test="due-item"', false)->assertSee('was due');
+});

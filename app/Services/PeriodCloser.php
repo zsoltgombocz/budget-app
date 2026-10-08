@@ -13,6 +13,7 @@ use App\Notifications\SurplusTransferReminder;
 use App\Services\Data\Allocation;
 use App\Services\Data\ClosePreview;
 use App\Services\Data\PlanLine;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -33,6 +34,43 @@ final readonly class PeriodCloser
         private AllocationCalculator $allocations,
         private PeriodService $periods,
     ) {}
+
+    /**
+     * Start and end of the period that follows the closing. Closed before its last day, the next
+     * period starts on the closing day (what is recorded after closing goes there)
+     * and runs to the regular end of the following period.
+     *
+     * @return array{0: CarbonImmutable, 1: CarbonImmutable}
+     */
+    public function nextBounds(User $user, Period $period): array
+    {
+        $settings = $user->settings();
+        $today = $this->periods->today($settings);
+        [$start, $end] = $this->periods->boundsFor($settings->period_mode, $settings->payday_day, $period->ends_on->addDay());
+
+        if ($today->greaterThanOrEqualTo($period->starts_on) && $today->lessThan($period->ends_on)) {
+            return [$today, $end];
+        }
+
+        return [$start, $end];
+    }
+
+    /**
+     * Opens the next period on the closing day; a period already opened for later dates is moved
+     * to start then instead of overlapping it.
+     */
+    private function openEarly(User $user, CarbonImmutable $start, CarbonImmutable $end): void
+    {
+        $next = $user->periods()->whereDate('starts_on', '>', $start->toDateString())->oldest('starts_on')->first();
+
+        if ($next !== null) {
+            $next->update(['starts_on' => $start->toDateString()]);
+
+            return;
+        }
+
+        $this->periods->open($user, $start, $end, $user->settings()->income);
+    }
 
     /**
      * @param  int|null  $toReserve  manual split of a positive leftover; the rest goes to the surplus target
@@ -156,7 +194,9 @@ final readonly class PeriodCloser
         $close = DB::transaction(function () use ($user, $period, $incomeActual, $toReserve, $surplusTarget, $coverDeficit): PeriodClose {
             $lines = $this->plans->linesFor($period);
             $preview = $this->preview($user, $period, $incomeActual, $toReserve, $surplusTarget, $coverDeficit);
-            $closedOn = $period->ends_on->toDateString();
+            [$nextStart, $nextEnd] = $this->nextBounds($user, $period);
+            $closesEarly = $nextStart->lessThan($period->ends_on);
+            $closedOn = ($closesEarly ? $nextStart : $period->ends_on)->toDateString();
 
             foreach ($preview->pocketDeposits as $deposit) {
                 $this->move($user, $deposit['pocket_id'], $period, $deposit['amount'], PocketMovementType::Deposit, $closedOn, __('Monthly saving'));
@@ -182,6 +222,7 @@ final readonly class PeriodCloser
             }
 
             $period->update([
+                'ends_on' => $closedOn,
                 'income_actual' => $preview->incomeActual,
                 'status' => PeriodStatus::Closed,
                 'plan_snapshot' => $this->calculator->snapshot($lines),
@@ -201,7 +242,11 @@ final readonly class PeriodCloser
             $close->user_id = $user->id;
             $close->save();
 
-            $this->periods->forDate($user, $period->ends_on->addDay());
+            if ($closesEarly) {
+                $this->openEarly($user, $nextStart, $nextEnd);
+            } else {
+                $this->periods->forDate($user, $nextStart);
+            }
 
             return $close;
         });

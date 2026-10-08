@@ -300,3 +300,26 @@ it('offers to keep the leftover target only when it differs from the saved one',
         ->call('chooseTarget', 'pocket:'.$this->savings->id)
         ->assertDontSee('data-test="save-target"', false);
 });
+
+it('starts the new month on the day of an early closing', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-08 18:00', 'Europe/Budapest'));
+    spend($this->user, $this->period, $this->fuel, 10_000);
+
+    resolve(PeriodCloser::class)->close($this->user, $this->period);
+
+    $next = resolve(PeriodService::class)->current($this->user);
+
+    expect($this->period->refresh()->ends_on->toDateString())->toBe('2026-10-08')
+        ->and($this->period->status)->toBe(PeriodStatus::Closed)
+        ->and($next->starts_on->toDateString())->toBe('2026-10-08')
+        ->and($next->ends_on->toDateString())->toBe('2026-11-30')
+        ->and($next->isOpen())->toBeTrue()
+        ->and($next->nameDate()->month)->toBe(11)
+        ->and($this->period->nameDate()->month)->toBe(10);
+
+    $transaction = resolve(RecordTransaction::class)->handle($this->user, $this->groceries->id, 5_000);
+
+    expect($transaction->period_id)->toBe($next->id);
+
+    $this->get(route('month'))->assertOk()->assertSee('November')->assertSee('data-test="close-now"', false);
+});

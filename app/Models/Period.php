@@ -72,6 +72,15 @@ class Period extends Model
         return $this->hasOne(PeriodClose::class);
     }
 
+    /**
+     * The date whose month names the period. A period opened early by closing the previous one
+     * before its end (e.g. 8 Oct – 30 Nov) is named after the month it runs into.
+     */
+    public function nameDate(): CarbonImmutable
+    {
+        return CarbonImmutable::parse(max($this->starts_on, $this->ends_on->subDays(27))->toDateString());
+    }
+
     public function isOpen(): bool
     {
         return $this->status === PeriodStatus::Open;
