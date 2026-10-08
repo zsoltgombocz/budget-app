@@ -1,4 +1,6 @@
 {
+    "Enter an amount between 0 and :max.": "Adj meg egy összeget 0 és :max között.",
+    "The monthly amounts the Plan puts into pockets. Closing adds them to the pockets’ balances.": "A Tervben perselyekbe tett havi összegek. A zárás ennyivel növeli a perselyek egyenlegét.",
     "+:amount over": "+:amount túllépés",
     "2FA recovery codes": "Kétlépcsős helyreállító kódok",
     ":amount left": ":amount maradt",

@@ -78,6 +78,25 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
     }
 
     /**
+     * Sets one side of the leftover split from the numpad; the other side gets the rest.
+     *
+     * @return array{ok: bool, error: string|null}
+     */
+    public function setSplit(string $part, string $value): array
+    {
+        $amount = Money::parse($value, user_currency());
+        $leftover = max(0, $this->preview->leftover());
+
+        if ($amount === null || $amount > $leftover) {
+            return ['ok' => false, 'error' => __('Enter an amount between 0 and :max.', ['max' => money($leftover)])];
+        }
+
+        $this->split($part === 'reserve' ? $amount : $leftover - $amount);
+
+        return ['ok' => true, 'error' => null];
+    }
+
+    /**
      * @return array{ok: bool, error: string|null}
      */
     public function setIncome(string $value): array
@@ -202,6 +221,21 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         return $targets;
     }
 
+    /**
+     * The leftover target saved in the settings, as a target key.
+     */
+    #[Computed]
+    public function defaultTarget(): string
+    {
+        $settings = $this->user()->settings();
+
+        return match (true) {
+            $settings->surplus_account_id !== null => 'account:'.$settings->surplus_account_id,
+            $settings->surplus_pocket_id !== null => 'pocket:'.$settings->surplus_pocket_id,
+            default => 'none',
+        };
+    }
+
     #[Computed]
     public function reserveBalance(): int
     {
@@ -228,23 +262,18 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
     $preview = $step <= 3 ? $this->preview : null;
     $currency = user_currency();
     $month = Dates::monthName($period->starts_on);
-    $snap = $currency->decimals() > 0 ? 100 : 1000;
 @endphp
 
 <div>
 <div class="flex min-h-[calc(100dvh-var(--safe-top)-env(safe-area-inset-bottom))] flex-col pb-[calc(10rem+env(safe-area-inset-bottom))]"
      wire:key="wizard-{{ $step }}-{{ $incomeActual }}"
      x-data="closeWizard({
-        leftover: {{ $preview ? max(0, $preview->leftover()) : 0 }},
-        split: {{ $preview?->allocation->toReserve ?? 0 }},
-        reserveBalance: {{ $this->reserveBalance }},
-        snap: {{ $snap }},
         decimals: {{ $currency->decimals() }},
         locale: @js(str_replace('_', '-', app()->getLocale())),
         symbol: @js($currency->symbol()),
      })">
     @if ($step <= 3)
-        <div class="grid grid-cols-[44px_1fr_44px] items-center px-3 pt-1.5">
+        <div class="grid grid-cols-[44px_1fr_44px] items-center px-3 pt-4">
             @if ($step === 1)
                 <a href="{{ route('month', ['periodus' => $period->id]) }}" wire:navigate class="flex size-11 items-center justify-center text-ink-2" aria-label="{{ __('Close') }}"><x-ui.icon name="close" /></a>
             @else
@@ -315,55 +344,56 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         <x-ui.amount :value="$preview->leftover()" size="xl" :tone="$preview->leftover() >= 0 ? 'accent' : 'danger'" class="px-6 pt-[26px]" />
 
         @if ($preview->leftover() >= 0)
-            <div class="mx-4 mt-6 grid grid-cols-2 gap-3">
-                <div class="rounded-[22px] bg-surface p-4">
-                    <div class="flex items-center gap-2 text-[13px] text-ink-2"><span class="size-2.5 rounded-[3px] bg-accent"></span>{{ __('To the reserve') }}</div>
-                    <div class="num mt-2 text-2xl font-semibold" x-text="format(split)"></div>
-                    <div class="num mt-0.5 text-xs text-muted">@if ($hasReserve){{ __('new balance') }} <span x-text="format(reserveBalance + split)"></span>@else{{ __('no reserve pocket') }}@endif</div>
-                </div>
-                <div class="rounded-[22px] bg-surface p-4">
-                    <div class="flex items-center gap-2 text-[13px] text-ink-2"><span class="size-2.5 rounded-[3px] bg-ink-2"></span><span class="truncate">{{ $target }}</span></div>
-                    <div class="num mt-2 text-2xl font-semibold" x-text="format(leftover - split)"></div>
-                    <div class="mt-0.5 text-xs text-muted">{{ __('manual transfer') }}</div>
-                </div>
-            </div>
-
             @php
+                $leftover = $preview->leftover();
                 $current = match ($preview->surplusTarget['type']) {
                     'account', 'pocket' => $preview->surplusTarget['type'].':'.$preview->surplusTarget['id'],
                     'new-pocket' => 'new-pocket',
                     default => 'none',
                 };
+                $canSplit = $hasReserve && $leftover > 0;
             @endphp
-            <div class="mx-4 mt-5">
-                <x-ui.section-label :label="__('The rest goes to')" />
-                <div class="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4" data-test="surplus-targets">
-                    @foreach ($this->targets as $key => $label)
-                        <x-ui.choice :selected="$current === $key" wire:click="chooseTarget('{{ $key }}')" class="h-10 shrink-0 whitespace-nowrap rounded-xl px-3 text-[13px]" wire:key="target-{{ $key }}">{{ $label }}</x-ui.choice>
+            <div class="mx-4 mt-6 grid grid-cols-2 gap-3" data-test="split">
+                <button type="button" @if ($canSplit) x-on:click="edit('reserve', @js(str_replace('.', ',', Money::toInput($allocation->toReserve, $currency))), @js(__('To the reserve')))" @endif
+                        @class(['rounded-[22px] bg-surface p-4 text-left', 'cursor-default' => ! $canSplit]) data-test="edit-reserve" @disabled(! $canSplit)>
+                    <span class="flex items-center gap-2 text-[13px] text-ink-2"><span class="size-2.5 rounded-[3px] bg-accent"></span>{{ __('To the reserve') }}</span>
+                    <span class="num mt-2 flex items-center gap-1.5 text-2xl font-semibold">{{ money($allocation->toReserve) }}@if ($canSplit)<x-ui.icon name="edit" :size="16" class="text-faint" />@endif</span>
+                    <span class="num mt-0.5 block text-xs text-muted">@if ($hasReserve){{ __('new balance') }} {{ money($this->reserveBalance + $allocation->toReserve) }}@else{{ __('no reserve pocket') }}@endif</span>
+                </button>
+                <button type="button" @if ($canSplit) x-on:click="edit('rest', @js(str_replace('.', ',', Money::toInput($allocation->toSurplus, $currency))), @js($target))" @endif
+                        @class(['rounded-[22px] bg-surface p-4 text-left', 'cursor-default' => ! $canSplit]) data-test="edit-rest" @disabled(! $canSplit)>
+                    <span class="flex items-center gap-2 text-[13px] text-ink-2"><span class="size-2.5 shrink-0 rounded-[3px] bg-ink-2"></span><span class="truncate">{{ $target }}</span></span>
+                    <span class="num mt-2 flex items-center gap-1.5 text-2xl font-semibold">{{ money($allocation->toSurplus) }}@if ($canSplit)<x-ui.icon name="edit" :size="16" class="text-faint" />@endif</span>
+                    <span class="mt-0.5 block text-xs text-muted">{{ __('manual transfer') }}</span>
+                </button>
+            </div>
+
+            @if ($canSplit)
+                @php
+                    $restLabel = in_array($preview->surplusTarget['type'], ['pocket', 'new-pocket'], true) ? __('All to the pocket') : ($preview->surplusTarget['type'] === 'account' ? __('All to invest') : __('All stays'));
+                    $presets = [[__('All to the reserve'), $leftover], [__('Half and half'), (int) ceil($leftover / 2)], [$restLabel, 0]];
+                @endphp
+                <div class="mx-4 mt-3 grid gap-2" data-test="split-presets">
+                    @foreach ($presets as [$label, $value])
+                        <x-ui.choice :selected="$allocation->toReserve === $value" wire:click="split({{ $value }})" class="rounded-btn px-4 py-3 text-left text-[15px] font-semibold" wire:key="preset-{{ $loop->index }}">{{ $label }}</x-ui.choice>
                     @endforeach
                 </div>
-                @if ($surplusTarget !== null)
-                    <label class="mt-3 flex items-center justify-between rounded-[14px] bg-surface px-4 py-3 text-sm">
+            @endif
+
+            <div class="mx-4 mt-5">
+                <x-ui.section-label :label="__('The rest goes to')" />
+                <div class="grid gap-2" data-test="surplus-targets">
+                    @foreach ($this->targets as $key => $label)
+                        <x-ui.choice :selected="$current === $key" wire:click="chooseTarget('{{ $key }}')" class="rounded-btn px-4 py-3 text-left text-[15px] font-semibold" wire:key="target-{{ $key }}">{{ $label }}</x-ui.choice>
+                    @endforeach
+                </div>
+                @if ($current !== $this->defaultTarget)
+                    <label class="mt-3 flex items-center justify-between rounded-[14px] bg-surface px-4 py-3 text-sm" data-test="save-target">
                         <span>{{ __('Use it next time too') }}</span>
                         <x-ui.toggle :on="$saveTargetAsDefault" wire:click="$toggle('saveTargetAsDefault')" :aria-label="__('Use it next time too')" />
                     </label>
                 @endif
             </div>
-
-            @if ($hasReserve && $preview->leftover() > 0)
-                <div class="relative mx-6 mt-7 h-9">
-                    <div class="absolute inset-x-0 top-3.5 h-2 overflow-hidden rounded bg-ink-2"><div class="h-full bg-accent" :style="'width:' + pct() + '%'"></div></div>
-                    <div class="pointer-events-none absolute top-1 -ml-3.5 size-7 rounded-full bg-ink shadow-[0_2px_10px_rgba(0,0,0,0.5),0_0_0_4px_var(--app-bg)]" :style="'left:' + pct() + '%'"></div>
-                    <input type="range" min="0" :max="leftover" step="1" :value="split" x-on:input="slide($event.target.value)" x-on:change="commit()"
-                           class="absolute inset-0 h-full w-full cursor-pointer opacity-0" aria-label="{{ __('To the reserve') }}" data-test="split-slider">
-                </div>
-                <div class="mx-4 mt-[18px] flex justify-center gap-2">
-                    @foreach ([__('All to the reserve') => 'leftover', __('Half and half') => 'half', (in_array($preview->surplusTarget['type'], ['pocket', 'new-pocket'], true) ? __('All to the pocket') : ($preview->surplusTarget['type'] === 'account' ? __('All to invest') : __('All stays'))) => 'none'] as $label => $preset)
-                        <button type="button" x-on:click="preset(@js($preset))" class="h-10 whitespace-nowrap rounded-xl border px-3 text-[13px] font-medium"
-                                :class="isPreset(@js($preset)) ? 'border-accent bg-accent/14' : 'border-ink/8 bg-surface'">{{ $label }}</button>
-                    @endforeach
-                </div>
-            @endif
         @else
             @if ($hasReserve)
                 <div class="mx-4 mt-6">
@@ -389,6 +419,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         @if ($preview->pocketDeposits !== [])
             <div class="mx-4 mt-5">
                 <x-ui.section-label :label="__('Monthly pocket savings')" />
+                <div class="-mt-1 mb-2 px-1.5 text-xs text-pretty text-muted">{{ __('The monthly amounts the Plan puts into pockets. Closing adds them to the pockets’ balances.') }}</div>
                 <div class="rounded-[22px] bg-surface px-[18px]">
                     @foreach ($preview->pocketDeposits as $deposit)
                         <div wire:key="deposit-{{ $deposit['pocket_id'] }}" @class(['num flex justify-between py-3 text-sm', 'border-b border-line' => ! $loop->last])><span>{{ $deposit['name'] }}</span><span>+{{ money($deposit['amount']) }}</span></div>
@@ -407,7 +438,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         </div>
 
         <div class="num mx-4 mb-3 mt-[18px] rounded-[22px] bg-surface px-[18px] py-1">
-            <button type="button" x-on:click="editIncome(@js(str_replace('.', ',', Money::toInput($incomeActual, $currency))))" class="flex w-full items-center justify-between border-b border-line py-[13px] text-[15px]" data-test="income-actual">
+            <button type="button" x-on:click="edit('income', @js(str_replace('.', ',', Money::toInput($incomeActual, $currency))), @js(__('Actual income')))" class="flex w-full items-center justify-between border-b border-line py-[13px] text-[15px]" data-test="income-actual">
                 <span class="text-ink-2">{{ __('Income') }}</span>
                 <span class="flex items-center gap-1.5">{{ money($preview->incomeActual) }}<x-ui.icon name="edit" :size="16" class="text-faint" /></span>
             </button>
@@ -478,19 +509,19 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         @endif
     </div>
 
-    {{-- Income editor --}}
-    <div x-show="incomeOpen" x-cloak class="fixed inset-0 z-50" role="dialog" aria-modal="true">
-        <div x-show="incomeOpen" x-transition.opacity class="absolute inset-0 bg-black/55" x-on:click="incomeOpen = false"></div>
-        <div class="absolute inset-x-0 bottom-0 mx-auto max-w-lg rounded-t-[30px] bg-surface px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2" x-show="incomeOpen" x-transition:enter="transition duration-300 ease-out" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0" x-transition:leave="transition duration-200 ease-in" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full">
+    {{-- Amount editor: actual income and the two sides of the leftover split --}}
+    <div x-show="editorOpen" x-cloak class="fixed inset-0 z-50" role="dialog" aria-modal="true">
+        <div x-show="editorOpen" x-transition.opacity class="absolute inset-0 bg-black/55" x-on:click="editorOpen = false"></div>
+        <div class="absolute inset-x-0 bottom-0 mx-auto max-w-lg rounded-t-[30px] bg-surface px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2" x-show="editorOpen" x-transition:enter="transition duration-300 ease-out" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0" x-transition:leave="transition duration-200 ease-in" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full">
             <div class="mx-auto h-[5px] w-9 rounded-full bg-ink/18"></div>
             <div class="mt-1 grid h-11 grid-cols-[72px_1fr_72px] items-center">
-                <button type="button" class="text-left text-[15px] text-muted" x-on:click="incomeOpen = false">{{ __('Cancel') }}</button>
-                <div class="text-center text-base font-semibold">{{ __('Actual income') }}</div><span></span>
+                <button type="button" class="text-left text-[15px] text-muted" x-on:click="editorOpen = false">{{ __('Cancel') }}</button>
+                <div class="truncate text-center text-base font-semibold" x-text="editorTitle"></div><span></span>
             </div>
-            <div class="num py-4 text-center text-[52px] font-semibold tracking-[-0.04em]" x-text="display('income')"></div>
-            <div class="mb-2 text-center text-xs text-danger" x-show="incomeError" x-text="incomeError"></div>
+            <div class="num py-4 text-center text-[52px] font-semibold tracking-[-0.04em]" x-text="display()"></div>
+            <div class="mb-2 text-center text-xs text-danger" x-show="editorError" x-text="editorError"></div>
             <x-ui.numpad :decimal="$currency->decimals() > 0" />
-            <x-ui.button x-on:click="saveIncome()" class="mt-3 w-full">{{ __('Save') }}</x-ui.button>
+            <x-ui.button x-on:click="save()" class="mt-3 w-full" data-test="editor-save">{{ __('Save') }}</x-ui.button>
         </div>
     </div>
 </div>
@@ -498,42 +529,33 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
 
 @script
 <script>
-    Alpine.data('closeWizard', ({ leftover, split, reserveBalance, snap, decimals, locale, symbol }) => ({
-        leftover, split, reserveBalance, snap, decimals,
-        incomeOpen: false,
-        incomeError: null,
-        fields: {},
-        active: 'income',
+    Alpine.data('closeWizard', ({ decimals, locale, symbol }) => ({
+        decimals,
+        editorOpen: false,
+        editorError: null,
+        editorTitle: '',
+        field: 'income',
+        value: '',
         formatter: new Intl.NumberFormat(locale, { maximumFractionDigits: 0, useGrouping: 'always' }),
 
-        format(minor) { return this.formatter.format(minor / Math.pow(10, this.decimals)) + ' ' + symbol },
-        pct() { return this.leftover > 0 ? this.split / this.leftover * 100 : 0 },
-        slide(raw) {
-            const value = parseInt(raw, 10)
-            this.split = value > this.leftover - this.snap / 2 ? this.leftover : (value < this.snap / 2 ? 0 : Math.round(value / this.snap) * this.snap)
-        },
-        commit() { $wire.split(this.split) },
-        presetValue(name) { return { leftover: this.leftover, half: Math.ceil(this.leftover / 2), none: 0 }[name] },
-        preset(name) { this.split = this.presetValue(name); this.commit() },
-        isPreset(name) { return this.split === this.presetValue(name) },
-
         press(key) {
-            let value = String(this.fields.income ?? '')
+            let value = String(this.value ?? '')
             if (key === 'del') value = value.slice(0, -1)
             else if (key === ',') { if (this.decimals > 0 && ! value.includes(',')) value = (value || '0') + ',' }
             else if (key === '000') { if (value && ! value.includes(',')) value += '000' }
             else { if (value === '0') value = ''; value += key }
-            this.fields.income = value.slice(0, 12)
+            this.value = value.slice(0, 12)
         },
         display() {
-            const [whole, fraction] = String(this.fields.income || '0').split(',')
-            return this.formatter.format(parseInt(whole || '0', 10)) + (fraction !== undefined ? ',' + fraction : '')
+            const [whole, fraction] = String(this.value || '0').split(',')
+            return this.formatter.format(parseInt(whole || '0', 10)) + (fraction !== undefined ? ',' + fraction : '') + ' ' + symbol
         },
-        editIncome(value) { this.fields = { income: value }; this.incomeError = null; this.incomeOpen = true },
-        async saveIncome() {
-            const result = await $wire.setIncome(this.fields.income || '0')
-            this.incomeError = result.error
-            if (result.ok) this.incomeOpen = false
+        edit(field, value, title) { this.field = field; this.value = value; this.editorTitle = title; this.editorError = null; this.editorOpen = true },
+        async save() {
+            const value = this.value || '0'
+            const result = this.field === 'income' ? await $wire.setIncome(value) : await $wire.setSplit(this.field, value)
+            this.editorError = result.error
+            if (result.ok) this.editorOpen = false
         },
     }))
 </script>

@@ -279,3 +279,24 @@ it('ignores another user\'s account as a closing target', function (): void {
         ->call('chooseTarget', 'account:'.$foreign->id)
         ->assertSet('surplusTarget', null);
 });
+
+it('splits the leftover from either box on the numpad', function (): void {
+    $component = Livewire::test('pages::close', ['period' => $this->period->id])->call('goTo', 2);
+
+    expect($component->call('setSplit', 'reserve', '50000')->get('toReserve'))->toBe(50_000)
+        ->and($component->call('setSplit', 'rest', '100000')->get('toReserve'))->toBe(200_000)
+        ->and($component->instance()->setSplit('reserve', '300001')['ok'])->toBeFalse()
+        ->and($component->get('toReserve'))->toBe(200_000);
+
+    expect($component->instance()->preview->allocation->toSurplus)->toBe(100_000);
+});
+
+it('offers to keep the leftover target only when it differs from the saved one', function (): void {
+    Livewire::test('pages::close', ['period' => $this->period->id])
+        ->call('goTo', 2)
+        ->assertDontSee('data-test="save-target"', false)
+        ->call('chooseTarget', 'none')
+        ->assertSee('data-test="save-target"', false)
+        ->call('chooseTarget', 'pocket:'.$this->savings->id)
+        ->assertDontSee('data-test="save-target"', false);
+});

@@ -1,8 +1,10 @@
 <?php
 
+use App\Enums\PeriodStatus;
 use App\Models\Category;
 use App\Models\DayMark;
 use App\Models\Transaction;
+use App\Services\PeriodService;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
 
@@ -102,4 +104,15 @@ it('clears the no-spend mark when spending is recorded that day', function (): v
         ->assertSet('noSpendMarked', false);
 
     expect(DayMark::query()->count())->toBe(0);
+});
+
+it('does not undo an entry once its period is closed', function (): void {
+    $transaction = Transaction::factory()->for($this->user)->for($this->fuel)->create([
+        'period_id' => resolve(PeriodService::class)->current($this->user)->id,
+    ]);
+    $transaction->period->update(['status' => PeriodStatus::Closed]);
+
+    Livewire::test('entry-sheet')->call('undoTransaction', $transaction->id);
+
+    expect(Transaction::query()->whereKey($transaction->id)->exists())->toBeTrue();
 });
