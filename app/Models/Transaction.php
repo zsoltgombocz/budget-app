@@ -21,13 +21,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $amount
  * @property CarbonImmutable $occurred_on
  * @property string|null $note
+ * @property string|null $merchant
+ * @property int|null $orig_amount
+ * @property string|null $orig_currency
  * @property TransactionSource $source
  * @property string|null $client_uuid
  * @property string|null $external_ref
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
-#[Fillable(['period_id', 'category_id', 'account_id', 'pocket_id', 'amount', 'occurred_on', 'note', 'source', 'client_uuid', 'external_ref'])]
+#[Fillable(['period_id', 'category_id', 'account_id', 'pocket_id', 'amount', 'occurred_on', 'note', 'merchant', 'orig_amount', 'orig_currency', 'source', 'client_uuid', 'external_ref'])]
 class Transaction extends Model
 {
     /** @use HasFactory<TransactionFactory> */
@@ -42,6 +45,7 @@ class Transaction extends Model
     {
         return [
             'amount' => 'integer',
+            'orig_amount' => 'integer',
             'occurred_on' => 'immutable_date',
             'source' => TransactionSource::class,
         ];
@@ -83,6 +87,11 @@ class Transaction extends Model
                 Pocket::query()->withoutGlobalScopes()->whereKey($transaction->pocket_id)->increment('balance', $transaction->amount);
             }
         });
+    }
+
+    public function isAutoCaptured(): bool
+    {
+        return $this->source === TransactionSource::Auto;
     }
 
     /**

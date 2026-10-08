@@ -203,4 +203,28 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
     {
         return $this->hasMany(PeriodClose::class);
     }
+
+    /**
+     * @return HasMany<CaptureToken, $this>
+     */
+    public function captureTokens(): HasMany
+    {
+        return $this->hasMany(CaptureToken::class);
+    }
+
+    /**
+     * @return HasMany<PaymentCapture, $this>
+     */
+    public function paymentCaptures(): HasMany
+    {
+        return $this->hasMany(PaymentCapture::class);
+    }
+
+    /**
+     * @return HasMany<MerchantRule, $this>
+     */
+    public function merchantRules(): HasMany
+    {
+        return $this->hasMany(MerchantRule::class);
+    }
 }

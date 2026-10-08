@@ -29,6 +29,10 @@ final readonly class RecordTransaction
         ?CarbonImmutable $date = null,
         ?string $note = null,
         ?string $clientUuid = null,
+        TransactionSource $source = TransactionSource::Manual,
+        ?string $merchant = null,
+        ?int $origAmount = null,
+        ?string $origCurrency = null,
     ): Transaction {
         if ($clientUuid !== null) {
             $existing = $user->transactions()->where('client_uuid', $clientUuid)->first();
@@ -61,7 +65,10 @@ final readonly class RecordTransaction
             'amount' => $amount,
             'occurred_on' => $date->toDateString(),
             'note' => filled($note) ? $note : null,
-            'source' => TransactionSource::Manual,
+            'merchant' => $merchant,
+            'orig_amount' => $origAmount,
+            'orig_currency' => $origCurrency,
+            'source' => $source,
             'client_uuid' => $clientUuid,
         ]);
 

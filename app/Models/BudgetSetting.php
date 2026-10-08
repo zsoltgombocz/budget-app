@@ -28,12 +28,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $reserve_fixed
  * @property int|null $surplus_pocket_id
  * @property int|null $surplus_account_id
+ * @property int|null $capture_category_id
  * @property CarbonImmutable|null $onboarded_at
  * @property CarbonImmutable|null $notifications_onboarded_at
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
-#[Fillable(['period_mode', 'payday_day', 'income', 'currency', 'locale', 'timezone', 'reminder_time', 'reminder_enabled', 'due_reminder_enabled', 'reserve_pct', 'reserve_fixed', 'surplus_pocket_id', 'surplus_account_id', 'onboarded_at', 'notifications_onboarded_at'])]
+#[Fillable(['period_mode', 'payday_day', 'income', 'currency', 'locale', 'timezone', 'reminder_time', 'reminder_enabled', 'due_reminder_enabled', 'reserve_pct', 'reserve_fixed', 'surplus_pocket_id', 'surplus_account_id', 'onboarded_at', 'notifications_onboarded_at', 'capture_category_id'])]
 class BudgetSetting extends Model
 {
     /** @use HasFactory<BudgetSettingFactory> */
