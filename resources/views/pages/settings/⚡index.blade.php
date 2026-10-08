@@ -18,7 +18,6 @@ new #[Title('Settings')] class extends Component {
     $groups = [
         [
             ['route' => 'budget.edit', 'icon' => 'tune', 'title' => __('Budget'), 'subtitle' => __('Period and base currency')],
-            ['route' => 'capture.edit', 'icon' => 'bolt', 'title' => __('Automatic capture'), 'subtitle' => __('Card payments from your phone')],
             ['route' => 'notifications.edit', 'icon' => 'notifications', 'title' => __('Notifications'), 'subtitle' => __('Daily reminder, due items, this device')],
             ['route' => 'appearance.edit', 'icon' => 'palette', 'title' => __('Appearance'), 'subtitle' => __('Theme, language and time zone')],
         ],

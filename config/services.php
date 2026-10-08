@@ -35,9 +35,4 @@ return [
         ],
     ],
 
-    // Automatic capture: iCloud link of the shared iOS Shortcut (see the settings guide).
-    'capture' => [
-        'ios_shortcut_url' => env('CAPTURE_IOS_SHORTCUT_URL'),
-    ],
-
 ];

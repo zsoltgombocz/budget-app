@@ -1,6 +1,5 @@
 <?php
 
-use App\Actions\Capture\RecategorizeTransaction;
 use App\Enums\LineType;
 use App\Models\Category;
 use App\Models\Period;
@@ -41,33 +40,6 @@ new #[Title('Month')] class extends Component {
 
         $this->dispatch('budget-updated');
         $this->dispatch('app-toast', title: __('Entry removed.'), icon: 'delete');
-    }
-
-    /**
-     * Move a spending to another category; an automatically captured shop is remembered.
-     */
-    public function recategorize(int $transactionId, int $categoryId): void
-    {
-        $transaction = app(RecategorizeTransaction::class)->handle($this->user(), $transactionId, $categoryId);
-        $this->refresh();
-
-        $this->dispatch('budget-updated');
-        $this->dispatch('app-toast', title: filled($transaction->merchant)
-            ? __(':merchant goes to :category from now on.', ['merchant' => $transaction->merchant, 'category' => $transaction->category->name])
-            : __('Moved to :category.', ['category' => $transaction->category->name]), icon: 'category');
-    }
-
-    /**
-     * Variable categories a spending can be moved to.
-     *
-     * @return list<array{id: int, name: string, icon: string}>
-     */
-    #[Computed]
-    public function variableCategories(): array
-    {
-        return $this->user()->categories()->where('type', LineType::Variable)->orderBy('sort')->orderBy('name')->get()
-            ->map(fn (Category $category): array => ['id' => $category->id, 'name' => $category->name, 'icon' => Icons::forCategory($category->icon)])
-            ->values()->all();
     }
 
     public function showPeriod(int $periodId): void
@@ -149,9 +121,6 @@ new #[Title('Month')] class extends Component {
                 'icon' => Icons::forCategory($transaction->category?->icon),
                 'title' => $transaction->category?->name ?? '',
                 'note' => $transaction->note,
-                'merchant' => $transaction->merchant,
-                'auto' => $transaction->isAutoCaptured(),
-                'categoryId' => $transaction->category_id,
                 'amount' => $transaction->amount,
                 'pocket' => $transaction->pocket?->name,
             ];
@@ -288,10 +257,10 @@ new #[Title('Month')] class extends Component {
                 @foreach ($day['rows'] as $row)
                     @php $border = ! $loop->last; @endphp
                     @if ($row['kind'] === 'spending')
-                        <button type="button" x-on:click="selected = @js(['id' => $row['id'], 'title' => $row['merchant'] ?? $row['title'], 'note' => $row['note'], 'amount' => money($row['amount']), 'auto' => $row['auto'], 'categoryId' => $row['categoryId']])"
+                        <button type="button" x-on:click="selected = @js(['id' => $row['id'], 'title' => $row['title'], 'note' => $row['note'], 'amount' => money($row['amount'])])"
                                 @class(['grid w-full grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-[11px] text-left', 'border-b border-line' => $border]) data-test="transaction">
                             <x-ui.icon-tile :icon="$row['icon']" :size="36" />
-                            <span class="min-w-0"><span class="block truncate text-[15px]">{{ $row['title'] }}</span>@if ($row['auto'])<span class="mt-0.5 flex items-center gap-1 truncate text-xs text-muted" data-test="auto-captured"><x-ui.icon name="bolt" :size="14" class="shrink-0 text-accent" />{{ $row['merchant'] ?? __('Captured automatically') }}</span>@elseif ($row['pocket'])<span class="mt-0.5 block truncate text-xs text-accent">{{ __('paid from :pocket', ['pocket' => $row['pocket']]) }}</span>@elseif ($row['note'])<span class="mt-0.5 block truncate text-xs text-muted">{{ $row['note'] }}</span>@endif</span>
+                            <span class="min-w-0"><span class="block truncate text-[15px]">{{ $row['title'] }}</span>@if ($row['pocket'])<span class="mt-0.5 block truncate text-xs text-accent">{{ __('paid from :pocket', ['pocket' => $row['pocket']]) }}</span>@elseif ($row['note'])<span class="mt-0.5 block truncate text-xs text-muted">{{ $row['note'] }}</span>@endif</span>
                             <span class="num text-[15px] font-medium">{{ money_number($row['amount']) }}</span>
                         </button>
                     @elseif ($row['kind'] === 'no-spend')
@@ -335,20 +304,8 @@ new #[Title('Month')] class extends Component {
                 <div class="text-sm text-muted" x-text="selected?.title"></div>
                 <div class="num mt-1 text-[40px] font-semibold tracking-[-0.03em]" x-text="selected?.amount"></div>
                 <div class="mt-1 text-sm text-muted" x-show="selected?.note" x-text="selected?.note"></div>
-                <div class="mt-1 flex items-center justify-center gap-1 text-xs text-muted" x-show="selected?.auto"><x-ui.icon name="bolt" :size="14" class="text-accent" />{{ __('Captured automatically') }}</div>
             </div>
             @if ($period->isOpen())
-                <div class="px-1.5 pb-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted">{{ __('Category') }}</div>
-                <div class="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-3" data-test="recategorize">
-                    @foreach ($this->variableCategories as $option)
-                        <button type="button" x-on:click="$wire.recategorize(selected.id, {{ $option['id'] }}); selected = null"
-                                class="flex h-[70px] min-w-[calc((100%-32px)/5)] flex-1 flex-col items-center justify-center gap-1.5 rounded-btn border-[1.5px] px-1 transition active:scale-95"
-                                :class="selected?.categoryId === {{ $option['id'] }} ? 'border-accent bg-accent/14 text-accent' : 'border-transparent bg-surface-2 text-ink-2'">
-                            <x-ui.icon :name="$option['icon']" :size="24" />
-                            <span class="max-w-full truncate text-xs font-medium">{{ $option['name'] }}</span>
-                        </button>
-                    @endforeach
-                </div>
                 <x-ui.button variant="danger" icon="delete" class="w-full" x-on:click="$wire.delete(selected.id); selected = null" data-test="delete-transaction">{{ __('Delete entry') }}</x-ui.button>
             @endif
             <x-ui.button variant="ghost" class="mt-1 w-full" x-on:click="selected = null">{{ __('Close') }}</x-ui.button>

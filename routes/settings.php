@@ -11,7 +11,6 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::middleware('onboarded')->group(function (): void {
         Route::livewire('settings/budget', 'pages::settings.budget')->name('budget.edit');
         Route::livewire('settings/notifications', 'pages::settings.notifications')->name('notifications.edit');
-        Route::livewire('settings/capture', 'pages::settings.capture')->name('capture.edit');
     });
 });
 

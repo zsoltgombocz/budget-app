@@ -4,16 +4,12 @@ namespace App\Providers;
 
 use App\Livewire\Pulse\SecurityEvents;
 use App\Models\Admin;
-use App\Models\CaptureToken;
 use Carbon\CarbonImmutable;
-use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Livewire\Blaze\Blaze;
@@ -42,13 +38,6 @@ class AppServiceProvider extends ServiceProvider
         // Monitoring (Pulse) is for admins (the "admin" guard), like the admin panel.
         Gate::define('viewPulse', fn (?Authenticatable $user = null): bool => $user instanceof Admin);
         Livewire::component('pulse.security-events', SecurityEvents::class);
-
-        // Automatic capture: a phone sends one request per card payment, so this is generous
-        // for people and tight for anyone guessing keys.
-        RateLimiter::for('capture', fn (Request $request): array => [
-            Limit::perMinute(20)->by('capture-key:'.CaptureToken::hash((string) $request->bearerToken())),
-            Limit::perMinute(60)->by('capture-ip:'.$request->ip()),
-        ]);
 
         // The dev stack sends blue emails, like its app theme.
         if ($this->app->environment('staging')) {

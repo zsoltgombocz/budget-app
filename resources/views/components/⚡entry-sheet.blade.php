@@ -5,7 +5,6 @@ use App\Actions\Budget\RecordTransaction;
 use App\Enums\LineType;
 use App\Models\Transaction;
 use App\Models\User;
-use App\Services\CaptureDeduplicator;
 use App\Services\OverviewService;
 use App\Services\PeriodService;
 use App\Support\Icons;
@@ -56,16 +55,15 @@ new class extends Component {
         $this->options = $this->loadOptions();
         $this->noSpendMarked = app(MarkNoSpendDay::class)->isMarked($user);
         $category = collect($this->options)->firstWhere('id', $transaction->category_id);
-        $alreadyCaptured = app(CaptureDeduplicator::class)->findAutoTwin($transaction) !== null;
 
         $this->dispatch('budget-updated');
         $this->dispatch('app-toast',
             title: __('Saved').' · '.($category['name'] ?? '').' '.Money::of($transaction->amount, $currency)->format(),
-            subtitle: $alreadyCaptured ? __('Already captured automatically today?') : ($category !== null && $category['planned'] > 0
+            subtitle: $category !== null && $category['planned'] > 0
                 ? ($category['remaining'] >= 0
                     ? __(':amount left in the budget', ['amount' => Money::of($category['remaining'], $currency)->format()])
                     : __(':amount over the budget', ['amount' => Money::of(-$category['remaining'], $currency)->format()]))
-                : null),
+                : null,
             undo: 'undo-transaction',
             params: ['id' => $transaction->id],
         );
