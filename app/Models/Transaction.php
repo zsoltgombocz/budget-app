@@ -70,7 +70,7 @@ class Transaction extends Model
      */
     public function pocket(): BelongsTo
     {
-        return $this->belongsTo(Pocket::class);
+        return $this->belongsTo(Pocket::class)->withTrashed();
     }
 
     /**

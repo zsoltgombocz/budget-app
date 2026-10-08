@@ -97,7 +97,7 @@ class PlanLineForm extends Form
             'amountAvg' => ['nullable', $this->moneyRule($currency)],
             'amountMax' => ['nullable', $this->moneyRule($currency)],
             'dueDay' => ['nullable', 'integer', 'between:1,31'],
-            'pocketId' => ['nullable', 'integer', Rule::exists('pockets', 'id')->where('user_id', $userId)],
+            'pocketId' => ['nullable', 'integer', Rule::exists('pockets', 'id')->where('user_id', $userId)->whereNull('deleted_at')],
             'loanId' => ['nullable', 'integer', Rule::exists('loans', 'id')->where('user_id', $userId)],
             'origCurrency' => ['nullable', Rule::enum(Currency::class)],
             'origAmount' => ['nullable', 'required_with:origCurrency', $this->moneyRule(Currency::tryFrom($this->origCurrency) ?? $currency)],
