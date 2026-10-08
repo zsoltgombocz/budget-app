@@ -2,7 +2,9 @@
 
 use App\Actions\Budget\DeletePocket;
 use App\Actions\Budget\MovePocketMoney;
+use App\Actions\Budget\PayFromPocket;
 use App\Actions\Budget\RecordPrepayment;
+use App\Actions\Budget\ResetBudget;
 use App\Actions\Budget\SaveLoan;
 use App\Enums\LineType;
 use App\Enums\PrepayMode;
@@ -10,6 +12,13 @@ use App\Models\BudgetLine;
 use App\Models\Category;
 use App\Models\Loan;
 use App\Models\Pocket;
+use App\Models\PocketMovement;
+use App\Models\Transaction;
+use App\Services\OverviewService;
+use App\Services\PeriodCloser;
+use App\Services\PeriodService;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Livewire\Livewire;
 
 beforeEach(function (): void {
@@ -83,6 +92,64 @@ it('removes the monthly saving from the plan when its pocket is deleted', functi
         ->and(BudgetLine::query()->find($line->id))->toBeNull()
         ->and($saving->refresh()->trashed())->toBeTrue()
         ->and($transfer->refresh()->pocket_id)->toBeNull();
+});
+
+it('archives a deleted pocket without changing past periods', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-09-10 10:00', 'Europe/Budapest'));
+    $fuel = Category::query()->where('name', 'Fuel')->firstOrFail();
+    $pocket = Pocket::factory()->for($this->user)->create(['name' => 'Holiday', 'balance' => 100_000]);
+    $this->user->settings()->update(['surplus_pocket_id' => $pocket->id]);
+
+    resolve(MovePocketMoney::class)->handle($this->user, $pocket, -30_000, null, toBudget: true);
+    $paid = resolve(PayFromPocket::class)->handle($this->user, $pocket, $fuel->id, 40_000, 'Car service');
+    Transaction::factory()->for($this->user)->for(resolve(PeriodService::class)->current($this->user))->for($fuel)->create(['amount' => 25_000]);
+
+    $this->travelTo(CarbonImmutable::parse('2026-09-30 18:00', 'Europe/Budapest'));
+    $september = resolve(PeriodService::class)->current($this->user);
+    resolve(PeriodCloser::class)->close($this->user, $september);
+
+    $figures = function () use ($september): array {
+        $september = $september->refresh();
+        $forecast = resolve(OverviewService::class)->forPeriod($this->user, $september, $september->ends_on)->forecast;
+
+        return [
+            'top_ups' => resolve(PeriodService::class)->topUps($september),
+            'spent' => $forecast->variableSpent,
+            'leftover' => $forecast->expectedLeftover,
+            'close' => $september->close?->only(['planned_total', 'actual_total', 'leftover', 'to_reserve', 'to_invest']),
+        ];
+    };
+    $before = $figures();
+    $movements = $this->user->pocketMovements()->count();
+
+    $this->travelTo(CarbonImmutable::parse('2026-10-05 10:00', 'Europe/Budapest'));
+    ($this->page)()->deletePocket($pocket->id, resolve(DeletePocket::class));
+
+    expect($figures())->toBe($before)
+        ->and($before['top_ups'])->toBe(30_000)
+        ->and($before['spent'])->toBe(25_000)
+        ->and($this->user->pocketMovements()->count())->toBe($movements)
+        ->and($paid->refresh()->pocket_id)->toBe($pocket->id)
+        ->and($paid->pocket->name)->toBe('Holiday')
+        ->and(Pocket::withTrashed()->find($pocket->id)?->trashed())->toBeTrue()
+        ->and(($this->page)()->pockets->pluck('id')->all())->not->toContain($pocket->id)
+        ->and($this->user->settings()->refresh()->surplus_pocket_id)->toBeNull();
+
+    Livewire::test('pages::month')->call('showPeriod', $september->id)->assertSee('paid from Holiday');
+
+    expect(fn () => ($this->page)()->movePocketMoney($pocket->id, 1, '1000', null, resolve(MovePocketMoney::class)))
+        ->toThrow(ModelNotFoundException::class);
+});
+
+it('removes archived pockets for good when the budget is reset', function (): void {
+    $pocket = Pocket::factory()->for($this->user)->create();
+    PocketMovement::factory()->for($this->user)->for($pocket)->create();
+    ($this->page)()->deletePocket($pocket->id, resolve(DeletePocket::class));
+
+    resolve(ResetBudget::class)->handle($this->user);
+
+    expect(Pocket::withTrashed()->count())->toBe(0)
+        ->and(PocketMovement::query()->count())->toBe(0);
 });
 
 it('puts a new loan into the plan as a repayment line straight away', function (): void {

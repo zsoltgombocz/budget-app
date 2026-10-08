@@ -28,6 +28,11 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'mnb' => [
+        // Official MNB exchange rates (SOAP). The service only answers over plain HTTP.
+        'url' => env('MNB_RATES_URL', 'http://www.mnb.hu/arfolyamok.asmx'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
