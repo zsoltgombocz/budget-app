@@ -119,6 +119,15 @@ new class extends Component {
             ->values()->all();
     }
 
+    /**
+     * Only users who set up a phone wait for payments to arrive.
+     */
+    #[Computed]
+    public function polling(): bool
+    {
+        return $this->user()->captureTokens()->exists();
+    }
+
     #[On('budget-updated')]
     public function refresh(): void
     {
@@ -173,7 +182,7 @@ new class extends Component {
             await $wire.record(this.pad.id, parseInt(this.digits, 10))
             this.pad = null
         },
-     }" wire:poll.30s="checkForNew" data-test="capture-inbox">
+     }" @if ($this->polling) wire:poll.30s="checkForNew" @endif data-test="capture-inbox">
     @if ($this->pending->isNotEmpty())
         <x-ui.card class="mx-4 mb-3 px-[18px] pb-2 pt-[18px]" data-test="capture-pending">
             <div class="flex items-baseline justify-between">

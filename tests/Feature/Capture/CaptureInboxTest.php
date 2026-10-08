@@ -6,6 +6,7 @@ use App\Enums\CaptureReason;
 use App\Enums\CaptureStatus;
 use App\Enums\PeriodStatus;
 use App\Enums\TransactionSource;
+use App\Models\CaptureToken;
 use App\Models\Category;
 use App\Models\MerchantRule;
 use App\Models\PaymentCapture;
@@ -140,6 +141,14 @@ it('refreshes the screen when a new payment arrives while it is open', function 
     ($this->ingest)(['amount' => '8 400 Ft', 'merchant' => 'Tesco']);
 
     $component->call('checkForNew')->assertDispatched('budget-updated')->assertSee('Tesco');
+});
+
+it('only polls for new payments once a phone is set up', function (): void {
+    Livewire::test('capture-inbox')->assertDontSee('wire:poll', false);
+
+    CaptureToken::factory()->for($this->user)->create();
+
+    Livewire::test('capture-inbox')->assertSee('wire:poll.30s="checkForNew"', false);
 });
 
 it('marks automatic spending on the month page and lets it be recategorised there', function (): void {
