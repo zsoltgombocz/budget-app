@@ -426,14 +426,13 @@ new #[Title('Plan')] class extends Component {
 
 @php
     $settings = auth()->user()->settings();
-    $period = app(PeriodService::class)->current(auth()->user());
     $summary = $this->summary;
     $types = [LineType::Transfer, LineType::Loan, LineType::Fixed, LineType::Sinking, LineType::Variable];
     $copyNote = $settings->period_mode === PeriodMode::Payday ? __('copied on every payday') : __('copied every month');
 @endphp
 
 <div x-data="planPage({ decimals: {{ $this->currency->decimals() }}, locale: @js(str_replace('_', '-', app()->getLocale())) })">
-    <x-ui.page-header :title="__('Plan')" :subtitle="Dates::range($period->starts_on, $period->ends_on).' · '.$copyNote">
+    <x-ui.page-header :title="__('Plan')" :subtitle="__('Monthly plan').' · '.$copyNote">
         <x-slot name="actions">
             <x-ui.icon-button :icon="$editing ? 'check' : 'edit'" wire:click="$toggle('editing')" :label="$editing ? __('Done') : __('Edit')" class="{{ $editing ? '!bg-accent !text-accent-ink' : '' }}" data-test="toggle-edit" />
         </x-slot>
