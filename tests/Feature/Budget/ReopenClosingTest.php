@@ -179,12 +179,16 @@ it('refuses an open period', function (): void {
     expectRefusal('This period is not closed.');
 });
 
-it('refuses once the leftover is marked as transferred', function (): void {
+it('can be undone after the leftover was marked as transferred, and says so', function (): void {
     $broker = $this->user->accounts()->create(['name' => 'Broker', 'type' => 'investment', 'currency' => 'HUF']);
     $close = resolve(PeriodCloser::class)->close($this->user, $this->period, null, null, 'account:'.$broker->id);
     $close->update(['surplus_transferred_at' => now()]);
 
-    expectRefusal('already marked as transferred');
+    expect(resolve(ReopenPeriod::class)->preview($this->user, $this->period->refresh())->confirmation()['body'])->toContain('marked the leftover');
+
+    resolve(ReopenPeriod::class)->handle($this->user, $this->period->refresh());
+
+    expect($this->period->refresh()->isOpen())->toBeTrue();
 });
 
 it('refuses after a loan prepayment recorded since the closing', function (): void {

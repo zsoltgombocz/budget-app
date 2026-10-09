@@ -1,4 +1,5 @@
 {
+    "You marked the leftover (:amount) as transferred. That mark goes with the closing; the money you transferred stays where it is. After closing again, mark it as transferred again.": "A maradékot (:amount) átutaltnak jelölted. Ez a jelölés a zárással együtt megszűnik; az átutalt pénz ott marad, ahová utaltad. Újrazárás után jelöld újra átutaltnak.",
     "Contact": "Kapcsolat",
     "E-mail, bug reports and ideas": "E-mail, hibabejelentés, ötletek",
     "Share an idea": "Ötletem van",
@@ -835,7 +836,6 @@
     "This period is not closed.": "Ez a periódus nincs lezárva.",
     "Only the most recent closing can be undone.": "Csak a legutóbbi zárás vonható vissza.",
     "A closing can only be undone until the month’s regular end (:date).": "A zárást csak a hónap eredeti végéig (:date) lehet visszavonni.",
-    "The leftover is already marked as transferred, so the closing can no longer be undone.": "A maradékot már átutaltként jelölted, ezért a zárás nem vonható vissza.",
     "The base currency changed since the closing, so it can no longer be undone.": "A zárás óta megváltozott az alapdeviza, ezért a zárás nem vonható vissza.",
     "A loan prepayment was recorded since the closing, so it can no longer be undone.": "A zárás óta előtörlesztést rögzítettél, ezért a zárás nem vonható vissza.",
     "The :pocket pocket was deleted since the closing, so the closing can no longer be undone.": "A(z) „:pocket” perselyt a zárás óta törölted, ezért a zárás nem vonható vissza.",

@@ -73,6 +73,10 @@ final readonly class ReopenPreview
             $parts[] = __('The reminder to transfer the leftover stops.');
         }
 
+        if ($this->close->surplus_transferred_at !== null) {
+            $parts[] = __('You marked the leftover (:amount) as transferred. That mark goes with the closing; the money you transferred stays where it is. After closing again, mark it as transferred again.', ['amount' => money($this->close->to_invest)]);
+        }
+
         $parts[] = __('You can close the month again whenever you are ready.');
 
         return [

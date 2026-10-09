@@ -83,10 +83,6 @@ final readonly class ReopenPeriod
             $this->refuse(__('A closing can only be undone until the month’s regular end (:date).', ['date' => Dates::short($regularEnd)]));
         }
 
-        if ($close->surplus_transferred_at !== null) {
-            $this->refuse(__('The leftover is already marked as transferred, so the closing can no longer be undone.'));
-        }
-
         if ($user->currencyConversions()->where('created_at', '>=', $close->created_at)->exists()) {
             $this->refuse(__('The base currency changed since the closing, so it can no longer be undone.'));
         }

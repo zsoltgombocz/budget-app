@@ -100,7 +100,7 @@ it('toggles "I didn\'t spend today" and can undo it', function (): void {
 it('clears the no-spend mark when spending is recorded that day', function (): void {
     Livewire::test('entry-sheet')
         ->call('toggleNoSpend')
-        ->call('save', $this->fuel->id, 1_000, now()->toDateString(), null, (string) Str::uuid())
+        ->call('save', $this->fuel->id, 1_000, resolve(PeriodService::class)->today($this->user->settings())->toDateString(), null, (string) Str::uuid())
         ->assertSet('noSpendMarked', false);
 
     expect(DayMark::query()->count())->toBe(0);
