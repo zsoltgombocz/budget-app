@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-
 # Base images come through Google's Docker Hub mirror: anonymous pulls from GitHub runners hit
 # Docker Hub's rate limit (429) and broke builds.
 FROM mirror.gcr.io/library/composer:2 AS vendor
