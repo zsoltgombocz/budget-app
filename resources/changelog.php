@@ -6,6 +6,19 @@
  */
 return [
     [
+        'version' => '1.9.0',
+        'date' => '2026-10-10',
+        'changes' => [
+            ['hu' => 'A hónap zárásánál a maradék felosztása két szerkeszthető dobozzal és három egyszerű választással megy, csúszka helyett; a lépések között a gombok a helyükön maradnak.', 'en' => 'Splitting the leftover at closing uses two editable boxes and three simple choices instead of a slider; the buttons stay in place between steps.'],
+            ['hu' => 'Ha a hónap vége előtt zársz, az új hónap már aznap indul: amit zárás után rögzítesz, oda kerül, és a Hónap menü is az új hónapot mutatja.', 'en' => 'If you close before the month ends, the new month starts that day: what you record after closing goes there, and the Month tab shows it.'],
+            ['hu' => 'A legutóbbi zárás visszavonható a hónap eredeti végéig, ha még valamit rögzítenél vagy javítanál.', 'en' => "The latest closing can be undone until the month's original end, if you still want to record or fix something."],
+            ['hu' => 'A Ma oldal tetején kártyán látod a ma esedékes és a lejárt fix tételeket és utalásokat, egy gombbal késznek jelölheted őket.', 'en' => 'The top of the Today page shows fixed items and transfers due today or overdue, each marked done with one tap.'],
+            ['hu' => 'A törölt persely archiválódik: a korábbi hónapok változatlanok maradnak, és a perselyt vissza is állíthatod.', 'en' => 'A deleted pocket is archived: past months stay unchanged, and you can restore the pocket.'],
+            ['hu' => 'Az alapdeviza váltása az MNB aznapi árfolyamán átváltja az összegeket, visszaváltáskor pedig pontosan az eredeti összegek jönnek vissza; a listákban mindenhol látszik a pénznem.', 'en' => "Changing the base currency converts the amounts at the day's MNB rate, and switching back restores the exact original amounts; lists show the currency everywhere."],
+            ['hu' => 'Új Kapcsolat menü a Beállításokban: hibát jelenthetsz vagy ötletet küldhetsz közvetlenül az appból.', 'en' => 'New Contact menu in Settings: report a bug or share an idea right from the app.'],
+        ],
+    ],
+    [
         'version' => '1.8.2',
         'date' => '2026-10-08',
         'changes' => [
