@@ -18,6 +18,11 @@ return [
     'admin_domain' => env('ADMIN_DOMAIN'),
 
     /*
+     * Address shown on the Contact page. Empty hides the e-mail row.
+     */
+    'contact_email' => env('CONTACT_EMAIL'),
+
+    /*
      * Sentry issues page of production, linked from the admin menu.
      */
     'sentry_url' => env('SENTRY_DASHBOARD_URL') ?: 'https://moneysight.sentry.io/issues/?project=4512205235552336',

@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\Currency;
 use App\Models\BudgetLine;
 use App\Models\Category;
 use App\Models\DayMark;
@@ -49,6 +50,17 @@ it('lists fixed items with due dates and ticks them off', function (): void {
     expect(resolve(OverviewService::class)->forUser($this->user)->fixedItems[0]->paid)->toBeFalse();
 });
 
+it('shows the currency next to the fixed item amounts', function (): void {
+    $this->user->settings()->update(['currency' => Currency::EUR]);
+    $rent = BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail();
+
+    $html = $this->get(route('dashboard'))->assertOk()->getContent();
+    preg_match('/data-test="fixed-item">.*?Rent.*?<\/button>/s', (string) $html, $row);
+
+    expect($row[0] ?? '')->toContain(money_number($rent->amount, Currency::EUR))
+        ->toContain(Currency::EUR->symbol());
+});
+
 it('finds the due date in a payday period spanning two months', function (): void {
     $period = resolve(PeriodService::class)->forDate($this->user, CarbonImmutable::parse('2026-12-20'));
     $period->update(['starts_on' => '2026-11-10', 'ends_on' => '2026-12-09']);
@@ -93,4 +105,24 @@ it('warns when the expected leftover is negative', function (): void {
     Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 400_000, 'occurred_on' => '2026-10-05']);
 
     $this->get(route('dashboard'))->assertSee('data-test="negative-alert"', false)->assertSee('Fuel');
+});
+
+it('puts fixed items due today or overdue up top until they are done', function (): void {
+    $rent = BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail();
+
+    $rent->update(['due_day' => 20]);
+    Livewire::test('pages::today')->assertDontSee('data-test="due-item"', false);
+
+    $rent->update(['due_day' => 11]);
+    Livewire::test('pages::today')
+        ->assertSee('data-test="due-item"', false)
+        ->assertSee('Due today')
+        ->call('togglePaid', $rent->id)
+        ->assertDontSee('data-test="due-item"', false);
+});
+
+it('marks a fixed item that was due earlier as late', function (): void {
+    BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail()->update(['due_day' => 5]);
+
+    Livewire::test('pages::today')->assertSee('data-test="due-item"', false)->assertSee('was due');
 });

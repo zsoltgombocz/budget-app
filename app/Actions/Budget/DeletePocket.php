@@ -3,13 +3,18 @@
 namespace App\Actions\Budget;
 
 use App\Enums\LineType;
+use App\Models\BudgetSetting;
 use App\Models\Pocket;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Delete a pocket together with the plan lines that only saved into it, so no monthly
- * "put aside" stays in the plan without a pocket to go to. Other lines that pointed at the
- * pocket (a transfer, for example) stay and simply lose the link.
+ * "Delete" a pocket by archiving it (soft delete): it leaves the pockets list, the pickers, the
+ * plan and closing, but its movements, its balance and the spending it paid for stay as they
+ * were, so past periods do not change.
+ *
+ * The plan lines that only saved into it are deleted, so no monthly "put aside" stays in the
+ * plan without a pocket to go to. Other lines that pointed at the pocket (a transfer, for
+ * example) stay and simply lose the link, and the leftover no longer goes to it at closing.
  */
 final readonly class DeletePocket
 {
@@ -25,6 +30,11 @@ final readonly class DeletePocket
                     $line->update(['pocket_id' => null]);
                 }
             }
+
+            BudgetSetting::query()->withoutGlobalScopes()
+                ->where('user_id', $pocket->user_id)
+                ->where('surplus_pocket_id', $pocket->id)
+                ->update(['surplus_pocket_id' => null]);
 
             $pocket->delete();
         });

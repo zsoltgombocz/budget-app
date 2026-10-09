@@ -23,10 +23,11 @@ final class ResetBudget
             $user->periods()->delete();
             $user->budgetLines()->delete();
             $user->categories()->withTrashed()->forceDelete();
-            $user->pockets()->delete();
+            $user->pockets()->withTrashed()->forceDelete();
             $user->loans()->delete();
             $user->accounts()->delete();
             $user->dayMarks()->delete();
+            $user->currencyConversions()->delete();
 
             $user->unsetRelation('budgetSetting');
         });

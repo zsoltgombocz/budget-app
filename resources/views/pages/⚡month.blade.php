@@ -182,7 +182,7 @@ new #[Title('Month')] class extends Component {
 <div x-data="{ selected: null }">
     <div class="flex items-end justify-between gap-2 px-6 pt-3.5">
         <div class="min-w-0">
-            <h1 class="truncate text-[30px] font-semibold tracking-[-0.03em]">{{ Dates::monthName($period->starts_on) }}</h1>
+            <h1 class="truncate text-[30px] font-semibold tracking-[-0.03em]">{{ Dates::monthName($period->nameDate()) }}</h1>
             <div class="num mt-0.5 text-[13px] text-muted">
                 {{ Dates::range($period->starts_on, $period->ends_on) }} ·
                 @if (! $period->isOpen())
@@ -236,6 +236,7 @@ new #[Title('Month')] class extends Component {
                 <span><span class="block text-muted">{{ __('To the reserve') }}</span><span class="num block text-sm">{{ money($closeRecord->to_reserve) }}</span></span>
                 <span><span class="block text-muted">{{ __('Rest') }}</span><span class="num block text-sm">{{ money($closeRecord->to_invest) }}</span></span>
             </a>
+            <livewire:reopen-closing :period-id="$period->id" :key="'reopen-'.$period->id" />
         @endif
     </x-ui.card>
 
@@ -261,7 +262,7 @@ new #[Title('Month')] class extends Component {
                                 @class(['grid w-full grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-[11px] text-left', 'border-b border-line' => $border]) data-test="transaction">
                             <x-ui.icon-tile :icon="$row['icon']" :size="36" />
                             <span class="min-w-0"><span class="block truncate text-[15px]">{{ $row['title'] }}</span>@if ($row['pocket'])<span class="mt-0.5 block truncate text-xs text-accent">{{ __('paid from :pocket', ['pocket' => $row['pocket']]) }}</span>@elseif ($row['note'])<span class="mt-0.5 block truncate text-xs text-muted">{{ $row['note'] }}</span>@endif</span>
-                            <span class="num text-[15px] font-medium">{{ money_number($row['amount']) }}</span>
+                            <x-ui.amount size="sm" :value="$row['amount']" class="text-[15px] font-medium" />
                         </button>
                     @elseif ($row['kind'] === 'no-spend')
                         <div @class(['grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-[11px]', 'border-b border-line' => $border])>
@@ -273,13 +274,13 @@ new #[Title('Month')] class extends Component {
                         <div @class(['grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-[11px]', 'border-b border-line' => $border])>
                             <x-ui.icon-tile icon="payments" tone="accent" :size="36" />
                             <span class="text-[15px]">{{ __('Salary') }}</span>
-                            <span class="num text-[15px] font-medium text-accent">+{{ money_number($row['amount']) }}</span>
+                            <x-ui.amount size="sm" :value="$row['amount']" signed class="text-[15px] font-medium text-accent" />
                         </div>
                     @else
                         <div @class(['grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-[11px]', 'border-b border-line' => $border])>
                             <x-ui.icon-tile icon="autorenew" tone="muted" :size="36" />
                             <span><span class="block text-[15px]">{{ __('Fixed items') }}</span><span class="mt-0.5 block text-xs text-muted">{{ trans_choice('{1} :count item automatically|[2,*] :count items automatically', $row['count'], ['count' => $row['count']]) }}</span></span>
-                            <span class="num text-[15px] font-medium">{{ money_number($row['amount']) }}</span>
+                            <x-ui.amount size="sm" :value="$row['amount']" class="text-[15px] font-medium" />
                         </div>
                     @endif
                 @endforeach

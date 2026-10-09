@@ -10,8 +10,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
+ * A deleted pocket is archived (soft deleted): it disappears from lists, pickers, the plan and
+ * closing, but its movements and the spending it paid for stay in past periods.
+ *
  * @property int $id
  * @property int $user_id
  * @property int|null $account_id
@@ -25,12 +29,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $sort
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
+ * @property CarbonImmutable|null $deleted_at
  */
 #[Fillable(['account_id', 'loan_id', 'name', 'balance', 'target_amount', 'prepay_step', 'is_reserve', 'is_shared', 'sort'])]
 class Pocket extends Model
 {
     /** @use HasFactory<PocketFactory> */
-    use BelongsToUser, HasFactory;
+    use BelongsToUser, HasFactory, SoftDeletes;
 
     /**
      * Get the attributes that should be cast.

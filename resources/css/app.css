@@ -273,6 +273,17 @@ select:focus[data-flux-control] {
 .page-enter > * > *:nth-child(6) { animation-delay: 100ms; }
 .page-enter > * > *:nth-child(n + 7) { animation-delay: 120ms; }
 
+@keyframes fade-in {
+    from { opacity: 0; }
+}
+
+/* A transform on an ancestor makes position: fixed relative to it, so a wizard's bottom bar
+   would slide in with the content and jump into place; those pages only fade in. */
+.page-enter:has([data-action-bar]),
+.page-enter:has([data-action-bar]) > * > * {
+    animation-name: fade-in;
+}
+
 /* Fixed overlays (sheets, bars) inside pages must not be animated as blocks. */
 .page-enter > * > .fixed {
     animation: none;

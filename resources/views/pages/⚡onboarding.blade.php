@@ -597,13 +597,13 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
     </div>
     </div>
 
-    <div class="fixed inset-x-0 bottom-0 z-20 mx-auto flex max-w-lg gap-2.5 bg-gradient-to-t from-bg via-bg to-transparent px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-6">
+    <x-ui.action-bar>
         @if ($step < $this::STEPS)
             <x-ui.button class="flex-1" wire:click="next" data-test="onboarding-next">{{ __('Next') }}</x-ui.button>
         @else
             <x-ui.button class="flex-1" wire:click="finish" data-test="onboarding-next">{{ __('Start budgeting') }}</x-ui.button>
         @endif
-    </div>
+    </x-ui.action-bar>
 
     {{-- Numpad sheet for every amount on the wizard --}}
     <div x-show="field" x-cloak class="fixed inset-0 z-50" role="dialog" aria-modal="true">

@@ -62,12 +62,14 @@ final readonly class PeriodService
 
     /**
      * The period containing the date, opened with a snapshot of the current plan if missing.
+     * On the day of an early closing both periods contain it; the new one wins.
      */
     public function forDate(User $user, CarbonInterface $date): Period
     {
         $existing = $user->periods()
             ->whereDate('starts_on', '<=', $date->toDateString())
             ->whereDate('ends_on', '>=', $date->toDateString())
+            ->latest('starts_on')
             ->first();
 
         if ($existing !== null) {

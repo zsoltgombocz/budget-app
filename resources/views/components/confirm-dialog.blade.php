@@ -1,31 +1,41 @@
 {{--
     The app's own confirmation dialog (instead of the browser's confirm()). Open it from JS:
     if (await window.appConfirm({ title, body, confirm, danger: true })) { ... }
+    Optional: highlight (one emphasised line, e.g. an exchange rate) and note (smaller muted
+    text right under it), both shown above the body. The page behind it does not scroll.
 --}}
 <div x-data="{
         open: false,
         title: '',
         body: '',
+        highlight: '',
+        note: '',
         confirmLabel: '',
         danger: false,
         resolve: null,
         show(detail) {
             this.title = detail.title ?? ''
             this.body = detail.body ?? ''
+            this.highlight = detail.highlight ?? ''
+            this.note = detail.note ?? ''
             this.confirmLabel = detail.confirm ?? @js(__('OK'));
             this.danger = detail.danger ?? false
+            this.resolve?.(false)
             this.resolve = detail.resolve
+            if (! this.open) window.appScrollLock.lock()
             this.open = true
         },
         answer(value) {
+            if (this.open) window.appScrollLock.unlock()
             this.open = false
             this.resolve?.(value)
             this.resolve = null
         },
      }"
+     x-init="document.addEventListener('livewire:navigate', () => open && answer(false))"
      x-on:app-confirm.window="show($event.detail)"
      x-on:keydown.escape.window="open && answer(false)">
-    <div x-show="open" x-cloak class="fixed inset-0 z-[60] flex items-end justify-center sm:items-center" role="alertdialog" aria-modal="true" :aria-label="title" data-test="confirm-dialog">
+    <div x-show="open" x-cloak class="fixed inset-0 z-[60] flex overscroll-contain items-end justify-center sm:items-center" role="alertdialog" aria-modal="true" :aria-label="title" data-test="confirm-dialog">
         <div x-show="open" x-transition.opacity class="absolute inset-0 bg-black/60" x-on:click="answer(false)"></div>
         <div x-show="open"
              x-transition:enter="transition duration-250 ease-out" x-transition:enter-start="translate-y-full opacity-0 sm:translate-y-4" x-transition:enter-end="translate-y-0 opacity-100"
@@ -36,7 +46,9 @@
                 <x-ui.icon name="info" :size="24" x-show="! danger" />
             </div>
             <div class="mt-4 text-lg font-semibold leading-snug" x-text="title"></div>
-            <p class="mt-1.5 text-[14px] leading-relaxed text-muted" x-show="body" x-text="body"></p>
+            <div class="num mt-2 text-[15px] font-medium leading-snug text-ink" x-show="highlight" x-text="highlight" data-test="confirm-highlight"></div>
+            <div class="num mt-0.5 text-[13px] leading-snug text-muted" x-show="note" x-text="note" data-test="confirm-note"></div>
+            <p class="max-h-[55vh] overflow-y-auto overscroll-contain whitespace-pre-line text-[14px] leading-relaxed text-muted" :class="highlight || note ? 'mt-3' : 'mt-1.5'" x-show="body" x-text="body"></p>
             <div class="mt-5 grid grid-cols-2 gap-2.5">
                 <x-ui.button variant="secondary" size="md" x-on:click="answer(false)" data-test="confirm-cancel">{{ __('Cancel') }}</x-ui.button>
                 <x-ui.button size="md" x-on:click="answer(true)" ::class="danger && '!bg-danger !text-white'" data-test="confirm-ok"><span x-text="confirmLabel"></span></x-ui.button>

@@ -164,6 +164,23 @@ new #[Title('Today')] class extends Component {
         </div>
     @endforeach
 
+    @if ($period->isOpen())
+        @foreach (array_filter($fixed, fn ($item) => ! $item->paid && $item->dueOn !== null && ! $item->dueOn->greaterThan($overview->today)) as $item)
+            @php
+                $isTransfer = in_array($item->line->type, [\App\Enums\LineType::Transfer, \App\Enums\LineType::Sinking], true);
+                $late = $item->dueOn->lessThan($overview->today);
+            @endphp
+            <div class="mx-4 mb-3 flex items-center gap-3 rounded-[22px] border border-accent/22 bg-accent/10 px-4 py-3.5" wire:key="due-{{ $item->line->lineId }}" data-test="due-item">
+                <x-ui.icon-tile icon="autorenew" tone="accent" />
+                <div class="min-w-0 flex-1">
+                    <div class="num truncate text-[15px] font-semibold">{{ $item->line->categoryName }} · {{ money($item->line->planned()) }}</div>
+                    <div @class(['truncate text-xs', 'text-warn' => $late, 'text-muted' => ! $late])>{{ $late ? __('was due :date', ['date' => \App\Support\Dates::short($item->dueOn)]) : ($isTransfer ? __('Transfer due today') : __('Due today')) }}</div>
+                </div>
+                <x-ui.button size="sm" variant="light" wire:click="togglePaid({{ (int) $item->line->lineId }})" data-test="mark-due-done">{{ $isTransfer ? __('Transferred') : __('Done') }}</x-ui.button>
+            </div>
+        @endforeach
+    @endif
+
     <button type="button" x-data x-on:click="$dispatch('open-entry')" class="mx-4 mb-3 flex w-[calc(100%-2rem)] items-center justify-between rounded-card bg-surface px-5 py-[18px] text-left" data-test="daily-allowance">
         <span>
             <span class="block text-[13px] text-muted">{{ __('You can still spend today') }}</span>
@@ -210,7 +227,7 @@ new #[Title('Today')] class extends Component {
                     <div>
                         <div class="flex items-baseline justify-between gap-2">
                             <span class="truncate text-[15px] font-medium">{{ $category->categoryName }}</span>
-                            <span class="num shrink-0 text-sm"><span class="font-semibold">{{ money_number($category->spent) }}</span><span class="text-muted"> / {{ money_number($category->planned) }}</span></span>
+                            <span class="num shrink-0 text-sm"><span class="font-semibold">{{ money_number($category->spent) }}</span><span class="text-muted"> / {{ money_number($category->planned) }} <span class="text-[0.8em]">{{ user_currency()->symbol() }}</span></span></span>
                         </div>
                         @if ($this->hasSpending)
                             <x-ui.bar :value="$category->planned > 0 ? $category->spent / $category->planned : ($category->spent > 0 ? 1 : 0)" :tone="$tone" class="mt-2" />
@@ -257,7 +274,7 @@ new #[Title('Today')] class extends Component {
                             @endif
                         </span>
                     </span>
-                    <span class="num text-[15px] font-medium">{{ money_number($item->line->planned()) }}</span>
+                    <x-ui.amount size="sm" :value="$item->line->planned()" class="text-[15px] font-medium" />
                 </button>
             @endforeach
             @if ($hiddenFixed !== [] && ! $this->showAllFixed)

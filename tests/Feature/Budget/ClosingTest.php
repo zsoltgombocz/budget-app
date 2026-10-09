@@ -279,3 +279,47 @@ it('ignores another user\'s account as a closing target', function (): void {
         ->call('chooseTarget', 'account:'.$foreign->id)
         ->assertSet('surplusTarget', null);
 });
+
+it('splits the leftover from either box on the numpad', function (): void {
+    $component = Livewire::test('pages::close', ['period' => $this->period->id])->call('goTo', 2);
+
+    expect($component->call('setSplit', 'reserve', '50000')->get('toReserve'))->toBe(50_000)
+        ->and($component->call('setSplit', 'rest', '100000')->get('toReserve'))->toBe(200_000)
+        ->and($component->instance()->setSplit('reserve', '300001')['ok'])->toBeFalse()
+        ->and($component->get('toReserve'))->toBe(200_000);
+
+    expect($component->instance()->preview->allocation->toSurplus)->toBe(100_000);
+});
+
+it('offers to keep the leftover target only when it differs from the saved one', function (): void {
+    Livewire::test('pages::close', ['period' => $this->period->id])
+        ->call('goTo', 2)
+        ->assertDontSee('data-test="save-target"', false)
+        ->call('chooseTarget', 'none')
+        ->assertSee('data-test="save-target"', false)
+        ->call('chooseTarget', 'pocket:'.$this->savings->id)
+        ->assertDontSee('data-test="save-target"', false);
+});
+
+it('starts the new month on the day of an early closing', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-08 18:00', 'Europe/Budapest'));
+    spend($this->user, $this->period, $this->fuel, 10_000);
+
+    resolve(PeriodCloser::class)->close($this->user, $this->period);
+
+    $next = resolve(PeriodService::class)->current($this->user);
+
+    expect($this->period->refresh()->ends_on->toDateString())->toBe('2026-10-08')
+        ->and($this->period->status)->toBe(PeriodStatus::Closed)
+        ->and($next->starts_on->toDateString())->toBe('2026-10-08')
+        ->and($next->ends_on->toDateString())->toBe('2026-11-30')
+        ->and($next->isOpen())->toBeTrue()
+        ->and($next->nameDate()->month)->toBe(11)
+        ->and($this->period->nameDate()->month)->toBe(10);
+
+    $transaction = resolve(RecordTransaction::class)->handle($this->user, $this->groceries->id, 5_000);
+
+    expect($transaction->period_id)->toBe($next->id);
+
+    $this->get(route('month'))->assertOk()->assertSee('November')->assertSee('data-test="close-now"', false);
+});

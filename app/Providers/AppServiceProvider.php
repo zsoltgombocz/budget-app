@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Livewire\Pulse\SecurityEvents;
 use App\Models\Admin;
+use App\Services\ExchangeRates\ExchangeRateSource;
+use App\Services\ExchangeRates\MnbExchangeRates;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
@@ -22,7 +24,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(ExchangeRateSource::class, fn (): MnbExchangeRates => new MnbExchangeRates(config()->string('services.mnb.url')));
     }
 
     /**
