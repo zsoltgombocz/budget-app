@@ -18,6 +18,7 @@ use App\Services\PeriodCloser;
 use App\Services\PeriodService;
 use Carbon\CarbonImmutable;
 use Illuminate\Validation\ValidationException;
+use Livewire\Livewire;
 
 beforeEach(function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-08 18:00', 'Europe/Budapest'));
@@ -222,4 +223,51 @@ it('refuses after a base currency change', function (): void {
     CurrencyConversion::factory()->for($this->user)->create();
 
     expectRefusal('The base currency changed');
+});
+
+it('undoes the closing from the closed summary with the app confirmation', function (): void {
+    Livewire::test('pages::close', ['period' => $this->period->id])
+        ->call('goTo', 2)->call('goTo', 3)->call('close')
+        ->assertSee('Undo the closing')
+        ->assertSee('data-test="reopen-closing"', false);
+
+    Livewire::test('reopen-closing', ['periodId' => $this->period->id])
+        ->call('dialog')
+        ->assertReturned(fn (array $dialog): bool => $dialog['title'] === 'Undo the October closing?'
+            && str_contains($dialog['body'], 'Reserve: '.money(-20_000))
+            && str_contains($dialog['body'], 'Savings: '.money(-270_000))
+            && str_contains($dialog['body'], 'The month is open again')
+            && $dialog['confirm'] === 'Undo the closing')
+        ->call('reopen')
+        ->assertDispatched('app-toast', title: 'Closing undone.')
+        ->assertRedirect(route('month', ['periodus' => $this->period->id]));
+
+    expect($this->period->refresh()->isOpen())->toBeTrue();
+});
+
+it('offers the undo on the Month page and shows why it is refused', function (): void {
+    closeEarly();
+    resolve(MovePocketMoney::class)->handle($this->user, $this->reserve, -5_000);
+
+    $this->get(route('month', ['periodus' => $this->period->id]))->assertSee('data-test="reopen-closing"', false);
+
+    Livewire::test('reopen-closing', ['periodId' => $this->period->id])
+        ->call('dialog')
+        ->assertReturned(null)
+        ->assertHasErrors('reopen')
+        ->assertSee('Money was moved in the Reserve pocket');
+
+    expect($this->period->refresh()->isOpen())->toBeFalse();
+});
+
+it('does not offer the undo for an older closing', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-31 18:00', 'Europe/Budapest'));
+    closeEarly();
+    $this->travelTo(CarbonImmutable::parse('2026-11-30 18:00', 'Europe/Budapest'));
+    resolve(PeriodCloser::class)->close($this->user, resolve(PeriodService::class)->current($this->user));
+
+    $this->get(route('month', ['periodus' => $this->period->id]))
+        ->assertOk()
+        ->assertSee('data-test="close-summary"', false)
+        ->assertDontSee('data-test="reopen-closing"', false);
 });
