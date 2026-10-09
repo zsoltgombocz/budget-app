@@ -20,6 +20,9 @@ use Illuminate\Validation\ValidationException;
 /**
  * Closes a period: actual vs plan, leftover allocation, pocket updates,
  * frozen plan snapshot and the next period opened with a copy of the plan.
+ *
+ * The breakdown's "undo" key records what the closing did that ReopenPeriod has to take back:
+ * the period's regular end, the pocket movements it made and the pocket it created.
  */
 final readonly class PeriodCloser
 {
@@ -197,28 +200,32 @@ final readonly class PeriodCloser
             [$nextStart, $nextEnd] = $this->nextBounds($user, $period);
             $closesEarly = $nextStart->lessThan($period->ends_on);
             $closedOn = ($closesEarly ? $nextStart : $period->ends_on)->toDateString();
+            $regularEndsOn = $period->ends_on->toDateString();
+            $movementIds = [];
+            $createdPocketId = null;
 
             foreach ($preview->pocketDeposits as $deposit) {
-                $this->move($user, $deposit['pocket_id'], $period, $deposit['amount'], PocketMovementType::Deposit, $closedOn, __('Monthly saving'));
+                $movementIds[] = $this->move($user, $deposit['pocket_id'], $period, $deposit['amount'], PocketMovementType::Deposit, $closedOn, __('Monthly saving'));
             }
 
             $allocation = $preview->allocation;
 
             if ($preview->reservePocketId !== null && $allocation->toReserve > 0) {
-                $this->move($user, $preview->reservePocketId, $period, $allocation->toReserve, PocketMovementType::Deposit, $closedOn, __('Leftover'));
+                $movementIds[] = $this->move($user, $preview->reservePocketId, $period, $allocation->toReserve, PocketMovementType::Deposit, $closedOn, __('Leftover'));
             }
 
             if ($preview->reservePocketId !== null && $allocation->fromReserve > 0) {
-                $this->move($user, $preview->reservePocketId, $period, -$allocation->fromReserve, PocketMovementType::Withdraw, $closedOn, __('Covering the deficit'));
+                $movementIds[] = $this->move($user, $preview->reservePocketId, $period, -$allocation->fromReserve, PocketMovementType::Withdraw, $closedOn, __('Covering the deficit'));
             }
 
             if ($preview->surplusTarget['type'] === 'new-pocket' && $allocation->toSurplus > 0) {
                 $pocket = $user->pockets()->create(['name' => $this->savingsName(), 'sort' => $user->pockets()->count() + 1]);
-                $this->move($user, $pocket->id, $period, $allocation->toSurplus, PocketMovementType::Deposit, $closedOn, __('Leftover'));
+                $createdPocketId = $pocket->id;
+                $movementIds[] = $this->move($user, $pocket->id, $period, $allocation->toSurplus, PocketMovementType::Deposit, $closedOn, __('Leftover'));
             }
 
             if ($preview->surplusTarget['type'] === 'pocket' && $preview->surplusTarget['id'] !== null && $allocation->toSurplus > 0) {
-                $this->move($user, $preview->surplusTarget['id'], $period, $allocation->toSurplus, PocketMovementType::Deposit, $closedOn, __('Leftover'));
+                $movementIds[] = $this->move($user, $preview->surplusTarget['id'], $period, $allocation->toSurplus, PocketMovementType::Deposit, $closedOn, __('Leftover'));
             }
 
             $period->update([
@@ -237,7 +244,14 @@ final readonly class PeriodCloser
                 'to_invest' => $allocation->toSurplus,
                 'surplus_account_id' => $preview->surplusTarget['type'] === 'account' ? $preview->surplusTarget['id'] : null,
                 'from_reserve' => $allocation->fromReserve,
-                'breakdown' => $preview->toBreakdown(),
+                'breakdown' => [
+                    ...$preview->toBreakdown(),
+                    'undo' => [
+                        'regular_ends_on' => $regularEndsOn,
+                        'movement_ids' => $movementIds,
+                        'created_pocket_id' => $createdPocketId,
+                    ],
+                ],
             ]);
             $close->user_id = $user->id;
             $close->save();
@@ -361,11 +375,14 @@ final readonly class PeriodCloser
         return $deposits;
     }
 
-    private function move(User $user, int $pocketId, Period $period, int $amount, PocketMovementType $type, string $date, string $note): void
+    /**
+     * @return int the id of the new pocket movement
+     */
+    private function move(User $user, int $pocketId, Period $period, int $amount, PocketMovementType $type, string $date, string $note): int
     {
         $pocket = $user->pockets()->findOrFail($pocketId);
 
-        $user->pocketMovements()->create([
+        $movement = $user->pocketMovements()->create([
             'pocket_id' => $pocket->id,
             'period_id' => $period->id,
             'amount' => $amount,
@@ -375,5 +392,7 @@ final readonly class PeriodCloser
         ]);
 
         $pocket->increment('balance', $amount);
+
+        return $movement->id;
     }
 }

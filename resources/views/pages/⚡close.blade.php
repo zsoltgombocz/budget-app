@@ -490,6 +490,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
                         </div>
                     @endif
                 @endforeach
+                <livewire:reopen-closing :period-id="$period->id" :key="'reopen-'.$period->id" />
             @endif
         </div>
     @endif

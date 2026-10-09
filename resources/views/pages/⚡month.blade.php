@@ -236,6 +236,7 @@ new #[Title('Month')] class extends Component {
                 <span><span class="block text-muted">{{ __('To the reserve') }}</span><span class="num block text-sm">{{ money($closeRecord->to_reserve) }}</span></span>
                 <span><span class="block text-muted">{{ __('Rest') }}</span><span class="num block text-sm">{{ money($closeRecord->to_invest) }}</span></span>
             </a>
+            <livewire:reopen-closing :period-id="$period->id" :key="'reopen-'.$period->id" />
         @endif
     </x-ui.card>
 
