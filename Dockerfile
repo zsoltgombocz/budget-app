@@ -1,11 +1,13 @@
 # syntax=docker/dockerfile:1
 
-FROM composer:2 AS vendor
+# Base images come through Google's Docker Hub mirror: anonymous pulls from GitHub runners hit
+# Docker Hub's rate limit (429) and broke builds.
+FROM mirror.gcr.io/library/composer:2 AS vendor
 WORKDIR /app
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction --ignore-platform-reqs
 
-FROM oven/bun:1 AS assets
+FROM mirror.gcr.io/oven/bun:1 AS assets
 WORKDIR /app
 COPY package.json bun.lock bunfig.toml ./
 RUN bun install --frozen-lockfile
@@ -17,7 +19,7 @@ COPY --from=vendor /app/vendor/livewire/flux/ vendor/livewire/flux/
 COPY --from=vendor /app/vendor/laravel/framework/src/Illuminate/Pagination/resources/views/ vendor/laravel/framework/src/Illuminate/Pagination/resources/views/
 RUN bun run build
 
-FROM php:8.4-fpm AS app
+FROM mirror.gcr.io/library/php:8.4-fpm AS app
 
 # Commit the image was built from; Sentry groups errors by it.
 ARG APP_REVISION=""
@@ -33,7 +35,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY docker/php.ini /usr/local/etc/php/conf.d/zz-app.ini
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY --from=mirror.gcr.io/library/composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
