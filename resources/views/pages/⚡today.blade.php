@@ -227,7 +227,7 @@ new #[Title('Today')] class extends Component {
                     <div>
                         <div class="flex items-baseline justify-between gap-2">
                             <span class="truncate text-[15px] font-medium">{{ $category->categoryName }}</span>
-                            <span class="num shrink-0 text-sm"><span class="font-semibold">{{ money_number($category->spent) }}</span><span class="text-muted"> / {{ money_number($category->planned) }}</span></span>
+                            <span class="num shrink-0 text-sm"><span class="font-semibold">{{ money_number($category->spent) }}</span><span class="text-muted"> / {{ money_number($category->planned) }} <span class="text-[0.8em]">{{ user_currency()->symbol() }}</span></span></span>
                         </div>
                         @if ($this->hasSpending)
                             <x-ui.bar :value="$category->planned > 0 ? $category->spent / $category->planned : ($category->spent > 0 ? 1 : 0)" :tone="$tone" class="mt-2" />
@@ -274,7 +274,7 @@ new #[Title('Today')] class extends Component {
                             @endif
                         </span>
                     </span>
-                    <span class="num text-[15px] font-medium">{{ money_number($item->line->planned()) }}</span>
+                    <x-ui.amount size="sm" :value="$item->line->planned()" class="text-[15px] font-medium" />
                 </button>
             @endforeach
             @if ($hiddenFixed !== [] && ! $this->showAllFixed)

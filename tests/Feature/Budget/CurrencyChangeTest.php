@@ -113,7 +113,7 @@ it('converts every amount at the MNB rate only after confirmation', function ():
     $dialog = $page->previewCurrency('EUR', resolve(ChangeBaseCurrency::class));
 
     expect($dialog['title'])->toBe('Convert every amount to EUR?')
-        ->and($dialog['body'])->toContain('MNB rate 2026-10-08: 1 € = 400.00')
+        ->and($dialog['highlight'])->toBe('MNB rate 2026-10-08: 1 € = 400.00 HUF')
         ->and($dialog['body'])->toContain('Plan lines whose original amount is in EUR take exactly that amount.')
         ->and($dialog['body'])->toContain('If you switch back to HUF later, the original amounts come back exactly')
         ->and(moneySnapshot($this->user))->toBe($before)
@@ -225,7 +225,8 @@ it('switches back without MNB, at the stored rate', function (): void {
     $dialog = $page->previewCurrency('HUF', resolve(ChangeBaseCurrency::class));
 
     expect($dialog['title'])->toBe('Back to HUF?')
-        ->and($dialog['body'])->toContain('MNB rate 2026-10-08: 1 € = 400.00');
+        ->and($dialog['highlight'])->toBe('The original amounts come back (switch: 2026-10-08, 1 € = 400.00 HUF)')
+        ->and($dialog['body'])->toContain('converted back at the rate used at the switch, not at today\'s rate');
 
     $page->changeCurrency(resolve(ChangeBaseCurrency::class));
 
@@ -239,8 +240,10 @@ it('shows the example and the rate in Hungarian', function (): void {
 
     $dialog = Livewire::test('pages::settings.budget')->instance()->previewCurrency('EUR', resolve(ChangeBaseCurrency::class));
 
-    expect(str_replace(["\u{00A0}", "\u{202F}"], ' ', $dialog['body']))
-        ->toStartWith('150 000 Ft → 381,24 EUR, MNB árfolyam 2026-10-08: 1 EUR = 393,45 Ft');
+    $plain = fn (string $text): string => str_replace(["\u{00A0}", "\u{202F}"], ' ', $text);
+
+    expect($plain($dialog['highlight']))->toBe('MNB árfolyam 2026-10-08: 1 EUR = 393,45 Ft')
+        ->and($plain($dialog['note']))->toBe('150 000 Ft → 381,24 EUR');
 });
 
 it('refuses a confirmation when the currency changed since the preview', function (): void {

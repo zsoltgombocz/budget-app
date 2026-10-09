@@ -261,7 +261,7 @@ new #[Title('Month')] class extends Component {
                                 @class(['grid w-full grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-[11px] text-left', 'border-b border-line' => $border]) data-test="transaction">
                             <x-ui.icon-tile :icon="$row['icon']" :size="36" />
                             <span class="min-w-0"><span class="block truncate text-[15px]">{{ $row['title'] }}</span>@if ($row['pocket'])<span class="mt-0.5 block truncate text-xs text-accent">{{ __('paid from :pocket', ['pocket' => $row['pocket']]) }}</span>@elseif ($row['note'])<span class="mt-0.5 block truncate text-xs text-muted">{{ $row['note'] }}</span>@endif</span>
-                            <span class="num text-[15px] font-medium">{{ money_number($row['amount']) }}</span>
+                            <x-ui.amount size="sm" :value="$row['amount']" class="text-[15px] font-medium" />
                         </button>
                     @elseif ($row['kind'] === 'no-spend')
                         <div @class(['grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-[11px]', 'border-b border-line' => $border])>
@@ -273,13 +273,13 @@ new #[Title('Month')] class extends Component {
                         <div @class(['grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-[11px]', 'border-b border-line' => $border])>
                             <x-ui.icon-tile icon="payments" tone="accent" :size="36" />
                             <span class="text-[15px]">{{ __('Salary') }}</span>
-                            <span class="num text-[15px] font-medium text-accent">+{{ money_number($row['amount']) }}</span>
+                            <x-ui.amount size="sm" :value="$row['amount']" signed class="text-[15px] font-medium text-accent" />
                         </div>
                     @else
                         <div @class(['grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-[11px]', 'border-b border-line' => $border])>
                             <x-ui.icon-tile icon="autorenew" tone="muted" :size="36" />
                             <span><span class="block text-[15px]">{{ __('Fixed items') }}</span><span class="mt-0.5 block text-xs text-muted">{{ trans_choice('{1} :count item automatically|[2,*] :count items automatically', $row['count'], ['count' => $row['count']]) }}</span></span>
-                            <span class="num text-[15px] font-medium">{{ money_number($row['amount']) }}</span>
+                            <x-ui.amount size="sm" :value="$row['amount']" class="text-[15px] font-medium" />
                         </div>
                     @endif
                 @endforeach

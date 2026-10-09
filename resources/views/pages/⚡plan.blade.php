@@ -494,7 +494,7 @@ new #[Title('Plan')] class extends Component {
                                             <span class="block truncate text-[15px]">{{ $line->category?->name }}</span>
                                             @if ($subtitle)<span class="num mt-0.5 block truncate text-xs text-muted">{{ $subtitle }}</span>@endif
                                         </span>
-                                        <span class="num shrink-0 text-[15px] font-medium">{{ money_number($this->plannedAmount($line)) }}</span>
+                                        <x-ui.amount size="sm" :value="$this->plannedAmount($line)" class="shrink-0 text-[15px] font-medium" />
                                     </a>
                                 @else
                                     <button type="button" x-on:click="openLine({{ $line->id }})" class="flex min-w-0 flex-1 items-center justify-between gap-3 text-left">
@@ -502,7 +502,7 @@ new #[Title('Plan')] class extends Component {
                                             <span class="block truncate text-[15px]">{{ $line->category?->name }}</span>
                                             @if ($subtitle)<span class="num mt-0.5 block truncate text-xs text-muted">{{ $subtitle }}</span>@endif
                                         </span>
-                                        <span class="num shrink-0 text-[15px] font-medium">{{ money_number($this->plannedAmount($line)) }}</span>
+                                        <x-ui.amount size="sm" :value="$this->plannedAmount($line)" class="shrink-0 text-[15px] font-medium" />
                                     </button>
                                 @endif
                             </div>

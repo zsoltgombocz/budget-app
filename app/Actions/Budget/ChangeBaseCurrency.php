@@ -112,7 +112,7 @@ final readonly class ChangeBaseCurrency
                 rates: $rates,
                 exampleBefore: $exampleBefore,
                 exampleAfter: $after,
-                linesWithOriginal: 0,
+                linesWithOriginal: $this->linesWithOriginal($user, $to),
             );
         }
 
@@ -138,8 +138,16 @@ final readonly class ChangeBaseCurrency
             rates: $rates,
             exampleBefore: $exampleBefore,
             exampleAfter: $this->converter->convert($exampleBefore, $from, $to, $hufPerFrom, $hufPerTo),
-            linesWithOriginal: $user->budgetLines()->where('orig_currency', $to->value)->whereNotNull('orig_amount')->count(),
+            linesWithOriginal: $this->linesWithOriginal($user, $to),
         );
+    }
+
+    /**
+     * Plan lines with an original amount in $to: they take that amount instead of a converted one.
+     */
+    private function linesWithOriginal(User $user, Currency $to): int
+    {
+        return $user->budgetLines()->where('orig_currency', $to->value)->whereNotNull('orig_amount')->count();
     }
 
     /**

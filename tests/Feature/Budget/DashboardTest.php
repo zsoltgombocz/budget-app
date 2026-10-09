@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\Currency;
 use App\Models\BudgetLine;
 use App\Models\Category;
 use App\Models\DayMark;
@@ -47,6 +48,17 @@ it('lists fixed items with due dates and ticks them off', function (): void {
 
     Livewire::test('pages::today')->call('togglePaid', $rent->id);
     expect(resolve(OverviewService::class)->forUser($this->user)->fixedItems[0]->paid)->toBeFalse();
+});
+
+it('shows the currency next to the fixed item amounts', function (): void {
+    $this->user->settings()->update(['currency' => Currency::EUR]);
+    $rent = BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail();
+
+    $html = $this->get(route('dashboard'))->assertOk()->getContent();
+    preg_match('/data-test="fixed-item">.*?Rent.*?<\/button>/s', (string) $html, $row);
+
+    expect($row[0] ?? '')->toContain(money_number($rent->amount, Currency::EUR))
+        ->toContain(Currency::EUR->symbol());
 });
 
 it('finds the due date in a payday period spanning two months', function (): void {
