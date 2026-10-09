@@ -165,6 +165,14 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
     }
 
     /**
+     * @return HasMany<NotificationLog, $this>
+     */
+    public function notificationLogs(): HasMany
+    {
+        return $this->hasMany(NotificationLog::class);
+    }
+
+    /**
      * @return HasMany<Pocket, $this>
      */
     public function pockets(): HasMany

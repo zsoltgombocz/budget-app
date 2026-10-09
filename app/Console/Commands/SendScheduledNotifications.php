@@ -7,6 +7,7 @@ use App\Services\NotificationScheduler;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use NotificationChannels\WebPush\PushSubscription;
 use Throwable;
 
 #[Signature('budget:notify')]
@@ -16,7 +17,7 @@ class SendScheduledNotifications extends Command
     public function handle(NotificationScheduler $scheduler): int
     {
         User::query()
-            ->whereHas('pushSubscriptions')
+            ->whereIn('id', PushSubscription::query()->where('subscribable_type', (new User)->getMorphClass())->select('subscribable_id'))
             ->with('budgetSetting')
             ->lazyById()
             ->each(function (User $user) use ($scheduler): void {

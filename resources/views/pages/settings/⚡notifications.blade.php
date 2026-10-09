@@ -1,8 +1,12 @@
 <?php
 
 use App\Models\User;
-use App\Notifications\DailyReminder;
+use App\Models\NotificationLog;
+use App\Notifications\TestReminder;
+use App\Services\NotificationLogger;
 use App\Services\PeriodService;
+use Illuminate\Database\Eloquent\Collection;
+use Livewire\Attributes\Computed;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -51,9 +55,23 @@ new #[Title('Notifications')] class extends Component {
             return;
         }
 
-        $user->notifyNow(new DailyReminder(app(PeriodService::class)->today($user->settings())->toDateString()));
+        $notification = new TestReminder(app(PeriodService::class)->today($user->settings())->toDateString());
+        app(NotificationLogger::class)->queued($user, $notification);
+        $user->notify($notification);
+        unset($this->logs);
 
-        $this->dispatch('app-toast', title: __('Test notification sent.'), icon: 'notifications');
+        $this->dispatch('app-toast', title: __('Test notification on its way.'), subtitle: __('It goes the same way as the daily reminder and arrives in a few seconds.'), icon: 'notifications');
+    }
+
+    /**
+     * The latest notifications and what happened to them.
+     *
+     * @return Collection<int, NotificationLog>
+     */
+    #[Computed]
+    public function logs(): Collection
+    {
+        return $this->user()->notificationLogs()->latest('id')->limit(10)->get();
     }
 
     private function user(): User
@@ -119,6 +137,47 @@ new #[Title('Notifications')] class extends Component {
                     </div>
                     <x-ui.button x-show="state === 'on'" variant="secondary" size="sm" icon="notifications" wire:click="sendTestNotification" class="mt-3">{{ __('Send a test') }}</x-ui.button>
                 </div>
+            </x-ui.card>
+
+            @php
+                $typeLabels = [
+                    'daily-reminder' => __('Daily reminder'),
+                    'test' => __('Test notification'),
+                    'due-items-reminder' => __('Due fixed items'),
+                    'payday-reminder' => __('Payday'),
+                    'period-end-reminder' => __('Last day of the period'),
+                    'surplus-transfer-reminder' => __('Leftover transfer'),
+                    'budget-alert' => __('Budget alert'),
+                ];
+                $reasons = [
+                    'recorded-today' => __('skipped: you already recorded spending today'),
+                    'no-spend-today' => __('skipped: you marked today as a no-spend day'),
+                    'no push subscription' => __('not sent: no device has notifications turned on'),
+                ];
+                $timezone = auth()->user()->settings()->timezone;
+            @endphp
+            <x-ui.card class="p-[18px]" wire:poll.10s data-test="notification-log">
+                <div class="text-[15px] font-semibold">{{ __('Recent notifications') }}</div>
+                <div class="mt-0.5 text-xs text-muted">{{ __('What the app sent or skipped, and whether the push service accepted it.') }}</div>
+                @forelse ($this->logs as $log)
+                    <div wire:key="log-{{ $log->id }}" @class(['flex items-start gap-3 py-2.5', 'border-b border-line' => ! $loop->last, 'mt-2' => $loop->first])>
+                        <span @class(['mt-1.5 size-2 shrink-0 rounded-full', 'bg-accent' => $log->status === 'sent', 'bg-danger' => $log->status === 'failed', 'bg-warn' => $log->status === 'queued', 'bg-faint' => $log->status === 'skipped'])></span>
+                        <span class="min-w-0 flex-1">
+                            <span class="block text-sm">{{ $typeLabels[$log->type] ?? $log->type }}</span>
+                            <span @class(['block text-xs', 'text-danger' => $log->status === 'failed', 'text-muted' => $log->status !== 'failed'])>
+                                @switch($log->status)
+                                    @case('sent') {{ __('sent, accepted by the push service') }} @break
+                                    @case('queued') {{ __('waiting to be sent') }} @break
+                                    @case('skipped') {{ $reasons[$log->reason] ?? $log->reason }} @break
+                                    @default {{ $reasons[$log->reason] ?? __('not delivered: :reason', ['reason' => trim(($log->push_status ? $log->push_status.' ' : '').$log->reason)]) }}
+                                @endswitch
+                            </span>
+                        </span>
+                        <span class="num shrink-0 text-xs text-muted">{{ $log->created_at?->setTimezone($timezone)->format('m.d. H:i') }}</span>
+                    </div>
+                @empty
+                    <div class="mt-3 text-sm text-muted">{{ __('Nothing yet.') }}</div>
+                @endforelse
             </x-ui.card>
 
     </div>

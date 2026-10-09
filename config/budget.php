@@ -18,9 +18,9 @@ return [
     'admin_domain' => env('ADMIN_DOMAIN'),
 
     /*
-     * Address shown on the Contact page. Empty hides the e-mail row.
+     * Address shown on the Contact page.
      */
-    'contact_email' => env('CONTACT_EMAIL'),
+    'contact_email' => env('CONTACT_EMAIL') ?: 'hello@moneysight.app',
 
     /*
      * Sentry issues page of production, linked from the admin menu.
