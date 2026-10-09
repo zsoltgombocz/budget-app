@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Str;
 use NotificationChannels\WebPush\WebPushChannel;
 use NotificationChannels\WebPush\WebPushMessage;
 
@@ -26,6 +27,14 @@ abstract class BudgetPushNotification extends Notification implements ShouldQueu
     }
 
     abstract public function toWebPush(User $notifiable, Notification $notification): WebPushMessage;
+
+    /**
+     * Key of this notification in the notification log, e.g. "daily-reminder".
+     */
+    public function logType(): string
+    {
+        return Str::kebab(class_basename($this));
+    }
 
     protected function message(string $title, string $body, string $url, string $tag): WebPushMessage
     {

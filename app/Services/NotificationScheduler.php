@@ -6,6 +6,7 @@ use App\Enums\LineType;
 use App\Enums\PeriodMode;
 use App\Models\Period;
 use App\Models\User;
+use App\Notifications\BudgetPushNotification;
 use App\Notifications\DailyReminder;
 use App\Notifications\DueItemsReminder;
 use App\Notifications\PaydayReminder;
@@ -31,6 +32,7 @@ final readonly class NotificationScheduler
     public function __construct(
         private PeriodService $periods,
         private OverviewService $overviews,
+        private NotificationLogger $logger,
     ) {}
 
     /**
@@ -52,18 +54,22 @@ final readonly class NotificationScheduler
 
         if ($settings->reminder_enabled
             && $time >= substr($settings->reminder_time, 0, 5)
-            && ! $period->transactions()->whereDate('occurred_on', $today->toDateString())->exists()
-            && ! $user->dayMarks()->whereDate('date', $today->toDateString())->exists()
             && $this->claim('daily', $user, $today)) {
-            $user->notify(new DailyReminder($today->toDateString()));
-            $sent[] = 'daily';
+            if ($period->transactions()->whereDate('occurred_on', $today->toDateString())->exists()) {
+                $this->logger->skipped($user, 'daily-reminder', 'recorded-today');
+            } elseif ($user->dayMarks()->whereDate('date', $today->toDateString())->exists()) {
+                $this->logger->skipped($user, 'daily-reminder', 'no-spend-today');
+            } else {
+                $this->send($user, new DailyReminder($today->toDateString()));
+                $sent[] = 'daily';
+            }
         }
 
         if ($settings->period_mode === PeriodMode::Payday
             && $period->starts_on->isSameDay($today)
             && $time >= self::PAYDAY_TIME
             && $this->claim('payday', $user, $today)) {
-            $user->notify(new PaydayReminder($this->transfers($period)));
+            $this->send($user, new PaydayReminder($this->transfers($period)));
             $sent[] = 'payday';
         }
 
@@ -71,7 +77,7 @@ final readonly class NotificationScheduler
             $due = $this->dueToday($period, $today);
 
             if ($due !== [] && $this->claim('due-items', $user, $today)) {
-                $user->notify(new DueItemsReminder($due));
+                $this->send($user, new DueItemsReminder($due));
                 $sent[] = 'due-items';
             }
         }
@@ -84,7 +90,7 @@ final readonly class NotificationScheduler
 
             foreach ($pending as $close) {
                 if (Cache::add("notification:surplus:{$close->id}", true, now()->addDays(60))) {
-                    $user->notify(new SurplusTransferReminder($close->id, $close->to_invest, $close->surplusAccount->name ?? ''));
+                    $this->send($user, new SurplusTransferReminder($close->id, $close->to_invest, $close->surplusAccount->name ?? ''));
                     $sent[] = 'surplus-transfer';
                 }
             }
@@ -94,7 +100,7 @@ final readonly class NotificationScheduler
             && $time >= self::PERIOD_END_TIME
             && $this->claim('period-end', $user, $today)) {
             $overview = $this->overviews->forPeriod($user, $period, $today);
-            $user->notify(new PeriodEndReminder($overview->forecast->expectedLeftover));
+            $this->send($user, new PeriodEndReminder($overview->forecast->expectedLeftover));
             $sent[] = 'period-end';
         }
 
@@ -133,6 +139,12 @@ final readonly class NotificationScheduler
         }
 
         return $due;
+    }
+
+    private function send(User $user, BudgetPushNotification $notification): void
+    {
+        $this->logger->queued($user, $notification);
+        $user->notify($notification);
     }
 
     private function claim(string $type, User $user, CarbonImmutable $day): bool

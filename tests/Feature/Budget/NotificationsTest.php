@@ -134,3 +134,20 @@ it('reminds once the next morning about an untransferred leftover', function ():
         ->and($this->scheduler->run($this->user, budapest('2026-10-14 09:01')))->toContain('surplus-transfer')
         ->and($this->scheduler->run($this->user, budapest('2026-10-15 09:01')))->not->toContain('surplus-transfer');
 });
+
+it('logs a queued reminder and a skipped one with the reason', function (): void {
+    $this->scheduler->run($this->user, budapest('2026-10-14 20:31'));
+
+    $period = resolve(PeriodService::class)->forDate($this->user, budapest('2026-10-15'));
+    Transaction::factory()->for($this->user)->for($period)->for(Category::query()->where('name', 'Fuel')->firstOrFail())
+        ->create(['occurred_on' => '2026-10-15']);
+    $this->scheduler->run($this->user, budapest('2026-10-15 20:31'));
+    $this->scheduler->run($this->user, budapest('2026-10-15 20:40'));
+
+    $logs = $this->user->notificationLogs()->orderBy('id')->get(['type', 'status', 'reason', 'notification_id']);
+
+    expect($logs)->toHaveCount(2)
+        ->and($logs[0]->only(['type', 'status']))->toBe(['type' => 'daily-reminder', 'status' => 'queued'])
+        ->and($logs[0]->notification_id)->not->toBeNull()
+        ->and($logs[1]->only(['type', 'status', 'reason']))->toBe(['type' => 'daily-reminder', 'status' => 'skipped', 'reason' => 'recorded-today']);
+});

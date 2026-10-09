@@ -185,7 +185,12 @@ return [
         SlowJobs::class => [
             'enabled' => env('PULSE_SLOW_JOBS_ENABLED', true),
             'sample_rate' => env('PULSE_SLOW_JOBS_SAMPLE_RATE', 1),
-            'threshold' => env('PULSE_SLOW_JOBS_THRESHOLD', 1000),
+            // A push notification spends 1-2 s encrypting and talking to Apple/Google; only flag it
+            // when it is clearly slower than that.
+            'threshold' => [
+                '#^App\\\\Notifications\\\\#' => 3000,
+                'default' => env('PULSE_SLOW_JOBS_THRESHOLD', 1000),
+            ],
             'ignore' => [
                 // '/^Package\\\\Jobs\\\\/',
             ],
