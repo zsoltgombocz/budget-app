@@ -264,7 +264,6 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
 
 <div>
 <div class="flex min-h-[calc(100dvh-var(--safe-top)-env(safe-area-inset-bottom))] flex-col pb-[calc(10rem+env(safe-area-inset-bottom))]"
-     wire:key="wizard-{{ $step }}-{{ $incomeActual }}"
      x-data="closeWizard({
         decimals: {{ $currency->decimals() }},
         locale: @js(str_replace('_', '-', app()->getLocale())),
@@ -282,6 +281,8 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         </div>
         <x-ui.steps :current="$step" />
     @endif
+
+    <div wire:key="step-{{ $step }}" class="step-enter">
 
     @if ($step === 1)
         <div class="px-6 pt-[22px]">
@@ -493,7 +494,9 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         </div>
     @endif
 
-    <div class="fixed inset-x-0 bottom-0 z-20 mx-auto flex max-w-lg gap-2.5 bg-gradient-to-t from-bg via-bg to-transparent px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-6">
+    </div>
+
+    <x-ui.action-bar>
         @if ($step === 1)
             <x-ui.button class="flex-1" wire:click="goTo(2)" data-test="close-next">{{ __('Next') }}</x-ui.button>
         @elseif ($step === 2)
@@ -505,7 +508,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         @else
             <x-ui.button class="flex-1" :href="route('dashboard')" wire:navigate>{{ __('To the new period') }}</x-ui.button>
         @endif
-    </div>
+    </x-ui.action-bar>
 
     {{-- Amount editor: actual income and the two sides of the leftover split --}}
     <div x-show="editorOpen" x-cloak class="fixed inset-0 z-50" role="dialog" aria-modal="true">

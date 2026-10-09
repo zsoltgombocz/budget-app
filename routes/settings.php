@@ -7,7 +7,9 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::livewire('settings/profile', 'pages::settings.profile')->name('profile.edit');
     Route::livewire('settings/appearance', 'pages::settings.appearance')->name('appearance.edit');
     Route::livewire('settings/security', 'pages::settings.security')->name('security.edit');
-    Route::livewire('settings/bug-report', 'pages::settings.bug-report')->name('bug-report');
+    Route::livewire('settings/contact', 'pages::settings.contact')->name('contact');
+    Route::livewire('settings/contact/bug', 'pages::settings.feedback')->name('bug-report')->defaults('kind', 'bug');
+    Route::livewire('settings/contact/idea', 'pages::settings.feedback')->name('idea')->defaults('kind', 'idea');
 
     Route::middleware('onboarded')->group(function (): void {
         Route::livewire('settings/budget', 'pages::settings.budget')->name('budget.edit');

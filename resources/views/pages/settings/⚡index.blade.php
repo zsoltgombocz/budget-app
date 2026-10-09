@@ -27,7 +27,7 @@ new #[Title('Settings')] class extends Component {
         ],
         [
             ['route' => 'install', 'icon' => 'install_mobile', 'title' => __('Install the app'), 'subtitle' => __('Steps for your phone and browser')],
-            ['route' => 'bug-report', 'icon' => 'bug_report', 'title' => __('Report a bug'), 'subtitle' => __('Something not working? Tell us.')],
+            ['route' => 'contact', 'icon' => 'mail', 'title' => __('Contact'), 'subtitle' => __('E-mail, bug reports and ideas')],
             ['route' => 'changelog', 'icon' => 'celebration', 'title' => __('What’s new'), 'subtitle' => __('Version :version', ['version' => config('app.version')])],
         ],
     ];

@@ -245,3 +245,17 @@ it('cannot touch another user\'s pocket', function (): void {
 
     Livewire::test('pages::pockets')->call('pocketData', $foreign->id)->assertNotFound();
 });
+
+it('lists archived pockets and restores one with its balance', function (): void {
+    $pocket = Pocket::factory()->for($this->user)->create(['name' => 'Holiday', 'balance' => 120_000]);
+
+    Livewire::test('pages::pockets')
+        ->call('deletePocket', $pocket->id)
+        ->assertDispatched('app-toast')
+        ->assertSee('data-test="archived-pockets"', false)
+        ->assertSee('Holiday')
+        ->call('restorePocket', $pocket->id)
+        ->assertDontSee('data-test="archived-pockets"', false);
+
+    expect(Pocket::query()->find($pocket->id)?->balance)->toBe(120_000);
+});

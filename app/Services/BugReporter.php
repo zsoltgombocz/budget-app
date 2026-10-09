@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
- * Sends a bug report from the app to Sentry's User Feedback as a "feedback" envelope item,
+ * Sends a bug report or an idea from the app to Sentry's User Feedback (tagged kind=bug|idea) as a "feedback" envelope item,
  * with an optional screenshot attached. Only what the user typed, their account id and e-mail,
  * the page they came from, the app version and the browser are sent.
  */
@@ -21,7 +21,7 @@ final readonly class BugReporter
      *
      * @throws RuntimeException when no DSN is configured or Sentry does not accept the report
      */
-    public function send(User $user, string $message, ?UploadedFile $screenshot = null, array $context = []): string
+    public function send(User $user, string $message, ?UploadedFile $screenshot = null, array $context = [], string $kind = 'bug'): string
     {
         $dsn = $this->parseDsn(config()->string('services.bug_report.dsn', ''));
         $eventId = Str::lower(str_replace('-', '', (string) Str::uuid()));
@@ -41,7 +41,7 @@ final readonly class BugReporter
             'environment' => app()->environment(),
             'release' => config('sentry.release'),
             'user' => ['id' => (string) $user->id, 'email' => $user->email],
-            'tags' => array_filter(['app_version' => config()->string('app.version', ''), 'locale' => app()->getLocale()]),
+            'tags' => array_filter(['kind' => $kind, 'app_version' => config()->string('app.version', ''), 'locale' => app()->getLocale()]),
             'contexts' => [
                 'feedback' => $feedback,
                 'browser' => array_filter(['name' => $context['user_agent'] ?? null]),

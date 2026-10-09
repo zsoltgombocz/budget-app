@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Budget\DeletePocket;
+use App\Actions\Budget\RestorePocket;
 use App\Actions\Budget\MovePocketMoney;
 use App\Actions\Budget\PayFromPocket;
 use App\Enums\LineType;
@@ -21,6 +22,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
@@ -174,9 +176,26 @@ new #[Title('Pockets and loans')] class extends Component {
 
     public function deletePocket(int $pocketId, DeletePocket $deletePocket): void
     {
-        $deletePocket->handle($this->user()->pockets()->findOrFail($pocketId));
-        unset($this->pockets);
+        $pocket = $this->user()->pockets()->findOrFail($pocketId);
+        $deletePocket->handle($pocket);
+        unset($this->pockets, $this->archivedPockets);
         $this->dispatch('budget-updated');
+        $this->dispatch('app-toast', title: __(':pocket archived', ['pocket' => $pocket->name]), icon: 'delete', undo: 'restore-pocket', params: ['id' => $pocket->id]);
+    }
+
+    #[On('restore-pocket')]
+    public function restorePocket(int $id, RestorePocket $restorePocket): void
+    {
+        $pocket = $this->user()->pockets()->onlyTrashed()->find($id);
+
+        if ($pocket === null) {
+            return;
+        }
+
+        $restorePocket->handle($pocket);
+        unset($this->pockets, $this->archivedPockets);
+        $this->dispatch('budget-updated');
+        $this->dispatch('app-toast', title: __(':pocket restored', ['pocket' => $pocket->name]), subtitle: __('Its monthly saving is not back in the plan; add it again if you need it.'), icon: 'undo');
     }
 
     /**
@@ -308,6 +327,15 @@ new #[Title('Pockets and loans')] class extends Component {
     public function pockets(): Collection
     {
         return $this->user()->pockets()->with(['loan', 'budgetLines'])->orderBy('sort')->get();
+    }
+
+    /**
+     * @return Collection<int, Pocket>
+     */
+    #[Computed]
+    public function archivedPockets(): Collection
+    {
+        return $this->user()->pockets()->onlyTrashed()->latest('deleted_at')->get();
     }
 
     /**
@@ -527,6 +555,26 @@ new #[Title('Pockets and loans')] class extends Component {
                 </button>
             @endif
         @endforeach
+    @endif
+
+    @if ($this->archivedPockets->isNotEmpty())
+        <details class="group mx-4 mb-3 mt-2" data-test="archived-pockets">
+            <summary class="flex cursor-pointer list-none items-center justify-between px-3.5 py-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted">
+                {{ __('Archived pockets') }} · {{ $this->archivedPockets->count() }}
+                <x-ui.icon name="expand_more" :size="18" class="transition group-open:rotate-180" />
+            </summary>
+            <div class="rounded-card bg-surface px-[18px]">
+                @foreach ($this->archivedPockets as $archived)
+                    <div wire:key="archived-{{ $archived->id }}" @class(['flex items-center gap-3 py-3', 'border-b border-line' => ! $loop->last])>
+                        <span class="min-w-0 flex-1">
+                            <span class="block truncate text-[15px] text-ink-2">{{ $archived->name }}</span>
+                            <span class="num block text-xs text-muted">{{ money($archived->balance) }}</span>
+                        </span>
+                        <x-ui.button size="sm" variant="secondary" wire:click="restorePocket({{ $archived->id }})" data-test="restore-pocket-{{ $archived->id }}">{{ __('Restore') }}</x-ui.button>
+                    </div>
+                @endforeach
+            </div>
+        </details>
     @endif
 
     {{-- Add: choose a pocket or a loan --}}
@@ -754,7 +802,7 @@ new #[Title('Pockets and loans')] class extends Component {
             if (result.ok) { this.sheet = null; this.spendNote = ''; this.spendCategory = '' }
         },
         async removePocket() {
-            if (! await window.appConfirm({ title: @js(__('Delete this pocket?')), body: @js(__('It disappears from Pockets, the plan and closing, and no more money goes into it. Its monthly saving is removed from the plan; if the month-end leftover went here, from now on it stays on your account. Past months stay as they were: its deposits, withdrawals and the spending it paid for are kept. Its balance is not moved anywhere and no longer shows in the app.')), confirm: @js(__('Delete')), danger: true })) return
+            if (! await window.appConfirm({ title: @js(__('Delete this pocket?')), body: @js(__('It disappears from Pockets, the plan and closing, and no more money goes into it. Its monthly saving is removed from the plan. If the month-end leftover went here, closing no longer moves it anywhere: it stays on your bank account, and you can pick a new place at closing. Past months stay as they were: its deposits, withdrawals and the spending it paid for are kept. Its balance is not moved; you can restore the pocket under Archived pockets, but its monthly saving has to be added again.')), confirm: @js(__('Delete')), danger: true })) return
             await $wire.deletePocket(this.form.id)
             this.sheet = null
         },
