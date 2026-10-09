@@ -16,6 +16,8 @@ new #[Title('Notifications')] class extends Component {
 
     public bool $dueReminderEnabled = true;
 
+    public bool $versionReminderEnabled = true;
+
     public string $reminderTime = '20:30';
 
     public function mount(): void
@@ -24,6 +26,7 @@ new #[Title('Notifications')] class extends Component {
 
         $this->reminderEnabled = $settings->reminder_enabled;
         $this->dueReminderEnabled = $settings->due_reminder_enabled;
+        $this->versionReminderEnabled = $settings->version_reminder_enabled;
         $this->reminderTime = substr($settings->reminder_time, 0, 5);
     }
 
@@ -35,12 +38,14 @@ new #[Title('Notifications')] class extends Component {
         $this->validate([
             'reminderEnabled' => ['boolean'],
             'dueReminderEnabled' => ['boolean'],
+            'versionReminderEnabled' => ['boolean'],
             'reminderTime' => ['required', 'date_format:H:i'],
         ]);
 
         $this->user()->settings()->update([
             'reminder_enabled' => $this->reminderEnabled,
             'due_reminder_enabled' => $this->dueReminderEnabled,
+            'version_reminder_enabled' => $this->versionReminderEnabled,
             'reminder_time' => $this->reminderTime,
         ]);
     }
@@ -111,6 +116,13 @@ new #[Title('Notifications')] class extends Component {
                     </div>
                     <x-ui.toggle :on="$dueReminderEnabled" wire:click="$toggle('dueReminderEnabled')" :aria-label="__('Fixed items due')" />
                 </div>
+                <div class="mt-4 flex items-center justify-between border-t border-line pt-4">
+                    <div>
+                        <div class="text-sm">{{ __('New version') }}</div>
+                        <div class="mt-0.5 text-xs text-muted">{{ __('Once per release, with what is new') }}</div>
+                    </div>
+                    <x-ui.toggle :on="$versionReminderEnabled" wire:click="$toggle('versionReminderEnabled')" :aria-label="__('New version')" data-test="version-reminder-toggle" />
+                </div>
 
                 <div x-data="{
                         state: 'unknown',
@@ -148,6 +160,7 @@ new #[Title('Notifications')] class extends Component {
                     'period-end-reminder' => __('Last day of the period'),
                     'surplus-transfer-reminder' => __('Leftover transfer'),
                     'budget-alert' => __('Budget alert'),
+                    'new-version-available' => __('New version'),
                 ];
                 $reasons = [
                     'recorded-today' => __('skipped: you already recorded spending today'),

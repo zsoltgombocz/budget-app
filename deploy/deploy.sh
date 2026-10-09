@@ -62,4 +62,7 @@ fi
 
 version="$(curl -fsk --resolve "$HOST:443:127.0.0.1" "https://$HOST/login" | grep -o 'app-version" content="[^"]*"' | cut -d'"' -f3 || true)"
 echo "Healthy: https://$HOST runs $IMAGE (version ${version:-unknown})"
+
+# Tell users about the new version (once per version; never fails the deploy).
+docker compose exec -T app php artisan budget:announce-version || echo "Version announcement failed" >&2
 docker image prune -f >/dev/null
