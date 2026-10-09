@@ -74,7 +74,7 @@ new #[Title('Budget settings')] class extends Component {
      * Work out a base currency change and return the confirmation dialog's text, or null
      * (with an error shown) when MNB cannot be reached. Nothing is saved here.
      *
-     * @return array{title: string, body: string, confirm: string}|null
+     * @return array{title: string, highlight: string, note: string, body: string, confirm: string}|null
      */
     public function previewCurrency(string $code, ChangeBaseCurrency $changeBaseCurrency): ?array
     {
@@ -128,7 +128,9 @@ new #[Title('Budget settings')] class extends Component {
     }
 
     /**
-     * @return array{title: string, body: string, confirm: string}
+     * The dialog: the rate the change uses as the emphasised line, the example under it, then the details.
+     *
+     * @return array{title: string, highlight: string, note: string, body: string, confirm: string}
      */
     private function confirmation(CurrencyChangePreview $preview): array
     {
@@ -136,26 +138,29 @@ new #[Title('Budget settings')] class extends Component {
             'before' => Money::of($preview->exampleBefore, $preview->from)->format(),
             'after' => Money::of($preview->exampleAfter, $preview->to)->format(),
         ]);
-        $rates = $this->rateText($preview->rates);
         $currency = $preview->to->value;
+        $planOriginals = $preview->linesWithOriginal > 0 ? __('Plan lines whose original amount is in :currency take exactly that amount.', ['currency' => $currency]) : null;
 
         if ($preview->restores) {
             return [
                 'title' => __('Back to :currency?', ['currency' => $currency]),
-                'body' => implode("\n\n", [
-                    $example,
-                    __('Everything you have not changed since the switch gets back its original :currency amount exactly. Anything added or changed since is converted back at the rate used then (:rates). Today\'s rate is not used.', ['currency' => $currency, 'rates' => $rates]),
-                ]),
+                'highlight' => __('The original amounts come back (switch: :rates)', ['rates' => $this->rateText($preview->rates, withSource: false)]),
+                'note' => $example,
+                'body' => implode("\n\n", array_filter([
+                    __('Everything you have not changed since the switch gets back its exact original :currency amount. Anything added or changed since is converted back at the rate used at the switch, not at today\'s rate.', ['currency' => $currency]),
+                    $planOriginals,
+                ])),
                 'confirm' => __('Switch back'),
             ];
         }
 
         return [
             'title' => __('Convert every amount to :currency?', ['currency' => $currency]),
+            'highlight' => $this->rateText($preview->rates),
+            'note' => $example,
             'body' => implode("\n\n", array_filter([
-                $example.', '.$rates,
                 __('Every amount is converted at this rate: spending, the plan, past months and closings, pockets, loans and income.'),
-                $preview->linesWithOriginal > 0 ? __('Plan lines whose original amount is in :currency take exactly that amount.', ['currency' => $currency]) : null,
+                $planOriginals,
                 __('If you switch back to :from later, the original amounts come back exactly; anything added or changed in the meantime is converted back at this same rate.', ['from' => $preview->from->value]),
             ])),
             'confirm' => __('Convert'),
@@ -163,11 +168,12 @@ new #[Title('Budget settings')] class extends Component {
     }
 
     /**
-     * "MNB rate 2026-10-08: 1 € = 366,45 Ft", one group per day.
+     * "MNB rate 2026-10-08: 1 € = 366,45 Ft", one group per day; without the source
+     * just "2026-10-08, 1 € = 366,45 Ft".
      *
      * @param  list<array{date: string, currency: string, huf_per: string}>  $rates
      */
-    private function rateText(array $rates): string
+    private function rateText(array $rates, bool $withSource = true): string
     {
         $formatter = new NumberFormatter(app()->getLocale(), NumberFormatter::DECIMAL);
         $formatter->setAttribute(NumberFormatter::MIN_FRACTION_DIGITS, 2);
@@ -182,7 +188,9 @@ new #[Title('Budget settings')] class extends Component {
         $parts = [];
 
         foreach ($groups as $date => $items) {
-            $parts[] = __('MNB rate :date: :rates', ['date' => $date, 'rates' => implode(', ', $items)]);
+            $parts[] = $withSource
+                ? __('MNB rate :date: :rates', ['date' => $date, 'rates' => implode(', ', $items)])
+                : $date.', '.implode(', ', $items);
         }
 
         return implode('; ', $parts);

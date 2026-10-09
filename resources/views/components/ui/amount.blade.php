@@ -1,6 +1,6 @@
 @props(['value', 'size' => 'md', 'tone' => null, 'signed' => false])
 
-{{-- A number with the currency symbol set smaller and muted: "12 951 Ft". --}}
+{{-- A number with the currency symbol set smaller and muted: "12 951 Ft". size="sm" takes the text size from its class (list rows). --}}
 @php
     $value = (int) $value;
     $sizes = [
@@ -8,7 +8,7 @@
         'xl' => ['text-[52px] leading-none font-semibold tracking-[-0.04em]', 'text-[22px] font-medium'],
         'lg' => ['text-[30px] font-semibold tracking-[-0.02em]', 'text-lg font-medium'],
         'md' => ['text-xl font-semibold', 'text-sm font-medium'],
-        'sm' => ['', ''],
+        'sm' => ['', 'text-[0.8em] font-normal'],
     ][$size];
     $toneClass = match ($tone) {
         'accent' => 'text-accent-strong',
