@@ -1,4 +1,7 @@
 {
+    "Once per release, with what is new": "Kiadásonként egyszer, az újdonságokkal",
+    "MoneySight :version is out": "Megjelent a MoneySight :version",
+    "{1} (+1 more)|[2,*] (+:count more)": "{1} (+1 újdonság)|[2,*] (+:count újdonság)",
     "Test notification on its way.": "A teszt értesítés úton van.",
     "It goes the same way as the daily reminder and arrives in a few seconds.": "Ugyanúgy megy, mint a napi emlékeztető, és pár másodpercen belül megérkezik.",
     "Test notification": "Teszt értesítés",

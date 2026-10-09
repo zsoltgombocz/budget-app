@@ -11,6 +11,7 @@ return [
         'changes' => [
             ['hu' => 'A Beállítások → Értesítések alján látod a legutóbbi értesítéseket: mi ment ki, mit hagyott ki az app és miért, és átvette-e az Apple vagy a Google.', 'en' => 'The bottom of Settings → Notifications lists recent notifications: what was sent, what the app skipped and why, and whether Apple or Google accepted it.'],
             ['hu' => 'A teszt értesítés ugyanazon az úton megy, mint a napi emlékeztető, így ha megjön, az esti is meg fog.', 'en' => 'The test notification goes the same way as the daily reminder, so if it arrives, the evening one will too.'],
+            ['hu' => 'Új verzió megjelenésekor értesítést kapsz az újdonságokkal; a Beállítások → Értesítések alatt kikapcsolható.', 'en' => 'When a new version is out you get a notification with what is new; you can switch it off under Settings → Notifications.'],
             ['hu' => 'A Kapcsolat oldalon megjelent az e-mail címünk: hello@moneysight.app.', 'en' => 'The Contact page shows our e-mail address: hello@moneysight.app.'],
         ],
     ],
