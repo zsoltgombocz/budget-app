@@ -226,7 +226,11 @@ new #[Title('Month')] class extends Component {
         <x-ui.amount :value="$forecast->variableSpent" class="mt-1" />
         <x-ui.bar :value="$forecast->variablePlanned > 0 ? $forecast->variableSpent / $forecast->variablePlanned : 0" :tone="$forecast->variableSpent > $forecast->variablePlanned ? 'danger' : ($forecast->variablePlanned > 0 && $forecast->variableSpent / $forecast->variablePlanned >= 0.8 ? 'warn' : 'accent')" class="mt-2.5" />
 
-        @if ($period->isOpen())
+        @if ($period->isOpen() && ! app(\App\Services\PeriodCloser::class)->canClose(auth()->user(), $period))
+            <div class="mt-3.5 flex h-12 items-center justify-center gap-2 rounded-2xl border border-dashed border-line text-[13px] text-muted" data-test="close-not-yet">
+                <x-ui.icon name="schedule" :size="18" />{{ __('You can close the month from :date.', ['date' => Dates::short(app(\App\Services\PeriodCloser::class)->closableFrom($period))]) }}
+            </div>
+        @elseif ($period->isOpen())
             <a href="{{ route('close', $period) }}" wire:navigate class="mt-3.5 flex h-12 items-center justify-center gap-2 rounded-2xl bg-surface-2 text-[15px] font-semibold" data-test="start-close">
                 <x-ui.icon name="task_alt" :size="20" class="text-accent" />{{ __('Close the month') }}
             </a>

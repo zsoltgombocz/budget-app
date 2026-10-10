@@ -13,6 +13,7 @@ use App\Notifications\SurplusTransferReminder;
 use App\Services\Data\Allocation;
 use App\Services\Data\ClosePreview;
 use App\Services\Data\PlanLine;
+use App\Support\Dates;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -31,12 +32,31 @@ final readonly class PeriodCloser
      */
     public const float DEVIATION_RATIO = 0.1;
 
+    /**
+     * A period can be closed in its last this many days (and any time after its end): closing
+     * early means "the next salary arrived early", not "start a new month mid-month".
+     */
+    public const int CLOSE_WINDOW_DAYS = 7;
+
     public function __construct(
         private PlanService $plans,
         private BudgetCalculator $calculator,
         private AllocationCalculator $allocations,
         private PeriodService $periods,
     ) {}
+
+    /**
+     * The first day the period can be closed on.
+     */
+    public function closableFrom(Period $period): CarbonImmutable
+    {
+        return CarbonImmutable::parse($period->ends_on->subDays(self::CLOSE_WINDOW_DAYS - 1)->toDateString());
+    }
+
+    public function canClose(User $user, Period $period): bool
+    {
+        return $period->isOpen() && ! $this->periods->today($user->settings())->lessThan($this->closableFrom($period));
+    }
 
     /**
      * Start and end of the period that follows the closing. Closed before its last day, the next
@@ -192,6 +212,10 @@ final readonly class PeriodCloser
     {
         if (! $period->isOpen()) {
             throw ValidationException::withMessages(['period' => __('This period is already closed.')]);
+        }
+
+        if (! $this->canClose($user, $period)) {
+            throw ValidationException::withMessages(['period' => __('The month can be closed from :date.', ['date' => Dates::short($this->closableFrom($period))])]);
         }
 
         $close = DB::transaction(function () use ($user, $period, $incomeActual, $toReserve, $surplusTarget, $coverDeficit): PeriodClose {

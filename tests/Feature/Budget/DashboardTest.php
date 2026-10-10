@@ -10,6 +10,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Services\Data\CategoryForecast;
 use App\Services\OverviewService;
+use App\Services\PeriodCloser;
 use App\Services\PeriodService;
 use Carbon\CarbonImmutable;
 use Livewire\Livewire;
@@ -143,11 +144,18 @@ it('points to the plan instead of claiming income and fixed items are in when th
         ->assertDontSee('Your income and fixed items are already in.');
 });
 
-it('talks about payday instead of month end in payday mode', function (): void {
-    $this->user->settings()->update(['period_mode' => PeriodMode::Payday, 'payday_day' => 10]);
+it('leads with the leftover as things stand, the same figure as closing today', function (): void {
+    Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 75_000, 'occurred_on' => '2026-10-05']);
+    $current = resolve(PeriodCloser::class)->preview($this->user, $this->period)->leftover();
+    $expected = resolve(OverviewService::class)->forUser($this->user)->forecast->expectedLeftover;
 
     $this->get(route('dashboard'))
         ->assertOk()
-        ->assertSee('Expected leftover by payday')
-        ->assertDontSee('Expected leftover at period end');
+        ->assertSeeInOrder(['Leftover as things stand', money_number($current), 'If you spend every budget in full: '.money($expected)], false);
+});
+
+it('labels the leftover the same way in payday mode', function (): void {
+    $this->user->settings()->update(['period_mode' => PeriodMode::Payday, 'payday_day' => 10]);
+
+    $this->get(route('dashboard'))->assertOk()->assertSee('Leftover as things stand');
 });

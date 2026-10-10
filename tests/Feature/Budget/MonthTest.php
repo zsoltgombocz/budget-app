@@ -61,6 +61,7 @@ it('shows what the month would close with today, against the plan', function ():
 });
 
 it('does not show the close-now figures for a closed period', function (): void {
+    $this->travelTo($this->period->ends_on->setTime(18, 0));
     resolve(PeriodCloser::class)->close($this->user, $this->period, $this->period->income());
 
     Livewire::withQueryParams(['periodus' => $this->period->id])
@@ -69,6 +70,7 @@ it('does not show the close-now figures for a closed period', function (): void 
 });
 
 it('does not say "so far" or point to the + button on a closed period', function (): void {
+    $this->travelTo($this->period->ends_on->setTime(18, 0));
     resolve(PeriodCloser::class)->close($this->user, $this->period, $this->period->income());
 
     Livewire::withQueryParams(['periodus' => $this->period->id])

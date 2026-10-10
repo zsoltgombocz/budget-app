@@ -21,7 +21,7 @@ use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 
 beforeEach(function (): void {
-    $this->travelTo(CarbonImmutable::parse('2026-10-08 18:00', 'Europe/Budapest'));
+    $this->travelTo(CarbonImmutable::parse('2026-10-27 18:00', 'Europe/Budapest'));
     $this->user = onboardedUser();
     $this->actingAs($this->user);
     $this->period = resolve(PeriodService::class)->current($this->user);
@@ -160,7 +160,7 @@ it('refuses a legacy closing whose movements do not add up', function (): void {
 
 it('refuses when the period is not the latest closed one', function (): void {
     closeEarly();
-    $this->travelTo(CarbonImmutable::parse('2026-10-09 18:00', 'Europe/Budapest'));
+    $this->travelTo(CarbonImmutable::parse('2026-11-25 18:00', 'Europe/Budapest'));
     resolve(PeriodCloser::class)->close($this->user, resolve(PeriodService::class)->current($this->user));
 
     expect(resolve(ReopenPeriod::class)->isOffered($this->user, $this->period->refresh()))->toBeFalse();

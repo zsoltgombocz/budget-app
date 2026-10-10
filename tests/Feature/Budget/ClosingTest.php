@@ -302,16 +302,16 @@ it('offers to keep the leftover target only when it differs from the saved one',
 });
 
 it('starts the new month on the day of an early closing', function (): void {
-    $this->travelTo(CarbonImmutable::parse('2026-10-08 18:00', 'Europe/Budapest'));
+    $this->travelTo(CarbonImmutable::parse('2026-10-27 18:00', 'Europe/Budapest'));
     spend($this->user, $this->period, $this->fuel, 10_000);
 
     resolve(PeriodCloser::class)->close($this->user, $this->period);
 
     $next = resolve(PeriodService::class)->current($this->user);
 
-    expect($this->period->refresh()->ends_on->toDateString())->toBe('2026-10-08')
+    expect($this->period->refresh()->ends_on->toDateString())->toBe('2026-10-27')
         ->and($this->period->status)->toBe(PeriodStatus::Closed)
-        ->and($next->starts_on->toDateString())->toBe('2026-10-08')
+        ->and($next->starts_on->toDateString())->toBe('2026-10-27')
         ->and($next->ends_on->toDateString())->toBe('2026-11-30')
         ->and($next->isOpen())->toBeTrue()
         ->and($next->nameDate()->month)->toBe(11)
@@ -322,4 +322,19 @@ it('starts the new month on the day of an early closing', function (): void {
     expect($transaction->period_id)->toBe($next->id);
 
     $this->get(route('month'))->assertOk()->assertSee('November')->assertSee('data-test="close-now"', false);
+});
+
+it('can only be closed in the last week of the period', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-24 18:00', 'Europe/Budapest'));
+
+    expect(resolve(PeriodCloser::class)->canClose($this->user, $this->period))->toBeFalse()
+        ->and(fn () => resolve(PeriodCloser::class)->close($this->user, $this->period))->toThrow(ValidationException::class);
+
+    $this->get(route('month'))->assertSee('data-test="close-not-yet"', false)->assertDontSee('data-test="start-close"', false);
+    $this->get(route('close', $this->period))->assertRedirect(route('month', ['periodus' => $this->period->id]));
+
+    $this->travelTo(CarbonImmutable::parse('2026-10-25 08:00', 'Europe/Budapest'));
+
+    expect(resolve(PeriodCloser::class)->canClose($this->user, $this->period))->toBeTrue();
+    $this->get(route('month'))->assertSee('data-test="start-close"', false);
 });

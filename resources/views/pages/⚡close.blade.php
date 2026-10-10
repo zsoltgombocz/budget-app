@@ -45,6 +45,11 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
     public function mount(int $period): void
     {
         $model = $this->user()->periods()->findOrFail($period);
+
+        if ($model->isOpen() && ! app(PeriodCloser::class)->canClose($this->user(), $model)) {
+            $this->redirectRoute('month', ['periodus' => $model->id], navigate: true);
+        }
+
         $this->periodId = $model->id;
         $this->incomeActual = $model->income();
         $this->step = $model->isOpen() ? 1 : 4;

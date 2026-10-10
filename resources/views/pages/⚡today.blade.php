@@ -102,6 +102,16 @@ new #[Title('Today')] class extends Component {
     }
 
     /**
+     * The leftover as things stand: what closing today would leave (same figure as the Month
+     * page and the closing wizard).
+     */
+    #[Computed]
+    public function currentLeftover(): int
+    {
+        return app(\App\Services\PeriodCloser::class)->preview($this->user(), $this->overview->period)->leftover();
+    }
+
+    /**
      * Whether the period runs from payday to payday rather than to the end of the month.
      */
     #[Computed]
@@ -123,7 +133,9 @@ new #[Title('Today')] class extends Component {
     $overview = $this->overview;
     $forecast = $overview->forecast;
     $period = $overview->period;
-    $negative = $forecast->expectedLeftover < 0;
+    $current = $this->currentLeftover;
+    $negative = $current < 0;
+    $forecastNegative = $forecast->expectedLeftover < 0;
     $categories = $forecast->categories;
     $over = array_values(array_filter($categories, fn ($c) => $c->isOver()));
     $fixed = $overview->fixedItems;
@@ -141,20 +153,21 @@ new #[Title('Today')] class extends Component {
 
     <section class="px-6 pb-[26px] pt-[30px]" data-test="expected-leftover">
         <div class="flex items-center gap-2 text-sm text-muted">
-            {{ $this->isPaydayPeriod ? __('Expected leftover by payday') : __('Expected leftover at period end') }}
+            {{ __('Leftover as things stand') }}
             @if ($negative)
                 <span class="inline-flex h-[22px] items-center gap-1 rounded-full bg-danger/16 px-2 text-xs font-semibold text-danger">
                     <x-ui.icon name="warning" :size="14" />{{ __('In the red') }}
                 </span>
             @endif
         </div>
-        <x-ui.amount :value="$forecast->expectedLeftover" size="hero" :tone="$negative ? 'danger' : 'accent'" class="mt-1.5" />
-        <div class="num mt-2.5 text-sm text-muted">
-            {{ __('Planned') }}: {{ money($forecast->plannedLeftover) }} · {{ trans_choice('{1} :count day left|[2,*] :count days left', $forecast->remainingDays, ['count' => $forecast->remainingDays]) }}
+        <x-ui.amount :value="$current" size="hero" :tone="$negative ? 'danger' : 'accent'" class="mt-1.5" />
+        <div class="num mt-2.5 text-sm text-muted" data-test="leftover-if-spent">
+            <span @class(['text-danger' => $forecastNegative])>{{ __('If you spend every budget in full: :amount', ['amount' => money($forecast->expectedLeftover)]) }}</span>
+            · {{ trans_choice('{1} :count day left|[2,*] :count days left', $forecast->remainingDays, ['count' => $forecast->remainingDays]) }}
         </div>
     </section>
 
-    @if ($negative)
+    @if ($forecastNegative)
         <div class="mx-4 mb-3 flex flex-col gap-3 rounded-[22px] border border-danger/28 bg-danger/10 px-4 pb-3.5 pt-4" data-test="negative-alert">
             <div class="flex items-start gap-3">
                 <x-ui.icon name="error" :size="22" class="text-danger" />
@@ -205,8 +218,8 @@ new #[Title('Today')] class extends Component {
     <button type="button" x-data x-on:click="$dispatch('open-entry')" class="mx-4 mb-3 flex w-[calc(100%-2rem)] items-center justify-between rounded-card bg-surface px-5 py-[18px] text-left" data-test="daily-allowance">
         <span>
             <span class="block text-[13px] text-muted">{{ __('You can still spend today') }}</span>
-            <x-ui.amount :value="$negative ? 0 : $forecast->dailyAllowance" size="lg" :tone="$negative ? 'muted' : null" class="mt-1" />
-            @if ($negative)
+            <x-ui.amount :value="$forecastNegative ? 0 : $forecast->dailyAllowance" size="lg" :tone="$forecastNegative ? 'muted' : null" class="mt-1" />
+            @if ($forecastNegative)
                 <span class="mt-1.5 block text-xs text-muted">{{ $this->isPaydayPeriod ? __('Every further spending lowers the leftover at payday.') : __('Every further spending lowers the month-end leftover.') }}</span>
             @endif
         </span>
