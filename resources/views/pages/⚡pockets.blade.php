@@ -466,7 +466,7 @@ new #[Title('Pockets and loans')] class extends Component {
                 </div>
                 <span class="num shrink-0 whitespace-nowrap rounded-lg bg-surface-2 px-2 py-[5px] font-mono text-[11px] text-ink-2">{{ __('step: :amount', ['amount' => money_number($featured->prepay_step)]) }}</span>
             </div>
-            <div class="num mt-[18px] flex items-baseline gap-1.5"><span class="text-[30px] font-semibold tracking-[-0.02em]">{{ money_number($featured->balance) }}</span><span class="text-[15px] text-muted">/ {{ money($featured->prepay_step) }}</span></div>
+            <x-ui.amount :value="$featured->balance" :of="$featured->prepay_step" size="lg" class="mt-[18px]" />
             <x-ui.bar :value="$featured->balance / max(1, $featured->prepay_step)" :height="8" :tone="$featured->hasReachedPrepayStep() ? 'warn' : 'accent'" class="mt-3" />
             <div class="num mt-2 flex justify-between text-xs text-muted">
                 @if ($missing > 0)
@@ -488,10 +488,7 @@ new #[Title('Pockets and loans')] class extends Component {
                     <div class="mt-0.5 text-xs text-muted">{{ __('filled from the month-end leftover') }}</div>
                 </div>
             </div>
-            <div class="num mt-[18px] flex items-baseline gap-1.5">
-                <span class="text-[30px] font-semibold tracking-[-0.02em]">{{ money_number($reserve->balance) }}</span>
-                <span class="text-[15px] text-muted">{{ $reserve->target_amount ? '/ '.money($reserve->target_amount) : user_currency()->symbol() }}</span>
-            </div>
+            <x-ui.amount :value="$reserve->balance" :of="$reserve->target_amount" size="lg" class="mt-[18px]" />
             @if ($reserve->target_amount)
                 <x-ui.bar :value="$reserve->balance / max(1, $reserve->target_amount)" :height="8" class="mt-3" />
             @endif
@@ -505,8 +502,8 @@ new #[Title('Pockets and loans')] class extends Component {
                 <button type="button" x-on:click="openPocket({{ $pocket->id }})" wire:key="pocket-{{ $pocket->id }}" class="rounded-card bg-surface p-4 text-left" data-test="pocket-{{ $pocket->id }}">
                     <x-ui.icon-tile :icon="$pocket->is_shared ? 'group' : 'savings'" :size="36" />
                     <div class="mt-3 truncate text-sm font-semibold">{{ $pocket->name }}</div>
-                    <div class="num mt-1.5 text-xl font-semibold">{{ money_number($pocket->balance) }}</div>
-                    <div class="num text-xs text-muted">{{ $goal ? '/ '.money($goal) : user_currency()->symbol() }}</div>
+                    <x-ui.amount :value="$pocket->balance" size="md" class="mt-1.5" />
+                    @if ($goal)<div class="num text-xs text-muted">/ {{ money($goal) }}</div>@endif
                     @if ($goal)<x-ui.bar :value="$pocket->balance / max(1, $goal)" class="mt-2.5" />@endif
                 </button>
             @endforeach
@@ -532,8 +529,8 @@ new #[Title('Pockets and loans')] class extends Component {
                         <x-ui.icon name="chevron_right" :size="22" class="text-faint" />
                     </button>
                     <div class="mt-4 grid grid-cols-2 gap-3">
-                        <div><div class="text-xs text-muted">{{ __('Remaining principal') }}</div><div class="num mt-1 text-xl font-semibold">{{ money($loan->principal_balance) }}</div></div>
-                        <div><div class="text-xs text-muted">{{ __('Monthly installment') }}</div><div class="num mt-1 text-xl font-semibold">{{ money($loan->monthlyPayment()) }}</div></div>
+                        <div><div class="text-xs text-muted">{{ __('Remaining principal') }}</div><x-ui.amount :value="$loan->principal_balance" class="mt-1" /></div>
+                        <div><div class="text-xs text-muted">{{ __('Monthly installment') }}</div><x-ui.amount :value="$loan->monthlyPayment()" class="mt-1" /></div>
                     </div>
                     @if ($next !== null && $next < $loan->monthlyPayment())
                         <div class="mt-4 rounded-btn border border-accent/22 bg-accent/10 px-4 py-3.5">
@@ -578,15 +575,15 @@ new #[Title('Pockets and loans')] class extends Component {
     @endif
 
     {{-- Add: choose a pocket or a loan --}}
-    <x-ui.form-sheet show="sheet === 'new'" close="sheet = null" :label="__('Add')" :full="false">
-        <div class="grid gap-2 pb-[env(safe-area-inset-bottom)]">
+    <x-ui.sheet show="sheet === 'new'" close="sheet = null" :label="__('Add')" :full="false">
+        <div class="grid gap-2">
             <button type="button" x-on:click="openPocket(null)" class="flex items-center gap-3 rounded-btn bg-surface-2 p-4 text-left" data-test="new-pocket"><x-ui.icon-tile icon="savings" tone="accent" /><span><span class="block font-semibold">{{ __('New pocket') }}</span><span class="block text-xs text-muted">{{ __('Reserve, prepayment or any goal') }}</span></span></button>
             <button type="button" x-on:click="openLoan(null)" class="flex items-center gap-3 rounded-btn bg-surface-2 p-4 text-left" data-test="new-loan"><x-ui.icon-tile icon="account_balance" /><span><span class="block font-semibold">{{ __('New loan') }}</span><span class="block text-xs text-muted">{{ __('Principal, installment and APR') }}</span></span></button>
         </div>
-    </x-ui.form-sheet>
+    </x-ui.sheet>
 
     {{-- Pocket: money movements and settings --}}
-    <x-ui.form-sheet show="sheet === 'pocket'" close="sheet = null" title="title()" data-test="pocket-sheet">
+    <x-ui.sheet show="sheet === 'pocket'" close="sheet = null" title="title()" data-test="pocket-sheet">
         <x-slot:action>
             <button type="button" x-show="form.id" x-on:click="removePocket()" class="text-danger" aria-label="{{ __('Delete') }}"><x-ui.icon name="delete" :size="22" /></button>
         </x-slot:action>
@@ -595,8 +592,8 @@ new #[Title('Pockets and loans')] class extends Component {
             <div>
                 <div class="rounded-2xl bg-bg px-4 py-4 text-center">
                     <div class="text-xs font-semibold uppercase tracking-[0.06em] text-muted">{{ __('Balance') }}</div>
-                    <div class="num mt-1 text-[34px] font-semibold tracking-[-0.03em]" x-text="money(form.balance)"></div>
-                    <div class="num mt-0.5 text-xs text-muted" x-show="form.target" x-text="@js(__('Target')) + ': ' + money(form.target)"></div>
+                    <x-ui.amount bind="money(form.balance)" size="lg" class="mt-1" data-test="pocket-balance" />
+                    <div class="num mt-0.5 text-xs text-muted" x-show="form.target" x-text="@js(__('Target')) + ': ' + money(form.target) + ' ' + @js(user_currency()->symbol())"></div>
                 </div>
                 <x-ui.segmented model="pocketTab" :options="['money' => __('Move money'), 'settings' => __('Settings')]" class="mt-3" />
             </div>
@@ -659,10 +656,10 @@ new #[Title('Pockets and loans')] class extends Component {
             <x-ui.button x-show="! form.id || pocketTab === 'settings'" x-on:click="submit()" ::disabled="saving" class="w-full" data-test="sheet-save">{{ __('Save') }}</x-ui.button>
         </x-slot:footer>
         <x-slot:pad><x-ui.amount-pad :decimal="$decimals > 0" /></x-slot:pad>
-    </x-ui.form-sheet>
+    </x-ui.sheet>
 
     {{-- Loan --}}
-    <x-ui.form-sheet show="sheet === 'loan'" close="sheet = null" title="title()" data-test="loan-sheet">
+    <x-ui.sheet show="sheet === 'loan'" close="sheet = null" title="title()" data-test="loan-sheet">
         <x-slot:intro>{{ __('You find these on your loan statement.') }}</x-slot:intro>
         <x-ui.form-group :title="__('Basics')">
             <x-ui.text-row :label="__('Name')" x-model="form.name" maxlength="80" :placeholder="__('e.g. Home loan')" error="name" data-test="loan-name" />
@@ -687,12 +684,12 @@ new #[Title('Pockets and loans')] class extends Component {
             <x-ui.button x-on:click="submit()" ::disabled="saving" class="w-full" data-test="sheet-save">{{ __('Save') }}</x-ui.button>
         </x-slot:footer>
         <x-slot:pad><x-ui.amount-pad :decimal="true" /></x-slot:pad>
-    </x-ui.form-sheet>
+    </x-ui.sheet>
 
     {{-- Prepayment --}}
-    <x-ui.form-sheet show="sheet === 'prepay'" close="sheet = null" title="title()" :full="false" data-test="prepay-sheet">
+    <x-ui.sheet show="sheet === 'prepay'" close="sheet = null" title="title()" :full="false" data-test="prepay-sheet">
         <x-slot:intro>{{ __('If you paid it from a pocket, its balance goes down too.') }}</x-slot:intro>
-        <div class="num py-2 text-center text-[48px] font-semibold tracking-[-0.04em]" :class="! filled('prepay') && 'text-faint'" x-text="display('prepay')"></div>
+        <div class="py-2 text-center" :class="! filled('prepay') && 'text-faint'"><x-ui.amount bind="display('prepay')" size="xl" /></div>
         <div class="mb-2 text-center text-xs text-danger" x-show="errors.prepay" x-text="errors.prepay"></div>
         <x-ui.form-group>
             <x-ui.select-row :label="__('From pocket')" x-model.number="form.pocketId">
@@ -704,7 +701,7 @@ new #[Title('Pockets and loans')] class extends Component {
         <x-slot:footer>
             <x-ui.button x-on:click="submit()" ::disabled="saving" class="w-full" data-test="sheet-save">{{ __('Record prepayment') }}</x-ui.button>
         </x-slot:footer>
-    </x-ui.form-sheet>
+    </x-ui.sheet>
 </div>
 
 @script
@@ -713,20 +710,15 @@ new #[Title('Pockets and loans')] class extends Component {
         sheet: null,
         moveMode: 'deposit',
         pocketTab: 'money',
-        activeLabel: '',
         spendCategory: '',
         spendNote: '',
         form: {},
-        fields: {},
-        active: null,
         errors: {},
         saving: false,
-        decimals,
-        formatter: new Intl.NumberFormat(locale, { maximumFractionDigits: 2, useGrouping: 'always' }),
+        ...window.amountFields({ decimals, locale, rules: { thm: { decimals: 3 }, months: { decimals: 0 }, dueDay: { decimals: 0, max: 31 } } }),
         moneyFormatter: new Intl.NumberFormat(locale, { maximumFractionDigits: 0, useGrouping: 'always' }),
 
         init() {
-            this.$watch('sheet', open => document.documentElement.classList.toggle('overflow-hidden', !! open))
             if (openLoan !== null) {
                 this.openLoan(openLoan === 'new' ? null : openLoan).then(() => {
                     if (! returnTo) return
@@ -754,32 +746,6 @@ new #[Title('Pockets and loans')] class extends Component {
             }[this.sheet] ?? ''
         },
 
-        focus(name, label = '') { this.active = name; this.activeLabel = label },
-        allowsDecimals(name) { return name === 'thm' ? 3 : (name === 'months' || name === 'dueDay' ? 0 : this.decimals) },
-        press(key) {
-            if (! this.active) return
-            const places = this.allowsDecimals(this.active)
-            let value = String(this.fields[this.active] ?? '')
-            if (key === 'del') value = value.slice(0, -1)
-            else if (key === ',') { if (places > 0 && ! value.includes(',')) value = (value || '0') + ',' }
-            else if (key === '000') { if (value && ! value.includes(',') && this.active !== 'dueDay') value += '000' }
-            else {
-                const fraction = value.split(',')[1]
-                if (fraction !== undefined && fraction.length >= places) return
-                if (value === '0') value = ''
-                value += key
-                if (this.active === 'dueDay' && parseInt(value, 10) > 31) value = key
-            }
-            this.fields[this.active] = value.slice(0, 12)
-        },
-        display(name, fallback = '0') {
-            const value = String(this.fields[name] ?? '')
-            if (value === '') return fallback
-            const [whole, fraction] = value.split(',')
-            const formatted = this.formatter.format(parseInt(whole || '0', 10))
-            return fraction !== undefined ? formatted + ',' + fraction : formatted
-        },
-        filled(name) { return String(this.fields[name] ?? '') !== '' },
         money(minor) { return this.moneyFormatter.format(minor / Math.pow(10, this.decimals)) },
 
         open(sheet, data, active) {

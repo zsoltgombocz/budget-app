@@ -440,9 +440,9 @@ new #[Title('Plan')] class extends Component {
 
     <div class="sticky top-[var(--safe-top)] z-10 bg-bg px-4 pb-1 pt-3.5">
         <div class="grid grid-cols-3 gap-2 rounded-[22px] border border-ink/7 bg-surface-2 px-[18px] py-3.5" data-test="plan-summary">
-            <div><div class="text-xs text-muted">{{ __('Income') }}</div><div class="num mt-[3px] text-base font-semibold">{{ money_number($summary->income) }}</div></div>
-            <div><div class="text-xs text-muted">{{ __('Expenses') }}</div><div class="num mt-[3px] text-base font-semibold">{{ money_number($summary->totalExpenses) }}</div></div>
-            <div class="text-right"><div class="text-xs text-muted">{{ __('Left') }}</div><div @class(['num mt-[3px] text-base font-bold', 'text-accent' => $summary->leftover >= 0, 'text-danger' => $summary->leftover < 0])>{{ money_number($summary->leftover) }}</div></div>
+            <div><div class="text-xs text-muted">{{ __('Income') }}</div><x-ui.amount size="sm" :value="$summary->income" class="mt-[3px] text-base font-semibold" /></div>
+            <div><div class="text-xs text-muted">{{ __('Expenses') }}</div><x-ui.amount size="sm" :value="$summary->totalExpenses" class="mt-[3px] text-base font-semibold" /></div>
+            <div class="text-right"><div class="text-xs text-muted">{{ __('Left') }}</div><x-ui.amount size="sm" :value="$summary->leftover" :tone="$summary->leftover >= 0 ? 'accent' : 'danger'" class="mt-[3px] text-base font-bold" /></div>
         </div>
     </div>
 
@@ -456,7 +456,7 @@ new #[Title('Plan')] class extends Component {
                 </span>
             </span>
         </span>
-        <span class="num text-[17px] font-semibold text-accent">{{ money($summary->income) }}</span>
+        <x-ui.amount size="sm" :value="$summary->income" tone="accent" class="text-[17px] font-semibold" />
     </button>
 
     @foreach ($types as $type)
@@ -525,7 +525,7 @@ new #[Title('Plan')] class extends Component {
                 @endif
                 <div class="flex justify-between py-[13px]">
                     <span class="text-sm text-muted">{{ __('Subtotal') }}</span>
-                    <span class="num text-[15px] font-semibold">{{ money($summary->totalFor($type)) }}</span>
+                    <x-ui.amount size="sm" :value="$summary->totalFor($type)" class="text-[15px] font-semibold" />
                 </div>
             </div>
         </section>
@@ -561,7 +561,7 @@ new #[Title('Plan')] class extends Component {
                     <button type="button" x-on:click="openReserve()" class="mt-3 w-full rounded-[14px] bg-surface-2 px-4 py-3 text-left" data-test="reserve-row">
                         <span class="flex items-center justify-between">
                             <span class="text-[13px] text-muted">{{ $row['label'] }}</span>
-                            <span class="num text-[17px] font-semibold">@if ($row['value'] === null)<span class="text-faint">–</span>@else{{ money($row['value']) }}@endif</span>
+                            @if ($row['value'] === null)<span class="num text-[17px] font-semibold text-faint">–</span>@else<x-ui.amount size="sm" :value="$row['value']" class="text-[17px] font-semibold" />@endif
                         </span>
                         <span class="mt-1 block text-xs leading-snug text-muted">{{ $row['hint'] }}</span>
                     </button>
@@ -577,13 +577,13 @@ new #[Title('Plan')] class extends Component {
             @if ($monthEnd->hasReserve)
                 <div class="text-[13px] text-muted">{{ __('On top of the monthly amount, this much of the leftover also goes to the reserve until it reaches the target:') }}</div>
                 <div class="mt-2 grid grid-cols-2 gap-[3px] rounded-xl bg-bg p-[3px]">
-                    <button type="button" wire:click="setReserveMode('pct')" @class(['h-9 rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => ! $fixedMode, 'text-muted' => $fixedMode]) data-test="reserve-mode-pct">{{ __('A share') }}</button>
-                    <button type="button" wire:click="setReserveMode('fixed')" @class(['h-9 rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $fixedMode, 'text-muted' => ! $fixedMode]) data-test="reserve-mode-fixed">{{ __('A fixed amount') }}</button>
+                    <button type="button" wire:click="setReserveMode('pct')" aria-pressed="{{ $fixedMode ? 'false' : 'true' }}" @class(['h-9 rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => ! $fixedMode, 'text-muted' => $fixedMode]) data-test="reserve-mode-pct">{{ __('A share') }}</button>
+                    <button type="button" wire:click="setReserveMode('fixed')" aria-pressed="{{ $fixedMode ? 'true' : 'false' }}" @class(['h-9 rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $fixedMode, 'text-muted' => ! $fixedMode]) data-test="reserve-mode-fixed">{{ __('A fixed amount') }}</button>
                 </div>
                 @if ($fixedMode)
                     <button type="button" x-on:click="openReserve('fixed')" class="mt-2 flex h-12 w-full items-center justify-between rounded-[14px] bg-surface-2 px-4 text-left" data-test="reserve-fixed">
                         <span class="text-[13px] text-muted">{{ __('Amount from the leftover') }}</span>
-                        <span class="num text-[17px] font-semibold">{{ money($settings->reserve_fixed) }}</span>
+                        <x-ui.amount size="sm" :value="$settings->reserve_fixed" class="text-[17px] font-semibold" />
                     </button>
                 @else
                     <div class="mt-2 grid grid-cols-4 gap-2">
@@ -642,7 +642,7 @@ new #[Title('Plan')] class extends Component {
     @endif
 
     {{-- Line editor --}}
-    <x-ui.form-sheet show="sheet === 'line'" close="sheet = null" title="lineTitle()" data-test="line-sheet">
+    <x-ui.sheet show="sheet === 'line'" close="sheet = null" title="lineTitle()" data-test="line-sheet">
         <x-slot:action>
             <button type="button" x-show="line.lineId" x-on:click="removeLine()" class="text-danger" aria-label="{{ __('Delete') }}"><x-ui.icon name="delete" :size="22" /></button>
         </x-slot:action>
@@ -655,7 +655,7 @@ new #[Title('Plan')] class extends Component {
             <div class="p-3">
                 <div class="flex flex-wrap gap-1.5">
                     @foreach ($types as $type)
-                        <button type="button" x-on:click="line.type = @js($type->value)" class="h-9 rounded-xl border px-3 text-[13px] font-medium" :class="line.type === @js($type->value) ? 'border-accent bg-accent/14 text-accent' : 'border-transparent bg-surface-3 text-ink-2'" data-test="type-{{ $type->value }}">{{ $this->sectionTitle($type) }}</button>
+                        <button type="button" x-on:click="line.type = @js($type->value)" :aria-pressed="line.type === @js($type->value) ? 'true' : 'false'" class="h-9 rounded-xl border px-3 text-[13px] font-medium" :class="line.type === @js($type->value) ? 'border-accent bg-accent/14 text-accent' : 'border-transparent bg-surface-3 text-ink-2'" data-test="type-{{ $type->value }}">{{ $this->sectionTitle($type) }}</button>
                     @endforeach
                 </div>
                 @foreach ($types as $type)
@@ -717,7 +717,7 @@ new #[Title('Plan')] class extends Component {
         <x-ui.form-group :title="__('Icon')">
             <div class="grid grid-cols-8 gap-1.5 p-2.5">
                 @foreach (Icons::CATEGORY as $icon)
-                    <button type="button" x-on:click="line.icon = @js($icon)" class="flex aspect-square items-center justify-center rounded-xl" :class="line.icon === @js($icon) ? 'bg-accent/14 text-accent ring-1 ring-accent' : 'bg-surface-3 text-ink-2'" aria-label="{{ $icon }}">
+                    <button type="button" x-on:click="line.icon = @js($icon)" :aria-pressed="line.icon === @js($icon) ? 'true' : 'false'" class="flex aspect-square items-center justify-center rounded-xl" :class="line.icon === @js($icon) ? 'bg-accent/14 text-accent ring-1 ring-accent' : 'bg-surface-3 text-ink-2'" aria-label="{{ $icon }}">
                         <x-ui.icon :name="$icon" :size="20" />
                     </button>
                 @endforeach
@@ -734,21 +734,21 @@ new #[Title('Plan')] class extends Component {
             <x-ui.button x-on:click="saveLine()" ::disabled="saving" class="w-full" data-test="save-line">{{ __('Save') }}</x-ui.button>
         </x-slot:footer>
         <x-slot:pad><x-ui.amount-pad :decimal="$this->currency->decimals() > 0" /></x-slot:pad>
-    </x-ui.form-sheet>
+    </x-ui.sheet>
 
     {{-- Income editor --}}
-    <x-ui.form-sheet show="sheet === 'income'" close="sheet = null" :label="__('Monthly net income')" :full="false" data-test="income-sheet">
+    <x-ui.sheet show="sheet === 'income'" close="sheet = null" :label="__('Monthly net income')" :full="false" data-test="income-sheet">
         <x-slot:intro>{{ __('Monthly, after tax.') }}</x-slot:intro>
-        <div class="num py-3 text-center text-[48px] font-semibold tracking-[-0.04em]" x-text="display('income')"></div>
+        <div class="py-3 text-center"><x-ui.amount bind="display('income')" size="xl" /></div>
         <div class="mb-2 text-center text-xs text-danger" x-show="incomeError" x-text="incomeError"></div>
         <x-ui.numpad :decimal="$this->currency->decimals() > 0" />
         <x-slot:footer>
             <x-ui.button x-on:click="saveIncome()" class="w-full" data-test="save-income">{{ __('Save') }}</x-ui.button>
         </x-slot:footer>
-    </x-ui.form-sheet>
+    </x-ui.sheet>
 
     {{-- Reserve: monthly saving, target, fixed share of the leftover --}}
-    <x-ui.form-sheet show="sheet === 'reserve'" close="sheet = null" :label="__('Reserve pocket')" data-test="reserve-sheet">
+    <x-ui.sheet show="sheet === 'reserve'" close="sheet = null" :label="__('Reserve pocket')" data-test="reserve-sheet">
         <x-ui.form-group>
             <x-ui.amount-row name="monthly" :label="__('Put aside every month')" fallback="0" error="monthly" data-test="reserve-monthly" />
             <x-ui.amount-row name="target" :label="__('Target')" :hint="__('Empty means no limit')" error="target" data-test="reserve-target" />
@@ -760,7 +760,7 @@ new #[Title('Plan')] class extends Component {
             <x-ui.button x-on:click="saveReserve()" ::disabled="saving" class="w-full" data-test="save-reserve">{{ __('Save') }}</x-ui.button>
         </x-slot:footer>
         <x-slot:pad><x-ui.amount-pad :decimal="$this->currency->decimals() > 0" /></x-slot:pad>
-    </x-ui.form-sheet>
+    </x-ui.sheet>
 </div>
 
 @script
@@ -771,42 +771,7 @@ new #[Title('Plan')] class extends Component {
         errors: {},
         saving: false,
         incomeError: null,
-        fields: {},
-        active: null,
-        activeLabel: '',
-        decimals,
-        formatter: new Intl.NumberFormat(locale, { maximumFractionDigits: decimals, useGrouping: 'always' }),
-
-        init() {
-            this.$watch('sheet', open => document.documentElement.classList.toggle('overflow-hidden', open !== null))
-        },
-
-        // Numpad (same behaviour as the amountFields helper).
-        focus(name, label = '') { this.active = name; this.activeLabel = label },
-        press(key) {
-            if (! this.active) return
-            let value = String(this.fields[this.active] ?? '')
-            const integerOnly = this.active === 'dueDay'
-            if (key === 'del') value = value.slice(0, -1)
-            else if (key === ',') { if (! integerOnly && this.decimals > 0 && ! value.includes(',')) value = (value || '0') + ',' }
-            else if (key === '000') { if (! integerOnly && value && ! value.includes(',')) value += '000' }
-            else {
-                const fraction = value.split(',')[1]
-                if (fraction !== undefined && fraction.length >= this.decimals) return
-                if (value === '0') value = ''
-                value += key
-                if (integerOnly && parseInt(value, 10) > 31) value = key
-            }
-            this.fields[this.active] = value.slice(0, 12)
-        },
-        display(name, fallback = '0') {
-            const value = String(this.fields[name] ?? '')
-            if (value === '') return fallback
-            const [whole, fraction] = value.split(',')
-            const formatted = this.formatter.format(parseInt(whole || '0', 10))
-            return fraction !== undefined ? formatted + ',' + fraction : formatted
-        },
-        filled(name) { return String(this.fields[name] ?? '') !== '' },
+        ...window.amountFields({ decimals, locale, rules: { dueDay: { decimals: 0, max: 31 } } }),
 
         lineTitle() { return this.line.lineId ? @js(__('Edit item')) : @js(__('New item')) },
 

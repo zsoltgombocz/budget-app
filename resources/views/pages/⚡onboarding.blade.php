@@ -337,33 +337,21 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
 
 <div class="flex min-h-[calc(100dvh-var(--safe-top)-env(safe-area-inset-bottom))] flex-col pb-[calc(10rem+env(safe-area-inset-bottom))]"
      x-data="{
+        ...window.amountFields({ decimals: {{ $currency->decimals() }}, locale: @js(str_replace('_', '-', app()->getLocale())), fields: { value: '' }, active: 'value' }),
         field: null,
         fieldLabel: '',
-        value: '',
-        decimals: {{ $currency->decimals() }},
-        formatter: new Intl.NumberFormat(@js(str_replace('_', '-', app()->getLocale())), { maximumFractionDigits: 0, useGrouping: 'always' }),
         fieldDecimals: {{ $currency->decimals() }},
         fieldSuffix: @js($currency->symbol()),
         open(name, current, label = '', decimals = null, suffix = null) {
-            this.field = name; this.fieldLabel = label; this.value = String(current ?? '').replace('.', ',')
+            this.field = name
+            this.fieldLabel = label
+            this.fields.value = String(current ?? '').replace('.', ',')
             this.fieldDecimals = decimals ?? this.decimals
-            this.fieldSuffix = suffix ?? @js($currency->symbol());
+            this.amountRules = { value: { decimals: this.fieldDecimals } }
+            this.fieldSuffix = suffix ?? @js($currency->symbol())
         },
-        press(key) {
-            let v = this.value
-            if (key === 'del') v = v.slice(0, -1)
-            else if (key === ',') { if (this.fieldDecimals > 0 && ! v.includes(',')) v = (v || '0') + ',' }
-            else if (key === '000') { if (v && ! v.includes(',')) v += '000' }
-            else { const f = v.split(',')[1]; if (f !== undefined && f.length >= this.fieldDecimals) return; if (v === '0') v = ''; v += key }
-            this.value = v.slice(0, 12)
-        },
-        show(raw, fallback = '0') {
-            const v = String(raw ?? '')
-            if (v === '') return fallback
-            const [w, f] = v.replace('.', ',').split(',')
-            return this.formatter.format(parseInt(w || '0', 10)) + (f !== undefined ? ',' + f : '')
-        },
-        apply() { $wire.set(this.field, this.value); this.field = null },
+        show(raw, fallback = '0') { return window.formatAmount(raw, { locale: this.amountLocale, fallback }) },
+        apply() { $wire.set(this.field, this.fields.value); this.field = null },
      }">
     <div class="grid grid-cols-[44px_1fr_44px] items-center px-3 pt-3">
         @if ($step > 1)
@@ -386,7 +374,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
         @if ($step === 1)
             <button type="button" x-on:click="open('income', $wire.income, @js(__('Monthly net income')))" class="w-full rounded-card bg-surface px-5 py-6 text-left" data-test="onboarding-income">
                 <span class="block text-[13px] text-muted">{{ __('Monthly net income') }}</span>
-                <span class="num mt-1 flex items-baseline gap-2"><span class="text-[44px] font-semibold tracking-[-0.04em]" :class="$wire.income === '' && 'text-faint'" x-text="show($wire.income)"></span><span class="text-xl text-muted">{{ $currency->symbol() }}</span></span>
+                <span class="mt-1 block" :class="$wire.income === '' && 'text-faint'"><x-ui.amount bind="show($wire.income)" :currency="$currency" size="xl" /></span>
             </button>
             @error('income')<p class="mt-2 px-2 text-xs text-danger">{{ $message }}</p>@enderror
             <div class="mt-6 rounded-card border border-dashed border-line px-5 py-4">
@@ -454,10 +442,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                             <button type="button" x-on:click="open('amounts.{{ $index }}', $wire.amounts[{{ $index }}], @js(__($item['name'])))"
                                     class="mt-3 flex h-12 w-full items-center justify-between rounded-[14px] bg-surface-2 px-4 text-left" data-test="amount-{{ $index }}">
                                 <span class="text-[13px] text-muted">{{ __('Monthly amount') }}</span>
-                                <span class="num text-[17px] font-semibold">
-                                    <span :class="! $wire.amounts[{{ $index }}] && 'text-faint'" x-text="show($wire.amounts[{{ $index }}], '0')"></span>
-                                    <span class="text-sm font-medium text-muted">{{ $currency->symbol() }}</span>
-                                </span>
+                                <span :class="! $wire.amounts[{{ $index }}] && 'text-faint'"><x-ui.amount size="sm" bind="show($wire.amounts[{{ $index }}], '0')" :currency="$currency" class="text-[17px] font-semibold" /></span>
                             </button>
                             @error('amounts.'.$index)<p class="mt-1.5 px-1 text-xs text-danger">{{ $message }}</p>@enderror
                             @if ($item['loan'] ?? false)
@@ -472,10 +457,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                                         <button type="button" x-on:click="open(@js($detail['field']), $wire.{{ $detail['field'] }}, @js($detail['label']), @js($detail['decimals']), @js($detail['suffix']))"
                                                 class="mt-2 flex h-12 w-full items-center justify-between rounded-[14px] bg-surface-2 px-4 text-left" data-test="{{ $detail['field'] }}">
                                             <span class="text-[13px] text-muted">{{ $detail['label'] }}</span>
-                                            <span class="num text-[17px] font-semibold">
-                                                <span :class="! $wire.{{ $detail['field'] }} && 'text-faint'" x-text="show($wire.{{ $detail['field'] }}, '–')"></span>
-                                                <span class="text-sm font-medium text-muted">{{ $detail['suffix'] ?? $currency->symbol() }}</span>
-                                            </span>
+                                            <span :class="! $wire.{{ $detail['field'] }} && 'text-faint'"><x-ui.amount size="sm" bind="show($wire.{{ $detail['field'] }}, '–')" :currency="$currency" :symbol="$detail['suffix']" class="text-[17px] font-semibold" /></span>
                                         </button>
                                         @error($detail['field'])<p class="mt-1.5 px-1 text-xs text-danger">{{ $message }}</p>@enderror
                                     @endforeach
@@ -519,7 +501,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                         <button type="button" x-on:click="open(@js($row['field']), @js($row['value']), @js($row['label']))" class="mt-3 w-full rounded-[14px] bg-surface-2 px-4 py-3 text-left">
                             <span class="flex items-center justify-between">
                                 <span class="text-[13px] text-muted">{{ $row['label'] }}</span>
-                                <span class="num text-[17px] font-semibold"><span @class(['text-faint' => $row['value'] === ''])>{{ $row['value'] === '' ? $row['fallback'] : money_number(Money::parse($row['value'], $currency) ?? 0, $currency) }}</span> <span class="text-sm font-medium text-muted">{{ $currency->symbol() }}</span></span>
+                                @if ($row['value'] === '')<span class="num text-[17px] font-semibold text-faint">{{ $row['fallback'] }}</span>@else<x-ui.amount size="sm" :value="Money::parse($row['value'], $currency) ?? 0" :currency="$currency" class="text-[17px] font-semibold" />@endif
                             </span>
                             <span class="mt-1 block text-xs leading-snug text-muted">{{ $row['hint'] }}</span>
                         </button>
@@ -536,13 +518,13 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                 @if ($reserveOn)
                     <div class="text-[13px] text-muted">{{ __('On top of the monthly amount, this much of the leftover also goes to the reserve until it reaches the target:') }}</div>
                     <div class="mt-2 grid grid-cols-2 gap-[3px] rounded-xl bg-bg p-[3px]">
-                        <button type="button" wire:click="$set('reserveMode', 'pct')" @class(['h-9 rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $reserveMode === 'pct', 'text-muted' => $reserveMode !== 'pct']) data-test="reserve-mode-pct">{{ __('A share') }}</button>
-                        <button type="button" wire:click="$set('reserveMode', 'fixed')" @class(['h-9 rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $reserveMode === 'fixed', 'text-muted' => $reserveMode !== 'fixed']) data-test="reserve-mode-fixed">{{ __('A fixed amount') }}</button>
+                        <button type="button" wire:click="$set('reserveMode', 'pct')" aria-pressed="{{ $reserveMode === 'pct' ? 'true' : 'false' }}" @class(['h-9 rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $reserveMode === 'pct', 'text-muted' => $reserveMode !== 'pct']) data-test="reserve-mode-pct">{{ __('A share') }}</button>
+                        <button type="button" wire:click="$set('reserveMode', 'fixed')" aria-pressed="{{ $reserveMode === 'fixed' ? 'true' : 'false' }}" @class(['h-9 rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $reserveMode === 'fixed', 'text-muted' => $reserveMode !== 'fixed']) data-test="reserve-mode-fixed">{{ __('A fixed amount') }}</button>
                     </div>
                     @if ($reserveMode === 'fixed')
                         <button type="button" x-on:click="open('reserveFixed', $wire.reserveFixed, @js(__('Amount from the leftover')))" class="mt-2 flex h-12 w-full items-center justify-between rounded-[14px] bg-surface-2 px-4 text-left" data-test="reserve-fixed">
                             <span class="text-[13px] text-muted">{{ __('Amount from the leftover') }}</span>
-                            <span class="num text-[17px] font-semibold"><span :class="! $wire.reserveFixed && 'text-faint'" x-text="show($wire.reserveFixed, '0')"></span> <span class="text-sm font-medium text-muted">{{ $currency->symbol() }}</span></span>
+                            <span :class="! $wire.reserveFixed && 'text-faint'"><x-ui.amount size="sm" bind="show($wire.reserveFixed, '0')" :currency="$currency" class="text-[17px] font-semibold" /></span>
                         </button>
                         @error('reserveFixed')<p class="mt-1.5 px-1 text-xs text-danger">{{ $message }}</p>@enderror
                     @else
@@ -606,20 +588,13 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
     </x-ui.action-bar>
 
     {{-- Numpad sheet for every amount on the wizard --}}
-    <div x-show="field" x-cloak class="fixed inset-0 z-50" role="dialog" aria-modal="true">
-        <div x-show="field" x-transition.opacity class="absolute inset-0 bg-black/55" x-on:click="field = null"></div>
-        <div class="absolute inset-x-0 bottom-0 mx-auto max-w-lg rounded-t-[30px] bg-surface px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2" x-show="field" x-transition:enter="transition duration-300 ease-out" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0" x-transition:leave="transition duration-200 ease-in" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full">
-            <div class="mx-auto h-[5px] w-9 rounded-full bg-ink/18"></div>
-            <div class="mt-1 grid h-11 grid-cols-[72px_1fr_72px] items-center">
-                <button type="button" class="text-left text-[15px] text-muted" x-on:click="field = null">{{ __('Cancel') }}</button>
-                <div class="truncate text-center text-base font-semibold" x-text="fieldLabel"></div>
-                <span></span>
-            </div>
-            <div class="num flex items-baseline justify-center gap-2 py-4"><span class="text-[52px] font-semibold tracking-[-0.04em]" x-text="show(value)"></span><span class="text-2xl text-muted" x-text="fieldSuffix"></span></div>
-            {{-- The decimal key only where the field takes decimals (the APR); amounts in forint get 000. --}}
-            <div x-show="fieldDecimals > 0"><x-ui.numpad :decimal="true" /></div>
-            <div x-show="fieldDecimals === 0"><x-ui.numpad :decimal="false" /></div>
-            <x-ui.button x-on:click="apply()" class="mt-3 w-full" data-test="numpad-done">{{ __('Done') }}</x-ui.button>
-        </div>
-    </div>
+    <x-ui.sheet show="field" close="field = null" title="fieldLabel" :full="false" data-test="numpad-sheet">
+        <div class="py-4 text-center"><x-ui.amount bind="show(fields.value)" bind-symbol="fieldSuffix" :currency="$currency" size="xl" /></div>
+        {{-- The decimal key only where the field takes decimals (the APR); amounts in forint get 000. --}}
+        <div x-show="fieldDecimals > 0"><x-ui.numpad :decimal="true" /></div>
+        <div x-show="fieldDecimals === 0"><x-ui.numpad :decimal="false" /></div>
+        <x-slot:footer>
+            <x-ui.button x-on:click="apply()" class="w-full" data-test="numpad-done">{{ __('Done') }}</x-ui.button>
+        </x-slot:footer>
+    </x-ui.sheet>
 </div>

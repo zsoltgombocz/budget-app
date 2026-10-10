@@ -262,7 +262,7 @@ new #[Title('Month')] class extends Component {
                 @foreach ($day['rows'] as $row)
                     @php $border = ! $loop->last; @endphp
                     @if ($row['kind'] === 'spending')
-                        <button type="button" x-on:click="selected = @js(['id' => $row['id'], 'title' => $row['title'], 'note' => $row['note'], 'amount' => money($row['amount'])])"
+                        <button type="button" x-on:click="selected = @js(['id' => $row['id'], 'title' => $row['title'], 'note' => $row['note'], 'amount' => money_number($row['amount'])])"
                                 @class(['grid w-full grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-[11px] text-left', 'border-b border-line' => $border]) data-test="transaction">
                             <x-ui.icon-tile :icon="$row['icon']" :size="36" />
                             <span class="min-w-0"><span class="block truncate text-[15px]">{{ $row['title'] }}</span>@if ($row['pocket'])<span class="mt-0.5 block truncate text-xs text-accent">{{ __('paid from :pocket', ['pocket' => $row['pocket']]) }}</span>@elseif ($row['note'])<span class="mt-0.5 block truncate text-xs text-muted">{{ $row['note'] }}</span>@endif</span>
@@ -301,19 +301,15 @@ new #[Title('Month')] class extends Component {
     @endif
 
     {{-- Transaction actions --}}
-    <div x-show="selected" x-cloak class="fixed inset-0 z-50" role="dialog" aria-modal="true">
-        <div x-show="selected" x-transition.opacity class="absolute inset-0 bg-black/55" x-on:click="selected = null"></div>
-        <div class="absolute inset-x-0 bottom-0 mx-auto max-w-lg rounded-t-[30px] bg-surface px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-2" x-show="selected" x-transition:enter="transition duration-300 ease-out" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0" x-transition:leave="transition duration-200 ease-in" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full">
-            <div class="mx-auto h-[5px] w-9 rounded-full bg-ink/18"></div>
-            <div class="py-5 text-center">
-                <div class="text-sm text-muted" x-text="selected?.title"></div>
-                <div class="num mt-1 text-[40px] font-semibold tracking-[-0.03em]" x-text="selected?.amount"></div>
-                <div class="mt-1 text-sm text-muted" x-show="selected?.note" x-text="selected?.note"></div>
-            </div>
-            @if ($period->isOpen())
-                <x-ui.button variant="danger" icon="delete" class="w-full" x-on:click="$wire.delete(selected.id); selected = null" data-test="delete-transaction">{{ __('Delete entry') }}</x-ui.button>
-            @endif
-            <x-ui.button variant="ghost" class="mt-1 w-full" x-on:click="selected = null">{{ __('Close') }}</x-ui.button>
+    <x-ui.sheet show="selected" close="selected = null" title="selected?.title" :header="false" :full="false" data-test="transaction-sheet">
+        <div class="py-5 text-center">
+            <div class="text-sm text-muted" x-text="selected?.title"></div>
+            <x-ui.amount bind="selected?.amount" size="xl" class="mt-2" />
+            <div class="mt-1 text-sm text-muted" x-show="selected?.note" x-text="selected?.note"></div>
         </div>
-    </div>
+        @if ($period->isOpen())
+            <x-ui.button variant="danger" icon="delete" class="w-full" x-on:click="$wire.delete(selected.id); selected = null" data-test="delete-transaction">{{ __('Delete entry') }}</x-ui.button>
+        @endif
+        <x-ui.button variant="ghost" class="mt-1 w-full" x-on:click="selected = null">{{ __('Close') }}</x-ui.button>
+    </x-ui.sheet>
 </div>

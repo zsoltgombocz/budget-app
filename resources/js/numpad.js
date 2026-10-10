@@ -27,9 +27,9 @@ function integerFormatter(locale) {
  *
  * decimals: fraction digits the field takes (0 = no comma); max: the largest allowed whole
  * number (a day of the month) — a key that would go over it starts the number again;
- * maxLength: the longest typed string.
+ * maxWhole: the most digits before the comma; maxLength: the longest typed string.
  */
-export function pressKey(value, key, { decimals = 0, max = null, maxLength = 12 } = {}) {
+export function pressKey(value, key, { decimals = 0, max = null, maxWhole = null, maxLength = 12 } = {}) {
     const current = String(value ?? '')
     let next
 
@@ -47,9 +47,15 @@ export function pressKey(value, key, { decimals = 0, max = null, maxLength = 12 
             return current
         }
         next = current + '000'
+        if (maxWhole !== null && next.length > maxWhole) {
+            return current
+        }
     } else if (/^[0-9]$/.test(key)) {
-        const fraction = current.split(',')[1]
+        const [whole, fraction] = current.split(',')
         if (fraction !== undefined && fraction.length >= decimals) {
+            return current
+        }
+        if (fraction === undefined && maxWhole !== null && whole.length >= maxWhole && whole !== '0') {
             return current
         }
         next = (current === '0' ? '' : current) + key
@@ -99,11 +105,15 @@ export function amountFields({ fields = {}, active = null, decimals = 0, locale 
         },
 
         fieldRule(name) {
-            return { decimals: this.decimals, maxLength: this.amountMaxLength, max: null, ...(this.amountRules[name] ?? {}) }
+            return { decimals: this.decimals, maxLength: this.amountMaxLength, max: null, maxWhole: null, ...(this.amountRules[name] ?? {}) }
         },
 
+        /** A screen can define amountGuard() returning false to ignore keys (e.g. while saving). */
         press(key) {
             if (this.active === null || this.active === undefined) {
+                return
+            }
+            if (typeof this.amountGuard === 'function' && ! this.amountGuard()) {
                 return
             }
             this.fields[this.active] = pressKey(this.fields[this.active], key, this.fieldRule(this.active))

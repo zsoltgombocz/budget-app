@@ -241,10 +241,13 @@ new class extends Component {
     })"
      x-on:open-entry.window="show()"
      x-on:keydown.window="onKey($event)"
-     x-effect="document.documentElement.classList.toggle('overflow-hidden', open)"
      data-test="entry-sheet">
-    <div x-show="open" x-cloak class="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="{{ __('New spending') }}">
-        <div x-show="open" x-transition.opacity class="absolute inset-0 bg-black/55" x-on:click="close()"></div>
+    {{-- Focus, Escape, Tab and the iOS-safe scroll lock: the appDialog helper shared with x-ui.sheet (resources/js/dialog.js). --}}
+    <div x-data="appDialog" x-effect="dialogSync(open)"
+         x-on:keydown.escape.window="dialogEscape($event) && close()"
+         x-on:keydown.tab="dialogTrap($event)"
+         x-show="open" x-cloak class="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="{{ __('New spending') }}">
+        <div x-show="open" x-transition.opacity class="absolute inset-0 bg-black/55" x-on:click="close()" aria-hidden="true"></div>
 
         {{--
             Sizes scale with the viewport height (clamp + dvh) so the whole sheet fits from 568px (iPhone SE,
@@ -254,12 +257,13 @@ new class extends Component {
         <div x-show="open"
              x-transition:enter="transition duration-300 ease-out" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
              x-transition:leave="transition duration-200 ease-in" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full"
-             class="absolute inset-x-0 bottom-0 top-[max(clamp(1rem,calc(100dvh-37rem),5rem),calc(var(--safe-top)+clamp(0.5rem,calc(100dvh-37rem),4rem)))] mx-auto flex max-w-lg flex-col rounded-t-[30px] bg-surface px-4 pb-[calc(clamp(0.5rem,1.5dvh,1.25rem)+env(safe-area-inset-bottom))] pt-2"
+             x-ref="dialogPanel" tabindex="-1"
+             class="absolute inset-x-0 bottom-0 top-[max(clamp(1rem,calc(100dvh-37rem),5rem),calc(var(--safe-top)+clamp(0.5rem,calc(100dvh-37rem),4rem)))] mx-auto flex max-w-lg flex-col rounded-t-[30px] bg-surface px-4 outline-none pb-[calc(clamp(0.5rem,1.5dvh,1.25rem)+env(safe-area-inset-bottom))] pt-2"
              :aria-busy="busy">
             <div class="mx-auto h-[5px] w-9 shrink-0 rounded-full bg-ink/18"></div>
             <div class="mt-1 grid h-[clamp(36px,5.2dvh,44px)] shrink-0 grid-cols-[72px_1fr_72px] items-center">
-                <button type="button" class="text-left text-[15px] text-muted" x-on:click="close()">{{ __('Cancel') }}</button>
-                <div class="text-center text-base font-semibold">{{ __('New spending') }}</div>
+                <button type="button" class="focus-ring -ml-2 h-full rounded-xl px-2 text-left text-[15px] text-muted" x-on:click="close()">{{ __('Cancel') }}</button>
+                <h2 class="text-center text-base font-semibold">{{ __('New spending') }}</h2>
                 <span></span>
             </div>
 
@@ -276,7 +280,7 @@ new class extends Component {
                 <div class="no-scrollbar -mx-4 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4">
                     <div class="shrink-0 pb-1 pt-[clamp(0px,1dvh,10px)] text-center">
                         <div class="num flex items-baseline justify-center gap-2">
-                            <span class="text-[clamp(40px,7dvh,60px)] font-semibold leading-[1.05] tracking-[-0.045em]" :class="digits ? 'text-ink' : 'text-faint'" x-text="formatted()" aria-live="polite"></span>
+                            <span class="text-[clamp(40px,7dvh,60px)] font-semibold leading-[1.05] tracking-[-0.045em]" :class="hasAmount() ? 'text-ink' : 'text-faint'" x-text="display('amount')" aria-live="polite"></span>
                             <span class="text-[clamp(20px,3dvh,26px)] font-medium text-muted">{{ $currency->symbol() }}</span>
                         </div>
                         <div class="num mt-1 text-[13px]" :class="error ? 'font-medium text-danger' : hintClass()" x-text="error ?? hint()" aria-live="polite" data-test="entry-hint"></div>
@@ -284,8 +288,8 @@ new class extends Component {
 
                     <div class="no-scrollbar -mx-4 mt-[clamp(8px,1.6dvh,14px)] flex shrink-0 gap-2 overflow-x-auto px-4" data-test="category-grid">
                         <template x-for="category in categories" :key="category.id">
-                            <button type="button" x-on:click="pick(category.id)" :disabled="busy"
-                                    class="flex h-[clamp(52px,8.2dvh,70px)] min-w-[calc((100%-32px)/5)] flex-1 flex-col items-center justify-center gap-[clamp(2px,0.7dvh,6px)] rounded-btn border-[1.5px] px-1 transition active:scale-95"
+                            <button type="button" x-on:click="pick(category.id)" :disabled="busy" :aria-pressed="category.id === categoryId ? 'true' : 'false'"
+                                    class="focus-ring flex h-[clamp(52px,8.2dvh,70px)] min-w-[calc((100%-32px)/5)] flex-1 flex-col items-center justify-center gap-[clamp(2px,0.7dvh,6px)] rounded-btn border-[1.5px] px-1 transition active:scale-95"
                                     :class="category.id === categoryId ? 'border-accent bg-accent/14 text-accent' : 'border-transparent bg-surface-2 text-ink-2'">
                                 <span class="ms" style="font-size:24px;width:24px;height:24px" x-text="category.icon" aria-hidden="true"></span>
                                 <span class="max-w-full truncate text-xs font-medium" x-text="category.name"></span>
@@ -308,7 +312,7 @@ new class extends Component {
                     <div class="mt-[clamp(6px,1.4dvh,12px)] grid flex-1 grid-cols-3 gap-1.5">
                         @foreach ($keys as $key)
                             <button type="button" x-on:click="press(@js($key))" :disabled="busy" data-key="{{ $key }}"
-                                    class="num flex min-h-[clamp(40px,6.5dvh,50px)] items-center justify-center rounded-2xl bg-ink/4 text-[26px] font-medium transition active:bg-ink/12"
+                                    class="focus-ring num flex min-h-[clamp(40px,6.5dvh,50px)] items-center justify-center rounded-2xl bg-ink/4 text-[26px] font-medium transition active:bg-ink/12"
                                     aria-label="{{ $key === 'del' ? __('Delete') : $key }}">
                                 @if ($key === 'del')
                                     <x-ui.icon name="backspace" :size="24" />
@@ -323,14 +327,14 @@ new class extends Component {
                 <div class="mt-[clamp(6px,1.4dvh,12px)] flex shrink-0 items-center gap-3">
                     @unless ($spentToday)
                         <button type="button" x-on:click="noSpend()" :disabled="busy"
-                                class="flex h-[clamp(46px,7dvh,56px)] items-center gap-1 px-1.5 text-sm font-medium underline decoration-ink/25 underline-offset-[3px]"
+                                class="focus-ring flex h-[clamp(46px,7dvh,56px)] items-center gap-1 rounded-lg px-1.5 text-sm font-medium underline decoration-ink/25 underline-offset-[3px]"
                                 :class="$wire.noSpendMarked ? 'text-accent' : 'text-ink-2'" data-test="no-spend">
                             <span x-show="$wire.noSpendMarked" class="ms" style="font-size:18px;width:18px;height:18px" aria-hidden="true">check</span>
                             <span x-text="$wire.noSpendMarked ? @js(__('Marked · undo')) : @js(__("I didn't spend today"))"></span>
                         </button>
                     @endunless
                     <button type="button" x-on:click="submit()" :disabled="! hasAmount() || busy"
-                            class="h-[clamp(46px,7dvh,56px)] flex-1 rounded-btn text-[17px] font-semibold transition active:scale-[0.98]"
+                            class="focus-ring h-[clamp(46px,7dvh,56px)] flex-1 rounded-btn text-[17px] font-semibold transition active:scale-[0.98]"
                             :class="[hasAmount() ? 'bg-accent text-accent-ink' : 'bg-surface-3 text-zinc-500', busy ? 'opacity-60' : '']" data-test="save-entry">{{ __('Save') }}</button>
                 </div>
             @endif
@@ -341,10 +345,11 @@ new class extends Component {
 @script
 <script>
     Alpine.data('entrySheet', ({ today, timezone, locale, minor, decimals, symbol, texts }) => ({
+        // Numpad keys (digits, 000, comma with the currency's decimals) from the shared helper.
+        ...window.amountFields({ decimals, locale, fields: { amount: '' }, active: 'amount', rules: { amount: { maxWhole: 9 } } }),
         open: false,
         get categories() { return $wire.options },
         categoryId: null,
-        digits: '',
         date: today,
         today,
         note: '',
@@ -352,7 +357,6 @@ new class extends Component {
         error: null,
         pending: null,
         texts,
-        numberFormat: new Intl.NumberFormat(locale, { maximumFractionDigits: 0, useGrouping: 'always' }),
         moneyFormat: new Intl.NumberFormat(locale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals, useGrouping: 'always' }),
 
         init() {
@@ -389,7 +393,7 @@ new class extends Component {
         },
 
         show() {
-            this.digits = ''
+            this.fields.amount = ''
             this.note = ''
             this.error = null
             this.pending = null
@@ -414,17 +418,11 @@ new class extends Component {
             try { localStorage.setItem('entry-category', id) } catch (e) {}
         },
 
-        press(key) {
-            if (this.busy) return
+        /** Called by the shared press(): no key while saving; typing clears the error. */
+        amountGuard() {
+            if (this.busy) return false
             this.error = null
-            let value = this.digits
-            const [whole, fraction] = value.split(',')
-            if (key === 'del') value = value.slice(0, -1)
-            else if (key === ',') { if (decimals > 0 && fraction === undefined) value = (value || '0') + ',' }
-            else if (key === '000') { if (value && fraction === undefined) value = (value + '000').slice(0, 9) }
-            else if (fraction !== undefined) { if (fraction.length < decimals) value += key }
-            else if (! (value === '' && key === '0') && whole.length < 9) value += key
-            this.digits = value
+            return true
         },
 
         onKey(event) {
@@ -433,22 +431,16 @@ new class extends Component {
             else if ((event.key === ',' || event.key === '.') && decimals > 0) this.press(',')
             else if (event.key === 'Backspace') this.press('del')
             else if (event.key === 'Enter') this.submit()
-            else if (event.key === 'Escape') this.close()
         },
 
         /** The typed amount in minor units, from the digits only (no float math). */
         minorAmount() {
-            const [whole, fraction = ''] = this.digits.split(',')
+            const [whole, fraction = ''] = String(this.fields.amount).split(',')
             return parseInt(whole || '0', 10) * minor + parseInt((fraction + '0'.repeat(decimals)).slice(0, decimals) || '0', 10)
         },
 
         hasAmount() {
             return this.minorAmount() > 0
-        },
-
-        formatted() {
-            const [whole, fraction] = this.digits.split(',')
-            return this.numberFormat.format(parseInt(whole || '0', 10)) + (fraction !== undefined ? ',' + fraction : '')
         },
 
         category() {
@@ -466,7 +458,7 @@ new class extends Component {
 
         hint() {
             const c = this.category()
-            if (! this.digits || ! c) return this.texts.empty
+            if (! this.filled('amount') || ! c) return this.texts.empty
             if (c.planned <= 0) return c.name
             const left = this.left()
             return left >= 0
@@ -476,7 +468,7 @@ new class extends Component {
 
         hintClass() {
             const c = this.category()
-            if (! this.digits || ! c || c.planned <= 0) return 'text-muted'
+            if (! this.filled('amount') || ! c || c.planned <= 0) return 'text-muted'
             const left = this.left()
             if (left < 0) return 'text-danger'
             return left / c.planned < 0.2 ? 'text-warn' : 'text-muted'
@@ -496,7 +488,7 @@ new class extends Component {
             if (! this.hasAmount() || this.busy || ! this.categoryId) return
             this.busy = true
             this.error = null
-            const form = { category: this.categoryId, amount: this.digits, date: this.date, note: this.note || null }
+            const form = { category: this.categoryId, amount: this.fields.amount, date: this.date, note: this.note || null }
             // A retry of the same form keeps its UUID, so a save that did reach the server is not recorded twice.
             const key = JSON.stringify(form)
             if (this.pending?.key !== key) this.pending = { key, uuid: this.uuid() }

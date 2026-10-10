@@ -272,7 +272,6 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
      x-data="closeWizard({
         decimals: {{ $currency->decimals() }},
         locale: @js(str_replace('_', '-', app()->getLocale())),
-        symbol: @js($currency->symbol()),
      })">
     @if ($step <= 3)
         <div class="grid grid-cols-[44px_1fr_44px] items-center px-3 pt-4">
@@ -306,8 +305,8 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         @endphp
 
         <div class="mx-4 mb-3 mt-[18px] grid grid-cols-2 gap-3 rounded-[22px] bg-surface px-[18px] py-4">
-            <div><div class="text-xs text-muted">{{ __('Planned leftover') }}</div><div class="num mt-1 text-xl font-semibold text-ink-2">{{ money($preview->plannedLeftover()) }}</div></div>
-            <div><div class="text-xs text-muted">{{ __('Actual leftover') }}</div><div @class(['num mt-1 text-xl font-semibold', 'text-accent' => $preview->leftover() >= 0, 'text-danger' => $preview->leftover() < 0])>{{ money($preview->leftover()) }}</div></div>
+            <div><div class="text-xs text-muted">{{ __('Planned leftover') }}</div><x-ui.amount :value="$preview->plannedLeftover()" class="mt-1 text-ink-2" /></div>
+            <div><div class="text-xs text-muted">{{ __('Actual leftover') }}</div><x-ui.amount :value="$preview->leftover()" :tone="$preview->leftover() >= 0 ? 'accent' : 'danger'" class="mt-1" /></div>
         </div>
 
         <div class="mx-4 rounded-[22px] bg-surface px-2 py-1.5" data-test="plan-vs-actual">
@@ -361,13 +360,13 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
                 <button type="button" @if ($canSplit) x-on:click="edit('reserve', @js(str_replace('.', ',', Money::toInput($allocation->toReserve, $currency))), @js(__('To the reserve')))" @endif
                         @class(['rounded-[22px] bg-surface p-4 text-left', 'cursor-default' => ! $canSplit]) data-test="edit-reserve" @disabled(! $canSplit)>
                     <span class="flex items-center gap-2 text-[13px] text-ink-2"><span class="size-2.5 rounded-[3px] bg-accent"></span>{{ __('To the reserve') }}</span>
-                    <span class="num mt-2 flex items-center gap-1.5 text-2xl font-semibold">{{ money($allocation->toReserve) }}@if ($canSplit)<x-ui.icon name="edit" :size="16" class="text-faint" />@endif</span>
+                    <span class="mt-2 flex items-center gap-1.5"><x-ui.amount size="sm" :value="$allocation->toReserve" class="text-2xl font-semibold" />@if ($canSplit)<x-ui.icon name="edit" :size="16" class="text-faint" />@endif</span>
                     <span class="num mt-0.5 block text-xs text-muted">@if ($hasReserve){{ __('new balance') }} {{ money($this->reserveBalance + $allocation->toReserve) }}@else{{ __('no reserve pocket') }}@endif</span>
                 </button>
                 <button type="button" @if ($canSplit) x-on:click="edit('rest', @js(str_replace('.', ',', Money::toInput($allocation->toSurplus, $currency))), @js($target))" @endif
                         @class(['rounded-[22px] bg-surface p-4 text-left', 'cursor-default' => ! $canSplit]) data-test="edit-rest" @disabled(! $canSplit)>
                     <span class="flex items-center gap-2 text-[13px] text-ink-2"><span class="size-2.5 shrink-0 rounded-[3px] bg-ink-2"></span><span class="truncate">{{ $target }}</span></span>
-                    <span class="num mt-2 flex items-center gap-1.5 text-2xl font-semibold">{{ money($allocation->toSurplus) }}@if ($canSplit)<x-ui.icon name="edit" :size="16" class="text-faint" />@endif</span>
+                    <span class="mt-2 flex items-center gap-1.5"><x-ui.amount size="sm" :value="$allocation->toSurplus" class="text-2xl font-semibold" />@if ($canSplit)<x-ui.icon name="edit" :size="16" class="text-faint" />@endif</span>
                     <span class="mt-0.5 block text-xs text-muted">{{ __('manual transfer') }}</span>
                 </button>
             </div>
@@ -444,10 +443,10 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         <div class="num mx-4 mb-3 mt-[18px] rounded-[22px] bg-surface px-[18px] py-1">
             <button type="button" x-on:click="edit('income', @js(str_replace('.', ',', Money::toInput($incomeActual, $currency))), @js(__('Actual income')))" class="flex w-full items-center justify-between border-b border-line py-[13px] text-[15px]" data-test="income-actual">
                 <span class="text-ink-2">{{ __('Income') }}</span>
-                <span class="flex items-center gap-1.5">{{ money($preview->incomeActual) }}<x-ui.icon name="edit" :size="16" class="text-faint" /></span>
+                <span class="flex items-center gap-1.5"><x-ui.amount size="sm" :value="$preview->incomeActual" /><x-ui.icon name="edit" :size="16" class="text-faint" /></span>
             </button>
-            <div class="flex justify-between border-b border-line py-[13px] text-[15px]"><span class="text-ink-2">{{ __('Expenses') }}</span><span>{{ money($preview->actualTotal) }}</span></div>
-            <div class="flex justify-between py-[13px] text-[15px] font-semibold"><span>{{ __('Leftover') }}</span><span @class(['text-accent' => $preview->leftover() >= 0, 'text-danger' => $preview->leftover() < 0])>{{ money($preview->leftover()) }}</span></div>
+            <div class="flex justify-between border-b border-line py-[13px] text-[15px]"><span class="text-ink-2">{{ __('Expenses') }}</span><x-ui.amount size="sm" :value="$preview->actualTotal" /></div>
+            <div class="flex justify-between py-[13px] text-[15px] font-semibold"><span>{{ __('Leftover') }}</span><x-ui.amount size="sm" :value="$preview->leftover()" :tone="$preview->leftover() >= 0 ? 'accent' : 'danger'" /></div>
         </div>
 
         <div class="num mx-4 mb-3 rounded-[22px] bg-surface px-[18px] py-1">
@@ -455,18 +454,18 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
                 <div class="grid grid-cols-[32px_1fr_auto] items-center gap-2.5 border-b border-line py-[13px]">
                     <x-ui.icon name="shield" :size="22" class="text-accent" />
                     <div><div class="text-[15px]">{{ __('To the reserve') }}</div>@if ($preview->reservePocketId)<div class="mt-0.5 text-xs text-muted">{{ __('new balance :amount', ['amount' => money($this->reserveBalance + $allocation->toReserve)]) }}</div>@endif</div>
-                    <span class="text-[15px] font-semibold">+{{ money($allocation->toReserve) }}</span>
+                    <x-ui.amount size="sm" :value="$allocation->toReserve" signed class="text-[15px] font-semibold" />
                 </div>
                 <div class="grid grid-cols-[32px_1fr_auto] items-center gap-2.5 py-[13px]">
                     <x-ui.icon name="show_chart" :size="22" class="text-ink-2" />
                     <div><div class="text-[15px]">{{ $preview->surplusTarget['name'] ?? __('Stays on the account') }}</div><div class="mt-0.5 text-xs text-muted">{{ __('we remind you to transfer it') }}</div></div>
-                    <span class="text-[15px] font-semibold">+{{ money($allocation->toSurplus) }}</span>
+                    <x-ui.amount size="sm" :value="$allocation->toSurplus" signed class="text-[15px] font-semibold" />
                 </div>
             @else
                 <div class="grid grid-cols-[32px_1fr_auto] items-center gap-2.5 py-[13px]">
                     <x-ui.icon name="shield" :size="22" class="text-danger" />
                     <div class="text-[15px]">{{ __('Taken from the reserve') }}</div>
-                    <span class="text-[15px] font-semibold">{{ money(-$allocation->fromReserve) }}</span>
+                    <x-ui.amount size="sm" :value="-$allocation->fromReserve" class="text-[15px] font-semibold" />
                 </div>
             @endif
         </div>
@@ -517,49 +516,29 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
     </x-ui.action-bar>
 
     {{-- Amount editor: actual income and the two sides of the leftover split --}}
-    <div x-show="editorOpen" x-cloak class="fixed inset-0 z-50" role="dialog" aria-modal="true">
-        <div x-show="editorOpen" x-transition.opacity class="absolute inset-0 bg-black/55" x-on:click="editorOpen = false"></div>
-        <div class="absolute inset-x-0 bottom-0 mx-auto max-w-lg rounded-t-[30px] bg-surface px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2" x-show="editorOpen" x-transition:enter="transition duration-300 ease-out" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0" x-transition:leave="transition duration-200 ease-in" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full">
-            <div class="mx-auto h-[5px] w-9 rounded-full bg-ink/18"></div>
-            <div class="mt-1 grid h-11 grid-cols-[72px_1fr_72px] items-center">
-                <button type="button" class="text-left text-[15px] text-muted" x-on:click="editorOpen = false">{{ __('Cancel') }}</button>
-                <div class="truncate text-center text-base font-semibold" x-text="editorTitle"></div><span></span>
-            </div>
-            <div class="num py-4 text-center text-[52px] font-semibold tracking-[-0.04em]" x-text="display()"></div>
-            <div class="mb-2 text-center text-xs text-danger" x-show="editorError" x-text="editorError"></div>
-            <x-ui.numpad :decimal="$currency->decimals() > 0" />
-            <x-ui.button x-on:click="save()" class="mt-3 w-full" data-test="editor-save">{{ __('Save') }}</x-ui.button>
-        </div>
-    </div>
+    <x-ui.sheet show="editorOpen" close="editorOpen = false" title="editorTitle" :full="false" data-test="amount-editor">
+        <div class="py-4 text-center"><x-ui.amount bind="display('value')" size="xl" /></div>
+        <div class="mb-2 text-center text-xs text-danger" x-show="editorError" x-text="editorError"></div>
+        <x-ui.numpad :decimal="$currency->decimals() > 0" />
+        <x-slot:footer>
+            <x-ui.button x-on:click="save()" class="w-full" data-test="editor-save">{{ __('Save') }}</x-ui.button>
+        </x-slot:footer>
+    </x-ui.sheet>
 </div>
 </div>
 
 @script
 <script>
-    Alpine.data('closeWizard', ({ decimals, locale, symbol }) => ({
-        decimals,
+    Alpine.data('closeWizard', ({ decimals, locale }) => ({
+        ...window.amountFields({ decimals, locale, fields: { value: '' }, active: 'value' }),
         editorOpen: false,
         editorError: null,
         editorTitle: '',
         field: 'income',
-        value: '',
-        formatter: new Intl.NumberFormat(locale, { maximumFractionDigits: 0, useGrouping: 'always' }),
 
-        press(key) {
-            let value = String(this.value ?? '')
-            if (key === 'del') value = value.slice(0, -1)
-            else if (key === ',') { if (this.decimals > 0 && ! value.includes(',')) value = (value || '0') + ',' }
-            else if (key === '000') { if (value && ! value.includes(',')) value += '000' }
-            else { if (value === '0') value = ''; value += key }
-            this.value = value.slice(0, 12)
-        },
-        display() {
-            const [whole, fraction] = String(this.value || '0').split(',')
-            return this.formatter.format(parseInt(whole || '0', 10)) + (fraction !== undefined ? ',' + fraction : '') + ' ' + symbol
-        },
-        edit(field, value, title) { this.field = field; this.value = value; this.editorTitle = title; this.editorError = null; this.editorOpen = true },
+        edit(field, value, title) { this.field = field; this.fields.value = value; this.editorTitle = title; this.editorError = null; this.editorOpen = true },
         async save() {
-            const value = this.value || '0'
+            const value = this.fields.value || '0'
             const result = this.field === 'income' ? await $wire.setIncome(value) : await $wire.setSplit(this.field, value)
             this.editorError = result.error
             if (result.ok) this.editorOpen = false
