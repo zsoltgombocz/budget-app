@@ -11,12 +11,15 @@ import { lockScroll, unlockScroll } from './scroll-lock.js'
  * (tabindex="-1") on the element that receives focus. The names are prefixed so they do not
  * shadow the surrounding Alpine scope, whose expressions the root still evaluates.
  */
+// Ids, not objects: Alpine hands methods a fresh scope proxy per expression, so `this` differs.
 const openDialogs = []
+let nextId = 0
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 export function registerDialog(Alpine) {
     Alpine.data('appDialog', () => ({
+        dialogId: ++nextId,
         dialogOpen: false,
         dialogOpener: null,
 
@@ -31,15 +34,21 @@ export function registerDialog(Alpine) {
 
             if (open) {
                 this.dialogOpener = document.activeElement instanceof HTMLElement ? document.activeElement : null
-                openDialogs.push(this)
+                openDialogs.push(this.dialogId)
                 lockScroll()
-                // Wait for x-show to reveal the panel; a hidden element cannot take focus.
-                requestAnimationFrame(() => {
-                    if (this.dialogOpen) {
-                        const target = this.$root.querySelector('[data-autofocus]') ?? this.$refs.dialogPanel ?? this.$root
-                        target.focus({ preventScroll: true })
+                // x-show reveals the panel a frame or two later (transition); a hidden element
+                // cannot take focus, so retry for a few frames.
+                const focusIn = (tries) => {
+                    if (! this.dialogOpen) {
+                        return
                     }
-                })
+                    const target = this.$root.querySelector('[data-autofocus]') ?? this.$refs.dialogPanel ?? this.$root
+                    target.focus({ preventScroll: true })
+                    if (document.activeElement !== target && tries > 0) {
+                        requestAnimationFrame(() => focusIn(tries - 1))
+                    }
+                }
+                requestAnimationFrame(() => focusIn(10))
 
                 return
             }
@@ -54,7 +63,7 @@ export function registerDialog(Alpine) {
         },
 
         dialogRelease() {
-            const index = openDialogs.indexOf(this)
+            const index = openDialogs.indexOf(this.dialogId)
 
             if (index !== -1) {
                 openDialogs.splice(index, 1)
@@ -63,7 +72,7 @@ export function registerDialog(Alpine) {
         },
 
         dialogIsTop() {
-            return this.dialogOpen && openDialogs.at(-1) === this
+            return this.dialogOpen && openDialogs.at(-1) === this.dialogId
         },
 
         /**
@@ -71,10 +80,11 @@ export function registerDialog(Alpine) {
          * the dialog underneath (which becomes the top one) does not close as well.
          */
         dialogEscape(event) {
-            if (event.defaultPrevented || ! this.dialogIsTop()) {
+            if (event.dialogHandled || event.defaultPrevented || ! this.dialogIsTop()) {
                 return false
             }
 
+            event.dialogHandled = true
             event.preventDefault()
 
             return true
