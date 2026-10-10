@@ -2,7 +2,7 @@
 
 {{-- Form row with a switch bound to the Alpine expression `model`. --}}
 <button type="button" role="switch" x-on:click="{{ $model }} = ! {{ $model }}" :aria-checked="{{ $model }} ? 'true' : 'false'"
-        {{ $attributes->class(['flex min-h-[52px] w-full items-center justify-between gap-3 px-4 py-2.5 text-left']) }}>
+        {{ $attributes->class(['focus-ring flex min-h-[52px] w-full items-center justify-between gap-3 px-4 py-2.5 text-left']) }}>
     <span class="min-w-0">
         <span class="block text-[15px]">{{ $label }}</span>
         @if ($hint)<span class="mt-0.5 block text-xs leading-snug text-muted">{{ $hint }}</span>@endif

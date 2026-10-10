@@ -14,7 +14,7 @@
         'md' => 'h-11 rounded-[14px] px-4 text-sm gap-2',
         'sm' => 'h-9 rounded-xl px-3.5 text-[13px] gap-1.5',
     ];
-    $classes = 'inline-flex items-center justify-center whitespace-nowrap transition active:scale-[0.98] disabled:active:scale-100 '.($variants[$variant] ?? $variants['primary']).' '.($sizes[$size] ?? $sizes['lg']);
+    $classes = 'focus-ring inline-flex items-center justify-center whitespace-nowrap transition active:scale-[0.98] disabled:active:scale-100 '.($variants[$variant] ?? $variants['primary']).' '.($sizes[$size] ?? $sizes['lg']);
 @endphp
 
 @if ($href)
