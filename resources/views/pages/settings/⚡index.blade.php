@@ -26,6 +26,7 @@ new #[Title('Settings')] class extends Component {
             ['route' => 'security.edit', 'icon' => 'lock', 'title' => __('Security'), 'subtitle' => __('Passkeys')],
         ],
         [
+            ['route' => 'dashboard', 'params' => ['bemutato' => 1], 'test' => 'how-it-works', 'icon' => 'lightbulb', 'title' => __('How it works'), 'subtitle' => __('Plan, recording spending, closing the period')],
             ['route' => 'install', 'icon' => 'install_mobile', 'title' => __('Install the app'), 'subtitle' => __('Steps for your phone and browser')],
             ['route' => 'contact', 'icon' => 'mail', 'title' => __('Contact'), 'subtitle' => __('E-mail, bug reports and ideas')],
             ['route' => 'changelog', 'icon' => 'celebration', 'title' => __('What’s new'), 'subtitle' => __('Version :version', ['version' => config('app.version')])],
@@ -50,7 +51,7 @@ new #[Title('Settings')] class extends Component {
     @foreach ($groups as $group)
         <div class="mx-4 mt-3 overflow-hidden rounded-card bg-surface">
             @foreach ($group as $item)
-                <a href="{{ route($item['route']) }}" wire:navigate @class(['flex items-center gap-3 px-[18px] py-3.5 transition active:bg-ink/4', 'border-b border-line' => ! $loop->last]) data-test="settings-{{ $item['route'] }}">
+                <a href="{{ route($item['route'], $item['params'] ?? []) }}" wire:navigate @class(['flex items-center gap-3 px-[18px] py-3.5 transition active:bg-ink/4', 'border-b border-line' => ! $loop->last]) data-test="settings-{{ $item['test'] ?? $item['route'] }}">
                     <x-ui.icon-tile :icon="$item['icon']" :size="36" />
                     <span class="min-w-0 flex-1">
                         <span class="block text-[15px] font-medium">{{ $item['title'] }}</span>

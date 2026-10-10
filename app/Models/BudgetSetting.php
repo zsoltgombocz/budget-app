@@ -31,11 +31,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $surplus_pocket_id
  * @property int|null $surplus_account_id
  * @property CarbonImmutable|null $onboarded_at
+ * @property array<string, mixed>|null $onboarding_draft
+ * @property CarbonImmutable|null $intro_seen_at
  * @property CarbonImmutable|null $notifications_onboarded_at
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
-#[Fillable(['period_mode', 'payday_day', 'income', 'currency', 'locale', 'timezone', 'reminder_time', 'reminder_enabled', 'due_reminder_enabled', 'version_reminder_enabled', 'notified_version', 'reserve_pct', 'reserve_fixed', 'surplus_pocket_id', 'surplus_account_id', 'onboarded_at', 'notifications_onboarded_at'])]
+#[Fillable(['period_mode', 'payday_day', 'income', 'currency', 'locale', 'timezone', 'reminder_time', 'reminder_enabled', 'due_reminder_enabled', 'version_reminder_enabled', 'notified_version', 'reserve_pct', 'reserve_fixed', 'surplus_pocket_id', 'surplus_account_id', 'onboarded_at', 'onboarding_draft', 'intro_seen_at', 'notifications_onboarded_at'])]
 class BudgetSetting extends Model
 {
     /** @use HasFactory<BudgetSettingFactory> */
@@ -57,6 +59,8 @@ class BudgetSetting extends Model
             'reserve_pct' => 'integer',
             'reserve_fixed' => 'integer',
             'onboarded_at' => 'datetime',
+            'onboarding_draft' => 'array',
+            'intro_seen_at' => 'datetime',
             'due_reminder_enabled' => 'boolean',
             'version_reminder_enabled' => 'boolean',
             'notifications_onboarded_at' => 'datetime',
@@ -82,5 +86,13 @@ class BudgetSetting extends Model
     public function isOnboarded(): bool
     {
         return $this->onboarded_at !== null;
+    }
+
+    /**
+     * Whether the "how it works" intro still has to be shown once after onboarding.
+     */
+    public function needsIntro(): bool
+    {
+        return $this->isOnboarded() && $this->intro_seen_at === null;
     }
 }

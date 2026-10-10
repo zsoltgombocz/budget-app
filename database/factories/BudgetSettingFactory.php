@@ -32,6 +32,15 @@ class BudgetSettingFactory extends Factory
             'reminder_enabled' => true,
             'reserve_pct' => 100,
             'onboarded_at' => now(),
+            'intro_seen_at' => now(),
         ];
+    }
+
+    /**
+     * Just finished onboarding: the "how it works" intro has not been shown yet.
+     */
+    public function introPending(): static
+    {
+        return $this->state(['intro_seen_at' => null]);
     }
 }

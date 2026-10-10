@@ -36,7 +36,7 @@ it('shows the expected leftover from the plan and the overspending so far', func
         ->assertOk()
         ->assertSee(money_number(135_000))
         ->assertSee('Fuel')
-        ->assertSee('Rent');
+        ->assertDontSee('data-test="fixed-items"', false);
 });
 
 it('lists fixed items with due dates and ticks them off', function (): void {
@@ -54,12 +54,13 @@ it('lists fixed items with due dates and ticks them off', function (): void {
     expect(resolve(OverviewService::class)->forUser($this->user)->fixedItems[0]->paid)->toBeFalse();
 });
 
-it('shows the currency next to the fixed item amounts', function (): void {
+it('shows the currency next to the amount of a fixed item that is due', function (): void {
     $this->user->settings()->update(['currency' => Currency::EUR]);
     $rent = BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail();
+    $rent->update(['due_day' => 11]);
 
     $html = $this->get(route('dashboard'))->assertOk()->getContent();
-    preg_match('/data-test="fixed-item">.*?Rent.*?<\/button>/s', (string) $html, $row);
+    preg_match('/data-test="due-item">.*?Rent.*?<\/button>/s', (string) $html, $row);
 
     expect($row[0] ?? '')->toContain(money_number($rent->amount, Currency::EUR))
         ->toContain(Currency::EUR->symbol());

@@ -1,0 +1,69 @@
+@props(['topic', 'rows' => []])
+
+{{--
+    A small "i" button next to a figure that opens a short sheet: what the number is and how
+    it is calculated. The texts live here, one entry per topic; `rows` carries the period's
+    own numbers for the calculation, as [label, value] pairs (the last one is the result).
+    Keep the texts in step with the code that computes the figure (named per entry).
+--}}
+@php
+    $entries = [
+        // PeriodCloser::preview()->leftover(): the same figure as the Month page and the closing.
+        'leftover' => [
+            'title' => __('Leftover as things stand'),
+            'lead' => __('What would be left if you closed the period today.'),
+            'notes' => [
+                __('Fixed items, transfers, loan installments and monthly savings count with their full planned amount; the variable categories only with what you have spent so far.'),
+                __('So the part of the variable budgets you have not spent yet is still in this number: early in the period it is high and it goes down as you spend.'),
+                __('Money added to the budget from a pocket counts as income; spending paid from a pocket does not count.'),
+            ],
+        ],
+        // ForecastService::forecast()->expectedLeftover: variable categories with max(budget, spent).
+        'if-spent' => [
+            'title' => __('If you spend every budget in full'),
+            'lead' => __('What is left at the end of the period if you spend every variable budget in full.'),
+            'notes' => [
+                __('Every variable category counts with its full budget, or with what you have spent if that is more already.'),
+                __('As long as you stay within your budgets, this is the leftover your plan expects. Whatever you spend over a budget lowers it.'),
+            ],
+        ],
+        // ForecastService::dailyAllowance(): (variable budget − variable spent) / remaining days incl. today.
+        'daily' => [
+            'title' => __('You can still spend today'),
+            'lead' => __('What is left of your variable budgets, spread evenly over the remaining days, today included.'),
+            'notes' => [
+                __('Today’s spending is already taken off, so the amount is recalculated after every entry. Fixed items are not in it.'),
+                __('If spending every budget in full would end the period in the red, it shows 0.'),
+            ],
+        ],
+    ];
+    $entry = $entries[$topic];
+@endphp
+
+<div x-data="{ explain: false }" class="inline-flex align-middle">
+    <button type="button" x-on:click="explain = true"
+            class="focus-ring -my-2 inline-flex size-9 items-center justify-center rounded-full text-faint transition active:bg-ink/6"
+            aria-label="{{ __('How is this calculated?') }}" data-test="explain-{{ $topic }}">
+        <x-ui.icon name="info" :size="18" />
+    </button>
+
+    <x-ui.sheet show="explain" close="explain = false" :label="$entry['title']" :full="false" data-test="explainer-{{ $topic }}">
+        <div class="whitespace-normal pt-2 text-left font-sans text-[15px] leading-relaxed text-ink-2">
+            <p class="text-ink">{{ $entry['lead'] }}</p>
+
+            @if ($rows !== [])
+                <div class="num mt-4 rounded-[18px] bg-surface-2 px-4 py-2 text-[13px]" data-test="explainer-rows">
+                    @foreach ($rows as [$label, $value])
+                        <div @class(['flex justify-between gap-3 py-1.5', 'mt-1 border-t border-line pt-2.5 font-semibold text-ink' => $loop->last && ! $loop->first, 'text-muted' => ! $loop->last])>
+                            <span>{{ $label }}</span><span class="shrink-0">{{ $value }}</span>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+
+            @foreach ($entry['notes'] as $note)
+                <p class="mt-3 text-sm text-muted">{{ $note }}</p>
+            @endforeach
+        </div>
+    </x-ui.sheet>
+</div>

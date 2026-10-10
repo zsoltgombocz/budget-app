@@ -5,8 +5,10 @@ use App\Actions\Budget\ToggleLinePaid;
 use App\Enums\PeriodMode;
 use App\Models\Category;
 use App\Models\User;
+use App\Services\Data\ClosePreview;
 use App\Services\Data\Overview;
 use App\Services\OverviewService;
+use App\Services\PeriodCloser;
 use App\Support\Icons;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
@@ -15,14 +17,29 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 new #[Title('Today')] class extends Component {
-    public const int FIXED_PREVIEW = 4;
+    /** The "how it works" intro: once after onboarding, or reopened from Settings (?bemutato=1). */
+    public bool $showIntro = false;
 
-    public bool $showAllFixed = false;
+    public function mount(): void
+    {
+        $this->showIntro = $this->user()->settings()->needsIntro() || request()->boolean('bemutato');
+    }
+
+    public function dismissIntro(): void
+    {
+        $settings = $this->user()->settings();
+
+        if ($settings->intro_seen_at === null) {
+            $settings->update(['intro_seen_at' => now()]);
+        }
+
+        $this->showIntro = false;
+    }
 
     public function togglePaid(int $budgetLineId): void
     {
         app(ToggleLinePaid::class)->handle($this->user(), $this->overview->period, $budgetLineId);
-        unset($this->overview);
+        unset($this->overview, $this->closePreview, $this->currentLeftover);
     }
 
     public function markNoSpend(): void
@@ -64,7 +81,7 @@ new #[Title('Today')] class extends Component {
     #[On('budget-updated')]
     public function refresh(): void
     {
-        unset($this->overview, $this->icons);
+        unset($this->overview, $this->icons, $this->closePreview, $this->currentLeftover);
     }
 
     #[Computed]
@@ -108,7 +125,13 @@ new #[Title('Today')] class extends Component {
     #[Computed]
     public function currentLeftover(): int
     {
-        return app(\App\Services\PeriodCloser::class)->preview($this->user(), $this->overview->period)->leftover();
+        return $this->closePreview->leftover();
+    }
+
+    #[Computed]
+    public function closePreview(): ClosePreview
+    {
+        return app(PeriodCloser::class)->preview($this->user(), $this->overview->period);
     }
 
     /**
@@ -139,8 +162,31 @@ new #[Title('Today')] class extends Component {
     $categories = $forecast->categories;
     $over = array_values(array_filter($categories, fn ($c) => $c->isOver()));
     $fixed = $overview->fixedItems;
-    $visibleFixed = $this->showAllFixed ? $fixed : array_slice($fixed, 0, $this::FIXED_PREVIEW);
-    $hiddenFixed = array_slice($fixed, $this::FIXED_PREVIEW);
+    $dailyShown = $forecastNegative ? 0 : $forecast->dailyAllowance;
+
+    // The period's own numbers for the "how is this calculated" sheets.
+    $preview = $this->closePreview;
+    $previewRows = collect($preview->categories);
+    $variableType = \App\Enums\LineType::Variable->value;
+    $leftoverRows = array_values(array_filter([
+        [__('Income'), money($preview->incomeActual)],
+        $preview->topUps !== 0 ? [__('Added to the budget from pockets'), '+'.money($preview->topUps)] : null,
+        [__('Fixed items, transfers, installments, savings'), '−'.money($previewRows->where('type', '!=', $variableType)->sum('actual'))],
+        [__('Variable spending so far'), '−'.money($previewRows->where('type', $variableType)->sum('actual'))],
+        [__('Leftover as things stand'), money($current)],
+    ]));
+    $ifSpentRows = [
+        [__('Income, with money added from pockets'), money($forecast->income)],
+        [__('Fixed items, transfers, installments, savings'), '−'.money($forecast->committed)],
+        [__('Variable budgets (or spending, where more)'), '−'.money($forecast->variableExpected)],
+        [__('If you spend every budget in full'), money($forecast->expectedLeftover)],
+    ];
+    $dailyRows = [
+        [__('Variable budgets'), money($forecast->variablePlanned)],
+        [__('Spent so far'), '−'.money($forecast->variableSpent)],
+        [__('Days left, today included'), trans_choice('{1} :count day|[2,*] :count days', $forecast->remainingDays, ['count' => $forecast->remainingDays])],
+        [__('Per day'), money($dailyShown)],
+    ];
 @endphp
 
 <div @class(['min-h-dvh', 'bg-[radial-gradient(120%_40%_at_30%_0%,rgba(242,85,90,0.12),rgba(242,85,90,0)_70%)]' => $negative])>
@@ -153,8 +199,9 @@ new #[Title('Today')] class extends Component {
     </div>
 
     <section class="px-6 pb-[26px] pt-[30px]" data-test="expected-leftover">
-        <div class="flex items-center gap-2 text-sm text-muted">
+        <div class="flex items-center gap-1 text-sm text-muted">
             {{ __('Leftover as things stand') }}
+            <x-explainer topic="leftover" :rows="$leftoverRows" />
             @if ($negative)
                 <span class="inline-flex h-[22px] items-center gap-1 rounded-full bg-danger/16 px-2 text-xs font-semibold text-danger">
                     <x-ui.icon name="warning" :size="14" />{{ __('In the red') }}
@@ -163,7 +210,7 @@ new #[Title('Today')] class extends Component {
         </div>
         <x-ui.amount :value="$current" size="hero" :tone="$negative ? 'danger' : 'accent'" class="mt-1.5" />
         <div class="num mt-2.5 text-sm text-muted" data-test="leftover-if-spent">
-            <span @class(['text-danger' => $forecastNegative])>{{ __('If you spend every budget in full: :amount', ['amount' => money($forecast->expectedLeftover)]) }}</span>
+            <span @class(['text-danger' => $forecastNegative])>{{ __('If you spend every budget in full: :amount', ['amount' => money($forecast->expectedLeftover)]) }}</span><x-explainer topic="if-spent" :rows="$ifSpentRows" />
             · {{ trans_choice('{1} :count day left|[2,*] :count days left', $forecast->remainingDays, ['count' => $forecast->remainingDays]) }}
         </div>
     </section>
@@ -216,16 +263,23 @@ new #[Title('Today')] class extends Component {
         @endforeach
     @endif
 
-    <button type="button" x-data x-on:click="$dispatch('open-entry')" class="mx-4 mb-3 flex w-[calc(100%-2rem)] items-center justify-between rounded-card bg-surface px-5 py-[18px] text-left" data-test="daily-allowance">
-        <span>
-            <span class="block text-[13px] text-muted">{{ __('You can still spend today') }}</span>
-            <x-ui.amount :value="$forecastNegative ? 0 : $forecast->dailyAllowance" size="lg" :tone="$forecastNegative ? 'muted' : null" class="mt-1" />
+    <div class="mx-4 mb-3 flex items-center justify-between gap-3 rounded-card bg-surface px-5 py-[18px]" data-test="daily-allowance">
+        <div class="min-w-0">
+            <div class="flex items-center gap-1 text-[13px] text-muted">
+                {{ __('You can still spend today') }}
+                <x-explainer topic="daily" :rows="$dailyRows" />
+            </div>
+            <x-ui.amount :value="$dailyShown" size="lg" :tone="$forecastNegative ? 'muted' : null" class="mt-1" />
             @if ($forecastNegative)
                 <span class="mt-1.5 block text-xs text-muted">{{ $this->isPaydayPeriod ? __('Every further spending lowers the leftover at payday.') : __('Every further spending lowers the month-end leftover.') }}</span>
             @endif
-        </span>
-        <x-ui.icon name="chevron_right" :size="22" class="text-faint" />
-    </button>
+        </div>
+        <button type="button" x-data x-on:click="$dispatch('open-entry')"
+                class="focus-ring inline-flex h-11 shrink-0 items-center gap-1 rounded-full bg-accent/14 pl-3 pr-4 text-sm font-semibold text-accent transition active:scale-[0.98]"
+                data-test="daily-record">
+            <x-ui.icon name="add" :size="20" />{{ __('Record') }}
+        </button>
+    </div>
 
     @if (! $this->hasSpending && ! $this->hasPlan)
         <x-ui.empty-state icon="edit_note" :title="__('Start with your plan')" class="mx-4 mb-3" data-test="empty-state-no-plan">
@@ -264,7 +318,7 @@ new #[Title('Today')] class extends Component {
                     $tone = $category->spent > $category->planned ? 'danger' : ($ratio >= 0.8 ? 'warn' : 'accent');
                 @endphp
                 <a href="{{ route('month', ['kategoria' => $category->categoryId]) }}" wire:navigate wire:key="category-{{ $category->categoryId }}"
-                   @class(['grid grid-cols-[40px_minmax(0,1fr)] items-center gap-3 py-3', 'border-b border-line' => ! $loop->last])>
+                   @class(['grid grid-cols-[40px_minmax(0,1fr)_18px] items-center gap-3 py-3', 'border-b border-line' => ! $loop->last]) data-test="category-row">
                     <x-ui.icon-tile :icon="$this->icons[$category->categoryId] ?? 'more_horiz'" />
                     <div>
                         <div class="flex items-baseline justify-between gap-2">
@@ -284,49 +338,9 @@ new #[Title('Today')] class extends Component {
                             </div>
                         @endif
                     </div>
+                    <x-ui.icon name="chevron_right" :size="18" class="text-faint" />
                 </a>
             @endforeach
-        </x-ui.card>
-    @endif
-
-    @if ($fixed !== [])
-        <x-ui.card class="mx-4 mb-3 px-[18px] pb-2 pt-[18px]" data-test="fixed-items">
-            <div class="mb-1 flex items-baseline justify-between">
-                <span class="text-[15px] font-semibold">{{ __('Fixed items') }}</span>
-                <span class="text-[13px] text-muted">{{ __('automatically in the plan') }}</span>
-            </div>
-            @foreach ($visibleFixed as $item)
-                @php $overdue = $item->isOverdue($overview->today); @endphp
-                <button type="button" wire:key="fixed-{{ $item->line->lineId }}" wire:click="togglePaid({{ (int) $item->line->lineId }})" @disabled(! $period->isOpen())
-                        class="grid w-full grid-cols-[26px_minmax(0,1fr)_auto] items-center gap-3 border-b border-line py-[11px] text-left" data-test="fixed-item">
-                    @if ($item->paid)
-                        <span class="flex size-6 items-center justify-center rounded-full bg-accent/16 text-accent"><x-ui.icon name="check" :size="16" :weight="600" /></span>
-                    @else
-                        <span @class(['size-6 rounded-full border-[1.5px] border-dashed', 'border-warn' => $overdue, 'border-faint' => ! $overdue])></span>
-                    @endif
-                    <span class="min-w-0">
-                        <span class="block truncate text-[15px]">{{ $item->line->categoryName }}</span>
-                        <span @class(['block text-xs mt-0.5', 'text-warn' => $overdue, 'text-muted' => ! $overdue])>
-                            @if ($item->paid)
-                                {{ __('done') }}
-                            @elseif ($item->dueOn)
-                                {{ $overdue ? __('was due :date', ['date' => \App\Support\Dates::short($item->dueOn)]) : __('due :date', ['date' => \App\Support\Dates::short($item->dueOn)]) }}
-                            @else
-                                {{ $item->line->type->label() }}
-                            @endif
-                        </span>
-                    </span>
-                    <x-ui.amount size="sm" :value="$item->line->planned()" class="text-[15px] font-medium" />
-                </button>
-            @endforeach
-            @if ($hiddenFixed !== [] && ! $this->showAllFixed)
-                <button type="button" wire:click="$set('showAllFixed', true)" class="num flex w-full justify-between pb-2 pt-3 text-[13px] text-muted">
-                    <span>{{ trans_choice('{1} +:count more item|[2,*] +:count more items', count($hiddenFixed), ['count' => count($hiddenFixed)]) }}</span>
-                    <span>{{ money(array_sum(array_map(fn ($i) => $i->line->planned(), $hiddenFixed))) }}</span>
-                </button>
-            @else
-                <div class="h-2"></div>
-            @endif
         </x-ui.card>
     @endif
 
@@ -353,4 +367,6 @@ new #[Title('Today')] class extends Component {
         </span>
         <x-ui.icon name="chevron_right" :size="22" class="text-faint" />
     </a>
+
+    <x-how-it-works :open="$showIntro" />
 </div>

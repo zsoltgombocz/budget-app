@@ -30,6 +30,11 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
      */
     public const array GROUP_STEPS = [4 => 'fixed', 5 => 'shared', 6 => 'loan', 7 => 'daily', 8 => 'reserve'];
 
+    /**
+     * The answers kept in the server-side draft (budget_settings.onboarding_draft).
+     */
+    public const array DRAFT_FIELDS = ['step', 'income', 'periodMode', 'paydayDay', 'currency', 'shared', 'hasLoan', 'amounts', 'included', 'loanPrincipal', 'loanThm', 'loanMonths', 'reserveTarget', 'reservePct', 'reserveMode', 'reserveFixed', 'surplusTarget'];
+
     public int $step = 1;
 
     public string $income = '';
@@ -71,17 +76,33 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
 
     public string $surplusTarget = 'investment';
 
+    /** The answers came from a saved draft: the wizard says it continues where the user left off. */
+    public bool $resumed = false;
+
     public function mount(): void
     {
-        if ($this->user()->settings()->isOnboarded()) {
+        $settings = $this->user()->settings();
+
+        if ($settings->isOnboarded()) {
             $this->redirectRoute('dashboard', navigate: true);
 
             return;
         }
 
-        $items = OnboardingItems::all();
-        $this->amounts = array_fill(0, count($items), '');
-        $this->included = array_map(fn (array $entry): bool => ! ($entry['item']['off'] ?? false), $items);
+        $this->resetAnswers();
+
+        if (is_array($settings->onboarding_draft) && $settings->onboarding_draft !== []) {
+            $this->restoreDraft($settings->onboarding_draft);
+            $this->resumed = true;
+        }
+    }
+
+    /**
+     * Every answer is saved as a draft, so a reload or a closed app resumes the wizard.
+     */
+    public function updated(): void
+    {
+        $this->saveDraft();
     }
 
     public function next(): void
@@ -89,11 +110,24 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
         $this->validateStep();
 
         $this->step = min(self::STEPS, $this->step + 1);
+        $this->saveDraft();
     }
 
     public function back(): void
     {
         $this->step = max(1, $this->step - 1);
+        $this->saveDraft();
+    }
+
+    /**
+     * Drop the saved answers and start the wizard from the first step.
+     */
+    public function restart(): void
+    {
+        $this->user()->settings()->update(['onboarding_draft' => null]);
+        $this->resetAnswers();
+        $this->resetErrorBag();
+        $this->resumed = false;
     }
 
     public function finish(CompleteOnboarding $completeOnboarding): void
@@ -203,6 +237,58 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
         return $this->indexesFor('reserve')[0];
     }
 
+    private function resetAnswers(): void
+    {
+        $this->reset(self::DRAFT_FIELDS);
+
+        $items = OnboardingItems::all();
+        $this->amounts = array_fill(0, count($items), '');
+        $this->included = array_map(fn (array $entry): bool => ! ($entry['item']['off'] ?? false), $items);
+    }
+
+    private function saveDraft(): void
+    {
+        $this->user()->settings()->update(['onboarding_draft' => $this->only(self::DRAFT_FIELDS)]);
+    }
+
+    /**
+     * Put the saved answers back, keeping the defaults for anything missing or malformed.
+     *
+     * @param  array<array-key, mixed>  $draft
+     */
+    private function restoreDraft(array $draft): void
+    {
+        $string = fn (string $key, string $default): string => is_string($draft[$key] ?? null) ? $draft[$key] : $default;
+        $int = fn (string $key, ?int $default): ?int => is_int($draft[$key] ?? null) ? $draft[$key] : $default;
+        $bool = fn (string $key): ?bool => is_bool($draft[$key] ?? null) ? $draft[$key] : null;
+
+        $this->step = max(1, min(self::STEPS, (int) $int('step', 1)));
+        $this->income = $string('income', '');
+        $this->periodMode = $string('periodMode', $this->periodMode);
+        $this->paydayDay = array_key_exists('paydayDay', $draft) ? $int('paydayDay', null) : $this->paydayDay;
+        $this->currency = Currency::tryFrom($string('currency', $this->currency)) !== null ? $string('currency', $this->currency) : 'HUF';
+        $this->shared = $bool('shared');
+        $this->hasLoan = $bool('hasLoan');
+        $this->loanPrincipal = $string('loanPrincipal', '');
+        $this->loanThm = $string('loanThm', '');
+        $this->loanMonths = $string('loanMonths', '');
+        $this->reserveTarget = $string('reserveTarget', '');
+        $this->reservePct = (int) $int('reservePct', 0);
+        $this->reserveMode = $string('reserveMode', 'pct');
+        $this->reserveFixed = $string('reserveFixed', '');
+        $this->surplusTarget = $string('surplusTarget', 'investment');
+
+        foreach (array_keys($this->amounts) as $index) {
+            if (is_array($draft['amounts'] ?? null) && is_string($draft['amounts'][$index] ?? null)) {
+                $this->amounts[$index] = $draft['amounts'][$index];
+            }
+
+            if (is_array($draft['included'] ?? null) && is_bool($draft['included'][$index] ?? null)) {
+                $this->included[$index] = $draft['included'][$index];
+            }
+        }
+    }
+
     private function reserveIsOn(): bool
     {
         return $this->included[$this->reserveIndex()] ?? true;
@@ -298,6 +384,8 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
         };
 
         $this->validate($rules, [
+            'income.required' => __('Enter your monthly net income.'),
+            'paydayDay.required' => __('Pick the day you get paid.'),
             'shared.required' => __('Choose yes or no.'),
             'hasLoan.required' => __('Choose yes or no.'),
             'loanThm.regex' => __('Enter the APR as a percentage, e.g. 7,9.'),
@@ -320,7 +408,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
         1 => [__('How much do you earn?'), __('Your monthly net income. The plan starts from this.')],
         2 => [__('When does your month start?'), __('Plan from payday to payday, or by calendar month.')],
         3 => [__('Which currency?'), __('Every amount in the plan is in this currency.')],
-        4 => [__('Housing and monthly fees'), __('What you pay from your own account every month. Switch off what you do not have, leave empty what you do not know yet.')],
+        4 => [__('Housing and monthly fees'), __('What you pay from your own account every month. Switch off what you do not have; a line left at 0 stays out of the plan, you can add it later on the Plan screen.')],
         5 => [__('Do you share costs with someone?'), __('For example a joint account with your partner that you both transfer to every month.')],
         6 => [__('Do you have a loan?'), __('Its monthly installment is a fixed line in the plan, you do not record it as spending. The principal and the APR can come later.')],
         7 => [__('Everyday spending'), __('Monthly budgets for what you record day by day. Rough numbers are fine, you can change them any time.')],
@@ -364,6 +452,16 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
     </div>
     <x-ui.steps :current="$step" :total="$this::STEPS" />
 
+    @if ($resumed)
+        <div class="mx-4 mt-4 flex items-center gap-3 rounded-[18px] bg-accent/10 px-4 py-3" data-test="onboarding-resumed">
+            <x-ui.icon name="history" :size="20" class="shrink-0 text-accent" />
+            <span class="min-w-0 flex-1 text-[13px] leading-snug text-ink-2">{{ __('Picking up where you left off.') }}</span>
+            <button type="button" class="focus-ring h-9 shrink-0 rounded-full bg-ink/8 px-3 text-[13px] font-medium"
+                    x-on:click="if (await window.appConfirm({ title: @js(__('Start over?')), body: @js(__('Your answers so far are cleared and the wizard starts from the first step.')), confirm: @js(__('Start over')), danger: true })) $wire.restart()"
+                    data-test="onboarding-restart">{{ __('Start over') }}</button>
+        </div>
+    @endif
+
     <div wire:key="step-{{ $step }}" class="step-enter">
     <div class="px-6 pt-[22px]">
         <h1 class="text-[28px] font-semibold leading-tight tracking-[-0.03em] text-pretty">{{ $titles[$step][0] }}</h1>
@@ -373,8 +471,12 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
     <div class="px-4 pt-6">
         @if ($step === 1)
             <button type="button" x-on:click="open('income', $wire.income, @js(__('Monthly net income')))" class="w-full rounded-card bg-surface px-5 py-6 text-left" data-test="onboarding-income">
-                <span class="block text-[13px] text-muted">{{ __('Monthly net income') }}</span>
+                <span class="flex items-center justify-between gap-3">
+                    <span class="text-[13px] text-muted">{{ __('Monthly net income') }}</span>
+                    <x-ui.icon name="edit" :size="18" class="text-accent" />
+                </span>
                 <span class="mt-1 block" :class="$wire.income === '' && 'text-faint'"><x-ui.amount bind="show($wire.income)" :currency="$currency" size="xl" /></span>
+                <span x-show="$wire.income === ''" class="mt-1 block text-[13px] font-medium text-accent" data-test="income-hint">{{ __('Tap and type it in') }}</span>
             </button>
             @error('income')<p class="mt-2 px-2 text-xs text-danger">{{ $message }}</p>@enderror
             <div class="mt-6 rounded-card border border-dashed border-line px-5 py-4">
@@ -444,6 +546,11 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                                 <span class="text-[13px] text-muted">{{ __('Monthly amount') }}</span>
                                 <span :class="! $wire.amounts[{{ $index }}] && 'text-faint'"><x-ui.amount size="sm" bind="show($wire.amounts[{{ $index }}], '0')" :currency="$currency" class="text-[17px] font-semibold" /></span>
                             </button>
+                            <p x-show="! (parseFloat(String($wire.amounts[{{ $index }}] ?? '').replace(/\s/g, '').replace(',', '.')) > 0)" class="mt-1.5 px-1 text-xs text-muted" data-test="zero-hint-{{ $index }}">
+                                {{ $item['type'] === LineType::Variable->value
+                                    ? __(':zero – the category is created for recording spending, without a budget.', ['zero' => money(0, $currency)])
+                                    : __(':zero – stays out of the plan.', ['zero' => money(0, $currency)]) }}
+                            </p>
                             @error('amounts.'.$index)<p class="mt-1.5 px-1 text-xs text-danger">{{ $message }}</p>@enderror
                             @if ($item['loan'] ?? false)
                                 <div class="mt-4 border-t border-line pt-3" data-test="loan-details">
@@ -581,7 +688,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
 
     <x-ui.action-bar>
         @if ($step < $this::STEPS)
-            <x-ui.button class="flex-1" wire:click="next" data-test="onboarding-next">{{ __('Next') }}</x-ui.button>
+            <x-ui.button class="flex-1" wire:click="next" :disabled="$question !== null && $question['value'] === null" data-test="onboarding-next">{{ __('Next') }}</x-ui.button>
         @else
             <x-ui.button class="flex-1" wire:click="finish" data-test="onboarding-next">{{ __('Start budgeting') }}</x-ui.button>
         @endif

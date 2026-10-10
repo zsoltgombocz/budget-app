@@ -4,6 +4,7 @@ namespace App\Actions\Budget;
 
 use App\Enums\AccountType;
 use App\Enums\Currency;
+use App\Enums\LineType;
 use App\Enums\PeriodMode;
 use App\Models\CategoryTemplate;
 use App\Models\User;
@@ -19,6 +20,10 @@ final readonly class CompleteOnboarding
 
     /**
      * Build the user's plan from the wizard answers and open the first period.
+     *
+     * A fixed-type line (fixed, transfer, loan, sinking) answered with 0 stays out of the plan,
+     * as the wizard tells the user. Variable budgets are created even at 0 (they are the
+     * categories spending is recorded in), and so is the reserve (its pocket).
      *
      * @param  array<int, int>  $amounts  template item index => planned amount
      * @param  'investment'|'pocket'  $surplusTarget
@@ -42,7 +47,7 @@ final readonly class CompleteOnboarding
         ?int $reserveFixed = null,
     ): void {
         DB::transaction(function () use ($user, $income, $periodMode, $paydayDay, $currency, $template, $amounts, $reserveTarget, $reservePct, $surplusTarget, $included, $loanDetails, $reserveFixed): void {
-            $categories = $this->applyTemplate->handle($user, $template, $included);
+            $categories = $this->applyTemplate->handle($user, $template, $this->withoutEmptyFixedLines($template, $amounts, $included));
 
             foreach ($categories as $index => $category) {
                 $user->budgetLines()->where('category_id', $category->id)->update(['amount' => max(0, $amounts[$index] ?? 0)]);
@@ -94,10 +99,33 @@ final readonly class CompleteOnboarding
                 'surplus_pocket_id' => $surplusPocketId,
                 'surplus_account_id' => $surplusAccountId,
                 'onboarded_at' => now(),
+                'onboarding_draft' => null,
             ]);
 
             $user->unsetRelation('budgetSetting');
             $this->periods->current($user);
         });
+    }
+
+    /**
+     * @param  array<int, int>  $amounts
+     * @param  list<int>|null  $included
+     * @return list<int>
+     */
+    private function withoutEmptyFixedLines(CategoryTemplate $template, array $amounts, ?array $included): array
+    {
+        $indexes = $included ?? array_keys($template->items);
+
+        return array_values(array_filter($indexes, function (int $index) use ($template, $amounts): bool {
+            $item = $template->items[$index] ?? null;
+
+            if ($item === null) {
+                return false;
+            }
+
+            return ($amounts[$index] ?? 0) > 0
+                || $item['type'] === LineType::Variable->value
+                || ($item['pocket']['is_reserve'] ?? false);
+        }));
     }
 }
