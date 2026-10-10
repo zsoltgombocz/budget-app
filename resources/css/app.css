@@ -10,6 +10,9 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Short viewports (Safari with toolbars, iPhone SE): sheets tighten so the numpad still fits. */
+@custom-variant short (@media (max-height: 700px));
+
 @font-face {
     font-family: 'Material Symbols Rounded';
     font-style: normal;
@@ -182,6 +185,14 @@
 
 @utility num {
     font-variant-numeric: tabular-nums;
+}
+
+/* Keyboard focus ring for the app's own controls (buttons, choices, switches, numpad keys). */
+@utility focus-ring {
+    &:focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: 2px;
+    }
 }
 
 @utility no-scrollbar {

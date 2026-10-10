@@ -1,9 +1,17 @@
-@props(['value', 'size' => 'md', 'tone' => null, 'signed' => false])
+@props(['value' => 0, 'bind' => null, 'of' => null, 'symbol' => null, 'bindSymbol' => null, 'currency' => null, 'size' => 'md', 'tone' => null, 'signed' => false])
 
-{{-- A number with the currency symbol set smaller and muted: "12 951 Ft". size="sm" takes the text size from its class (list rows). --}}
+{{--
+    An amount as a value: the number with the currency symbol set smaller and muted, tabular
+    digits ("12 951 Ft"). size="sm" takes the text size from its class (list rows).
+    of: a goal shown after the number ("450 000 / 500 000 Ft"). bind: an Alpine expression
+    for the (already formatted) number instead of value; symbol / bindSymbol override the
+    currency symbol (e.g. "%"); currency: another than the user's (onboarding). Without a tone the number inherits the text colour.
+--}}
 @php
     $value = (int) $value;
+    $currency ??= user_currency();
     $sizes = [
+        'display' => ['text-[60px] leading-[1.05] font-semibold tracking-[-0.045em] short:text-[44px]', 'text-[26px] font-medium short:text-xl'],
         'hero' => ['text-[58px] leading-none font-semibold tracking-[-0.045em]', 'text-2xl font-medium'],
         'xl' => ['text-[52px] leading-none font-semibold tracking-[-0.04em]', 'text-[22px] font-medium'],
         'lg' => ['text-[30px] font-semibold tracking-[-0.02em]', 'text-lg font-medium'],
@@ -20,6 +28,17 @@
 @endphp
 
 <span {{ $attributes->class(['num inline-flex items-baseline whitespace-nowrap', $size === 'sm' ? 'gap-1' : 'gap-2']) }}>
-    <span @class([$sizes[0], $toneClass])>{{ $signed && $value > 0 ? '+' : '' }}{{ money_number($value) }}</span>
-    <span @class([$sizes[1], 'text-muted'])>{{ user_currency()->symbol() }}</span>
+    @if ($bind)
+        <span @class([$sizes[0], $toneClass]) x-text="{{ $bind }}"></span>
+    @else
+        <span @class([$sizes[0], $toneClass])>{{ $signed && $value > 0 ? '+' : '' }}{{ money_number($value, $currency) }}</span>
+    @endif
+    @if ($of !== null)
+        <span @class([$size === 'sm' ? 'font-normal' : $sizes[1], 'text-muted'])>/ {{ money_number((int) $of, $currency) }}</span>
+    @endif
+    @if ($bindSymbol)
+        <span @class([$sizes[1], 'text-muted']) x-text="{{ $bindSymbol }}"></span>
+    @else
+        <span @class([$sizes[1], 'text-muted'])>{{ $symbol ?? $currency->symbol() }}</span>
+    @endif
 </span>

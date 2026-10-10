@@ -1,5 +1,6 @@
 import { registerBusyLock } from './busy.js'
-import { registerNumpad } from './numpad.js'
+import { registerDialog } from './dialog.js'
+import { amountFields, formatAmount, registerNumpad } from './numpad.js'
 import { install, markStandalone, push, registerServiceWorker } from './pwa.js'
 import { lockScroll, unlockScroll } from './scroll-lock.js'
 
@@ -10,6 +11,8 @@ install.listen()
 window.budgetPush = push
 window.budgetInstall = install
 window.appScrollLock = { lock: lockScroll, unlock: unlockScroll }
+window.amountFields = amountFields
+window.formatAmount = formatAmount
 
 // The app's confirmation dialog (components/confirm-dialog): resolves true on confirm.
 // Options: title, body, confirm (button label), danger; optionally highlight (one emphasised
@@ -18,7 +21,10 @@ window.appConfirm = (options) => new Promise((resolve) => {
     window.dispatchEvent(new CustomEvent('app-confirm', { detail: { ...options, resolve } }))
 })
 
-document.addEventListener('alpine:init', () => registerNumpad(window.Alpine))
+document.addEventListener('alpine:init', () => {
+    registerNumpad(window.Alpine)
+    registerDialog(window.Alpine)
+})
 // Livewire may already be running when this module executes (modules are deferred).
 if (window.Livewire) {
     registerBusyLock(window.Livewire)
