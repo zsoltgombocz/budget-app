@@ -182,7 +182,12 @@ new #[Title('Notifications')] class extends Component {
                                     @case('sent') {{ __('sent, accepted by the push service') }} @break
                                     @case('queued') {{ __('waiting to be sent') }} @break
                                     @case('skipped') {{ $reasons[$log->reason] ?? $log->reason }} @break
-                                    @default {{ $reasons[$log->reason] ?? __('not delivered: :reason', ['reason' => trim(($log->push_status ? $log->push_status.' ' : '').$log->reason)]) }}
+                                    @default {{ $reasons[$log->reason] ?? match (true) {
+                                        in_array($log->push_status, [404, 410], true) => __('not delivered: the subscription of the device has expired, turn notifications on again'),
+                                        $log->push_status === 403 => __('not delivered: the push service refused it'),
+                                        $log->push_status !== null => __('not delivered (:code)', ['code' => $log->push_status]),
+                                        default => __('not delivered'),
+                                    } }}
                                 @endswitch
                             </span>
                         </span>

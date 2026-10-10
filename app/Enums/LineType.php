@@ -15,8 +15,8 @@ enum LineType: string
         return match ($this) {
             self::Transfer => __('Transfers'),
             self::Loan => __('Loan repayments'),
-            self::Fixed => __('Fixed costs'),
-            self::Variable => __('Variable budgets'),
+            self::Fixed => __('Fixed items'),
+            self::Variable => __('Variable spending'),
             self::Sinking => __('Sinking funds'),
         };
     }

@@ -417,7 +417,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
 
         @if ($preview->pocketDeposits !== [])
             <div class="mx-4 mt-5">
-                <x-ui.section-label :label="__('Monthly pocket savings')" />
+                <x-ui.section-label :label="__('Sinking funds')" />
                 <div class="-mt-1 mb-2 px-1.5 text-xs text-pretty text-muted">{{ __('The monthly amounts the Plan puts into pockets. Closing adds them to the pockets’ balances.') }}</div>
                 <div class="rounded-[22px] bg-surface px-[18px]">
                     @foreach ($preview->pocketDeposits as $deposit)

@@ -67,3 +67,14 @@ it('does not show the close-now figures for a closed period', function (): void 
         ->test('pages::month')
         ->assertDontSee('data-test="close-now"', false);
 });
+
+it('does not say "so far" or point to the + button on a closed period', function (): void {
+    resolve(PeriodCloser::class)->close($this->user, $this->period, $this->period->income());
+
+    Livewire::withQueryParams(['periodus' => $this->period->id])
+        ->test('pages::month')
+        ->assertSee('Variable spending')
+        ->assertDontSee('Variable spending so far')
+        ->assertSee('No spending or “didn’t spend” day was recorded in this period.')
+        ->assertDontSee('with the + button');
+});

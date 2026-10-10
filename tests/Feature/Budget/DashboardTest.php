@@ -1,10 +1,13 @@
 <?php
 
 use App\Enums\Currency;
+use App\Enums\PeriodMode;
 use App\Models\BudgetLine;
+use App\Models\BudgetSetting;
 use App\Models\Category;
 use App\Models\DayMark;
 use App\Models\Transaction;
+use App\Models\User;
 use App\Services\Data\CategoryForecast;
 use App\Services\OverviewService;
 use App\Services\PeriodService;
@@ -125,4 +128,26 @@ it('marks a fixed item that was due earlier as late', function (): void {
     BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail()->update(['due_day' => 5]);
 
     Livewire::test('pages::today')->assertSee('data-test="due-item"', false)->assertSee('was due');
+});
+
+it('points to the plan instead of claiming income and fixed items are in when the plan is empty', function (): void {
+    $user = User::factory()->create();
+    BudgetSetting::factory()->for($user)->create(['income' => 0, 'locale' => 'en']);
+    $this->actingAs($user);
+
+    $this->get(route('dashboard'))
+        ->assertOk()
+        ->assertSee('data-test="empty-state-no-plan"', false)
+        ->assertSee('Start with your plan')
+        ->assertSee(route('plan'))
+        ->assertDontSee('Your income and fixed items are already in.');
+});
+
+it('talks about payday instead of month end in payday mode', function (): void {
+    $this->user->settings()->update(['period_mode' => PeriodMode::Payday, 'payday_day' => 10]);
+
+    $this->get(route('dashboard'))
+        ->assertOk()
+        ->assertSee('Expected leftover by payday')
+        ->assertDontSee('Expected leftover at period end');
 });
