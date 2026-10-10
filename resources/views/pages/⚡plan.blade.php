@@ -395,8 +395,8 @@ new #[Title('Plan')] class extends Component {
         return match ($type) {
             LineType::Transfer => $this->user()->settings()->period_mode === PeriodMode::Payday ? __('Payday transfers') : __('Transfers'),
             LineType::Loan => __('Loan repayments'),
-            LineType::Fixed => __('Fixed costs'),
-            LineType::Sinking => __('Monthly saving into pockets'),
+            LineType::Fixed => __('Fixed items'),
+            LineType::Sinking => __('Sinking funds'),
             LineType::Variable => __('Variable spending'),
         };
     }
@@ -684,7 +684,7 @@ new #[Title('Plan')] class extends Component {
                     <x-ui.amount-row name="amountMax" :label="__('Expensive month')" error="form.amountMax" />
                     <div class="p-3">
                         <div class="mb-2 px-0.5 text-[13px] text-muted">{{ __('The plan counts with') }}</div>
-                        <x-ui.segmented model="line.calcMode" :options="['fixed' => __('Budget'), 'avg' => __('Typical'), 'max' => __('Expensive')]" />
+                        <x-ui.segmented model="line.calcMode" :options="['fixed' => __('Budget amount'), 'avg' => __('Typical'), 'max' => __('Expensive')]" />
                     </div>
                 </div>
             </template>

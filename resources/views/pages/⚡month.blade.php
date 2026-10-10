@@ -220,7 +220,7 @@ new #[Title('Month')] class extends Component {
         @endif
 
         <div class="num flex items-baseline justify-between text-[13px] text-muted">
-            <span>{{ __('Variable spending so far') }}</span>
+            <span>{{ $period->isOpen() ? __('Variable spending so far') : __('Variable spending') }}</span>
             <span>{{ __('budget :amount', ['amount' => money($forecast->variablePlanned)]) }}</span>
         </div>
         <x-ui.amount :value="$forecast->variableSpent" class="mt-1" />
@@ -292,7 +292,7 @@ new #[Title('Month')] class extends Component {
         <div class="flex flex-col items-center gap-2.5 px-10 pb-6 pt-12 text-center" data-test="empty-state">
             <x-ui.icon-tile icon="event_note" tone="muted" :size="56" class="!bg-surface" />
             <div class="mt-1 text-lg font-semibold">{{ $this->category ? __('No spending in this category') : __('Clean slate') }}</div>
-            <div class="text-sm leading-normal text-pretty text-muted">{{ __('Your daily spending and the “didn’t spend” days land here. Record the first one with the + button.') }}</div>
+            <div class="text-sm leading-normal text-pretty text-muted">{{ $period->isOpen() ? __('Your daily spending and the “didn’t spend” days land here. Record the first one with the + button.') : __('No spending or “didn’t spend” day was recorded in this period.') }}</div>
         </div>
     @endif
 

@@ -77,3 +77,16 @@ it('prunes log rows after 30 days', function (): void {
 
     expect(NotificationLog::query()->count())->toBe(1);
 });
+
+it('explains failed pushes in plain words instead of the raw server answer', function (): void {
+    foreach ([410 => 'push subscription has expired or is no longer valid', 403 => 'Forbidden', 500 => 'Internal Server Error'] as $status => $reason) {
+        NotificationLog::factory()->for($this->user)->create(['status' => NotificationLog::FAILED, 'push_status' => $status, 'reason' => $reason]);
+    }
+
+    Livewire::test('pages::settings.notifications')
+        ->assertSee('not delivered: the subscription of the device has expired, turn notifications on again')
+        ->assertSee('not delivered: the push service refused it')
+        ->assertSee('not delivered (500)')
+        ->assertDontSee('Internal Server Error')
+        ->assertDontSee('Forbidden');
+});

@@ -2,6 +2,7 @@
 
 use App\Actions\Budget\MarkNoSpendDay;
 use App\Actions\Budget\ToggleLinePaid;
+use App\Enums\PeriodMode;
 use App\Models\Category;
 use App\Models\User;
 use App\Services\Data\Overview;
@@ -89,6 +90,26 @@ new #[Title('Today')] class extends Component {
         return $this->overview->period->transactions()->exists();
     }
 
+    /**
+     * Whether the plan has anything in it yet: an income or at least one line.
+     * Without either (e.g. onboarding was skipped) nothing is "already in".
+     */
+    #[Computed]
+    public function hasPlan(): bool
+    {
+        return $this->overview->period->income() > 0
+            || $this->user()->budgetLines()->whereHas('category')->exists();
+    }
+
+    /**
+     * Whether the period runs from payday to payday rather than to the end of the month.
+     */
+    #[Computed]
+    public function isPaydayPeriod(): bool
+    {
+        return $this->user()->settings()->period_mode === PeriodMode::Payday;
+    }
+
     private function user(): User
     {
         $user = Auth::user();
@@ -120,7 +141,7 @@ new #[Title('Today')] class extends Component {
 
     <section class="px-6 pb-[26px] pt-[30px]" data-test="expected-leftover">
         <div class="flex items-center gap-2 text-sm text-muted">
-            {{ __('Expected leftover at period end') }}
+            {{ $this->isPaydayPeriod ? __('Expected leftover by payday') : __('Expected leftover at period end') }}
             @if ($negative)
                 <span class="inline-flex h-[22px] items-center gap-1 rounded-full bg-danger/16 px-2 text-xs font-semibold text-danger">
                     <x-ui.icon name="warning" :size="14" />{{ __('In the red') }}
@@ -186,13 +207,20 @@ new #[Title('Today')] class extends Component {
             <span class="block text-[13px] text-muted">{{ __('You can still spend today') }}</span>
             <x-ui.amount :value="$negative ? 0 : $forecast->dailyAllowance" size="lg" :tone="$negative ? 'muted' : null" class="mt-1" />
             @if ($negative)
-                <span class="mt-1.5 block text-xs text-muted">{{ __('Every further spending lowers the month-end leftover.') }}</span>
+                <span class="mt-1.5 block text-xs text-muted">{{ $this->isPaydayPeriod ? __('Every further spending lowers the leftover at payday.') : __('Every further spending lowers the month-end leftover.') }}</span>
             @endif
         </span>
         <x-ui.icon name="chevron_right" :size="22" class="text-faint" />
     </button>
 
-    @if (! $this->hasSpending)
+    @if (! $this->hasSpending && ! $this->hasPlan)
+        <x-ui.empty-state icon="edit_note" :title="__('Start with your plan')" class="mx-4 mb-3" data-test="empty-state-no-plan">
+            {{ __('Your plan is still empty. Add your monthly income and your fixed items on the Plan screen; then you only need to write down the variable spending here.') }}
+            <x-slot name="actions">
+                <x-ui.button size="md" variant="secondary" :href="route('plan')" wire:navigate>{{ __('Open the plan') }}</x-ui.button>
+            </x-slot>
+        </x-ui.empty-state>
+    @elseif (! $this->hasSpending)
         <x-ui.empty-state icon="receipt_long" :title="__('No spending recorded yet')" class="mx-4 mb-3" data-test="empty-state">
             {{ __('Your income and fixed items are already in. You only need to write down the variable spending – or tap once if you did not spend today.') }}
             <x-slot name="actions">
@@ -210,7 +238,7 @@ new #[Title('Today')] class extends Component {
     @if ($categories !== [])
         <x-ui.card class="mx-4 mb-3 px-[18px] pb-1.5 pt-[18px]" data-test="categories">
             <div class="flex items-baseline justify-between">
-                <span class="text-[15px] font-semibold">{{ $this->hasSpending ? __('Variable spending') : __('Budgets') }}</span>
+                <span class="text-[15px] font-semibold">{{ __('Variable spending') }}</span>
                 <span @class(['num text-[13px]', 'text-danger' => $forecast->variableSpent > $forecast->variablePlanned, 'text-muted' => $forecast->variableSpent <= $forecast->variablePlanned])>
                     {{ money_number($forecast->variableSpent) }} / {{ money($forecast->variablePlanned) }}
                 </span>
