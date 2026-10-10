@@ -794,12 +794,18 @@ new #[Title('Pockets and loans')] class extends Component {
         async openPrepay(id) { const data = await $wire.prepayData(id); this.open('prepay', data, 'prepay') },
 
         async move() {
-            const amount = this.fields.move || ''
-            const result = this.moveMode === 'spend'
-                ? await $wire.payFromPocket(this.form.id, amount, this.spendCategory || null, this.spendNote || null)
-                : await $wire.movePocketMoney(this.form.id, this.moveMode === 'deposit' ? 1 : -1, amount, null, true)
-            this.errors = result.errors
-            if (result.ok) { this.sheet = null; this.spendNote = ''; this.spendCategory = '' }
+            if (this.saving) return
+            this.saving = true
+            try {
+                const amount = this.fields.move || ''
+                const result = this.moveMode === 'spend'
+                    ? await $wire.payFromPocket(this.form.id, amount, this.spendCategory || null, this.spendNote || null)
+                    : await $wire.movePocketMoney(this.form.id, this.moveMode === 'deposit' ? 1 : -1, amount, null, true)
+                this.errors = result?.errors ?? {}
+                if (result?.ok) { this.sheet = null; this.spendNote = ''; this.spendCategory = '' }
+            } finally {
+                this.saving = false
+            }
         },
         async removePocket() {
             if (! await window.appConfirm({ title: @js(__('Delete this pocket?')), body: @js(__('It disappears from Pockets, the plan and closing, and no more money goes into it. Its monthly saving is removed from the plan. If the month-end leftover went here, closing no longer moves it anywhere: it stays on your bank account, and you can pick a new place at closing. Past months stay as they were: its deposits, withdrawals and the spending it paid for are kept. Its balance is not moved; you can restore the pocket under Archived pockets, but its monthly saving has to be added again.')), confirm: @js(__('Delete')), danger: true })) return

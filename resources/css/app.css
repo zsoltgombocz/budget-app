@@ -385,3 +385,14 @@ html.navigating main {
     background: var(--app-bg);
     pointer-events: none;
 }
+
+/* A user action is in flight (resources/js/busy.js): no second tap on anything interactive,
+   so nothing runs twice. The element that started it also dims slightly. */
+html[data-busy] :is(button, a, [role='button'], [role='switch'], [role='checkbox'], label, input[type='checkbox'], input[type='radio']) {
+    pointer-events: none;
+}
+
+:is(button, a, [role='button'])[data-loading] {
+    opacity: 0.6;
+    pointer-events: none;
+}

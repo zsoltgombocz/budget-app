@@ -8,7 +8,7 @@ new #[Title('What’s new')] class extends Component {
     //
 }; ?>
 
-<div x-data x-init="try { localStorage.setItem('seen-version', @js(Changelog::version())) } catch (e) {}">
+<div x-data="{ init() { try { localStorage.setItem('seen-version', @js(Changelog::version())) } catch (e) {} } }">
     <x-ui.page-header :title="__('What’s new')" :subtitle="__('Version :version', ['version' => Changelog::version()])">
         <x-slot name="actions">
             <x-ui.icon-button icon="close" :href="route('dashboard')" wire:navigate :label="__('Close')" />

@@ -1,3 +1,4 @@
+import { registerBusyLock } from './busy.js'
 import { registerNumpad } from './numpad.js'
 import { install, markStandalone, push, registerServiceWorker } from './pwa.js'
 import { lockScroll, unlockScroll } from './scroll-lock.js'
@@ -18,6 +19,12 @@ window.appConfirm = (options) => new Promise((resolve) => {
 })
 
 document.addEventListener('alpine:init', () => registerNumpad(window.Alpine))
+// Livewire may already be running when this module executes (modules are deferred).
+if (window.Livewire) {
+    registerBusyLock(window.Livewire)
+} else {
+    document.addEventListener('livewire:init', () => registerBusyLock(window.Livewire))
+}
 
 window.addEventListener('load', () => push.sync())
 
