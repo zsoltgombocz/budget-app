@@ -13,7 +13,7 @@
         <div class="mx-auto min-h-dvh w-full max-w-lg">
             <main @class([
                 'pt-[var(--safe-top)]',
-                'pb-[calc(118px+env(safe-area-inset-bottom))]' => $tabs,
+                'pb-[calc(100px+env(safe-area-inset-bottom))]' => $tabs,
                 'pb-[env(safe-area-inset-bottom)]' => ! $tabs,
             ])>
                 <div class="page-enter">

@@ -5,7 +5,7 @@ it('shows the expected leftover, the daily budget and the first budget without s
 
     $page = visit(route('dashboard'))->on()->mobile()->resize(375, 667);
 
-    $page->assertSee('Expected leftover at period end')->assertNoJavaScriptErrors();
+    $page->assertSee('Leftover as things stand')->assertNoJavaScriptErrors();
 
     $fits = $page->script(<<<'JS'
         () => {

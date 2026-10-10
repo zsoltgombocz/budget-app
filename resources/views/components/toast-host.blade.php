@@ -26,7 +26,7 @@
      x-on:app-toast.window="show($event.detail)"
      @class([
          'pointer-events-none fixed inset-x-3 z-40 mx-auto max-w-md',
-         'bottom-[calc(98px+env(safe-area-inset-bottom))]' => $tabs,
+         'bottom-[calc(108px+env(safe-area-inset-bottom))]' => $tabs,
          'bottom-[calc(24px+env(safe-area-inset-bottom))]' => ! $tabs,
      ])>
     {{-- The live region stays in the DOM so screen readers announce what appears in it. --}}
