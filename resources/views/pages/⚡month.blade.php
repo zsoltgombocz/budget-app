@@ -197,7 +197,7 @@ new #[Title('Month')] class extends Component {
         $this->dispatch('budget-updated');
         $this->dispatch('app-toast',
             title: $paid ? __('Marked as done.') : __('Marked as not done.'),
-            icon: $paid ? 'check_circle' : 'radio_button_unchecked',
+            icon: $paid ? 'check_circle' : 'remove',
             undo: 'month-undo-paid',
             params: ['budgetLineId' => $budgetLineId, 'paid' => ! $paid],
         );
@@ -664,7 +664,8 @@ new #[Title('Month')] class extends Component {
     {{-- Search and category filter --}}
     <div class="mx-4 mt-4" data-test="month-filters">
         <label class="flex h-11 items-center gap-2 rounded-[14px] bg-surface px-3.5 focus-within:ring-2 focus-within:ring-accent">
-            <x-ui.icon name="search" :size="20" class="text-muted" />
+            {{-- "search" is not in the icon font subset, hence the inline glyph. --}}
+            <svg class="size-5 shrink-0 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" /></svg>
             <input type="search" wire:model.live.debounce.400ms="search" maxlength="100" enterkeyhint="search" autocomplete="off"
                    placeholder="{{ __('Search notes or amounts') }}" aria-label="{{ __('Search notes or amounts') }}"
                    class="min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-faint" data-test="month-search">
@@ -721,7 +722,7 @@ new #[Title('Month')] class extends Component {
 
     @if (! $hasSpending && $filtered)
         <div class="flex flex-col items-center gap-2.5 px-10 pb-6 pt-12 text-center" data-test="no-results">
-            <x-ui.icon-tile icon="search_off" tone="muted" :size="56" class="!bg-surface" />
+            <x-ui.icon-tile icon="receipt_long" tone="muted" :size="56" class="!bg-surface" />
             <div class="mt-1 text-lg font-semibold">{{ __('No matching spending') }}</div>
             <div class="text-sm leading-normal text-pretty text-muted">{{ __('Nothing in this month matches the search or the category.') }}</div>
             <x-ui.button size="md" variant="secondary" wire:click="clearFilters" class="mt-2" data-test="clear-filters">{{ __('Clear filters') }}</x-ui.button>

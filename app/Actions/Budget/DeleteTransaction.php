@@ -37,7 +37,7 @@ final readonly class DeleteTransaction
             'account_id' => $transaction->account_id,
             'external_ref' => $transaction->external_ref,
             'pocket_id' => $transaction->pocket_id,
-            'pocket_note' => $transaction->pocket_id === null ? null : $user->pocketMovements()->where('transaction_id', $transaction->id)->value('note'),
+            'pocket_note' => $transaction->pocket_id === null ? null : $user->pocketMovements()->where('transaction_id', $transaction->id)->first()?->note,
         ];
 
         $transaction->delete();
