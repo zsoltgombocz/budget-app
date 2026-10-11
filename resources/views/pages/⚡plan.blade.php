@@ -156,7 +156,7 @@ new #[Title('Plan')] class extends Component {
         $from = $impact->appliesFrom($this->user());
         $body = $newType->isTracked()
             ? __('This period already has :amount of spending recorded here. As variable spending, closing counts that recorded spending instead of the planned amount, and the expected leftover on Today takes off the larger of the budget and the spending.', ['amount' => money($spent)])
-            : __('This period already has :amount of spending recorded here. As “:type”, closing counts the planned amount instead of that spending, and the expected leftover on Today takes off both the planned amount and the spending already recorded.', ['amount' => money($spent), 'type' => $this->sectionTitle($newType)]);
+            : __('This period already has :amount of spending recorded here. As “:type”, both Today and the closing count the planned amount instead of that spending.', ['amount' => money($spent), 'type' => $this->sectionTitle($newType)]);
 
         return [
             'title' => __('Change the kind of this item?'),

@@ -324,7 +324,7 @@ it('asks before a type change recounts spending already recorded in the open per
             && $result['errors'] === []
             && $result['confirm']['title'] === __('Change the kind of this item?')
             && str_contains((string) $result['confirm']['body'], money(12_000))
-            && str_contains((string) $result['confirm']['body'], 'closing counts the planned amount instead of that spending')
+            && str_contains((string) $result['confirm']['body'], 'both Today and the closing count the planned amount instead of that spending')
             && str_contains((string) $result['confirm']['body'], 'The change also applies to the current period (from Oct 1).'))
         ->assertNotDispatched('app-toast');
 

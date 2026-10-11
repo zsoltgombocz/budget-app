@@ -69,3 +69,12 @@ it('has no daily allowance once the budget is used up', function (): void {
     expect(new ForecastService()->dailyAllowance(100, 200, 5))->toBe(0)
         ->and(new ForecastService()->dailyAllowance(100, 0, 0))->toBe(0);
 });
+
+it('does not count spending in a fixed category on top of its planned amount', function (): void {
+    $forecast = new ForecastService()->forecast(forecastPlan(), 500_000, [1 => 40_000, 3 => 20_000], totalDays: 30, elapsedDays: 10);
+
+    expect($forecast->committed)->toBe(300_000)
+        ->and($forecast->variableSpent)->toBe(20_000)
+        ->and($forecast->expectedLeftover)->toBe(50_000)
+        ->and(collect($forecast->categories)->pluck('categoryId')->all())->toBe([3, 4]);
+});

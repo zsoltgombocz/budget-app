@@ -12,7 +12,8 @@ final class ForecastService
     /**
      * Expected end-of-period leftover at the current spending pace.
      *
-     * Fixed, transfer, loan and sinking lines always count with their planned amount.
+     * Fixed, transfer, loan and sinking lines always count with their planned amount, also when
+     * spending was recorded in their category (the closing counts them the same way).
      * Variable categories count with max(plan, spent): a one-off purchase is not
      * extrapolated over the rest of the period.
      *
@@ -30,6 +31,7 @@ final class ForecastService
     ): Forecast {
         $committed = 0;
         $variablePlan = [];
+        $committedCategories = [];
         $names = $categoryNames;
 
         foreach ($lines as $line) {
@@ -38,11 +40,17 @@ final class ForecastService
                 $names[$line->categoryId] = $line->categoryName;
             } else {
                 $committed += $line->planned();
+                $committedCategories[$line->categoryId] = true;
             }
         }
 
+        // Spending recorded in a category that is planned as a fixed/transfer/loan/sinking line is
+        // already covered by that line's planned amount, exactly as at closing; only spending in
+        // categories without any plan line counts as unplanned.
         foreach (array_keys($spentByCategory) as $categoryId) {
-            $variablePlan[$categoryId] ??= 0;
+            if (! isset($committedCategories[$categoryId])) {
+                $variablePlan[$categoryId] ??= 0;
+            }
         }
 
         $categories = [];
