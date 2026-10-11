@@ -19,3 +19,25 @@ it('shows the expected leftover, the daily budget and the first budget without s
 
     expect($fits)->toBeTrue();
 });
+
+it('walks through the intro after onboarding and explains the daily figure', function (): void {
+    $user = onboardedUser(['intro_seen_at' => null]);
+    $this->actingAs($user);
+
+    $page = visit(route('dashboard'))->on()->mobile();
+
+    $page->assertVisible('[data-test="how-it-works"]')
+        ->assertSee('1. The plan')
+        ->click('[data-test="intro-next"]')
+        ->assertSee('2. Recording spending')
+        ->click('[data-test="intro-next"]')
+        ->assertSee('3. Closing the period')
+        ->click('[data-test="intro-done"]')
+        ->assertMissing('[data-test="how-it-works"]:visible')
+        ->click('[data-test="explain-daily"]')
+        ->assertVisible('[data-test="explainer-daily"]')
+        ->assertSee('Days left, today included')
+        ->assertNoJavaScriptErrors();
+
+    expect($user->settings()->refresh()->intro_seen_at)->not->toBeNull();
+});

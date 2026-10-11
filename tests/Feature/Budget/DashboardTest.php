@@ -160,3 +160,50 @@ it('labels the leftover the same way in payday mode', function (): void {
 
     $this->get(route('dashboard'))->assertOk()->assertSee('Leftover as things stand');
 });
+
+it('explains each figure with the period\'s own numbers', function (): void {
+    Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 30_000, 'occurred_on' => '2026-10-05']);
+
+    // 500 000 income − 200 000 rent − 30 000 spent; the unspent budgets are still in.
+    // Daily: (150 000 budgets − 30 000 spent) / 21 days left including today.
+    $this->get(route('dashboard'))
+        ->assertOk()
+        ->assertSee('data-test="explainer-leftover"', false)
+        ->assertSee('data-test="explainer-if-spent"', false)
+        ->assertSee('data-test="explainer-daily"', false)
+        ->assertSeeInOrder(['Fixed items, transfers, installments, savings', '−'.money(200_000), 'Variable spending so far', '−'.money(30_000), money(270_000)], false)
+        ->assertSeeInOrder(['Variable budgets', money(150_000), 'Spent so far', '−'.money(30_000), '21 days', 'Per day', money(intdiv(120_000, 21))], false);
+});
+
+it('keeps only the due fixed items on Today and links each budget to the month', function (): void {
+    $this->get(route('dashboard'))
+        ->assertOk()
+        ->assertDontSee('data-test="fixed-items"', false)
+        ->assertSee(route('month', ['kategoria' => $this->fuel->id]), false)
+        ->assertSee('data-test="daily-record"', false);
+});
+
+it('shows the how-it-works intro once after onboarding', function (): void {
+    $this->user->settings()->update(['intro_seen_at' => null]);
+
+    Livewire::test('pages::today')
+        ->assertSet('showIntro', true)
+        ->call('dismissIntro')
+        ->assertSet('showIntro', false);
+
+    expect($this->user->settings()->refresh()->intro_seen_at)->not->toBeNull();
+
+    Livewire::test('pages::today')->assertSet('showIntro', false);
+});
+
+it('reopens the intro from settings without touching when it was first seen', function (): void {
+    $seen = $this->user->settings()->intro_seen_at;
+
+    $this->get(route('settings'))->assertSee(route('dashboard', ['bemutato' => 1]), false);
+
+    Livewire::withQueryParams(['bemutato' => 1])->test('pages::today')
+        ->assertSet('showIntro', true)
+        ->call('dismissIntro');
+
+    expect($this->user->settings()->refresh()->intro_seen_at?->toDateTimeString())->toBe($seen?->toDateTimeString());
+});

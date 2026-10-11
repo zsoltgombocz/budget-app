@@ -42,7 +42,7 @@
 
 <div x-data="{ explain: false }" class="inline-flex align-middle">
     <button type="button" x-on:click="explain = true"
-            class="focus-ring -my-2 inline-flex size-9 items-center justify-center rounded-full text-faint transition active:bg-ink/6"
+            class="focus-ring -m-2 ml-[-0.25rem] inline-flex size-9 items-center justify-center rounded-full text-faint transition active:bg-ink/6"
             aria-label="{{ __('How is this calculated?') }}" data-test="explain-{{ $topic }}">
         <x-ui.icon name="info" :size="18" />
     </button>

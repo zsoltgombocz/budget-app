@@ -306,3 +306,135 @@ it('has Hungarian text for every line it offers', function (): void {
 
     expect($missing)->toBe([]);
 });
+
+it('keeps the answers as a draft and resumes them on the next visit', function (): void {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test('pages::onboarding')
+        ->set('income', '500000')->call('next')
+        ->set('periodMode', 'calendar')->call('next')
+        ->call('next')
+        ->set('amounts.0', '180000')->set('included.1', false);
+
+    Livewire::test('pages::onboarding')
+        ->assertSet('step', 4)
+        ->assertSet('income', '500000')
+        ->assertSet('periodMode', 'calendar')
+        ->assertSet('amounts.0', '180000')
+        ->assertSet('included.1', false)
+        ->assertSee('data-test="onboarding-resumed"', false);
+});
+
+it('does not mention a draft on the first visit', function (): void {
+    $this->actingAs(User::factory()->create());
+
+    Livewire::test('pages::onboarding')->assertDontSee('data-test="onboarding-resumed"', false);
+});
+
+it('starts over from the first step and forgets the draft', function (): void {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test('pages::onboarding')->set('income', '500000')->call('next')->set('periodMode', 'calendar');
+
+    Livewire::test('pages::onboarding')
+        ->call('restart')
+        ->assertSet('step', 1)
+        ->assertSet('income', '')
+        ->assertSet('periodMode', 'payday')
+        ->assertDontSee('data-test="onboarding-resumed"', false);
+
+    expect($user->settings()->refresh()->onboarding_draft)->toBeNull();
+});
+
+it('ignores a malformed draft and keeps the defaults', function (): void {
+    $user = User::factory()->create();
+    $user->settings()->update(['onboarding_draft' => ['step' => 99, 'income' => 5, 'currency' => 'XXX', 'amounts' => ['x' => 1], 'included' => 'no']]);
+    $this->actingAs($user);
+
+    Livewire::test('pages::onboarding')
+        ->assertSet('step', 8)
+        ->assertSet('income', '')
+        ->assertSet('currency', 'HUF')
+        ->assertSet('amounts.0', '')
+        ->assertSet('included.0', true);
+});
+
+it('clears the draft and shows the intro once onboarding is done', function (string $path): void {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $wizard = Livewire::test('pages::onboarding')->set('income', '500000');
+
+    if ($path === 'finish') {
+        $wizard->call('next')
+            ->set('periodMode', 'calendar')->call('next')
+            ->call('next')->call('next')
+            ->set('shared', false)->call('next')
+            ->set('hasLoan', false)->call('next')
+            ->call('next');
+    }
+
+    $wizard->call($path)->assertHasNoErrors();
+
+    $settings = $user->settings()->refresh();
+
+    expect($settings->onboarding_draft)->toBeNull()
+        ->and($settings->needsIntro())->toBeTrue();
+})->with(['finish', 'skip']);
+
+it('asks for the income in plain words and shows how to enter it', function (): void {
+    $this->actingAs(User::factory()->create());
+
+    Livewire::test('pages::onboarding')
+        ->assertSee('Tap and type it in')
+        ->call('next')
+        ->assertHasErrors(['income' => 'Enter your monthly net income.']);
+});
+
+it('keeps Next disabled until a yes or no question is answered', function (): void {
+    $this->actingAs(User::factory()->create());
+
+    $nextIsDisabled = fn (string $html): bool => preg_match('/<button(?=[^>]*data-test="onboarding-next")(?=[^>]*\sdisabled[\s=>])[^>]*>/', $html) === 1;
+
+    $wizard = Livewire::test('pages::onboarding')->set('step', 5);
+    expect($nextIsDisabled($wizard->html()))->toBeTrue();
+
+    $wizard->set('shared', false);
+    expect($nextIsDisabled($wizard->html()))->toBeFalse();
+
+    $wizard->set('step', 4);
+    expect($nextIsDisabled($wizard->html()))->toBeFalse();
+});
+
+it('tells what an amount left at 0 means', function (): void {
+    $this->actingAs(User::factory()->create());
+
+    Livewire::test('pages::onboarding')
+        ->set('step', 4)->assertSee('– stays out of the plan.')
+        ->set('step', 7)->assertSee('– the category is created for recording spending, without a budget.');
+});
+
+it('leaves fixed lines at 0 out of the plan but keeps budgets and the reserve at 0', function (): void {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test('pages::onboarding')
+        ->set('income', '500000')->call('next')
+        ->set('periodMode', 'calendar')->call('next')
+        ->call('next')
+        ->set('amounts.0', '150000')->call('next')
+        ->set('shared', true)->set('amounts.6', '50000')->call('next')
+        ->set('hasLoan', true)->call('next')
+        ->call('next')
+        ->call('finish')
+        ->assertHasNoErrors();
+
+    $names = $user->categories()->pluck('name');
+
+    expect($names)->toContain('Housing', 'Shared contribution', 'Groceries', 'Other', 'Reserve')
+        ->and($names)->not->toContain('Utilities', 'Phone and internet', 'Shared pocket', 'Loan', 'Prepayment fund')
+        ->and($user->loans()->count())->toBe(0)
+        ->and($user->pockets()->where('is_reserve', true)->exists())->toBeTrue();
+});

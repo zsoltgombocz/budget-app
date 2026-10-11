@@ -200,7 +200,7 @@ new #[Title('Today')] class extends Component {
 
     <section class="px-6 pb-[26px] pt-[30px]" data-test="expected-leftover">
         <div class="flex items-center gap-1 text-sm text-muted">
-            {{ __('Leftover as things stand') }}
+            <span>{{ __('Leftover as things stand') }}</span>
             <x-explainer topic="leftover" :rows="$leftoverRows" />
             @if ($negative)
                 <span class="inline-flex h-[22px] items-center gap-1 rounded-full bg-danger/16 px-2 text-xs font-semibold text-danger">
@@ -210,8 +210,10 @@ new #[Title('Today')] class extends Component {
         </div>
         <x-ui.amount :value="$current" size="hero" :tone="$negative ? 'danger' : 'accent'" class="mt-1.5" />
         <div class="num mt-2.5 text-sm text-muted" data-test="leftover-if-spent">
-            <span @class(['text-danger' => $forecastNegative])>{{ __('If you spend every budget in full: :amount', ['amount' => money($forecast->expectedLeftover)]) }}</span><x-explainer topic="if-spent" :rows="$ifSpentRows" />
-            · {{ trans_choice('{1} :count day left|[2,*] :count days left', $forecast->remainingDays, ['count' => $forecast->remainingDays]) }}
+            <div>
+                <span @class(['text-danger' => $forecastNegative])>{{ __('If you spend every budget in full: :amount', ['amount' => money($forecast->expectedLeftover)]) }}</span><x-explainer topic="if-spent" :rows="$ifSpentRows" />
+            </div>
+            <div class="mt-0.5">{{ trans_choice('{1} :count day left|[2,*] :count days left', $forecast->remainingDays, ['count' => $forecast->remainingDays]) }}</div>
         </div>
     </section>
 
@@ -266,7 +268,7 @@ new #[Title('Today')] class extends Component {
     <div class="mx-4 mb-3 flex items-center justify-between gap-3 rounded-card bg-surface px-5 py-[18px]" data-test="daily-allowance">
         <div class="min-w-0">
             <div class="flex items-center gap-1 text-[13px] text-muted">
-                {{ __('You can still spend today') }}
+                <span>{{ __('You can still spend today') }}</span>
                 <x-explainer topic="daily" :rows="$dailyRows" />
             </div>
             <x-ui.amount :value="$dailyShown" size="lg" :tone="$forecastNegative ? 'muted' : null" class="mt-1" />
