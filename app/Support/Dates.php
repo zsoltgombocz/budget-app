@@ -30,6 +30,21 @@ final class Dates
     }
 
     /**
+     * "okt 10-től" / "from Oct 10". The Hungarian suffix follows the vowels of the day as it
+     * is spoken: háromtól, hattól, nyolctól, húsztól, harminctól, otherwise -től.
+     */
+    public static function from(CarbonInterface $date): string
+    {
+        if (app()->getLocale() !== 'hu') {
+            return __('from :date', ['date' => self::short($date)]);
+        }
+
+        $backVowel = in_array($date->day % 10, [3, 6, 8], true) || in_array($date->day, [20, 30], true);
+
+        return self::short($date).($backVowel ? '-tól' : '-től');
+    }
+
+    /**
      * Day heading in lists: "Ma · okt 16., péntek", "Tegnap · …", "okt 14., szerda".
      */
     public static function day(CarbonInterface $date, CarbonInterface $today): string
