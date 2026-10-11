@@ -759,12 +759,6 @@ new #[Title('Month')] class extends Component {
 
     {{-- A spending: correct it (open period) or just look at it (closed period). --}}
     <x-ui.sheet show="edit" close="closeEdit()" title="edit?.title" data-test="transaction-sheet">
-        @if ($period->isOpen())
-            <x-slot:action>
-                <button type="button" x-on:click="remove()" :disabled="saving" class="focus-ring flex size-11 items-center justify-center rounded-xl text-danger" aria-label="{{ __('Delete entry') }}" data-test="delete-transaction"><x-ui.icon name="delete" :size="22" /></button>
-            </x-slot:action>
-        @endif
-
         <div class="py-3 text-center" :class="! filled('amount') && 'text-muted'">
             <x-ui.amount bind="display('amount')" size="xl" />
         </div>
@@ -788,6 +782,9 @@ new #[Title('Month')] class extends Component {
                 <x-ui.text-row :label="__('Note')" x-model="form.note" maxlength="255" :placeholder="__('Optional')" data-test="edit-note" />
             </x-ui.form-group>
             <p class="px-1.5 pt-2 text-xs text-danger" x-show="otherError()" x-text="otherError()"></p>
+            <div class="mt-4 flex justify-center">
+                <button type="button" x-on:click="remove()" :disabled="saving" class="focus-ring flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-medium text-danger" data-test="delete-transaction"><x-ui.icon name="delete" :size="18" />{{ __('Delete entry') }}</button>
+            </div>
         @else
             <div class="pb-2 text-center text-sm text-muted">
                 <span x-text="dateLabel(edit?.date)"></span><span x-show="edit?.note"> · </span><span x-text="edit?.note"></span>

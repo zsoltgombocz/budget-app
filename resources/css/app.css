@@ -413,3 +413,18 @@ html[data-busy] :is(button, a, [role='button'], [role='switch'], [role='checkbox
     opacity: 0.6;
     pointer-events: none;
 }
+
+/* Light theme: coloured TEXT needs 4.5:1 on white, which the fill colours (bars, tints,
+   selected borders) don't have. Text utilities get darker shades there; fills are unchanged.
+   Ratios on #FFFFFF: accent-strong 4.9, warn text 5.6, danger text 5.7. */
+html:not(.dark) :is(.text-accent, .hover\:text-accent:hover) {
+    color: var(--app-accent-strong);
+}
+
+html:not(.dark) .text-warn {
+    color: #955600;
+}
+
+html:not(.dark) .text-danger {
+    color: #C2242A;
+}
