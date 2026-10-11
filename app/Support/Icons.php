@@ -25,6 +25,71 @@ final class Icons
     public const string FALLBACK = 'more_horiz';
 
     /**
+     * What each category icon shows, in words (translation keys), for screen readers.
+     *
+     * @var array<string, string>
+     */
+    public const array LABELS = [
+        'shopping_basket' => 'Shopping basket',
+        'shopping_cart' => 'Shopping cart',
+        'local_gas_station' => 'Fuel pump',
+        'directions_car' => 'Car',
+        'directions_bus' => 'Bus',
+        'train' => 'Train',
+        'two_wheeler' => 'Motorbike',
+        'local_parking' => 'Parking',
+        'garage' => 'Garage',
+        'home' => 'House',
+        'bolt' => 'Lightning',
+        'water_drop' => 'Water drop',
+        'wifi' => 'Wi-Fi',
+        'smartphone' => 'Phone',
+        'devices' => 'Devices',
+        'restaurant' => 'Restaurant',
+        'local_cafe' => 'Coffee',
+        'fastfood' => 'Fast food',
+        'local_bar' => 'Drink',
+        'movie' => 'Film',
+        'music_note' => 'Music',
+        'sports_esports' => 'Game controller',
+        'fitness_center' => 'Gym',
+        'sports_soccer' => 'Football',
+        'menu_book' => 'Book',
+        'school' => 'School',
+        'child_care' => 'Child',
+        'pets' => 'Pet',
+        'medical_services' => 'Doctor',
+        'local_pharmacy' => 'Pharmacy',
+        'spa' => 'Wellness',
+        'content_cut' => 'Scissors',
+        'checkroom' => 'Clothes',
+        'local_laundry_service' => 'Laundry',
+        'cleaning_services' => 'Cleaning',
+        'handyman' => 'Tools',
+        'card_giftcard' => 'Gift',
+        'redeem' => 'Gift box',
+        'celebration' => 'Party',
+        'flight' => 'Plane',
+        'beach_access' => 'Beach',
+        'park' => 'Tree',
+        'subscriptions' => 'Subscriptions',
+        'cloud' => 'Cloud',
+        'receipt' => 'Receipt',
+        'credit_card' => 'Bank card',
+        'account_balance' => 'Bank',
+        'payments' => 'Cash',
+        'savings' => 'Piggy bank',
+        'shield' => 'Shield',
+        'trending_down' => 'Falling chart',
+        'show_chart' => 'Chart',
+        'work' => 'Briefcase',
+        'group' => 'People',
+        'favorite' => 'Heart',
+        'volunteer_activism' => 'Donation',
+        'more_horiz' => 'Three dots',
+    ];
+
+    /**
      * Heroicons names used before the redesign → Material Symbols.
      *
      * @var array<string, string>
@@ -44,6 +109,14 @@ final class Icons
         'heart' => 'favorite',
         'tag' => 'more_horiz',
     ];
+
+    /**
+     * The translated name of what a category icon shows; the raw icon name for an unknown one.
+     */
+    public static function label(string $icon): string
+    {
+        return isset(self::LABELS[$icon]) ? __(self::LABELS[$icon]) : $icon;
+    }
 
     public static function forCategory(?string $icon): string
     {
