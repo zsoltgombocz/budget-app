@@ -6,6 +6,9 @@ use App\Enums\CalcMode;
 use App\Models\BudgetLine;
 use App\Models\Category;
 use App\Models\Loan;
+use App\Models\Pocket;
+use App\Models\Transaction;
+use App\Services\PeriodService;
 use Livewire\Livewire;
 
 beforeEach(function (): void {
@@ -169,4 +172,211 @@ it('opens the loan itself from its repayment line', function (): void {
 
 it('shows each line with its category icon', function (): void {
     $this->get(route('plan'))->assertOk()->assertSee('data-test="line-icon"', false);
+});
+
+it('keeps rows compact: a due day marker, and a subtotal only for groups with several lines', function (): void {
+    line('Rent')->update(['due_day' => 12]);
+
+    $html = $this->get(route('plan'))->assertOk()
+        ->assertSeeInOrder(['data-test="due-day"', '12.'], false)
+        ->assertDontSee('data-test="line-detail"', false)
+        ->getContent();
+
+    // One fixed line, two variable ones: only the variable group repeats nothing with a subtotal.
+    expect(substr_count($html, 'data-test="subtotal"'))->toBe(1);
+});
+
+it('keeps the whole loan detail on its own line under the name', function (): void {
+    $loan = Loan::factory()->for($this->user)->create(['principal_balance' => 3_200_000, 'remaining_months' => 44]);
+    $category = Category::factory()->for($this->user)->create(['name' => 'Car loan', 'type' => 'loan']);
+    BudgetLine::factory()->for($this->user)->for($category)->create(['amount' => 87_549, 'loan_id' => $loan->id]);
+
+    $this->get(route('plan'))
+        ->assertSeeInOrder(['data-test="line-detail"', __('principal :amount', ['amount' => money(3_200_000)]), '44 months left'], false);
+});
+
+it('names the pocket of a line only when the name does not already say it', function (): void {
+    $holiday = Pocket::factory()->for($this->user)->create(['name' => 'Holiday']);
+    $travel = Category::factory()->for($this->user)->create(['name' => 'Summer trip', 'type' => 'sinking']);
+    BudgetLine::factory()->for($this->user)->for($travel)->create(['amount' => 20_000, 'pocket_id' => $holiday->id]);
+
+    $this->get(route('plan'))->assertSee(__('into :pocket', ['pocket' => 'Holiday']));
+
+    $travel->update(['name' => 'holiday']);
+
+    $this->get(route('plan'))->assertDontSee(__('into :pocket', ['pocket' => 'Holiday']));
+});
+
+it('shows the leftover green only when something is left', function (int $income, string $class): void {
+    $this->user->settings()->update(['income' => $income]);
+
+    $html = $this->get(route('plan'))->getContent();
+    preg_match('/data-test="plan-left">.*?<span class="([^"]*)">/s', $html, $match);
+
+    expect(trim($match[1] ?? 'missing'))->toBe($class);
+})->with([
+    'money left' => [500_000, 'text-accent-strong'],
+    'nothing left' => [350_000, ''],
+    'over the income' => [300_000, 'text-danger'],
+]);
+
+it('makes edit mode a visible state with a Done button and drag handles', function (): void {
+    Livewire::test('pages::plan')
+        ->assertSee(__('Plan'))
+        ->assertDontSee('data-test="line-handle"', false)
+        ->assertDontSee('data-test="done-editing"', false)
+        ->set('editing', true)
+        ->assertSeeHtmlInOrder(['data-test="plan-header"', __('Edit'), __('Done')])
+        ->assertSee('data-test="line-handle"', false)
+        ->assertSee('data-test="add-fixed"', false)
+        ->assertSee('data-test="done-editing"', false)
+        ->set('editing', false)
+        ->assertDontSee('data-test="line-handle"', false);
+});
+
+it('says after saving that the change reaches the open period from its first day', function (): void {
+    $this->travelTo('2026-10-15 12:00:00');
+
+    $component = Livewire::test('pages::plan')
+        ->assertSeeHtmlInOrder(['data-test="scope-note"', 'The change also applies to the current period (from Oct 1).']);
+    $data = $component->instance()->lineData(line('Fuel')->id);
+    $data['amounts']['amount'] = '80000';
+
+    $component->call('saveLine', $data)
+        ->assertReturned(['ok' => true, 'errors' => []])
+        ->assertDispatched('app-toast', title: __('Plan updated.'), subtitle: 'Also applies to the current period (from Oct 1).');
+
+    line('Fuel')->update(['amount_avg' => 65_000, 'amount_max' => 80_000]);
+    Livewire::test('pages::plan')->call('setCalcMode', line('Fuel')->id, 'max')
+        ->assertDispatched('app-toast', subtitle: 'Also applies to the current period (from Oct 1).');
+
+    Livewire::test('pages::plan')->call('saveIncome', '600000')
+        ->assertDispatched('app-toast', subtitle: 'Also applies to the current period (from Oct 1).');
+
+    Livewire::test('pages::plan')->call('deleteLine', line('Rent')->id)
+        ->assertDispatched('app-toast', title: __('Item removed from the plan.'), subtitle: 'Also applies to the current period (from Oct 1).');
+});
+
+it('does not claim the open period for a line that only starts later', function (): void {
+    $this->travelTo('2026-10-15 12:00:00');
+
+    $component = Livewire::test('pages::plan');
+    $data = $component->instance()->lineData(line('Fuel')->id);
+    $data['activeFrom'] = '2026-11-01';
+
+    $component->call('saveLine', $data)
+        ->assertReturned(['ok' => true, 'errors' => []])
+        ->assertDispatched('app-toast', title: __('Plan updated.'), subtitle: null);
+
+    expect($component->instance()->lineData(line('Fuel')->id)['deleteNote'])->toBe(__('Recorded spending stays, with its category. Closed months do not change.'));
+});
+
+it('sums up the leftover rule in one sentence on the plan', function (): void {
+    $settings = $this->user->settings();
+    $account = $this->user->accounts()->create(['name' => 'Broker', 'type' => 'investment', 'currency' => 'HUF']);
+    $rule = fn (): string => Livewire::test('pages::plan')->instance()->leftoverRule();
+
+    expect($rule())->toBe('All of it stays on the account');
+
+    $settings->update(['surplus_account_id' => $account->id, 'reserve_pct' => 50]);
+    expect($rule())->toBe('All of it goes to Broker');
+
+    $reserve = Pocket::factory()->for($this->user)->create(['is_reserve' => true, 'target_amount' => 300_000]);
+    expect($rule())->toBe('50% to the reserve up to a target of '.money(300_000).', the rest goes to Broker');
+
+    $settings->update(['surplus_account_id' => null, 'reserve_pct' => 100]);
+    expect($rule())->toBe('100% to the reserve up to a target of '.money(300_000).', the rest stays on the account');
+
+    $reserve->update(['target_amount' => null]);
+    expect($rule())->toBe('100% to the reserve');
+
+    $settings->update(['reserve_fixed' => 40_000]);
+    expect($rule())->toBe('Up to '.money(40_000).' to the reserve, the rest stays on the account');
+
+    $settings->update(['reserve_fixed' => null, 'reserve_pct' => 0]);
+    expect($rule())->toBe('All of it stays on the account');
+
+    $this->get(route('plan'))->assertOk()
+        ->assertSeeInOrder(['data-test="leftover-rule"', 'All of it stays on the account', __('Change'), 'data-test="leftover-sheet"', 'data-test="surplus-target"'], false);
+});
+
+it('updates the leftover sentence when the rule changes on the sheet', function (): void {
+    Pocket::factory()->for($this->user)->create(['is_reserve' => true]);
+
+    Livewire::test('pages::plan')
+        ->call('setReservePct', 25)
+        ->assertSee('25% to the reserve, the rest stays on the account')
+        ->call('setReserveMode', 'fixed')
+        ->assertSee('All of it stays on the account');
+});
+
+it('asks before a type change recounts spending already recorded in the open period', function (): void {
+    $this->travelTo('2026-10-15 12:00:00');
+    $period = resolve(PeriodService::class)->current($this->user);
+    Transaction::factory()->for($this->user)->for($period)->for(line('Fuel')->category)->create(['amount' => 12_000]);
+
+    $component = Livewire::test('pages::plan');
+    $data = $component->instance()->lineData(line('Fuel')->id);
+    $data['type'] = 'fixed';
+
+    $component->call('saveLine', $data)
+        ->assertReturned(fn (array $result): bool => $result['ok'] === false
+            && $result['errors'] === []
+            && $result['confirm']['title'] === __('Change the kind of this item?')
+            && str_contains((string) $result['confirm']['body'], money(12_000))
+            && str_contains((string) $result['confirm']['body'], 'closing counts the planned amount instead of that spending')
+            && str_contains((string) $result['confirm']['body'], 'The change also applies to the current period (from Oct 1).'))
+        ->assertNotDispatched('app-toast');
+
+    expect(line('Fuel')->category->type->value)->toBe('variable');
+
+    $component->call('saveLine', [...$data, 'typeChangeConfirmed' => true])->assertReturned(['ok' => true, 'errors' => []]);
+
+    expect(line('Fuel')->category->type->value)->toBe('fixed');
+
+    // Back to variable: the same spending would now be counted instead of the plan.
+    $data = $component->instance()->lineData(line('Fuel')->id);
+    $data['type'] = 'variable';
+
+    $component->call('saveLine', $data)
+        ->assertReturned(fn (array $result): bool => $result['ok'] === false && str_contains((string) $result['confirm']['body'], 'closing counts that recorded spending instead of the planned amount'));
+});
+
+it('changes the type without a question when no recorded spending is recounted', function (): void {
+    $period = resolve(PeriodService::class)->current($this->user);
+    Transaction::factory()->for($this->user)->for($period)->for(line('Rent')->category)->create(['amount' => 200_000]);
+
+    $component = Livewire::test('pages::plan');
+
+    // No spending on Fuel at all.
+    $data = $component->instance()->lineData(line('Fuel')->id);
+    $data['type'] = 'fixed';
+    $component->call('saveLine', $data)->assertReturned(['ok' => true, 'errors' => []]);
+
+    // Rent has spending, but fixed and transfer both count with the planned amount.
+    $data = $component->instance()->lineData(line('Rent')->id);
+    $data['type'] = 'transfer';
+    $component->call('saveLine', $data)->assertReturned(['ok' => true, 'errors' => []]);
+
+    // Other edits of a line with spending never ask.
+    $data = $component->instance()->lineData(line('Rent')->id);
+    $data['amounts']['amount'] = '210000';
+    $component->call('saveLine', $data)->assertReturned(['ok' => true, 'errors' => []]);
+
+    expect(line('Fuel')->category->type->value)->toBe('fixed')
+        ->and(line('Rent')->category->type->value)->toBe('transfer')
+        ->and(line('Rent')->amount)->toBe(210_000);
+});
+
+it('offers deleting as a text button at the bottom of the sheet and says what it does', function (): void {
+    $this->travelTo('2026-10-15 12:00:00');
+
+    $component = Livewire::test('pages::plan')
+        ->assertSeeHtmlInOrder(['data-test="line-sheet"', __('Active until'), 'x-on:click="removeLine()"', 'data-test="delete-line"', __('Delete item'), 'data-test="save-line"']);
+
+    expect(substr_count($component->html(), 'removeLine()'))->toBe(2);
+
+    expect($component->instance()->lineData(line('Rent')->id)['deleteNote'])
+        ->toBe('Recorded spending stays, with its category. The item also leaves the plan of the current period (from Oct 1); closed months do not change.')
+        ->and($component->instance()->lineData(null, 'fixed')['deleteNote'])->toBe('');
 });

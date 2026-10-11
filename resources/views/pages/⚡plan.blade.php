@@ -618,7 +618,8 @@ new #[Title('Plan')] class extends Component {
                                         @else type="button" x-on:click="openLine({{ $line->id }})" data-test="open-line" @endif
                                         class="block min-w-0 flex-1 py-[13px] text-left">
                                         <span class="flex items-center gap-2.5">
-                                            <x-ui.icon :name="Icons::forCategory($line->category?->icon)" :size="18" class="text-faint" data-test="line-icon" />
+                                            {{-- In edit mode the drag handle takes the icon's place. --}}
+                                            @unless ($editing)<x-ui.icon :name="Icons::forCategory($line->category?->icon)" :size="18" class="text-faint" data-test="line-icon" />@endunless
                                             <span class="min-w-0 flex-1 truncate text-[15px]">{{ $name }}</span>
                                             @if ($line->due_day !== null)
                                                 <span class="num shrink-0 rounded-md bg-surface-3 px-1.5 py-px text-[11px] font-medium text-muted" data-test="due-day">
@@ -627,7 +628,7 @@ new #[Title('Plan')] class extends Component {
                                             @endif
                                             <x-ui.amount size="sm" :value="$this->plannedAmount($line)" class="shrink-0 text-[15px] font-medium" />
                                         </span>
-                                        @if ($detail)<span class="num mt-0.5 block pl-7 text-xs leading-snug text-muted" data-test="line-detail">{{ $detail }}</span>@endif
+                                        @if ($detail)<span @class(['num mt-0.5 block text-xs leading-snug text-muted', 'pl-7' => ! $editing]) data-test="line-detail">{{ $detail }}</span>@endif
                                     </{{ $opensLoan ? 'a' : 'button' }}>
                                 </div>
                                 @if ($hasToggle)
