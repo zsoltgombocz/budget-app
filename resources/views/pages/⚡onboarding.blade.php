@@ -76,7 +76,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
 
     public string $surplusTarget = 'investment';
 
-    /** The answers came from a saved draft: the wizard says it continues where the user left off. */
+    /** The answers came from a saved draft: the wizard says so until the user moves to another step. */
     public bool $resumed = false;
 
     public function mount(): void
@@ -110,12 +110,14 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
         $this->validateStep();
 
         $this->step = min(self::STEPS, $this->step + 1);
+        $this->resumed = false;
         $this->saveDraft();
     }
 
     public function back(): void
     {
         $this->step = max(1, $this->step - 1);
+        $this->resumed = false;
         $this->saveDraft();
     }
 
