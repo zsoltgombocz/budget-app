@@ -245,3 +245,26 @@ it('marks the arrow without a neighbouring month as disabled', function (): void
 
     Livewire::test('pages::month')->assertSee('showPeriod('.$previous->id.')', false);
 });
+
+it('folds the fixed items into a summary row that counts what is done and what is due', function (): void {
+    $this->travelTo($this->period->starts_on->addDays(14)->setTime(12, 0));
+    $rent = Category::query()->where('name', 'Rent')->firstOrFail();
+    $rentLine = BudgetLine::query()->where('category_id', $rent->id)->firstOrFail();
+    $rentLine->update(['due_day' => 10]);
+    $insurance = Category::factory()->for($this->user)->create(['name' => 'Insurance', 'type' => 'fixed', 'sort' => 9]);
+    BudgetLine::factory()->for($this->user)->for($insurance)->create(['amount' => 10_000, 'due_day' => 25]);
+
+    Livewire::test('pages::month')
+        ->assertSeeInOrder(['data-test="fixed-summary"', 'Fixed items', '0 of 2 done', 'data-test="fixed-due"', '1 due', 'id="month-fixed-list"', 'x-show="open"', 'data-test="fixed-item"'], false)
+        ->assertSee('aria-expanded="false"', false)
+        ->assertSee('aria-controls="month-fixed-list"', false)
+        ->call('togglePaid', $rentLine->id)
+        ->assertSee('1 of 2 done')
+        ->assertDontSee('data-test="fixed-due"', false);
+});
+
+it('names the progress bar and uses the icon font for the search', function (): void {
+    Livewire::test('pages::month')
+        ->assertSeeInOrder(['role="progressbar"', 'aria-label="Variable spending so far"'], false)
+        ->assertSeeInOrder(['data-test="month-filters"', '>search</span>', 'data-test="month-search"'], false);
+});

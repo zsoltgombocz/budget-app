@@ -328,7 +328,7 @@ new #[Title('Today')] class extends Component {
                             <x-ui.amount size="sm" :value="$category->spent" :of="$category->planned" class="shrink-0 text-sm [&>span:first-child]:font-semibold" />
                         </div>
                         @if ($this->hasSpending)
-                            <x-ui.bar :value="$category->planned > 0 ? $category->spent / $category->planned : ($category->spent > 0 ? 1 : 0)" :tone="$tone" class="mt-2" />
+                            <x-ui.bar :label="$category->categoryName" :value="$category->planned > 0 ? $category->spent / $category->planned : ($category->spent > 0 ? 1 : 0)" :tone="$tone" class="mt-2" />
                             <div @class(['num mt-1.5 text-xs', 'text-danger' => $tone === 'danger', 'text-warn' => $tone === 'warn', 'text-muted' => $tone === 'accent'])>
                                 @if ($category->spent > $category->planned)
                                     {{ __('+:amount over', ['amount' => money($category->spent - $category->planned)]) }}

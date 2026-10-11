@@ -53,3 +53,31 @@ it('deletes a spending and brings it back from the toast', function (): void {
 
     expect(Transaction::query()->sole()->client_uuid)->toBe($this->spending->client_uuid);
 });
+
+it('keeps the fixed items folded into one row until it is opened, and remembers that for the session', function (): void {
+    $page = visit(route('month'))->on()->mobile()->resize(390, 844);
+
+    $page->assertSeeIn('[data-test="fixed-summary"]', '0 of 1 done')
+        ->assertAttribute('[data-test="fixed-summary"]', 'aria-expanded', 'false')
+        ->assertMissing('[data-test="fixed-item"]:visible')
+        ->click('[data-test="fixed-summary"]')
+        ->assertAttribute('[data-test="fixed-summary"]', 'aria-expanded', 'true')
+        ->assertVisible('[data-test="fixed-item"]')
+        ->click('[data-test="fixed-item"]')
+        ->waitForText('Marked as done.')
+        ->assertSeeIn('[data-test="fixed-summary"]', '1 of 1 done')
+        ->assertAttribute('[data-test="fixed-item"]', 'aria-checked', 'true')
+        ->assertVisible('[data-test="fixed-item"]');
+
+    $page->click('Undo')
+        ->waitForText('0 of 1 done')
+        ->assertAttribute('[data-test="fixed-item"]', 'aria-checked', 'false');
+
+    // Still open after a reload in the same browser session.
+    $page->refresh()
+        ->assertAttribute('[data-test="fixed-summary"]', 'aria-expanded', 'true')
+        ->assertVisible('[data-test="fixed-item"]')
+        ->click('[data-test="fixed-summary"]')
+        ->assertMissing('[data-test="fixed-item"]:visible')
+        ->assertNoJavaScriptErrors();
+});

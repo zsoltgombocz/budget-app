@@ -506,7 +506,7 @@ new #[Title('Month')] class extends Component {
     $currency = user_currency();
     $previousId = $this->neighbours['previous'];
     $nextId = $this->neighbours['next'];
-    $navClasses = 'aria-disabled:cursor-default aria-disabled:bg-transparent aria-disabled:text-faint aria-disabled:ring-1 aria-disabled:ring-inset aria-disabled:ring-line aria-disabled:active:scale-100';
+    $navClasses = 'aria-disabled:cursor-default aria-disabled:bg-transparent aria-disabled:text-muted aria-disabled:ring-1 aria-disabled:ring-inset aria-disabled:ring-line aria-disabled:active:scale-100';
 @endphp
 
 <div x-data="monthPage({
@@ -571,7 +571,7 @@ new #[Title('Month')] class extends Component {
             <span>{{ __('budget :amount', ['amount' => money($forecast->variablePlanned)]) }}</span>
         </div>
         <x-ui.amount :value="$forecast->variableSpent" class="mt-1" />
-        <x-ui.bar :value="$forecast->variablePlanned > 0 ? $forecast->variableSpent / $forecast->variablePlanned : 0" :tone="$forecast->variableSpent > $forecast->variablePlanned ? 'danger' : ($forecast->variablePlanned > 0 && $forecast->variableSpent / $forecast->variablePlanned >= 0.8 ? 'warn' : 'accent')" class="mt-2.5" />
+        <x-ui.bar :label="$period->isOpen() ? __('Variable spending so far') : __('Variable spending total')" :value="$forecast->variablePlanned > 0 ? $forecast->variableSpent / $forecast->variablePlanned : 0" :tone="$forecast->variableSpent > $forecast->variablePlanned ? 'danger' : ($forecast->variablePlanned > 0 && $forecast->variableSpent / $forecast->variablePlanned >= 0.8 ? 'warn' : 'accent')" class="mt-2.5" />
         @if (! $period->isOpen() && $forecast->variablePlanned > 0)
             <div @class(['num mt-1.5 text-[13px] font-medium', 'text-danger' => $forecast->variableSpent > $forecast->variablePlanned, 'text-muted' => $forecast->variableSpent <= $forecast->variablePlanned]) data-test="variable-verdict">
                 @if ($forecast->variableSpent > $forecast->variablePlanned)
@@ -605,7 +605,7 @@ new #[Title('Month')] class extends Component {
     {{-- Closed month: plan against actual per variable category, from the closing record. --}}
     @if ($this->closedBreakdown !== [])
         <div class="mx-4 mt-3 rounded-[22px] bg-surface px-2 py-1.5" data-test="closed-breakdown">
-            <div class="grid grid-cols-[minmax(0,1fr)_64px_64px_70px] gap-1.5 px-2.5 pb-1.5 pt-2.5 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted">
+            <div class="grid grid-cols-[minmax(0,1fr)_64px_64px_70px] gap-1.5 px-2.5 pb-1.5 pt-2.5 text-xs font-semibold text-muted">
                 <span>{{ __('Category') }}</span><span class="text-right">{{ __('Plan') }}</span><span class="text-right">{{ __('Actual') }}</span><span class="text-right">{{ __('Diff.') }}</span>
             </div>
             @foreach ($this->closedBreakdown as $row)
@@ -626,14 +626,36 @@ new #[Title('Month')] class extends Component {
         </div>
     @endif
 
-    {{-- Open month: the fixed items with their tick, in a stable order while the page is open. --}}
+    {{--
+        Open month: the fixed items with their tick, in a stable order while the page is open.
+        Collapsed to one summary row so the spending list stays near the top; the open state is
+        remembered for the browser session.
+    --}}
     @if ($period->isOpen() && $this->fixedItems !== [])
-        @php $fixedDone = count(array_filter($this->fixedItems, fn ($item) => $item->paid)); @endphp
-        <x-ui.card class="mx-4 mt-3 px-[18px] pb-2 pt-[18px]" data-test="fixed-items">
-            <div class="mb-1 flex items-baseline justify-between">
-                <h2 class="text-[15px] font-semibold">{{ __('Fixed items') }}</h2>
-                <span class="num text-[13px] text-muted">{{ __(':done of :count done', ['done' => $fixedDone, 'count' => count($this->fixedItems)]) }}</span>
-            </div>
+        @php
+            $fixedDone = count(array_filter($this->fixedItems, fn ($item) => $item->paid));
+            $fixedDue = count(array_filter($this->fixedItems, fn ($item) => $item->isOverdue($today)));
+        @endphp
+        <x-ui.card class="mx-4 mt-3 px-[18px]" data-test="fixed-items"
+                   x-data="{
+                        open: false,
+                        init() { try { this.open = sessionStorage.getItem('month-fixed-open') === '1' } catch (e) {} },
+                        toggle() {
+                            this.open = ! this.open
+                            try { sessionStorage.setItem('month-fixed-open', this.open ? '1' : '0') } catch (e) {}
+                        },
+                   }">
+            <button type="button" x-on:click="toggle()" :aria-expanded="open ? 'true' : 'false'" aria-expanded="false" aria-controls="month-fixed-list"
+                    class="focus-ring flex min-h-[56px] w-full items-center justify-between gap-3 rounded-xl py-2 text-left" data-test="fixed-summary">
+                <span class="min-w-0">
+                    <span class="block text-[15px] font-semibold">{{ __('Fixed items') }}</span>
+                    <span class="num mt-0.5 block text-[13px] text-muted">
+                        {{ __(':done of :count done', ['done' => $fixedDone, 'count' => count($this->fixedItems)]) }}@if ($fixedDue > 0)<span class="font-medium text-warn" data-test="fixed-due"> · {{ __(':count due', ['count' => $fixedDue]) }}</span>@endif
+                    </span>
+                </span>
+                <x-ui.icon name="expand_more" :size="22" class="text-muted transition-transform" x-bind:class="open && 'rotate-180'" />
+            </button>
+            <div id="month-fixed-list" x-show="open" x-cloak class="border-t border-line pb-2" data-test="fixed-list">
             @foreach ($this->fixedItems as $item)
                 @php $overdue = $item->isOverdue($today); @endphp
                 <button type="button" role="checkbox" aria-checked="{{ $item->paid ? 'true' : 'false' }}" wire:key="fixed-{{ $item->line->lineId }}" wire:click="togglePaid({{ (int) $item->line->lineId }})"
@@ -658,17 +680,17 @@ new #[Title('Month')] class extends Component {
                     <x-ui.amount size="sm" :value="$item->line->planned()" class="text-[15px] font-medium" />
                 </button>
             @endforeach
+            </div>
         </x-ui.card>
     @endif
 
     {{-- Search and category filter --}}
     <div class="mx-4 mt-4" data-test="month-filters">
         <label class="flex h-11 items-center gap-2 rounded-[14px] bg-surface px-3.5 focus-within:ring-2 focus-within:ring-accent">
-            {{-- "search" is not in the icon font subset, hence the inline glyph. --}}
-            <svg class="size-5 shrink-0 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" /></svg>
+            <x-ui.icon name="search" :size="20" class="text-muted" />
             <input type="search" wire:model.live.debounce.400ms="search" maxlength="100" enterkeyhint="search" autocomplete="off"
                    placeholder="{{ __('Search notes or amounts') }}" aria-label="{{ __('Search notes or amounts') }}"
-                   class="min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-faint" data-test="month-search">
+                   class="min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-muted" data-test="month-search">
         </label>
         @if ($this->filterCategories->isNotEmpty())
             <div class="no-scrollbar -mx-4 mt-2 flex gap-2 overflow-x-auto px-4" role="group" aria-label="{{ __('Filter by category') }}" data-test="category-filter">
@@ -743,7 +765,7 @@ new #[Title('Month')] class extends Component {
             </x-slot:action>
         @endif
 
-        <div class="py-3 text-center" :class="! filled('amount') && 'text-faint'">
+        <div class="py-3 text-center" :class="! filled('amount') && 'text-muted'">
             <x-ui.amount bind="display('amount')" size="xl" />
         </div>
         <div class="mb-1 text-center text-xs text-danger" x-show="errors.amount" x-text="errors.amount" data-test="edit-error-amount"></div>
@@ -758,7 +780,7 @@ new #[Title('Month')] class extends Component {
                 <x-ui.select-row :label="__('Category')" x-model.number="form.category" data-test="edit-category">
                     @foreach ($this->editCategories as $editCategory)<option value="{{ $editCategory->id }}">{{ $editCategory->name }}</option>@endforeach
                 </x-ui.select-row>
-                <label class="relative flex min-h-[52px] items-center justify-between gap-3 px-4 py-2.5">
+                <label class="relative flex min-h-[52px] items-center justify-between gap-3 px-4 py-2.5 focus-within:bg-accent/10">
                     <span class="text-[15px]">{{ __('Date') }}</span>
                     <span class="num text-[15px] text-ink-2" x-text="dateLabel(form.date)"></span>
                     <input type="date" x-model="form.date" :max="today" class="absolute inset-0 opacity-0" aria-label="{{ __('Date') }}" data-test="edit-date">
