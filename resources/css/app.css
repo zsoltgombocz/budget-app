@@ -24,6 +24,12 @@
 /*
  * Design tokens. Dark is the primary theme; light values apply when the
  * document is not in dark mode (Flux appearance toggles the .dark class).
+ *
+ * Text contrast (WCAG AA): ink, ink-2 and muted are the text colours; muted keeps at least
+ * 4.5:1 on bg, surface, surface-2 and surface-3 in both themes. faint is not a text colour:
+ * it is for decoration and control outlines (chevrons, pencil hints, the empty tick ring) and
+ * keeps 3:1 on bg, surface and surface-2. accent-strong is the accent for text that must
+ * read as a link on a light background (4.5:1 there); in dark it equals the accent.
  */
 @theme {
     --font-sans: 'Geist Variable', system-ui, sans-serif;
@@ -73,11 +79,11 @@
         --app-surface-3: #E2E5E3;
         --app-ink: #0E110F;
         --app-ink-2: #3E4441;
-        --app-muted: #6A716D;
-        --app-faint: #A3A9A5;
+        --app-muted: #5F6662;
+        --app-faint: #828884;
         --app-line: rgba(14, 17, 15, 0.06);
         --app-accent: #1FB866;
-        --app-accent-strong: #0F8F45;
+        --app-accent-strong: #0B7A3A;
         --app-warn: #D9800B;
         --app-danger: #E0383E;
         --app-track: rgba(14, 17, 15, 0.08);
@@ -90,8 +96,8 @@
         --app-surface-3: #2A2F2C;
         --app-ink: #F3F5F4;
         --app-ink-2: #C9CECB;
-        --app-muted: #8C938F;
-        --app-faint: #5C625F;
+        --app-muted: #959C98;
+        --app-faint: #6A706D;
         --app-line: rgba(255, 255, 255, 0.06);
         --app-accent: #4BD88A;
         --app-accent-strong: #4BD88A;

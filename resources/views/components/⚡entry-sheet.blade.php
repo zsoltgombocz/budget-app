@@ -280,7 +280,7 @@ new class extends Component {
                 <div class="no-scrollbar -mx-4 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4">
                     <div class="shrink-0 pb-1 pt-[clamp(0px,1dvh,10px)] text-center">
                         <div class="num flex items-baseline justify-center gap-2">
-                            <span class="text-[clamp(40px,7dvh,60px)] font-semibold leading-[1.05] tracking-[-0.045em]" :class="hasAmount() ? 'text-ink' : 'text-faint'" x-text="display('amount')" aria-live="polite"></span>
+                            <span class="text-[clamp(40px,7dvh,60px)] font-semibold leading-[1.05] tracking-[-0.045em]" :class="hasAmount() ? 'text-ink' : 'text-muted'" x-text="display('amount')" aria-live="polite"></span>
                             <span class="text-[clamp(20px,3dvh,26px)] font-medium text-muted">{{ $currency->symbol() }}</span>
                         </div>
                         <div class="num mt-1 text-[13px]" :class="error ? 'font-medium text-danger' : hintClass()" x-text="error ?? hint()" aria-live="polite" data-test="entry-hint"></div>
@@ -298,14 +298,14 @@ new class extends Component {
                     </div>
 
                     <div class="mt-[clamp(6px,1.4dvh,12px)] flex shrink-0 gap-2">
-                        <label class="relative flex h-[clamp(38px,5.2dvh,44px)] flex-none items-center gap-1.5 rounded-[14px] bg-surface-2 px-3.5 text-sm font-medium">
+                        <label class="relative flex h-[clamp(38px,5.2dvh,44px)] flex-none items-center gap-1.5 rounded-[14px] bg-surface-2 px-3.5 text-sm font-medium focus-within:ring-2 focus-within:ring-accent">
                             <x-ui.icon name="calendar_today" :size="18" class="text-muted" />
                             <span x-text="date === today ? texts.today : shortDate(date)"></span>
                             <input type="date" x-model="date" :max="today" x-on:change="error = null" class="absolute inset-0 opacity-0" aria-label="{{ __('Date') }}">
                         </label>
-                        <label class="flex h-[clamp(38px,5.2dvh,44px)] min-w-0 flex-1 items-center gap-1.5 rounded-[14px] bg-surface-2 px-3.5 text-sm text-zinc-500 focus-within:ring-2 focus-within:ring-accent">
+                        <label class="flex h-[clamp(38px,5.2dvh,44px)] min-w-0 flex-1 items-center gap-1.5 rounded-[14px] bg-surface-2 px-3.5 text-sm text-muted focus-within:ring-2 focus-within:ring-accent">
                             <x-ui.icon name="edit_note" :size="18" />
-                            <input type="text" x-model="note" maxlength="255" placeholder="{{ __('Note (optional)') }}" class="min-w-0 flex-1 bg-transparent text-ink outline-none placeholder:text-zinc-500">
+                            <input type="text" x-model="note" maxlength="255" placeholder="{{ __('Note (optional)') }}" class="min-w-0 flex-1 bg-transparent text-ink outline-none placeholder:text-muted">
                         </label>
                     </div>
 
@@ -335,7 +335,7 @@ new class extends Component {
                     @endunless
                     <button type="button" x-on:click="submit()" :disabled="! hasAmount() || busy"
                             class="focus-ring h-[clamp(46px,7dvh,56px)] flex-1 rounded-btn text-[17px] font-semibold transition active:scale-[0.98]"
-                            :class="[hasAmount() ? 'bg-accent text-accent-ink' : 'bg-surface-3 text-zinc-500', busy ? 'opacity-60' : '']" data-test="save-entry">{{ __('Save') }}</button>
+                            :class="[hasAmount() ? 'bg-accent text-accent-ink' : 'bg-surface-3 text-muted', busy ? 'opacity-60' : '']" data-test="save-entry">{{ __('Save') }}</button>
                 </div>
             @endif
         </div>

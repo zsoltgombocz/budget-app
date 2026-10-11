@@ -10,7 +10,7 @@
         @if ($error)<span class="mt-0.5 block text-xs text-danger" x-show="errors[@js($error)]" x-text="errors[@js($error)]"></span>@endif
     </span>
     <span class="flex shrink-0 items-center gap-1">
-        <span class="num text-[17px] font-semibold" :class="filled(@js($name)) ? 'text-accent' : 'text-faint'" x-text="display(@js($name), @js($fallback))"></span>
+        <span class="num text-[17px] font-semibold" :class="filled(@js($name)) ? 'text-accent' : 'text-muted'" x-text="display(@js($name), @js($fallback))"></span>
         <x-ui.icon name="edit" :size="16" class="text-faint" />
     </span>
 </button>

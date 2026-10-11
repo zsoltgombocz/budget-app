@@ -2,7 +2,7 @@
 
 @php
     $variants = [
-        'primary' => 'bg-accent text-accent-ink font-semibold disabled:bg-surface-3 disabled:text-faint',
+        'primary' => 'bg-accent text-accent-ink font-semibold disabled:bg-surface-3 disabled:text-muted',
         'secondary' => 'bg-surface-2 text-ink font-medium',
         'light' => 'bg-ink text-bg font-semibold',
         'ghost' => 'bg-transparent text-muted font-medium',

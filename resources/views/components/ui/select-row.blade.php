@@ -1,7 +1,7 @@
 @props(['label', 'hint' => null])
 
 {{-- Form row with a native select on the right; extra attributes go to the select. --}}
-<label class="flex min-h-[52px] items-center justify-between gap-3 px-4 py-2.5">
+<label class="flex min-h-[52px] items-center justify-between gap-3 px-4 py-2.5 focus-within:bg-accent/10">
     <span class="min-w-0">
         <span class="block text-[15px]">{{ $label }}</span>
         @if ($hint)<span class="mt-0.5 block text-xs leading-snug text-muted">{{ $hint }}</span>@endif

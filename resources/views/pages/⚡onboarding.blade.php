@@ -458,7 +458,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
         <div class="mx-4 mt-4 flex items-center gap-3 rounded-[18px] bg-accent/10 px-4 py-3" data-test="onboarding-resumed">
             <x-ui.icon name="history" :size="20" class="shrink-0 text-accent" />
             <span class="min-w-0 flex-1 text-[13px] leading-snug text-ink-2">{{ __('Picking up where you left off.') }}</span>
-            <button type="button" class="focus-ring h-9 shrink-0 rounded-full bg-ink/8 px-3 text-[13px] font-medium"
+            <button type="button" class="focus-ring h-11 shrink-0 rounded-full bg-ink/8 px-3.5 text-[13px] font-medium"
                     x-on:click="if (await window.appConfirm({ title: @js(__('Start over?')), body: @js(__('Your answers so far are cleared and the wizard starts from the first step.')), confirm: @js(__('Start over')), danger: true })) $wire.restart()"
                     data-test="onboarding-restart">{{ __('Start over') }}</button>
         </div>
@@ -477,7 +477,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                     <span class="text-[13px] text-muted">{{ __('Monthly net income') }}</span>
                     <x-ui.icon name="edit" :size="18" class="text-accent" />
                 </span>
-                <span class="mt-1 block" :class="$wire.income === '' && 'text-faint'"><x-ui.amount bind="show($wire.income)" :currency="$currency" size="xl" /></span>
+                <span class="mt-1 block" :class="$wire.income === '' && 'text-muted'"><x-ui.amount bind="show($wire.income)" :currency="$currency" size="xl" /></span>
                 <span x-show="$wire.income === ''" class="mt-1 block text-[13px] font-medium text-accent" data-test="income-hint">{{ __('Tap and type it in') }}</span>
             </button>
             @error('income')<p class="mt-2 px-2 text-xs text-danger">{{ $message }}</p>@enderror
@@ -518,7 +518,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
             </div>
             @error($question['model'])<p class="mt-2 px-2 text-xs text-danger">{{ $message }}</p>@enderror
             @if ($showItems)
-                <div class="mb-2.5 mt-6 px-1.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted">{{ __('Monthly amounts') }}</div>
+                <x-ui.section-label :label="__('Monthly amounts')" class="mt-6" />
             @endif
         @endif
 
@@ -532,7 +532,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                     <div wire:key="item-{{ $index }}" class="rounded-[22px] bg-surface px-4 py-4" data-test="template-item">
                         <div class="flex items-start gap-3">
                             <x-ui.icon-tile :icon="Icons::forCategory($item['icon'] ?? null)" :size="40" class="{{ $on ? '' : 'opacity-40' }}" />
-                            <div class="min-w-0 flex-1 pt-0.5 {{ $on ? '' : 'opacity-40' }}">
+                            <div class="min-w-0 flex-1 pt-0.5 {{ $on ? '' : 'opacity-60' }}">
                                 <div class="text-[15px] font-medium leading-snug">{{ __($item['name']) }}</div>
                                 <div class="mt-0.5 text-xs text-muted">{{ LineType::from($item['type'])->label() }}</div>
                             </div>
@@ -546,7 +546,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                             <button type="button" x-on:click="open('amounts.{{ $index }}', $wire.amounts[{{ $index }}], @js(__($item['name'])))"
                                     class="mt-3 flex h-12 w-full items-center justify-between rounded-[14px] bg-surface-2 px-4 text-left" data-test="amount-{{ $index }}">
                                 <span class="text-[13px] text-muted">{{ __('Monthly amount') }}</span>
-                                <span :class="! $wire.amounts[{{ $index }}] && 'text-faint'"><x-ui.amount size="sm" bind="show($wire.amounts[{{ $index }}], '0')" :currency="$currency" class="text-[17px] font-semibold" /></span>
+                                <span :class="! $wire.amounts[{{ $index }}] && 'text-muted'"><x-ui.amount size="sm" bind="show($wire.amounts[{{ $index }}], '0')" :currency="$currency" class="text-[17px] font-semibold" /></span>
                             </button>
                             <p x-show="! (parseFloat(String($wire.amounts[{{ $index }}] ?? '').replace(/\s/g, '').replace(',', '.')) > 0)" class="mt-1.5 px-1 text-xs text-muted" data-test="zero-hint-{{ $index }}">
                                 {{ $item['type'] === LineType::Variable->value
@@ -566,7 +566,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                                         <button type="button" x-on:click="open(@js($detail['field']), $wire.{{ $detail['field'] }}, @js($detail['label']), @js($detail['decimals']), @js($detail['suffix']))"
                                                 class="mt-2 flex h-12 w-full items-center justify-between rounded-[14px] bg-surface-2 px-4 text-left" data-test="{{ $detail['field'] }}">
                                             <span class="text-[13px] text-muted">{{ $detail['label'] }}</span>
-                                            <span :class="! $wire.{{ $detail['field'] }} && 'text-faint'"><x-ui.amount size="sm" bind="show($wire.{{ $detail['field'] }}, '–')" :currency="$currency" :symbol="$detail['suffix']" class="text-[17px] font-semibold" /></span>
+                                            <span :class="! $wire.{{ $detail['field'] }} && 'text-muted'"><x-ui.amount size="sm" bind="show($wire.{{ $detail['field'] }}, '–')" :currency="$currency" :symbol="$detail['suffix']" class="text-[17px] font-semibold" /></span>
                                         </button>
                                         @error($detail['field'])<p class="mt-1.5 px-1 text-xs text-danger">{{ $message }}</p>@enderror
                                     @endforeach
@@ -610,7 +610,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                         <button type="button" x-on:click="open(@js($row['field']), @js($row['value']), @js($row['label']))" class="mt-3 w-full rounded-[14px] bg-surface-2 px-4 py-3 text-left">
                             <span class="flex items-center justify-between">
                                 <span class="text-[13px] text-muted">{{ $row['label'] }}</span>
-                                @if ($row['value'] === '')<span class="num text-[17px] font-semibold text-faint">{{ $row['fallback'] }}</span>@else<x-ui.amount size="sm" :value="Money::parse($row['value'], $currency) ?? 0" :currency="$currency" class="text-[17px] font-semibold" />@endif
+                                @if ($row['value'] === '')<span class="num text-[17px] font-semibold text-muted">{{ $row['fallback'] }}</span>@else<x-ui.amount size="sm" :value="Money::parse($row['value'], $currency) ?? 0" :currency="$currency" class="text-[17px] font-semibold" />@endif
                             </span>
                             <span class="mt-1 block text-xs leading-snug text-muted">{{ $row['hint'] }}</span>
                         </button>
@@ -622,18 +622,18 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                 @endif
             </div>
 
-            <div class="mb-2.5 mt-7 px-1.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted">{{ __('If money is left at month end') }}</div>
+            <x-ui.section-label :label="__('If money is left at month end')" class="mt-7" />
             <div class="rounded-[22px] bg-surface px-4 py-4">
                 @if ($reserveOn)
                     <div class="text-[13px] text-muted">{{ __('On top of the monthly amount, this much of the leftover also goes to the reserve until it reaches the target:') }}</div>
                     <div class="mt-2 grid grid-cols-2 gap-[3px] rounded-xl bg-bg p-[3px]">
-                        <button type="button" wire:click="$set('reserveMode', 'pct')" aria-pressed="{{ $reserveMode === 'pct' ? 'true' : 'false' }}" @class(['h-9 rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $reserveMode === 'pct', 'text-muted' => $reserveMode !== 'pct']) data-test="reserve-mode-pct">{{ __('A share') }}</button>
-                        <button type="button" wire:click="$set('reserveMode', 'fixed')" aria-pressed="{{ $reserveMode === 'fixed' ? 'true' : 'false' }}" @class(['h-9 rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $reserveMode === 'fixed', 'text-muted' => $reserveMode !== 'fixed']) data-test="reserve-mode-fixed">{{ __('A fixed amount') }}</button>
+                        <button type="button" wire:click="$set('reserveMode', 'pct')" aria-pressed="{{ $reserveMode === 'pct' ? 'true' : 'false' }}" @class(['focus-ring h-[38px] rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $reserveMode === 'pct', 'text-muted' => $reserveMode !== 'pct']) data-test="reserve-mode-pct">{{ __('A share') }}</button>
+                        <button type="button" wire:click="$set('reserveMode', 'fixed')" aria-pressed="{{ $reserveMode === 'fixed' ? 'true' : 'false' }}" @class(['focus-ring h-[38px] rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $reserveMode === 'fixed', 'text-muted' => $reserveMode !== 'fixed']) data-test="reserve-mode-fixed">{{ __('A fixed amount') }}</button>
                     </div>
                     @if ($reserveMode === 'fixed')
                         <button type="button" x-on:click="open('reserveFixed', $wire.reserveFixed, @js(__('Amount from the leftover')))" class="mt-2 flex h-12 w-full items-center justify-between rounded-[14px] bg-surface-2 px-4 text-left" data-test="reserve-fixed">
                             <span class="text-[13px] text-muted">{{ __('Amount from the leftover') }}</span>
-                            <span :class="! $wire.reserveFixed && 'text-faint'"><x-ui.amount size="sm" bind="show($wire.reserveFixed, '0')" :currency="$currency" class="text-[17px] font-semibold" /></span>
+                            <span :class="! $wire.reserveFixed && 'text-muted'"><x-ui.amount size="sm" bind="show($wire.reserveFixed, '0')" :currency="$currency" class="text-[17px] font-semibold" /></span>
                         </button>
                         @error('reserveFixed')<p class="mt-1.5 px-1 text-xs text-danger">{{ $message }}</p>@enderror
                     @else

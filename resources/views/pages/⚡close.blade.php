@@ -310,7 +310,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         </div>
 
         <div class="mx-4 rounded-[22px] bg-surface px-2 py-1.5" data-test="plan-vs-actual">
-            <div class="grid grid-cols-[minmax(0,1fr)_64px_64px_70px] gap-1.5 px-2.5 pb-1.5 pt-2.5 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted">
+            <div class="grid grid-cols-[minmax(0,1fr)_64px_64px_70px] gap-1.5 px-2.5 pb-1.5 pt-2.5 text-xs font-semibold text-muted">
                 <span>{{ __('Category') }}</span><span class="text-right">{{ __('Plan') }}</span><span class="text-right">{{ __('Actual') }}</span><span class="text-right">{{ __('Diff.') }}</span>
             </div>
             @foreach ($variableRows as $row)
