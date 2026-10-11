@@ -104,7 +104,7 @@ new #[Title('Notifications')] class extends Component {
                             <x-ui.choice :selected="$reminderTime === $option" wire:click="$set('reminderTime', '{{ $option }}')" class="num h-11 rounded-xl text-sm">{{ $option }}</x-ui.choice>
                         @endforeach
                     </div>
-                    <label class="mt-2 flex h-11 items-center justify-between rounded-xl bg-surface-2 px-3.5 text-sm">
+                    <label class="mt-2 flex h-11 items-center justify-between rounded-xl bg-surface-2 px-3.5 text-sm focus-within:ring-2 focus-within:ring-accent">
                         <span class="text-muted">{{ __('Other time') }}</span>
                         <input type="time" wire:model.live="reminderTime" class="num bg-transparent text-right outline-none">
                     </label>
@@ -124,30 +124,57 @@ new #[Title('Notifications')] class extends Component {
                     <x-ui.toggle :on="$versionReminderEnabled" wire:click="$toggle('versionReminderEnabled')" :aria-label="__('New version')" data-test="version-reminder-toggle" />
                 </div>
 
+                {{--
+                    This device's push subscription. States: checking (asking the browser), on, off,
+                    unsupported, denied, and unavailable when the service worker did not answer in
+                    time (it is what holds the subscription), with a way to ask again.
+                --}}
                 <div x-data="{
-                        state: 'unknown',
+                        state: 'checking',
+                        busy: false,
+                        error: '',
                         async refresh() {
                             if (! window.budgetPush.supported()) { this.state = 'unsupported'; return }
                             if (window.budgetPush.permission() === 'denied') { this.state = 'denied'; return }
-                            this.state = (await window.budgetPush.current()) ? 'on' : 'off'
+                            this.state = 'checking'
+                            try {
+                                const timeout = new Promise((resolve) => setTimeout(() => resolve('timeout'), 4000))
+                                const subscription = await Promise.race([window.budgetPush.current(), timeout])
+                                this.state = subscription === 'timeout' ? 'unavailable' : (subscription ? 'on' : 'off')
+                            } catch (e) {
+                                this.state = 'unavailable'
+                            }
                         },
                         async toggle() {
-                            if (this.state === 'on') await window.budgetPush.unsubscribe()
-                            else await window.budgetPush.subscribe()
+                            if (this.busy) return
+                            this.busy = true
+                            this.error = ''
+                            const turningOff = this.state === 'on'
+                            try {
+                                if (turningOff) await window.budgetPush.unsubscribe()
+                                else await window.budgetPush.subscribe()
+                            } catch (e) {
+                                this.error = turningOff ? @js(__('Could not turn notifications off. Check your connection and try again.')) : @js(__('Could not turn notifications on. Check your connection and try again.'))
+                            }
                             await this.refresh()
+                            this.busy = false
                         },
                     }" x-init="refresh()" class="mt-4 border-t border-line pt-4" data-test="push-device">
-                    <div class="flex items-center justify-between">
-                        <div>
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="min-w-0">
                             <div class="text-sm">{{ __('Notifications on this device') }}</div>
-                            <div class="mt-0.5 text-xs text-muted" x-show="state === 'on'">{{ __('On') }}</div>
-                            <div class="mt-0.5 text-xs text-muted" x-show="state === 'off'">{{ __('Off') }}</div>
-                            <div class="mt-0.5 text-xs text-muted" x-show="state === 'unsupported'">{{ __('This browser does not support push notifications. On iPhone add the app to your Home Screen first.') }}</div>
-                            <div class="mt-0.5 text-xs text-warn" x-show="state === 'denied'">{{ __('Notifications are blocked in the browser settings.') }}</div>
+                            <div class="mt-0.5 text-xs text-muted" x-show="state === 'checking'" data-test="push-checking">{{ __('Checking…') }}</div>
+                            <div class="mt-0.5 text-xs text-muted" x-show="state === 'on'" x-cloak>{{ __('On') }}</div>
+                            <div class="mt-0.5 text-xs text-muted" x-show="state === 'off'" x-cloak>{{ __('Off') }}</div>
+                            <div class="mt-0.5 text-xs text-muted" x-show="state === 'unsupported'" x-cloak>{{ __('This browser does not support push notifications. On iPhone add the app to your Home Screen first.') }}</div>
+                            <div class="mt-0.5 text-xs text-warn" x-show="state === 'denied'" x-cloak>{{ __('Notifications are blocked in the browser settings.') }}</div>
+                            <div class="mt-0.5 text-xs text-warn" x-show="state === 'unavailable'" x-cloak data-test="push-unavailable">{{ __('The app could not check this device yet. Try again in a moment.') }}</div>
                         </div>
-                        <button type="button" role="switch" x-show="state === 'on' || state === 'off'" x-on:click="toggle()" class="flex h-6 w-10 shrink-0 rounded-full p-0.5" :class="state === 'on' ? 'justify-end bg-accent' : 'justify-start bg-zinc-600'"><span class="block size-5 rounded-full bg-white"></span></button>
+                        <x-ui.toggle model="state === 'on'" x-show="state === 'on' || state === 'off'" x-cloak x-on:click="toggle()" ::disabled="busy" :aria-label="__('Notifications on this device')" data-test="push-toggle" />
+                        <x-ui.button x-show="state === 'unavailable'" x-cloak variant="secondary" size="md" x-on:click="refresh()" class="shrink-0" data-test="push-retry">{{ __('Try again') }}</x-ui.button>
                     </div>
-                    <x-ui.button x-show="state === 'on'" variant="secondary" size="sm" icon="notifications" wire:click="sendTestNotification" class="mt-3">{{ __('Send a test') }}</x-ui.button>
+                    <p class="mt-2 text-xs text-danger" x-show="error" x-text="error" x-cloak role="alert" data-test="push-error"></p>
+                    <x-ui.button x-show="state === 'on'" x-cloak variant="secondary" size="sm" icon="notifications" wire:click="sendTestNotification" class="mt-3">{{ __('Send a test') }}</x-ui.button>
                 </div>
             </x-ui.card>
 

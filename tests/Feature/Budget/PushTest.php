@@ -90,3 +90,13 @@ it('stores the reminder choices from the notification onboarding', function (): 
         ->and($settings->due_reminder_enabled)->toBeFalse()
         ->and($settings->notifications_onboarded_at)->not->toBeNull();
 });
+
+it('shows the device switch with a state for every outcome, a retry and an error line', function (): void {
+    $this->actingAs(onboardedUser());
+
+    $this->get(route('notifications.edit'))->assertOk()
+        ->assertSeeInOrder(['data-test="push-device"', 'data-test="push-checking"', 'data-test="push-unavailable"', 'role="switch"', 'data-test="push-toggle"', 'data-test="push-retry"', 'role="alert"', 'data-test="push-error"'], false)
+        ->assertSee('Could not turn notifications on. Check your connection and try again.')
+        ->assertSee('Could not turn notifications off. Check your connection and try again.')
+        ->assertSee('The app could not check this device yet. Try again in a moment.');
+});
