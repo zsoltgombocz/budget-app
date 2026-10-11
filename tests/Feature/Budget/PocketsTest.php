@@ -259,3 +259,89 @@ it('lists archived pockets and restores one with its balance', function (): void
 
     expect(Pocket::query()->find($pocket->id)?->balance)->toBe(120_000);
 });
+
+it('puts deposit and withdraw buttons on every pocket card', function (): void {
+    $holiday = Pocket::factory()->for($this->user)->create(['name' => 'Holiday', 'balance' => 120_000]);
+    $empty = Pocket::factory()->for($this->user)->create(['name' => 'Bike', 'balance' => 0]);
+
+    $html = (string) $this->get(route('pockets'))->assertOk()->getContent();
+
+    expect($html)
+        ->toContain("openPocket({$holiday->id}, 'deposit')")
+        ->toContain("openPocket({$holiday->id}, 'budget')")
+        ->toContain("openPocket({$empty->id}, 'deposit')")
+        ->toMatch('/<button(?=[^>]*data-test="pocket-withdraw-'.$empty->id.'")(?=[^>]*\sdisabled="disabled")/')
+        ->not->toMatch('/<button(?=[^>]*data-test="pocket-withdraw-'.$holiday->id.'")(?=[^>]*\sdisabled="disabled")/')
+        ->not->toContain('data-test="pockets-empty"');
+});
+
+it('names the three money moves and says what each does', function (): void {
+    Pocket::factory()->for($this->user)->create();
+
+    $this->get(route('pockets'))
+        ->assertSeeInOrder([
+            'Money into the pocket. The monthly budget does not change.',
+            'Withdraw to the monthly budget', 'The money leaves the pocket and counts as extra income in this period.',
+            'Pay a spending from the pocket', 'The spending is paid by the pocket: it does not use up the monthly budget.',
+        ])
+        ->assertDontSee('To the budget');
+});
+
+it('keeps the primary buttons off until an amount is typed', function (): void {
+    Pocket::factory()->for($this->user)->create();
+
+    $this->get(route('pockets'))
+        ->assertSee(':disabled="saving || ! positive(\'move\')"', false)
+        ->assertSee(':disabled="saving || ! positive(\'prepay\')"', false);
+});
+
+it('gives loans their own section with their own add button', function (): void {
+    Pocket::factory()->for($this->user)->create(['name' => 'Holiday']);
+
+    $this->get(route('pockets'))
+        ->assertSeeInOrder(['data-test="pockets-section"', 'Holiday', 'data-test="loans-section"', 'Loans', 'data-test="add-loan"', 'data-test="loans-empty"'], false);
+
+    $loan = Loan::factory()->for($this->user)->create(['name' => 'Car loan']);
+
+    $this->get(route('pockets'))
+        ->assertSeeInOrder(['data-test="loans-section"', 'data-test="add-loan"', 'data-test="loan-'.$loan->id.'"', 'Car loan'], false)
+        ->assertDontSee('data-test="loans-empty"', false);
+});
+
+it('labels the header add button', function (): void {
+    $this->get(route('pockets'))->assertSeeInOrder(['data-test="add"', 'Add', 'data-test="pockets-section"'], false);
+});
+
+it('says what the prepayment pocket saves for instead of a step chip', function (): void {
+    $loan = Loan::factory()->for($this->user)->create(['name' => 'Car loan']);
+    Pocket::factory()->for($this->user)->create(['name' => 'Prepayment fund', 'balance' => 450_000, 'prepay_step' => 500_000, 'loan_id' => $loan->id]);
+
+    $this->get(route('pockets'))
+        ->assertSee('Saving to prepay Car loan')
+        ->assertSee(money_number(450_000))
+        ->assertSee('/ '.money_number(500_000))
+        ->assertDontSee('step:');
+});
+
+it('offers a new pocket from the empty state', function (): void {
+    $this->get(route('pockets'))
+        ->assertSeeInOrder(['data-test="pockets-empty"', 'No pockets yet', 'data-test="empty-new-pocket"', 'New pocket'], false);
+});
+
+it('deletes a pocket from the bottom of its settings, not from the sheet header', function (): void {
+    Pocket::factory()->for($this->user)->create();
+
+    $html = (string) $this->get(route('pockets'))->assertOk()->getContent();
+
+    expect(substr_count($html, 'x-on:click="removePocket()"'))->toBe(1)
+        ->and($html)->toMatch('/data-test="pocket-name".*data-test="delete-pocket"[^>]*>Delete pocket<.*data-test="sheet-save"/s');
+});
+
+it('has Hungarian copy for the money moves', function (): void {
+    app()->setLocale('hu');
+
+    expect(__('Withdraw to the monthly budget'))->toBe('Kivét a havi keretbe')
+        ->and(__('Pay a spending from the pocket'))->toBe('Költés kifizetése a perselyből')
+        ->and(__('The money leaves the pocket and counts as extra income in this period.'))->toBe('A pénz kikerül a perselyből, és ebben a periódusban plusz bevételnek számít.')
+        ->and(__('Delete pocket'))->toBe('Persely törlése');
+});
