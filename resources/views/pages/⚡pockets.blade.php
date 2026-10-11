@@ -475,13 +475,13 @@ new #[Title('Pockets and loans')] class extends Component {
                         <x-ui.icon-tile :icon="$icon" tone="accent" />
                         <span class="min-w-0 flex-1">
                             <span class="block truncate text-[15px] font-semibold">{{ $pocket->name }}</span>
-                            @if ($notes !== [])<span class="num mt-0.5 block truncate text-xs text-muted">{{ implode(' · ', $notes) }}</span>@endif
+                            @foreach ($notes as $note)<span class="num mt-0.5 block text-xs leading-snug text-pretty text-muted" data-test="pocket-note">{{ $note }}</span>@endforeach
                         </span>
                         <x-ui.icon name="chevron_right" :size="22" class="text-faint" />
                     </span>
                     <x-ui.amount :value="$pocket->balance" :of="$goal ?: null" :size="$isFeatured || $isReserve ? 'lg' : 'md'" class="mt-3.5" />
                     @if ($goal)
-                        <x-ui.bar :value="$pocket->balance / max(1, $goal)" :height="8" :tone="$isFeatured && $pocket->hasReachedPrepayStep() ? 'warn' : 'accent'" class="mt-2.5" />
+                        <x-ui.bar :label="$pocket->name" :value="$pocket->balance / max(1, $goal)" :height="8" :tone="$isFeatured && $pocket->hasReachedPrepayStep() ? 'warn' : 'accent'" class="mt-2.5" />
                     @endif
                     @if ($isFeatured)
                         <span class="num mt-2 flex justify-between text-xs text-muted">
@@ -496,7 +496,7 @@ new #[Title('Pockets and loans')] class extends Component {
                 </button>
                 <div class="grid grid-cols-2 gap-2 px-[18px] pb-[18px]">
                     <x-ui.button variant="secondary" size="md" icon="add" x-on:click="openPocket({{ $pocket->id }}, 'deposit')" data-test="pocket-deposit-{{ $pocket->id }}">{{ __('Deposit') }}</x-ui.button>
-                    <x-ui.button variant="secondary" size="md" icon="remove" x-on:click="openPocket({{ $pocket->id }}, 'budget')" :disabled="$pocket->balance <= 0" class="disabled:text-faint" data-test="pocket-withdraw-{{ $pocket->id }}">{{ __('Withdraw') }}</x-ui.button>
+                    <x-ui.button variant="secondary" size="md" icon="remove" x-on:click="openPocket({{ $pocket->id }}, 'budget')" :disabled="$pocket->balance <= 0" class="disabled:text-muted" data-test="pocket-withdraw-{{ $pocket->id }}">{{ __('Withdraw') }}</x-ui.button>
                 </div>
             </div>
         @endforeach
@@ -631,7 +631,7 @@ new #[Title('Pockets and loans')] class extends Component {
                 <section class="mt-5">
                     <h3 class="px-1.5 pb-2 text-[13px] font-semibold text-muted">{{ __('Recent movements') }}</h3>
                     <div class="divide-y divide-line overflow-hidden rounded-2xl bg-surface-2">
-                        <template x-for="movement in form.movements">
+                        <template x-for="(movement, index) in form.movements" :key="index">
                             <div class="num flex justify-between gap-2 px-4 py-2.5 text-[13px]"><span class="truncate text-muted" x-text="movement.date + ' · ' + movement.label"></span><span class="shrink-0 font-medium" x-text="movement.amount"></span></div>
                         </template>
                     </div>
@@ -662,7 +662,7 @@ new #[Title('Pockets and loans')] class extends Component {
 
         <x-slot:footer>
             <div x-show="form.id && pocketTab === 'money'" data-test="money-pad">
-                <div class="text-center" :class="! positive('move') && 'text-faint'"><x-ui.amount bind="display('move')" size="lg" data-test="move-amount" /></div>
+                <div class="text-center" :class="! positive('move') && 'text-muted'"><x-ui.amount bind="display('move')" size="lg" data-test="move-amount" /></div>
                 <p class="mt-1 text-center text-xs text-danger" x-show="errors.move" x-text="errors.move" role="alert"></p>
                 <x-ui.numpad :decimal="$decimals > 0" class="mt-2" />
                 <x-ui.button x-on:click="move()" ::disabled="saving || ! positive('move')" class="mt-3 w-full" data-test="pocket-move">
@@ -705,7 +705,7 @@ new #[Title('Pockets and loans')] class extends Component {
     {{-- Prepayment --}}
     <x-ui.sheet show="sheet === 'prepay'" close="sheet = null" title="title()" :full="false" data-test="prepay-sheet">
         <x-slot:intro>{{ __('If you paid it from a pocket, its balance goes down too.') }}</x-slot:intro>
-        <div class="py-2 text-center" :class="! positive('prepay') && 'text-faint'"><x-ui.amount bind="display('prepay')" size="xl" /></div>
+        <div class="py-2 text-center" :class="! positive('prepay') && 'text-muted'"><x-ui.amount bind="display('prepay')" size="xl" /></div>
         <div class="mb-2 text-center text-xs text-danger" x-show="errors.prepay" x-text="errors.prepay" role="alert"></div>
         <x-ui.form-group>
             <x-ui.select-row :label="__('From pocket')" x-model.number="form.pocketId">

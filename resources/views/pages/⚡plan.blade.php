@@ -591,7 +591,7 @@ new #[Title('Plan')] class extends Component {
         {{-- The repayment section always shows, so a loan can be added from the plan. --}}
         @continue($lines->isEmpty() && ! $editing && $type !== LineType::Loan)
         <section wire:key="group-{{ $type->value }}" class="mt-[22px] px-4" data-test="group-{{ $type->value }}">
-            <x-ui.section-label :label="$this->sectionTitle($type)" :aside="trans_choice('{0} no items|{1} :count item|[2,*] :count items', $lines->count(), ['count' => $lines->count()])" />
+            <x-ui.section-label group :label="$this->sectionTitle($type)" :aside="trans_choice('{0} no items|{1} :count item|[2,*] :count items', $lines->count(), ['count' => $lines->count()])" />
             <div class="divide-y divide-line rounded-[22px] bg-surface px-[18px] py-0.5">
                 @if ($lines->isNotEmpty())
                     <div class="divide-y divide-line" @if ($editing) wire:sort="reorder" @endif>
@@ -611,7 +611,7 @@ new #[Title('Plan')] class extends Component {
                             <div wire:key="line-{{ $line->id }}" @if ($editing) wire:sort:item="{{ $line->category_id }}" @endif data-test="plan-line">
                                 <div class="flex items-center gap-2">
                                     @if ($editing)
-                                        <span wire:sort:handle class="-ml-1.5 flex size-9 shrink-0 cursor-grab touch-none items-center justify-center text-faint" aria-label="{{ __('Drag to reorder') }}" data-test="line-handle"><x-ui.icon name="drag_indicator" :size="20" /></span>
+                                        <span wire:sort:handle class="-ml-2.5 flex size-11 shrink-0 cursor-grab touch-none items-center justify-center text-muted" role="img" aria-label="{{ __('Drag to reorder') }}" data-test="line-handle"><x-ui.icon name="drag_indicator" :size="20" /></span>
                                     @endif
                                     <{{ $opensLoan ? 'a' : 'button' }}
                                         @if ($opensLoan) href="{{ route('pockets', ['hitel' => $line->loan_id, 'vissza' => 'terv']) }}" wire:navigate data-test="open-loan-{{ $line->loan_id }}"
@@ -633,8 +633,8 @@ new #[Title('Plan')] class extends Component {
                                 </div>
                                 @if ($hasToggle)
                                     <div class="mb-[13px] grid grid-cols-2 gap-[3px] rounded-xl bg-bg p-[3px]">
-                                        <button type="button" wire:click="setCalcMode({{ $line->id }}, 'avg')" aria-pressed="{{ $line->calc_mode === CalcMode::Avg ? 'true' : 'false' }}" @class(['num h-9 rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $line->calc_mode === CalcMode::Avg, 'text-muted' => $line->calc_mode !== CalcMode::Avg])>{{ __('Average') }} {{ money_number($line->amount_avg) }}</button>
-                                        <button type="button" wire:click="setCalcMode({{ $line->id }}, 'max')" aria-pressed="{{ $line->calc_mode === CalcMode::Max ? 'true' : 'false' }}" @class(['num h-9 rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $line->calc_mode === CalcMode::Max, 'text-muted' => $line->calc_mode !== CalcMode::Max])>{{ __('Max') }} {{ money_number($line->amount_max) }}</button>
+                                        <button type="button" wire:click="setCalcMode({{ $line->id }}, 'avg')" aria-pressed="{{ $line->calc_mode === CalcMode::Avg ? 'true' : 'false' }}" @class(['focus-ring num h-[38px] rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $line->calc_mode === CalcMode::Avg, 'text-muted' => $line->calc_mode !== CalcMode::Avg])>{{ __('Average') }} {{ money_number($line->amount_avg) }}</button>
+                                        <button type="button" wire:click="setCalcMode({{ $line->id }}, 'max')" aria-pressed="{{ $line->calc_mode === CalcMode::Max ? 'true' : 'false' }}" @class(['focus-ring num h-[38px] rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $line->calc_mode === CalcMode::Max, 'text-muted' => $line->calc_mode !== CalcMode::Max])>{{ __('Max') }} {{ money_number($line->amount_max) }}</button>
                                     </div>
                                 @endif
                             </div>
@@ -642,13 +642,9 @@ new #[Title('Plan')] class extends Component {
                     </div>
                 @endif
                 @if ($type === LineType::Loan)
-                    <a href="{{ route('pockets', ['hitel' => 'uj', 'vissza' => 'terv']) }}" wire:navigate class="flex w-full items-center gap-2 py-[13px] text-[15px] font-medium text-accent" data-test="add-loan">
-                        <x-ui.icon name="add" :size="20" />{{ __('New loan') }}
-                    </a>
+                    <x-ui.link :href="route('pockets', ['hitel' => 'uj', 'vissza' => 'terv'])" wire:navigate icon="add" class="w-full py-[13px] text-[15px]" data-test="add-loan">{{ __('New loan') }}</x-ui.link>
                 @elseif ($editing)
-                    <button type="button" x-on:click="openNew(@js($type->value))" class="flex w-full items-center gap-2 py-[13px] text-[15px] font-medium text-accent" data-test="add-{{ $type->value }}">
-                        <x-ui.icon name="add" :size="20" />{{ __('New item') }}
-                    </button>
+                    <x-ui.link x-on:click="openNew('{{ $type->value }}')" icon="add" class="w-full py-[13px] text-[15px]" data-test="add-{{ $type->value }}">{{ __('New item') }}</x-ui.link>
                 @endif
                 {{-- With a single line the subtotal would only repeat it. --}}
                 @if ($lines->count() > 1)
@@ -671,7 +667,7 @@ new #[Title('Plan')] class extends Component {
     @endphp
     {{-- The leftover rule is a setting: the plan shows it in one sentence, the controls are on a sheet. --}}
     <section class="mt-[22px] px-4" data-test="month-end">
-        <x-ui.section-label :label="__('Month-end leftover')" />
+        <x-ui.section-label group :label="__('Month-end leftover')" />
         <button type="button" x-on:click="leftoverOpen = true" class="focus-ring flex w-full items-center justify-between gap-3 rounded-[22px] bg-surface px-[18px] py-3.5 text-left" data-test="leftover-rule">
             <span class="num min-w-0 text-[15px] leading-snug">{{ $this->leftoverRule() }}</span>
             <span class="flex shrink-0 items-center gap-0.5 text-[13px] font-medium text-muted">{{ __('Change') }}<x-ui.icon name="chevron_right" :size="18" class="text-faint" /></span>
@@ -696,7 +692,7 @@ new #[Title('Plan')] class extends Component {
             <div class="p-3">
                 <div class="flex flex-wrap gap-1.5">
                     @foreach ($types as $type)
-                        <button type="button" x-on:click="line.type = @js($type->value)" :aria-pressed="line.type === @js($type->value) ? 'true' : 'false'" class="h-9 rounded-xl border px-3 text-[13px] font-medium" :class="line.type === @js($type->value) ? 'border-accent bg-accent/14 text-accent' : 'border-transparent bg-surface-3 text-ink-2'" data-test="type-{{ $type->value }}">{{ $this->sectionTitle($type) }}</button>
+                        <button type="button" x-on:click="line.type = @js($type->value)" :aria-pressed="line.type === @js($type->value) ? 'true' : 'false'" class="focus-ring min-h-11 rounded-xl border px-3.5 text-[13px] font-medium" :class="line.type === @js($type->value) ? 'border-accent bg-accent/14 text-accent' : 'border-transparent bg-surface-3 text-ink-2'" data-test="type-{{ $type->value }}">{{ $this->sectionTitle($type) }}</button>
                     @endforeach
                 </div>
                 @foreach ($types as $type)
@@ -759,18 +755,18 @@ new #[Title('Plan')] class extends Component {
         </template>
 
         <x-ui.form-group :title="__('Icon')">
-            <div class="grid grid-cols-8 gap-1.5 p-2.5">
+            <div class="grid grid-cols-6 gap-1.5 p-2.5" role="group" aria-label="{{ __('Icon') }}">
                 @foreach (Icons::CATEGORY as $icon)
-                    <button type="button" x-on:click="line.icon = @js($icon)" :aria-pressed="line.icon === @js($icon) ? 'true' : 'false'" class="flex aspect-square items-center justify-center rounded-xl" :class="line.icon === @js($icon) ? 'bg-accent/14 text-accent ring-1 ring-accent' : 'bg-surface-3 text-ink-2'" aria-label="{{ $icon }}">
-                        <x-ui.icon :name="$icon" :size="20" />
+                    <button type="button" x-on:click="line.icon = @js($icon)" :aria-pressed="line.icon === @js($icon) ? 'true' : 'false'" class="focus-ring flex aspect-square min-h-11 items-center justify-center rounded-xl" :class="line.icon === @js($icon) ? 'bg-accent/14 text-accent ring-1 ring-accent' : 'bg-surface-3 text-ink-2'" aria-label="{{ Icons::label($icon) }}" data-test="icon-{{ $icon }}">
+                        <x-ui.icon :name="$icon" :size="22" />
                     </button>
                 @endforeach
             </div>
         </x-ui.form-group>
 
         <x-ui.form-group :title="__('Active period')" :hint="__('Optional.')">
-            <label class="flex min-h-[52px] items-center justify-between gap-3 px-4"><span class="text-[15px]">{{ __('Active from') }}</span><input type="date" x-model="line.activeFrom" class="bg-transparent text-right text-[15px] text-ink-2 outline-none"></label>
-            <label class="flex min-h-[52px] items-center justify-between gap-3 px-4"><span class="text-[15px]">{{ __('Active until') }}</span><input type="date" x-model="line.activeTo" class="bg-transparent text-right text-[15px] text-ink-2 outline-none"></label>
+            <label class="flex min-h-[52px] items-center justify-between gap-3 px-4 focus-within:bg-accent/10"><span class="text-[15px]">{{ __('Active from') }}</span><input type="date" x-model="line.activeFrom" class="bg-transparent text-right text-[15px] text-ink-2 outline-none"></label>
+            <label class="flex min-h-[52px] items-center justify-between gap-3 px-4 focus-within:bg-accent/10"><span class="text-[15px]">{{ __('Active until') }}</span><input type="date" x-model="line.activeTo" class="bg-transparent text-right text-[15px] text-ink-2 outline-none"></label>
         </x-ui.form-group>
         <p class="px-1.5 pt-2 text-xs text-danger" x-show="errors['form.activeTo']" x-text="errors['form.activeTo']"></p>
 
@@ -821,7 +817,7 @@ new #[Title('Plan')] class extends Component {
                             <span class="mt-0.5 block text-xs leading-snug text-muted">{{ $row['hint'] }}</span>
                         </span>
                         <span class="flex shrink-0 items-center gap-1">
-                            @if ($row['value'] === null)<span class="num text-[17px] font-semibold text-faint">–</span>@else<x-ui.amount size="sm" :value="$row['value']" class="text-[17px] font-semibold" />@endif
+                            @if ($row['value'] === null)<span class="num text-[17px] font-semibold text-muted">–</span>@else<x-ui.amount size="sm" :value="$row['value']" class="text-[17px] font-semibold" />@endif
                             <x-ui.icon name="edit" :size="16" class="text-faint" />
                         </span>
                     </button>
@@ -835,11 +831,11 @@ new #[Title('Plan')] class extends Component {
 
         @if ($monthEnd->hasReserve)
             <section class="mt-5">
-                <div class="px-1.5 pb-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted">{{ __('If money is left at month end') }}</div>
+                <x-ui.section-label :label="__('If money is left at month end')" />
                 <p class="px-1.5 pb-2 text-[13px] leading-snug text-muted">{{ __('On top of the monthly amount, this much of the leftover also goes to the reserve until it reaches the target:') }}</p>
                 <div class="grid grid-cols-2 gap-[3px] rounded-xl bg-bg p-[3px]">
-                    <button type="button" wire:click="setReserveMode('pct')" aria-pressed="{{ $fixedMode ? 'false' : 'true' }}" @class(['h-9 rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => ! $fixedMode, 'text-muted' => $fixedMode]) data-test="reserve-mode-pct">{{ __('A share') }}</button>
-                    <button type="button" wire:click="setReserveMode('fixed')" aria-pressed="{{ $fixedMode ? 'true' : 'false' }}" @class(['h-9 rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $fixedMode, 'text-muted' => ! $fixedMode]) data-test="reserve-mode-fixed">{{ __('A fixed amount') }}</button>
+                    <button type="button" wire:click="setReserveMode('pct')" aria-pressed="{{ $fixedMode ? 'false' : 'true' }}" @class(['focus-ring h-[38px] rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => ! $fixedMode, 'text-muted' => $fixedMode]) data-test="reserve-mode-pct">{{ __('A share') }}</button>
+                    <button type="button" wire:click="setReserveMode('fixed')" aria-pressed="{{ $fixedMode ? 'true' : 'false' }}" @class(['focus-ring h-[38px] rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $fixedMode, 'text-muted' => ! $fixedMode]) data-test="reserve-mode-fixed">{{ __('A fixed amount') }}</button>
                 </div>
                 @if ($fixedMode)
                     <button type="button" x-on:click="openReserve('fixed')" class="focus-ring mt-2 flex min-h-[52px] w-full items-center justify-between gap-3 rounded-2xl bg-surface-2 px-4 py-2.5 text-left" data-test="reserve-fixed">
@@ -860,7 +856,7 @@ new #[Title('Plan')] class extends Component {
         @endif
 
         <section class="mt-5">
-            <div class="px-1.5 pb-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted">{{ $monthEnd->hasReserve ? __('The rest goes to:') : __('All of it goes to:') }}</div>
+            <x-ui.section-label :label="$monthEnd->hasReserve ? __('The rest goes to:') : __('All of it goes to:')" />
             <div class="grid gap-2" data-test="surplus-target">
                 @foreach ($this->surplusTargets as $value => $name)
                     <x-ui.choice :selected="$value === $currentTarget" wire:click="setSurplusTarget('{{ $value }}')" class="rounded-2xl px-4 py-3 text-left" wire:key="target-{{ $value ?: 'none' }}">

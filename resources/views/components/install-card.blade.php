@@ -9,9 +9,18 @@
                 try { dismissed = localStorage.getItem('install-dismissed') === '1' } catch (e) {}
                 this.p = dismissed ? { route: 'none' } : window.budgetInstall.platform()
             }
+            const done = () => this.p = { route: 'none' }
             decide()
             window.addEventListener('install-available', decide)
-            window.addEventListener('install-done', () => this.p = { route: 'none' })
+            window.addEventListener('install-done', done)
+            // The card is re-created on every page visit: take the listeners down with it.
+            this.unlisten = () => {
+                window.removeEventListener('install-available', decide)
+                window.removeEventListener('install-done', done)
+            }
+        },
+        destroy() {
+            this.unlisten?.()
         },
         async installApp() {
             this.busy = true
@@ -28,7 +37,7 @@
             <div class="text-[15px] font-semibold">{{ __('Install the app') }}</div>
             <div class="mt-0.5 text-[13px] leading-snug text-muted">{{ __('One tap on the home screen, works offline and sends reminders.') }}</div>
         </div>
-        <button type="button" x-on:click="dismiss()" class="text-faint" aria-label="{{ __('Close') }}"><x-ui.icon name="close" :size="20" /></button>
+        <button type="button" x-on:click="dismiss()" class="focus-ring -mr-3 -mt-3 flex size-11 shrink-0 items-center justify-center rounded-full text-muted" aria-label="{{ __('Close') }}" data-test="install-dismiss"><x-ui.icon name="close" :size="20" /></button>
     </div>
 
     <x-ui.button x-show="p.route === 'prompt'" x-on:click="installApp()" ::disabled="busy" size="md" icon="add_box" class="mt-3 w-full" data-test="install-button">{{ __('Install') }}</x-ui.button>
@@ -36,7 +45,7 @@
     <template x-if="p.route !== 'prompt'">
         <div class="mt-3">
             <x-install-steps />
-            <a href="{{ route('install') }}" class="mt-3 inline-block text-[13px] font-medium text-accent">{{ __('Detailed guide') }}</a>
+            <x-ui.link :href="route('install')" class="mt-1 min-h-11 text-[13px]">{{ __('Detailed guide') }}</x-ui.link>
         </div>
     </template>
 </div>

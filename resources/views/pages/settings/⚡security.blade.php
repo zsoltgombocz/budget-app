@@ -62,7 +62,7 @@ new #[Title('Security settings')] class extends Component {
                             {{ __('Added :time', ['time' => $passkey['created_at_diff']]) }}@if ($passkey['last_used_at_diff']) · {{ __('Last used :time', ['time' => $passkey['last_used_at_diff']]) }}@endif
                         </div>
                     </div>
-                    <button type="button" x-show="! confirming" x-on:click="confirming = true" class="text-danger" aria-label="{{ __('Remove passkey') }}"><x-ui.icon name="delete" :size="22" /></button>
+                    <button type="button" x-show="! confirming" x-on:click="confirming = true" class="focus-ring -mr-2.5 flex size-11 shrink-0 items-center justify-center rounded-xl text-danger" aria-label="{{ __('Remove passkey') }}"><x-ui.icon name="delete" :size="22" /></button>
                 </div>
                 <div x-show="confirming" x-cloak class="mt-3 flex gap-2">
                     <x-ui.button variant="secondary" size="sm" x-on:click="confirming = false">{{ __('Cancel') }}</x-ui.button>

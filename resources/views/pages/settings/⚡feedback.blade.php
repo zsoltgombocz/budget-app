@@ -104,17 +104,17 @@ new #[Title('Contact')] class extends Component {
                 <label class="block">
                     <span class="mb-1.5 block text-[13px] text-muted">{{ $idea ? __('Your idea') : __('What happened, and what did you expect?') }}</span>
                     <textarea wire:model="message" rows="6" maxlength="4000"
-                              class="block w-full resize-none rounded-[14px] bg-surface-2 px-4 py-3 text-[15px] text-ink outline-none placeholder:text-faint focus:ring-2 focus:ring-accent"
+                              class="block w-full resize-none rounded-[14px] bg-surface-2 px-4 py-3 text-[15px] text-ink outline-none placeholder:text-muted focus:ring-2 focus:ring-accent"
                               placeholder="{{ $idea ? __('E.g. I would like to see last month next to this one.') : __('E.g. on the closing screen the Next button does nothing.') }}" data-test="bug-report-message"></textarea>
                 </label>
                 @error('message')<span class="mt-1.5 block text-xs text-danger">{{ $message }}</span>@enderror
 
                 <div class="mt-3">
                     @if ($screenshot)
-                        <div class="flex items-center gap-3 rounded-[14px] bg-surface-2 px-4 py-3 text-sm">
+                        <div class="flex min-h-12 items-center gap-3 rounded-[14px] bg-surface-2 pl-4 pr-1 text-sm">
                             <x-ui.icon name="add_photo_alternate" :size="20" class="text-accent" />
                             <span class="min-w-0 flex-1 truncate">{{ $screenshot->getClientOriginalName() }}</span>
-                            <button type="button" wire:click="removeScreenshot" class="text-muted" aria-label="{{ __('Remove') }}"><x-ui.icon name="close" :size="18" /></button>
+                            <button type="button" wire:click="removeScreenshot" class="focus-ring flex size-11 shrink-0 items-center justify-center rounded-xl text-muted" aria-label="{{ __('Remove') }}" data-test="remove-screenshot"><x-ui.icon name="close" :size="18" /></button>
                         </div>
                     @else
                         <label class="flex cursor-pointer items-center gap-3 rounded-[14px] bg-surface-2 px-4 py-3 text-sm text-ink-2">

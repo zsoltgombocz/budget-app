@@ -380,3 +380,13 @@ it('offers deleting as a text button at the bottom of the sheet and says what it
         ->toBe('Recorded spending stays, with its category. The item also leaves the plan of the current period (from Oct 1); closed months do not change.')
         ->and($component->instance()->lineData(null, 'fixed')['deleteNote'])->toBe('');
 });
+
+it('offers the icons with a name in words and marks the reorder handle and the mode toggles', function (): void {
+    $html = $this->get(route('plan'))->assertOk()
+        ->assertSee('aria-label="Shopping basket"', false)
+        ->assertDontSee('aria-label="shopping_basket"', false)
+        ->assertSee('data-test="icon-shopping_basket"', false)
+        ->getContent();
+
+    expect($html)->toMatch('/<button[^>]*:aria-pressed="line\.icon ===[^>]*min-h-11/');
+});

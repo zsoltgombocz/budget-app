@@ -219,7 +219,7 @@ new #[Title('Budget settings')] class extends Component {
                 <div class="text-[15px] font-semibold">{{ __('Period') }}</div>
                 <div class="mt-3 grid grid-cols-2 gap-[3px] rounded-xl bg-bg p-[3px]">
                     @foreach (PeriodMode::cases() as $mode)
-                        <button type="button" wire:click="$set('periodMode', '{{ $mode->value }}')" @class(['h-10 rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $periodMode === $mode->value, 'text-muted' => $periodMode !== $mode->value])>{{ $mode->label() }}</button>
+                        <button type="button" wire:click="$set('periodMode', '{{ $mode->value }}')" aria-pressed="{{ $periodMode === $mode->value ? 'true' : 'false' }}" @class(['focus-ring h-10 rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $periodMode === $mode->value, 'text-muted' => $periodMode !== $mode->value])>{{ $mode->label() }}</button>
                     @endforeach
                 </div>
                 @if ($periodMode === 'payday')

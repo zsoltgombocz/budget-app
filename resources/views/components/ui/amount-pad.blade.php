@@ -12,7 +12,7 @@
          class="relative rounded-t-[26px] bg-surface-2 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-12px_40px_rgba(0,0,0,0.35)]">
         <div class="flex items-center justify-between gap-3">
             <span class="truncate text-sm font-medium text-muted" x-text="activeLabel"></span>
-            <button type="button" x-on:click="active = null" class="h-9 shrink-0 rounded-full bg-accent px-4 text-sm font-semibold text-accent-ink" data-test="pad-done">{{ __('Done') }}</button>
+            <button type="button" x-on:click="active = null" class="focus-ring relative h-9 shrink-0 rounded-full bg-accent px-4 text-sm font-semibold text-accent-ink before:absolute before:-inset-x-1 before:-inset-y-1" data-test="pad-done">{{ __('Done') }}</button>
         </div>
         <div class="num truncate py-3 text-center text-[44px] font-semibold tracking-[-0.04em]" x-text="active && display(active)"></div>
         <x-ui.numpad :decimal="$decimal" />

@@ -54,8 +54,8 @@ new #[Title('Appearance settings')] class extends Component {
             <div class="text-[15px] font-semibold">{{ __('Theme') }}</div>
             <div x-data class="mt-3 grid grid-cols-3 gap-2" data-test="appearance">
                 @foreach (['dark' => ['icon' => 'bedtime', 'label' => __('Dark')], 'light' => ['icon' => 'light_mode', 'label' => __('Light')], 'system' => ['icon' => 'devices', 'label' => __('System')]] as $mode => $option)
-                    <button type="button" x-on:click="$flux.appearance = @js($mode)"
-                            class="flex h-24 flex-col items-center justify-center gap-2 rounded-btn border text-sm font-medium transition active:scale-[0.97]"
+                    <button type="button" x-on:click="$flux.appearance = @js($mode)" :aria-pressed="$flux.appearance === @js($mode) ? 'true' : 'false'"
+                            class="focus-ring flex h-24 flex-col items-center justify-center gap-2 rounded-btn border text-sm font-medium transition active:scale-[0.97]"
                             :class="$flux.appearance === @js($mode) ? 'border-accent bg-accent/14 text-accent' : 'border-transparent bg-surface-2 text-ink-2'">
                         <x-ui.icon :name="$option['icon']" :size="26" />
                         {{ $option['label'] }}

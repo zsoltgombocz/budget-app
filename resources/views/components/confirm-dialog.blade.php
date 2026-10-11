@@ -30,7 +30,7 @@
             this.resolve = null
         },
      }"
-     x-init="document.addEventListener('livewire:navigate', () => open && answer(false))"
+     x-on:livewire:navigate.document="open && answer(false)"
      x-on:app-confirm.window="show($event.detail)">
     <div x-data="appDialog" x-effect="dialogSync(open)"
          x-on:keydown.escape.window="dialogEscape($event) && answer(false)"

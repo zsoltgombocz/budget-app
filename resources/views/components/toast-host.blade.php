@@ -41,8 +41,8 @@
                 <div class="num truncate text-sm font-medium" x-text="toast.title"></div>
                 <div class="num truncate text-xs text-muted" x-show="toast.subtitle" x-text="toast.subtitle"></div>
             </div>
-            <button type="button" x-show="toast.undo" x-on:click.stop="undo()" class="h-[42px] rounded-xl px-3 text-sm font-semibold text-accent">{{ __('Undo') }}</button>
-            <button type="button" x-show="toast.undo" x-on:click.stop="dismiss()" class="flex size-[42px] shrink-0 items-center justify-center rounded-xl text-muted" aria-label="{{ __('Close') }}" data-test="toast-close"><x-ui.icon name="close" :size="20" /></button>
+            <button type="button" x-show="toast.undo" x-on:click.stop="undo()" class="focus-ring h-11 rounded-xl px-3 text-sm font-semibold text-accent">{{ __('Undo') }}</button>
+            <button type="button" x-show="toast.undo" x-on:click.stop="dismiss()" class="focus-ring flex size-11 shrink-0 items-center justify-center rounded-xl text-muted" aria-label="{{ __('Close') }}" data-test="toast-close"><x-ui.icon name="close" :size="20" /></button>
             <div :key="key" class="absolute bottom-0 left-0 h-0.5 bg-accent/60" x-init="$el.animate([{ width: '100%' }, { width: '0%' }], { duration: 5000, fill: 'forwards' })"></div>
         </div>
     </template>

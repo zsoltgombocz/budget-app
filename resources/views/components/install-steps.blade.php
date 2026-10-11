@@ -1,8 +1,8 @@
 {{-- Install steps for the detected phone and browser. Expects an Alpine scope with `p` (budgetInstall.platform()). --}}
 @php
     $step = fn (string $number, string $html) => '<li class="flex gap-3"><span class="num flex size-6 shrink-0 items-center justify-center rounded-full bg-accent/14 text-xs font-semibold text-accent">'.$number.'</span><span class="pt-0.5">'.$html.'</span></li>';
-    $share = '<span class="ms -mb-1 text-ink" style="font-size:18px;width:18px;height:18px">ios_share</span>';
-    $dots = '<span class="ms -mb-1 text-ink" style="font-size:18px;width:18px;height:18px">more_vert</span>';
+    $share = '<span class="ms -mb-1 text-ink" style="font-size:18px;width:18px;height:18px" aria-hidden="true">ios_share</span>';
+    $dots = '<span class="ms -mb-1 text-ink" style="font-size:18px;width:18px;height:18px" aria-hidden="true">more_vert</span>';
 @endphp
 
 <div {{ $attributes->class(['text-sm leading-snug text-ink-2']) }}>
@@ -27,7 +27,7 @@
         </template>
         <p class="text-xs text-muted" x-show="p.version && p.version < 16.4">{{ __('Your iOS is older than 16.4: installing only works from Safari.') }}</p>
         <a :href="window.budgetInstall.safariUrl()" class="inline-flex h-11 items-center justify-center gap-2 rounded-[14px] bg-surface-2 px-4 text-sm font-medium text-ink" data-test="open-in-safari">
-            <span class="ms" style="font-size:18px;width:18px;height:18px">open_in_new</span>{{ __('Open in Safari') }}
+            <span class="ms" style="font-size:18px;width:18px;height:18px" aria-hidden="true">open_in_new</span>{{ __('Open in Safari') }}
         </a>
         <p class="text-xs text-muted">{{ __('The button works on iOS 17 or newer. Otherwise copy the address into Safari.') }}</p>
     </div>
@@ -43,7 +43,7 @@
     <div x-show="p.route === 'android-other'" class="flex flex-col gap-3">
         <p>{{ __('Installing works best from Chrome. Open the page there:') }}</p>
         <a :href="window.budgetInstall.chromeUrl()" class="inline-flex h-11 items-center justify-center gap-2 rounded-[14px] bg-surface-2 px-4 text-sm font-medium text-ink" data-test="open-in-chrome">
-            <span class="ms" style="font-size:18px;width:18px;height:18px">open_in_new</span>{{ __('Open in Chrome') }}
+            <span class="ms" style="font-size:18px;width:18px;height:18px" aria-hidden="true">open_in_new</span>{{ __('Open in Chrome') }}
         </a>
         <p class="text-xs text-muted" x-show="p.browser === 'samsung' || p.browser === 'firefox'">{{ __('Or in this browser: menu → “Add page to” / “Install” → Home screen.') }}</p>
     </div>

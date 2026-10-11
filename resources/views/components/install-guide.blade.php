@@ -1,5 +1,5 @@
 {{-- Install steps for the visitor's phone and browser (shared by the public and in-app page). --}}
-<div x-data="{ p: { route: 'none' }, all: false, init() { this.p = window.budgetInstall.platform(); window.addEventListener('install-available', () => this.p = window.budgetInstall.platform()) } }" class="flex flex-col gap-5" data-test="install-guide">
+<div x-data="{ p: { route: 'none' }, all: false, init() { const decide = () => this.p = window.budgetInstall.platform(); decide(); window.addEventListener('install-available', decide); this.unlisten = () => window.removeEventListener('install-available', decide) }, destroy() { this.unlisten?.() } }" class="flex flex-col gap-5" data-test="install-guide">
     <p class="text-sm leading-normal text-muted">{{ __('Installed it opens from the Home Screen like any app, works offline and can send the evening reminder.') }}</p>
 
     <template x-if="p.route === 'prompt'">
@@ -7,7 +7,7 @@
     </template>
 
     <template x-if="p.browser === 'standalone'">
-        <div class="flex items-center gap-2 rounded-[14px] bg-accent/12 px-4 py-3 text-sm font-medium text-accent"><span class="ms ms-fill" style="font-size:20px;width:20px;height:20px">check_circle</span>{{ __('The app is installed.') }}</div>
+        <div class="flex items-center gap-2 rounded-[14px] bg-accent/12 px-4 py-3 text-sm font-medium text-accent"><span class="ms ms-fill" style="font-size:20px;width:20px;height:20px" aria-hidden="true">check_circle</span>{{ __('The app is installed.') }}</div>
     </template>
 
     <x-install-steps />

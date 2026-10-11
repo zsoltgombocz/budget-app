@@ -88,7 +88,7 @@ new #[Title('Profile settings')] class extends Component {
             @if ($this->hasUnverifiedEmail)
                 <div class="mt-3 text-[13px] text-ink-2">
                     {{ __('Your email address is unverified.') }}
-                    <button type="button" class="font-medium text-accent" wire:click.prevent="resendVerificationNotification">{{ __('Click here to re-send the verification email.') }}</button>
+                    <x-ui.link class="min-h-11 text-left" wire:click.prevent="resendVerificationNotification">{{ __('Click here to re-send the verification email.') }}</x-ui.link>
                     @if (session('status') === 'verification-link-sent')
                         <div class="mt-2 font-medium text-accent">{{ __('A new verification link has been sent to your email address.') }}</div>
                     @endif
