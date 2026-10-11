@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\BudgetLine;
 use App\Models\Category;
+use App\Models\Period;
 use App\Models\Transaction;
 use App\Services\PeriodCloser;
 use App\Services\PeriodService;
@@ -79,4 +81,167 @@ it('does not say "so far" or point to the + button on a closed period', function
         ->assertDontSee('Variable spending so far')
         ->assertSee('No spending or “didn’t spend” day was recorded in this period.')
         ->assertDontSee('with the + button');
+});
+
+it('saves a corrected spending from the edit sheet', function (): void {
+    $transaction = Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 12_000, 'note' => 'Shell']);
+    $today = resolve(PeriodService::class)->today($this->user->settings());
+
+    Livewire::test('pages::month')
+        ->call('updateTransaction', $transaction->id, ['amount' => '8 500', 'category' => $this->groceries->id, 'date' => $today->toDateString(), 'note' => 'Aldi'])
+        ->assertReturned(['ok' => true, 'errors' => []])
+        ->assertDispatched('app-toast')
+        ->assertSee('Aldi');
+
+    expect($transaction->refresh()->amount)->toBe(8_500)
+        ->and($transaction->category_id)->toBe($this->groceries->id)
+        ->and($transaction->note)->toBe('Aldi');
+});
+
+it('returns the errors of an invalid correction and changes nothing', function (): void {
+    $transaction = Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 12_000]);
+    $tomorrow = resolve(PeriodService::class)->today($this->user->settings())->addDay();
+
+    Livewire::test('pages::month')
+        ->call('updateTransaction', $transaction->id, ['amount' => '0', 'category' => $this->fuel->id, 'date' => $tomorrow->toDateString(), 'note' => null])
+        ->assertReturned(fn (array $result): bool => $result['ok'] === false && isset($result['errors']['amount'], $result['errors']['date']));
+
+    expect($transaction->refresh()->amount)->toBe(12_000);
+});
+
+it('does not correct another user\'s spending', function (): void {
+    $foreign = Transaction::factory()->create(['amount' => 5_000]);
+
+    Livewire::test('pages::month')
+        ->call('updateTransaction', $foreign->id, ['amount' => '1', 'category' => $this->fuel->id, 'date' => now()->toDateString(), 'note' => null])
+        ->assertReturned(fn (array $result): bool => $result['ok'] === false);
+
+    expect($foreign->refresh()->amount)->toBe(5_000);
+});
+
+it('offers an undo after deleting and restores the spending', function (): void {
+    $transaction = Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 12_000, 'note' => 'Shell']);
+
+    $page = Livewire::test('pages::month')
+        ->call('delete', $transaction->id)
+        ->assertDispatched('app-toast', undo: 'month-restore-transaction')
+        ->assertDontSee('Shell');
+
+    expect(Transaction::query()->count())->toBe(0);
+
+    $page->dispatch('month-restore-transaction', token: array_key_first($page->get('deleted')))->assertSee('Shell');
+
+    $restored = Transaction::query()->sole();
+
+    expect($restored->amount)->toBe(12_000)
+        ->and($restored->client_uuid)->toBe($transaction->client_uuid)
+        ->and($page->get('deleted'))->toBe([]);
+});
+
+it('does not delete spending of a closed period', function (): void {
+    $transaction = Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create();
+    $this->travelTo($this->period->ends_on->setTime(18, 0));
+    resolve(PeriodCloser::class)->close($this->user, $this->period, $this->period->income());
+
+    Livewire::withQueryParams(['periodus' => $this->period->id])->test('pages::month')->call('delete', $transaction->id);
+
+    expect(Transaction::query()->count())->toBe(1);
+});
+
+it('offers the period\'s categories as a filter on the page', function (): void {
+    Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['note' => 'Shell']);
+    Transaction::factory()->for($this->user)->for($this->period)->for($this->groceries)->create(['note' => 'Aldi']);
+
+    Livewire::test('pages::month')
+        ->assertSee('data-test="filter-'.$this->fuel->id.'"', false)
+        ->assertSee('data-test="filter-'.$this->groceries->id.'"', false)
+        ->set('categoryId', $this->groceries->id)
+        ->assertSee('Aldi')
+        ->assertDontSee('Shell')
+        ->assertDontSee('Salary');
+});
+
+it('searches notes, categories and amounts', function (): void {
+    Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 12_500, 'note' => 'Shell']);
+    Transaction::factory()->for($this->user)->for($this->period)->for($this->groceries)->create(['amount' => 3_000, 'note' => 'Aldi']);
+
+    Livewire::test('pages::month')
+        ->set('search', 'she')->assertSee('Shell')->assertDontSee('Aldi')
+        ->set('search', '12 500')->assertSee('Shell')->assertDontSee('Aldi')
+        ->set('search', 'grocer')->assertSee('Aldi')->assertDontSee('Shell');
+});
+
+it('shows a no-results state with a way to clear the filters', function (): void {
+    Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['note' => 'Shell']);
+
+    Livewire::test('pages::month')
+        ->set('search', 'nothing like this')
+        ->assertSee('data-test="no-results"', false)
+        ->assertDontSee('data-test="empty-state"', false)
+        ->call('clearFilters')
+        ->assertSee('Shell')
+        ->assertDontSee('data-test="no-results"', false);
+});
+
+it('shows plan against actual per category on a closed month, with the overspend in words', function (): void {
+    Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 110_000, 'occurred_on' => $this->period->starts_on]);
+    Transaction::factory()->for($this->user)->for($this->period)->for($this->groceries)->create(['amount' => 60_000, 'occurred_on' => $this->period->starts_on]);
+    $this->travelTo($this->period->ends_on->setTime(18, 0));
+    resolve(PeriodCloser::class)->close($this->user, $this->period, $this->period->income());
+
+    Livewire::withQueryParams(['periodus' => $this->period->id])
+        ->test('pages::month')
+        ->assertSee('Variable spending total')
+        ->assertSee(money(20_000).' over the budget')
+        ->assertSeeInOrder(['data-test="closed-breakdown"', 'data-test="over-budget-row"', 'Fuel', money_number(60_000), money_number(110_000), '+'.money_number(50_000), 'Groceries', money_number(-30_000)], false)
+        ->assertDontSee('data-test="fixed-items"', false);
+});
+
+it('has no plan against actual on an open month', function (): void {
+    Livewire::test('pages::month')->assertDontSee('data-test="closed-breakdown"', false);
+});
+
+it('says so when the requested month is not the user\'s', function (): void {
+    $foreign = Period::factory()->create();
+
+    Livewire::withQueryParams(['periodus' => $foreign->id])
+        ->test('pages::month')
+        ->assertSet('periodId', $this->period->id)
+        ->assertSee('data-test="period-not-found"', false)
+        ->assertSee('That month was not found, so the current one is shown.');
+});
+
+it('shows no "month not found" notice without a requested month', function (): void {
+    Livewire::test('pages::month')->assertDontSee('data-test="period-not-found"', false);
+});
+
+it('ticks a fixed item with an undo and keeps the list order', function (): void {
+    $rent = Category::query()->where('name', 'Rent')->firstOrFail();
+    $insurance = Category::factory()->for($this->user)->create(['name' => 'Insurance', 'type' => 'fixed', 'sort' => 9]);
+    $rentLine = BudgetLine::query()->where('category_id', $rent->id)->firstOrFail();
+    BudgetLine::factory()->for($this->user)->for($insurance)->create(['amount' => 10_000]);
+
+    $page = Livewire::test('pages::month')
+        ->assertSeeInOrder(['data-test="fixed-items"', 'role="checkbox"', 'aria-checked="false"', 'Rent', 'Insurance'], false)
+        ->call('togglePaid', $rentLine->id)
+        ->assertDispatched('app-toast', undo: 'month-undo-paid');
+
+    // The ticked item stays first although ticked items sort last on a fresh page.
+    expect($page->html())->toMatch('/data-test="fixed-items".*aria-checked="true".*Rent.*aria-checked="false".*Insurance/s')
+        ->and($this->period->lineStatuses()->whereNotNull('paid_on')->count())->toBe(1);
+
+    $page->dispatch('month-undo-paid', budgetLineId: $rentLine->id, paid: false)
+        ->dispatch('month-undo-paid', budgetLineId: $rentLine->id, paid: false);
+
+    expect($this->period->lineStatuses()->whereNotNull('paid_on')->count())->toBe(0);
+});
+
+it('marks the arrow without a neighbouring month as disabled', function (): void {
+    Livewire::test('pages::month')
+        ->assertSeeInOrder(['aria-disabled="true"', 'data-test="previous-period"', 'aria-disabled="true"', 'data-test="next-period"'], false)
+        ->assertDontSee('showPeriod(', false);
+
+    $previous = resolve(PeriodService::class)->forDate($this->user, $this->period->starts_on->subDay());
+
+    Livewire::test('pages::month')->assertSee('showPeriod('.$previous->id.')', false);
 });
