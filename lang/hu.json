@@ -373,7 +373,7 @@
     "Password": "Jelszó",
     "Password updated.": "Jelszó frissítve.",
     "Pay a spending": "Költés fizetése",
-    "Pay from the pocket": "Fizetés perselyből",
+    "Pay from the pocket": "Kifizetés a perselyből",
     "Payday": "Fizetésnap",
     "Payday (day of month)": "Fizetésnap (a hónap napja)",
     "Payday to payday": "Fizetésnaptól fizetésnapig",
@@ -944,5 +944,15 @@
     "Clear filters": "Szűrők törlése",
     "Paid from the :pocket pocket. A new amount takes the difference from the pocket or puts it back.": "A(z) „:pocket” perselyből fizetve. Ha módosítod az összeget, a különbözet a perselyből jön, vagy oda kerül vissza.",
     "Paid from the archived :pocket pocket, so its amount cannot change.": "Az archivált „:pocket” perselyből fizetve, ezért az összege nem változhat.",
-    "The month is closed, so its spending cannot change.": "A hónap le van zárva, a költései már nem változnak."
+    "The month is closed, so its spending cannot change.": "A hónap le van zárva, a költései már nem változnak.",
+    "Saving to prepay :loan": "Előtörlesztésre gyűjt: :loan",
+    "Saving for a prepayment": "Előtörlesztésre gyűjt",
+    "What you owe and what you pay every month.": "A tartozásaid és a havi törlesztőid.",
+    "No loans yet. A loan you add gets a repayment line in the plan.": "Még nincs hitel. Ha hozzáadsz egyet, a törlesztője bekerül a tervbe.",
+    "Money into the pocket. The monthly budget does not change.": "Pénz a perselybe. A havi keret nem változik.",
+    "Withdraw to the monthly budget": "Kivét a havi keretbe",
+    "The money leaves the pocket and counts as extra income in this period.": "A pénz kikerül a perselyből, és ebben a periódusban plusz bevételnek számít.",
+    "Pay a spending from the pocket": "Költés kifizetése a perselyből",
+    "The spending is paid by the pocket: it does not use up the monthly budget.": "A költés a perselyből megy, a havi keretet nem terheli.",
+    "Delete pocket": "Persely törlése"
 }
