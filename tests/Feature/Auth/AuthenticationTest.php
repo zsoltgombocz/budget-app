@@ -150,3 +150,21 @@ test('the sign-in email shows the code and the link', function (): void {
 
     expect($html)->toContain('482915')->toContain(route('magic-link.show', 'token-123'));
 });
+
+test('once the code is sent the page steps aside for the code field', function (): void {
+    Notification::fake();
+    $user = User::factory()->create();
+
+    $this->get(route('login'))
+        ->assertOk()
+        ->assertSeeInOrder(['x-on:magic-link-step.window', 'x-show="! codeSent"', 'data-test="login-intro"', 'data-test="magic-link-email"'], false);
+
+    Livewire::test('auth.magic-link-form')
+        ->set('email', $user->email)
+        ->call('send')
+        ->assertDispatched('magic-link-step', sent: true)
+        ->assertSeeHtmlInOrder(['data-test="magic-link-sent"', 'Check your inbox', 'data-test="login-code"', 'data-test="login-code-submit"', 'data-test="magic-link-note"', $user->email])
+        ->call('again')
+        ->assertDispatched('magic-link-step', sent: false)
+        ->assertSee('data-test="magic-link-email"', false);
+});

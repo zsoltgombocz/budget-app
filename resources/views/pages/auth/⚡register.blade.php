@@ -14,13 +14,15 @@ new #[Title('Register')] #[Layout('layouts::auth')] class extends Component {
     }
 }; ?>
 
-<div class="flex flex-col gap-6">
-    <x-auth-header :title="__('Create an account')" :description="__('Just your name and email. We send a code that signs you in, no password needed.')" />
+<div class="flex flex-col gap-6" x-data="{ codeSent: false }" x-on:magic-link-step.window="codeSent = $event.detail.sent">
+    <div x-show="! codeSent" data-test="register-intro">
+        <x-auth-header :title="__('Create an account')" :description="__('Just your name and email. We send a code that signs you in, no password needed.')" />
+    </div>
 
     <livewire:auth.magic-link-form :register="true" />
 
     <div class="text-center text-sm text-muted">
         {{ __('Already have an account?') }}
-        <a href="{{ route('login') }}" wire:navigate class="font-medium text-accent">{{ __('Log in') }}</a>
+        <x-ui.link :href="route('login')" wire:navigate>{{ __('Log in') }}</x-ui.link>
     </div>
 </div>

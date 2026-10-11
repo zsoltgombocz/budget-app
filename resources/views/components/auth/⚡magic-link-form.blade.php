@@ -53,6 +53,8 @@ new class extends Component {
         $sendMagicLink->handle($this->email, $this->register ? $this->name : null);
 
         $this->sentTo = Str::lower(trim($this->email));
+        // The page hides its intro and the passkey button while the code is being typed.
+        $this->dispatch('magic-link-step', sent: true);
     }
 
     public function verify(SendMagicLink $sendMagicLink): void
@@ -85,31 +87,27 @@ new class extends Component {
     public function again(): void
     {
         $this->reset('sentTo', 'code');
+        $this->dispatch('magic-link-step', sent: false);
     }
 }; ?>
 
 <div>
     @if ($sentTo)
         <div class="flex flex-col gap-4" data-test="magic-link-sent">
-            <div class="flex items-start gap-3 rounded-[18px] bg-accent/12 p-4">
-                <x-ui.icon name="mark_email_read" :size="24" class="text-accent" />
-                <div class="text-sm leading-snug text-ink-2">
-                    <div class="font-semibold text-ink">{{ __('Check your inbox') }}</div>
-                    {{ __('If :email has an account, we sent a 6-digit code. It works for :minutes minutes. Look in the spam folder too.', ['email' => $sentTo, 'minutes' => SendMagicLink::MINUTES]) }}
-                </div>
-            </div>
-
             <form wire:submit="verify" class="flex flex-col gap-3">
                 <label class="block">
+                    <span class="mb-3 flex items-center gap-2.5 text-[22px] font-semibold leading-tight tracking-[-0.02em]"><x-ui.icon name="mark_email_read" :size="26" class="text-accent" />{{ __('Check your inbox') }}</span>
                     <span class="mb-1.5 block text-[13px] text-muted">{{ __('Code from the email') }}</span>
                     <input type="text" wire:model="code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" pattern="[0-9 ]*" autofocus
                            x-on:input="if ($event.target.value.replace(/\D/g, '').length === 6) $wire.verify()"
-                           class="num h-14 w-full rounded-[14px] bg-surface-2 px-4 text-center text-[28px] font-semibold tracking-[0.35em] outline-none focus:ring-2 focus:ring-accent"
+                           class="num h-14 w-full rounded-[14px] bg-surface-2 px-4 text-center text-[28px] font-semibold tracking-[0.35em] outline-none placeholder:text-faint focus:ring-2 focus:ring-accent"
                            placeholder="000000" data-test="login-code">
                     @error('code')<span class="mt-1.5 block text-xs text-danger">{{ $message }}</span>@enderror
                 </label>
                 <x-ui.button type="submit" class="w-full" data-test="login-code-submit">{{ __('Sign in') }}</x-ui.button>
             </form>
+
+            <p class="text-[13px] leading-snug text-pretty text-muted" data-test="magic-link-note">{{ __('If :email has an account, we sent a 6-digit code. It works for :minutes minutes. Look in the spam folder too.', ['email' => $sentTo, 'minutes' => SendMagicLink::MINUTES]) }}</p>
 
             <x-ui.button variant="ghost" size="md" wire:click="again">{{ __('Use another email') }}</x-ui.button>
         </div>

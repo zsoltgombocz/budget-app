@@ -64,7 +64,7 @@
                 <div class="absolute inset-0 flex items-center">
                     <div class="w-full border-t border-line"></div>
                 </div>
-                <div class="relative flex justify-center text-xs uppercase">
+                <div class="relative flex justify-center text-[13px]">
                     <span class="bg-surface px-2 text-muted">
                         {{ $separator }}
                     </span>
