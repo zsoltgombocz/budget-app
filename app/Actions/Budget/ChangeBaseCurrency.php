@@ -58,6 +58,7 @@ final readonly class ChangeBaseCurrency
                 'categories.*.planned', 'categories.*.actual', 'categories.*.diff',
                 'allocation.to_reserve', 'allocation.to_surplus', 'allocation.from_reserve', 'allocation.uncovered',
                 'pocket_deposits.*.amount',
+                'pocket_moves.*.monthly', 'pocket_moves.*.leftover', 'pocket_moves.*.cover', 'pocket_moves.*.total', 'pocket_moves.*.balance_after',
                 'prepay_ready.*.balance', 'prepay_ready.*.step',
             ],
         ],

@@ -3,6 +3,8 @@
 use App\Actions\Budget\MovePocketMoney;
 use App\Actions\Budget\RecordPrepayment;
 use App\Actions\Budget\RecordTransaction;
+use App\Actions\Budget\SetLineStatus;
+use App\Enums\LineStatus;
 use App\Enums\PeriodStatus;
 use App\Enums\PocketMovementType;
 use App\Enums\PrepayMode;
@@ -371,4 +373,129 @@ it('can only be closed in the last week of the period', function (): void {
 
     expect(resolve(PeriodCloser::class)->canClose($this->user, $this->period))->toBeTrue();
     $this->get(route('month'))->assertSee('data-test="start-close"', false);
+});
+
+it('lists every pocket movement of the closing with its parts and the new balance', function (): void {
+    $this->reserve->update(['target_amount' => 150_000]);
+    $category = Category::factory()->for($this->user)->create(['name' => 'Reserve saving', 'type' => 'sinking']);
+    BudgetLine::factory()->for($this->user)->for($category)->create(['amount' => 20_000, 'pocket_id' => $this->reserve->id]);
+
+    $preview = resolve(PeriodCloser::class)->preview($this->user, $this->period);
+    $moves = collect($preview->pocketMoves)->keyBy('name');
+
+    // 500 000 − 200 000 rent − 20 000 saving = 280 000 leftover; the reserve needs 50 000 more after its saving.
+    expect($preview->reserveRoom)->toBe(50_000)
+        ->and($preview->ruleToReserve)->toBe(50_000)
+        ->and($moves['Reserve'])->toMatchArray(['monthly' => 20_000, 'leftover' => 50_000, 'cover' => 0, 'total' => 70_000, 'balance_after' => 150_000])
+        ->and($moves['Savings'])->toMatchArray(['monthly' => 0, 'leftover' => 230_000, 'total' => 230_000, 'balance_after' => 230_000]);
+
+    $close = resolve(PeriodCloser::class)->close($this->user, $this->period);
+
+    expect($close->breakdown['pocket_moves'])->toBe($preview->pocketMoves);
+});
+
+it('shows a deficit taken from the reserve as a pocket movement', function (): void {
+    spend($this->user, $this->period, $this->fuel, 350_000);
+
+    $moves = resolve(PeriodCloser::class)->preview($this->user, $this->period)->pocketMoves;
+
+    expect($moves)->toHaveCount(1)
+        ->and($moves[0])->toMatchArray(['name' => 'Reserve', 'cover' => -50_000, 'total' => -50_000, 'balance_after' => 30_000]);
+});
+
+it('lists the new savings pocket the closing would open', function (): void {
+    $moves = resolve(PeriodCloser::class)->preview($this->user, $this->period, surplusTarget: 'new-pocket')->pocketMoves;
+
+    expect(collect($moves)->firstWhere('pocket_id', null))->toMatchArray(['name' => 'Savings', 'leftover' => 280_000, 'balance_after' => 280_000]);
+});
+
+it('uses one sign for plan vs actual: + left in the budget, − overspent', function (): void {
+    spend($this->user, $this->period, $this->fuel, 70_000);
+    spend($this->user, $this->period, $this->groceries, 50_000);
+
+    Livewire::test('pages::close', ['period' => $this->period->id])
+        ->assertSeeInOrder(['Fuel', money_number(60_000), money_number(70_000), '−'.money_number(10_000), 'overspent'])
+        ->assertSeeInOrder(['Groceries', money_number(90_000), money_number(50_000), '+'.money_number(40_000)])
+        ->assertSee('role="table"', false)
+        ->assertSee(money(200_000).', the planned amount')
+        ->assertSee(money(30_000).' under the budget')
+        ->assertSee('aria-valuetext="Step 1 of 3"', false);
+});
+
+it('names a skipped fixed item as skipped on the closing', function (): void {
+    $rent = BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail();
+    resolve(SetLineStatus::class)->handle($this->user, $this->period, $rent->id, LineStatus::Skipped);
+
+    Livewire::test('pages::close', ['period' => $this->period->id])
+        ->assertSeeInOrder(['Rent', 'skipped', money_number(200_000), '0', '+'.money_number(200_000)]);
+});
+
+it('explains the suggested reserve amount and a split above the target', function (): void {
+    $this->reserve->update(['target_amount' => 300_000]);
+
+    $component = Livewire::test('pages::close', ['period' => $this->period->id])
+        ->call('goTo', 2)
+        ->assertSee('The app only keeps records: you make the real transfers in your bank.')
+        ->assertSee('Your rule: 100% of the leftover goes to the reserve. It stops at the target ('.money(300_000).'): '.money(220_000).' is still missing.')
+        ->assertDontSee('data-test="over-target-note"', false);
+
+    $component->call('splitPreset', 100)
+        ->assertSet('toReserve', 300_000)
+        ->assertSee('data-test="over-target-note"', false)
+        ->assertDontSee('data-test="reserve-rule-note"', false);
+});
+
+it('keeps a quick split as the leftover rule when asked', function (): void {
+    $this->reserve->update(['target_amount' => null]);
+
+    Livewire::test('pages::close', ['period' => $this->period->id])
+        ->call('goTo', 2)
+        ->call('splitPreset', 50)
+        ->assertSet('toReserve', 150_000)
+        ->assertSee('data-test="save-split"', false)
+        ->set('saveSplitAsRule', true)
+        ->call('goTo', 3)
+        ->call('close');
+
+    expect($this->user->settings()->refresh()->reserve_pct)->toBe(50)
+        ->and($this->user->settings()->reserve_fixed)->toBeNull();
+});
+
+it('does not keep a split typed by hand as the rule', function (): void {
+    Livewire::test('pages::close', ['period' => $this->period->id])
+        ->call('goTo', 2)
+        ->call('splitPreset', 50)
+        ->set('saveSplitAsRule', true)
+        ->call('setSplit', 'reserve', '1000')
+        ->assertSet('splitPreset', null)
+        ->assertDontSee('data-test="save-split"', false)
+        ->call('close');
+
+    expect($this->user->settings()->refresh()->reserve_pct)->toBe(100);
+});
+
+it('shows the pocket movements before and after closing and names where the rest goes', function (): void {
+    $category = Category::factory()->for($this->user)->create(['name' => 'Car saving', 'type' => 'sinking']);
+    $fund = Pocket::factory()->for($this->user)->create(['name' => 'Car fund', 'balance' => 450_000]);
+    BudgetLine::factory()->for($this->user)->for($category)->create(['amount' => 50_000, 'pocket_id' => $fund->id]);
+
+    Livewire::test('pages::close', ['period' => $this->period->id])
+        ->call('goTo', 3)
+        ->assertSee('Into pockets')
+        ->assertSeeInOrder(['Car fund', money_number(50_000), 'monthly saving', 'new balance', money_number(500_000)])
+        ->assertSeeInOrder(['Reserve', money_number(20_000), 'from the leftover', 'new balance', money_number(100_000)])
+        ->assertSee('new balance '.money(500_000))
+        ->call('close')
+        ->assertNotDispatched('app-toast')
+        ->assertSee('Into pockets')
+        ->assertSee('new balance '.money(500_000))
+        ->assertSeeInOrder(['Savings', money_number(230_000), 'The app adds it to this pocket'])
+        ->assertDontSee('>Rest<', false)
+        ->assertSee('To the new month');
+});
+
+it('tells on the income editor that the actual income only counts in this closing', function (): void {
+    Livewire::test('pages::close', ['period' => $this->period->id])
+        ->call('goTo', 3)
+        ->assertSee('Only counts in the October closing, your plan does not change.');
 });
