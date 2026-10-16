@@ -11,7 +11,7 @@ use App\Services\Data\FixedItem;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 /**
- * Ticking a fixed item off, marking it as not paid this period and setting it back, for Today and
+ * Ticking a fixed item off, skipping it this period and setting it back, for Today and
  * Month. Each change answers with the toast to show, whose undo sets the item back to the status
  * it had; null means nothing changed (closed period, same status). An item the period does not
  * have is not found.
@@ -25,7 +25,7 @@ final readonly class ChangeFixedItemStatus
     public function __construct(private ToggleLinePaid $toggleLinePaid, private SetLineStatus $setLineStatus) {}
 
     /**
-     * Tick the item off, or untick it; ticking an item marked as not paid makes it paid after all.
+     * Tick the item off, or untick it; ticking a skipped item makes it paid after all.
      *
      * @param  list<FixedItem>  $items  the period's fixed items as they stand now
      * @return Toast|null
@@ -43,11 +43,11 @@ final readonly class ChangeFixedItemStatus
 
         return $this->toast(
             title: match (true) {
-                ! $paid => __('Marked as not done.'),
+                ! $paid => __('Tick removed.'),
                 $isTransfer => __('Marked as transferred.'),
-                default => __('Marked as done.'),
+                default => __('Paid.'),
             },
-            subtitle: null,
+            subtitle: $paid ? __('The leftover does not change: this amount was taken off all along.') : null,
             icon: $paid ? 'check_circle' : 'remove',
             budgetLineId: $budgetLineId,
             previous: $item->status(),
@@ -55,7 +55,8 @@ final readonly class ChangeFixedItemStatus
     }
 
     /**
-     * Mark the item as not paid this period (it counts as 0) or set it back to due.
+     * Skip the item this period (it counts as 0) or set it back to due. A ticked-off item
+     * cannot be skipped: it was paid.
      *
      * @param  list<FixedItem>  $items
      * @return Toast|null
@@ -64,17 +65,16 @@ final readonly class ChangeFixedItemStatus
     {
         $item = $this->findOrFail($items, $budgetLineId);
 
-        if (! $period->isOpen() || $item->status() === $status || ($status === LineStatus::Skipped && ! $item->line->isSkippable())) {
+        if (! $period->isOpen() || $item->status() === $status || ($status === LineStatus::Skipped && (! $item->line->isSkippable() || $item->paid))) {
             return null;
         }
 
         $this->setLineStatus->handle($user, $period, $budgetLineId, $status);
         $skipped = $status === LineStatus::Skipped;
-        $effect = __('It counts as 0, so :amount is not taken off the leftover.', ['amount' => money($item->line->planned())]);
 
         return $this->toast(
-            title: $skipped ? __('Marked as not paid this month.') : __('Due again.'),
-            subtitle: $skipped && is_string($effect) ? $effect : null,
+            title: $skipped ? __('Skipped this month.') : __('It comes up after all.'),
+            subtitle: $skipped ? __(':amount more is left.', ['amount' => money($item->line->planned())]) : __('Tick it off once you have paid it.'),
             icon: $skipped ? 'event_busy' : 'undo',
             budgetLineId: $budgetLineId,
             previous: $item->status(),

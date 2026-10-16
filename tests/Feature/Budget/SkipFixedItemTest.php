@@ -31,23 +31,23 @@ function psPlusStatus(): LineStatus
     return $item->status();
 }
 
-it('marks an overdue fixed item as not paid on Today: off the due cards, shown in the list, counted as 0', function (): void {
+it('skips an overdue fixed item on Today: off the due cards, shown in the list, counted as 0', function (): void {
     $before = Livewire::test('pages::today')->instance();
     $leftover = $before->currentLeftover;
     $ifSpent = $before->overview->forecast->expectedLeftover;
 
     Livewire::test('pages::today')
-        ->assertSeeHtmlInOrder(['data-test="due-item"', 'PS Plus', 'data-test="skip-due"', __('Skip this month')])
+        ->assertSeeHtmlInOrder(['data-test="due-item"', 'PS Plus', 'data-test="skip-due"', __('Skipped this month')])
         ->call('skipLine', $this->psPlus->id)
         ->assertDispatched('budget-updated')
         ->assertDispatched('app-toast',
-            title: __('Marked as not paid this month.'),
-            subtitle: __('It counts as 0, so :amount is not taken off the leftover.', ['amount' => money(4_990)]),
+            title: __('Skipped this month.'),
+            subtitle: __(':amount more is left.', ['amount' => money(4_990)]),
             undo: 'fixed-item-undo',
             params: ['budgetLineId' => $this->psPlus->id, 'status' => 'open'],
         )
         ->assertDontSee('data-test="due-item"', false)
-        ->assertSeeHtmlInOrder(['data-test="fixed-items"', 'data-status="skipped"', 'PS Plus', __('not paid this month'), 'line-through']);
+        ->assertSeeHtmlInOrder(['data-test="fixed-items"', 'data-status="skipped"', 'PS Plus', __('skipped – counted as :zero', ['zero' => money(0)]), 'line-through']);
 
     $after = Livewire::test('pages::today')->instance();
     expect(psPlusStatus())->toBe(LineStatus::Skipped)
@@ -55,30 +55,32 @@ it('marks an overdue fixed item as not paid on Today: off the due cards, shown i
         ->and($after->overview->forecast->expectedLeftover)->toBe($ifSpent + 4_990);
 });
 
-it('undoes a skip back to the status it had, also when it was paid', function (): void {
+it('undoes a skip back to the status it had', function (): void {
     $today = Livewire::test('pages::today')->call('skipLine', $this->psPlus->id);
     $today->dispatch('fixed-item-undo', budgetLineId: $this->psPlus->id, status: 'open');
     expect(psPlusStatus())->toBe(LineStatus::Open);
-
-    $today->call('togglePaid', $this->psPlus->id)->call('skipLine', $this->psPlus->id)
-        ->assertDispatched('app-toast', params: ['budgetLineId' => $this->psPlus->id, 'status' => 'paid']);
-    expect(psPlusStatus())->toBe(LineStatus::Skipped);
-
-    $today->dispatch('fixed-item-undo', budgetLineId: $this->psPlus->id, status: 'paid');
-    expect(psPlusStatus())->toBe(LineStatus::Paid);
 });
 
-it('turns a skipped item paid after all, or due again', function (): void {
-    $today = Livewire::test('pages::today')->call('skipLine', $this->psPlus->id);
+it('does not skip an item that was ticked off, nor offer it', function (): void {
+    $today = Livewire::test('pages::today')->call('togglePaid', $this->psPlus->id);
 
-    $today->call('togglePaid', $this->psPlus->id)
-        ->assertDispatched('app-toast', params: ['budgetLineId' => $this->psPlus->id, 'status' => 'skipped'], title: __('Marked as done.'));
+    $today->call('skipLine', $this->psPlus->id)->assertNotDispatched('app-toast', title: __('Skipped this month.'));
     expect(psPlusStatus())->toBe(LineStatus::Paid);
 
-    $today->call('skipLine', $this->psPlus->id)->call('unskipLine', $this->psPlus->id)
-        ->assertDispatched('app-toast', params: ['budgetLineId' => $this->psPlus->id, 'status' => 'skipped'], title: __('Due again.'))
+    // Rent (open) still offers it; the ticked-off PS Plus does not.
+    expect(substr_count(Livewire::test('pages::today')->html(), 'data-test="fixed-item-options"'))->toBe(1);
+});
+
+it('lets a skipped item come up after all, then it can be ticked off as usual', function (): void {
+    $today = Livewire::test('pages::today')->call('skipLine', $this->psPlus->id);
+
+    $today->call('unskipLine', $this->psPlus->id)
+        ->assertDispatched('app-toast', params: ['budgetLineId' => $this->psPlus->id, 'status' => 'skipped'], title: __('It comes up after all.'))
         ->assertSee('data-test="due-item"', false);
     expect(psPlusStatus())->toBe(LineStatus::Open);
+
+    $today->call('togglePaid', $this->psPlus->id)->assertDispatched('app-toast', title: __('Paid.'));
+    expect(psPlusStatus())->toBe(LineStatus::Paid);
 });
 
 it('offers skipping only for a plain fixed item', function (): void {
@@ -110,8 +112,8 @@ it('shows the skipped item on the Month list and leaves it out of the fixed tota
         ->call('skipLine', $this->psPlus->id)
         ->assertDispatched('app-toast', undo: 'fixed-item-undo')
         ->assertSee('data-test="fixed-skipped"', false)
-        ->assertSee(__(':count not paid', ['count' => 1]))
-        ->assertSeeHtmlInOrder(['data-test="fixed-list"', 'data-status="skipped"', 'PS Plus', __('not paid this month')]);
+        ->assertSee(__(':count skipped', ['count' => 1]))
+        ->assertSeeHtmlInOrder(['data-test="fixed-list"', 'data-status="skipped"', 'PS Plus', __('skipped – counted as :zero', ['zero' => money(0)])]);
 
     // The payday row adds up what the fixed items take: rent only.
     expect($month->html())->toContain(money(200_000));

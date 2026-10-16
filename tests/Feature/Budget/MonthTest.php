@@ -1,9 +1,15 @@
 <?php
 
+use App\Actions\Budget\MovePocketMoney;
+use App\Actions\Budget\SetLineStatus;
+use App\Enums\LineStatus;
+use App\Enums\PeriodStatus;
 use App\Models\BudgetLine;
 use App\Models\Category;
 use App\Models\Period;
+use App\Models\Pocket;
 use App\Models\Transaction;
+use App\Services\OverviewService;
 use App\Services\PeriodCloser;
 use App\Services\PeriodService;
 use Livewire\Livewire;
@@ -50,16 +56,41 @@ it('shows the payday and no-spend days in the timeline', function (): void {
     $this->get(route('month'))->assertSee('Salary')->assertSee('1 item, counted at its planned amount')->assertSee("Didn't spend");
 });
 
-it('shows what the month would close with today, against the plan', function (): void {
+it('shows what the month would leave if it ended today, and how far it is from the plan with the reasons', function (): void {
     Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 75_000]);
 
     $preview = resolve(PeriodCloser::class)->preview($this->user, $this->period);
 
-    expect($preview->leftover() - $preview->plannedLeftover())->toBe(-75_000 + 60_000 + 90_000);
+    $this->get(route('month'))
+        ->assertOk()
+        ->assertSeeInOrder(['data-test="close-now"', 'If the month ended today', money_number($preview->leftover()),
+            'data-test="plan-deviation-verdict"', money(15_000).' over the plan', 'Fuel over budget', '−'.money(15_000), 'Variable spending so far'], false);
+});
+
+it('says the month is on plan while every budget holds, also early in the month', function (): void {
+    Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 5_000]);
 
     $this->get(route('month'))
         ->assertOk()
-        ->assertSeeInOrder(['data-test="close-now"', 'If you closed today', 'vs. the plan', money_number($preview->leftover()), '+'.money(75_000), 'Variable spending so far'], false);
+        ->assertSeeInOrder(['data-test="plan-deviation-verdict"', 'You are on plan'], false)
+        ->assertDontSee('data-test="plan-deviation-items"', false);
+});
+
+it('counts a skipped fixed item and pocket moves as the reasons the month is better or worse than the plan', function (): void {
+    $rent = BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail();
+    resolve(SetLineStatus::class)->handle($this->user, $this->period, $rent->id, LineStatus::Skipped);
+    $pocket = Pocket::factory()->for($this->user)->create(['name' => 'Holiday', 'balance' => 50_000]);
+    resolve(MovePocketMoney::class)->handle($this->user, $pocket, 10_000, null, toBudget: true);
+    resolve(MovePocketMoney::class)->handle($this->user, $pocket, -5_000, 'Concert', toBudget: true);
+
+    $deviation = resolve(OverviewService::class)->deviation($this->user, $this->period);
+
+    expect($deviation->amount())->toBe(200_000 - 10_000 + 5_000);
+
+    Livewire::test('pages::month')
+        ->assertSeeInOrder([money(195_000).' better than the plan', 'Rent skipped', '+'.money(200_000), 'Put into pockets', '−'.money(10_000), 'From pockets into the budget', '+'.money(5_000)])
+        // Both moves are rows of the day list too.
+        ->assertSeeHtmlInOrder(['data-test="pocket-move"', 'From pockets into the budget', 'Holiday', 'Concert', '+'.money(5_000), 'data-test="pocket-move"', 'Put into pockets', 'Holiday', '−'.money(10_000)]);
 });
 
 it('does not show the close-now figures for a closed period', function (): void {
@@ -193,7 +224,7 @@ it('shows plan against actual per category on a closed month, with the overspend
         ->test('pages::month')
         ->assertSee('Variable spending total')
         ->assertSee(money(20_000).' over the budget')
-        ->assertSeeInOrder(['data-test="closed-breakdown"', 'data-test="over-budget-row"', 'Fuel', money_number(60_000), money_number(110_000), '+'.money_number(50_000), 'Groceries', money_number(-30_000), 'under the budget by '.money(30_000)], false)
+        ->assertSeeInOrder(['data-test="closed-breakdown"', '<table', 'scope="col"', 'data-test="over-budget-row"', 'scope="row"', 'Fuel', 'over the budget by '.money(50_000), money_number(60_000), money_number(110_000), '+'.money_number(50_000), 'Groceries', 'under the budget by '.money(30_000), money_number(-30_000)], false)
         ->assertSee('over the budget by '.money(50_000))
         ->assertDontSee('data-test="fixed-items"', false);
 });
@@ -256,11 +287,11 @@ it('folds the fixed items into a summary row that counts what is done and what i
     BudgetLine::factory()->for($this->user)->for($insurance)->create(['amount' => 10_000, 'due_day' => 25]);
 
     Livewire::test('pages::month')
-        ->assertSeeInOrder(['data-test="fixed-summary"', 'Fixed items', '0 of 2 done', 'data-test="fixed-due"', '1 due', 'id="month-fixed-list"', 'x-show="open"', 'data-test="fixed-item"'], false)
+        ->assertSeeInOrder(['data-test="fixed-summary"', 'Fixed items', '0 done', '2 left', 'data-test="fixed-due"', '1 due', 'id="month-fixed-list"', 'x-show="open"', 'data-test="fixed-item"'], false)
         ->assertSee('aria-expanded="false"', false)
         ->assertSee('aria-controls="month-fixed-list"', false)
         ->call('togglePaid', $rentLine->id)
-        ->assertSee('1 of 2 done')
+        ->assertSeeInOrder(['1 done', '1 left'])
         ->assertDontSee('data-test="fixed-due"', false);
 });
 
@@ -268,4 +299,58 @@ it('names the progress bar and uses the icon font for the search', function (): 
     Livewire::test('pages::month')
         ->assertSeeInOrder(['role="progressbar"', 'aria-label="Variable spending so far"'], false)
         ->assertSeeInOrder(['data-test="month-filters"', '>search</span>', 'data-test="month-search"'], false);
+});
+
+it('says so when a corrected spending no longer matches the search', function (): void {
+    $transaction = Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 12_000, 'note' => 'Shell']);
+    $today = resolve(PeriodService::class)->today($this->user->settings())->toDateString();
+
+    Livewire::test('pages::month')
+        ->set('search', 'Shell')
+        ->call('updateTransaction', $transaction->id, ['amount' => '12 000', 'category' => $this->fuel->id, 'date' => $today, 'note' => 'Shell station'])
+        ->assertDispatched('app-toast', title: 'Spending updated.', subtitle: null)
+        ->call('updateTransaction', $transaction->id, ['amount' => '12 000', 'category' => $this->fuel->id, 'date' => $today, 'note' => 'OMV'])
+        ->assertDispatched('app-toast', title: 'Spending updated.', subtitle: 'It no longer matches the search, so it left the list.');
+});
+
+it('searches every month when asked, closed months read-only', function (): void {
+    $previous = resolve(PeriodService::class)->forDate($this->user, $this->period->starts_on->subDay());
+    Transaction::factory()->for($this->user)->for($previous)->for($this->fuel)->create(['note' => 'Old Shell', 'occurred_on' => $previous->starts_on]);
+    Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['note' => 'New Shell']);
+    $previous->update(['status' => PeriodStatus::Closed]);
+
+    $month = Livewire::test('pages::month')
+        ->assertDontSee('data-test="search-all"', false)
+        ->set('search', 'Shell')
+        ->assertSee('data-test="search-all"', false)
+        ->assertSee('New Shell')->assertDontSee('Old Shell')
+        ->set('searchAll', true)
+        ->assertSee('New Shell')->assertSee('Old Shell');
+
+    expect(collect($month->instance()->days)->flatMap(fn (array $day) => $day['rows'])->pluck('edit.readonly', 'note')->all())
+        ->toBe(['New Shell' => false, 'Old Shell' => true]);
+});
+
+it('marks a closed month so the record button hides, and leaves skipped items out of the payday row', function (): void {
+    $insurance = Category::factory()->for($this->user)->create(['name' => 'Insurance', 'type' => 'fixed']);
+    $line = BudgetLine::factory()->for($this->user)->for($insurance)->create(['amount' => 10_000]);
+    resolve(SetLineStatus::class)->handle($this->user, $this->period, $line->id, LineStatus::Skipped);
+
+    Livewire::test('pages::month')
+        ->assertDontSee('data-hides-record-button', false)
+        ->assertSeeInOrder(['Fixed items', '1 item, counted at its planned amount', money_number(200_000)]);
+
+    $this->travelTo($this->period->ends_on->setTime(18, 0));
+    resolve(PeriodCloser::class)->close($this->user, $this->period, $this->period->income());
+
+    Livewire::withQueryParams(['periodus' => $this->period->id])->test('pages::month')->assertSee('data-hides-record-button', false);
+});
+
+it('totals a day from the budget and says so when part of it was paid from a pocket', function (): void {
+    $pocket = Pocket::factory()->for($this->user)->create(['name' => 'Reserve', 'balance' => 100_000]);
+    $day = $this->period->starts_on->addDay();
+    Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 4_000, 'occurred_on' => $day]);
+    Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 40_000, 'occurred_on' => $day, 'pocket_id' => $pocket->id]);
+
+    Livewire::test('pages::month')->assertSeeInOrder([money(4_000).' from the budget', 'paid from Reserve', money_number(40_000)]);
 });

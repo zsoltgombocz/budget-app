@@ -9,13 +9,15 @@
     'z' => 'z-50',
     'bodyClass' => '',
     'footerDivider' => true,
+    'closeLabel' => null,
 ])
 
 {{--
     The app's bottom sheet, driven by the surrounding Alpine scope: `show` is the expression
     that opens it, `close` the statement that closes it (Cancel, backdrop tap, Escape).
     Accessible name and header title: the static `label` or the Alpine `title` expression;
-    header=false drops the Cancel/title row for sheets with their own content on top.
+    header=false drops the Cancel/title row for sheets with their own content on top; closeLabel
+    renames Cancel (e.g. "Got it" on a sheet that only explains).
     full: tall sheet (top offset, `top` overrides it); otherwise it grows with its content.
     Slots: intro (one line under the title), action (header right), footer (sticky, e.g. the
     save button) and pad (an x-ui.amount-pad that slides over the footer).
@@ -40,11 +42,12 @@
         <div class="mx-auto mt-2 h-[5px] w-9 shrink-0 rounded-full bg-ink/18" aria-hidden="true"></div>
         @if ($header)
             <div class="mt-1 grid min-h-11 shrink-0 grid-cols-[72px_minmax(0,1fr)_72px] items-center px-4">
-                <button type="button" class="-ml-2 h-11 rounded-xl px-2 text-left text-[15px] text-muted focus-ring" x-on:click="{{ $close }}">{{ __('Cancel') }}</button>
+                <button type="button" class="-ml-2 h-11 rounded-xl px-2 text-left text-[15px] text-muted focus-ring" x-on:click="{{ $close }}">{{ $closeLabel ?? __('Cancel') }}</button>
                 @if ($label)
                     <h2 class="line-clamp-2 text-center text-base font-semibold leading-tight text-balance" data-test="sheet-title">{{ $label }}</h2>
                 @else
-                    <h2 class="line-clamp-2 text-center text-base font-semibold leading-tight text-balance" x-text="{{ $title }}" data-test="sheet-title"></h2>
+                    {{-- Only in the DOM while open, so a closed sheet leaves no empty heading behind. --}}
+                    <div class="min-w-0"><template x-if="{{ $show }}"><h2 class="line-clamp-2 text-center text-base font-semibold leading-tight text-balance" x-text="{{ $title }}" data-test="sheet-title"></h2></template></div>
                 @endif
                 <div class="flex justify-end">{{ $action ?? '' }}</div>
             </div>

@@ -34,6 +34,9 @@ new #[Title('Month')] class extends Component {
     /** Largest amount accepted in one entry, in major units (as on the entry sheet). */
     private const int MAX_MAJOR = 1_000_000_000;
 
+    /** How many matches a search over every month lists at most, newest first. */
+    public const int SEARCH_ALL_LIMIT = 100;
+
     #[Url(as: 'periodus')]
     public ?int $periodId = null;
 
@@ -42,6 +45,9 @@ new #[Title('Month')] class extends Component {
 
     /** Free text matched against notes, category names and amounts. */
     public string $search = '';
+
+    /** Search the spending of every month, not only the one shown. */
+    public bool $searchAll = false;
 
     /** The requested ?periodus= was not the user's: the current month is shown instead. */
     public bool $periodNotFound = false;
@@ -121,7 +127,10 @@ new #[Title('Month')] class extends Component {
 
         $this->refresh();
         $this->dispatch('budget-updated');
-        $this->dispatch('app-toast', title: __('Spending updated.'));
+
+        // A corrected spending that no longer matches the search or the category leaves the list: say so.
+        $stillListed = ! $this->isFiltered() || collect($this->days)->contains(fn (array $day): bool => collect($day['rows'])->contains(fn (array $row): bool => ($row['id'] ?? null) === $transactionId));
+        $this->dispatch('app-toast', title: __('Spending updated.'), subtitle: $stillListed ? null : __('It no longer matches the search, so it left the list.'));
 
         return ['ok' => true, 'errors' => []];
     }
@@ -192,7 +201,7 @@ new #[Title('Month')] class extends Component {
     }
 
     /**
-     * Mark a plain fixed item as not paid this period: it counts as 0.
+     * Skip a plain fixed item this period: it counts as 0.
      */
     public function skipLine(int $budgetLineId): void
     {
@@ -200,7 +209,7 @@ new #[Title('Month')] class extends Component {
     }
 
     /**
-     * Set an item marked as not paid back to due.
+     * A skipped item comes up after all: back to due.
      */
     public function unskipLine(int $budgetLineId): void
     {
@@ -244,12 +253,31 @@ new #[Title('Month')] class extends Component {
     {
         $this->categoryId = null;
         $this->search = '';
+        $this->searchAll = false;
+    }
+
+    /**
+     * Whether the list shows search results from every month instead of the month shown.
+     */
+    public function searchesAllMonths(): bool
+    {
+        return $this->searchAll && trim($this->search) !== '';
     }
 
     #[On('budget-updated')]
     public function refresh(): void
     {
         unset($this->period, $this->days, $this->overview, $this->neighbours, $this->closePreview, $this->fixedItems, $this->filterCategories, $this->editCategories);
+    }
+
+    /**
+     * The month against its plan: how far "if you spend every budget in full" is from the
+     * planned leftover, and why.
+     */
+    #[Computed]
+    public function deviation(): \App\Services\Data\PlanDeviation
+    {
+        return $this->overview->deviation;
     }
 
     #[Computed]
@@ -351,10 +379,12 @@ new #[Title('Month')] class extends Component {
     }
 
     /**
-     * Rows grouped by day, newest first: spending, "didn't spend" marks and the payday.
-     * A category filter or a search shows the matching spending only.
+     * Rows grouped by day, newest first: spending, money moved between pockets and the budget,
+     * "didn't spend" marks and the payday. The day's total is what came out of the budget:
+     * spending paid from a pocket is listed but not added. A category filter or a search shows
+     * the matching spending only; a search over every month shows the newest matches of all.
      *
-     * @return list<array{date: CarbonImmutable, total: int, payday: bool, rows: list<array<string, mixed>>}>
+     * @return list<array{date: CarbonImmutable, total: int, payday: bool, fromPocket: bool, rows: list<array<string, mixed>>}>
      */
     #[Computed]
     public function days(): array
@@ -365,7 +395,8 @@ new #[Title('Month')] class extends Component {
         $search = trim($this->search);
         $days = [];
 
-        $transactions = $period->transactions()->with(['category', 'pocket'])
+        $allMonths = $this->searchesAllMonths();
+        $transactions = ($allMonths ? $this->user()->transactions()->with('period')->limit(self::SEARCH_ALL_LIMIT) : $period->transactions())->with(['category', 'pocket'])
             ->when($this->categoryId, fn ($query, int $categoryId) => $query->where('category_id', $categoryId))
             ->when($search !== '', function ($query) use ($search, $currency): void {
                 $searchAmount = $this->searchAmount($search, $currency);
@@ -382,9 +413,11 @@ new #[Title('Month')] class extends Component {
 
         foreach ($transactions as $transaction) {
             $key = $transaction->occurred_on->toDateString();
-            $days[$key] ??= ['date' => $transaction->occurred_on, 'total' => 0, 'payday' => false, 'rows' => []];
+            $days[$key] ??= ['date' => $transaction->occurred_on, 'total' => 0, 'payday' => false, 'fromPocket' => false, 'rows' => []];
             if ($transaction->pocket_id === null) {
                 $days[$key]['total'] += $transaction->amount;
+            } else {
+                $days[$key]['fromPocket'] = true;
             }
             $days[$key]['rows'][] = [
                 'kind' => 'spending',
@@ -403,6 +436,8 @@ new #[Title('Month')] class extends Component {
                     'note' => $transaction->note ?? '',
                     'pocket' => $transaction->pocket?->name,
                     'pocketArchived' => $transaction->pocket?->trashed() ?? false,
+                    // A result from another, closed month can only be looked at.
+                    'readonly' => $allMonths && ! ($transaction->period?->isOpen() ?? false),
                 ],
             ];
         }
@@ -415,18 +450,30 @@ new #[Title('Month')] class extends Component {
 
             foreach ($marks as $mark) {
                 $key = $mark->date->toDateString();
-                $days[$key] ??= ['date' => $mark->date, 'total' => 0, 'payday' => false, 'rows' => []];
+                $days[$key] ??= ['date' => $mark->date, 'total' => 0, 'payday' => false, 'fromPocket' => false, 'rows' => []];
                 $days[$key]['rows'][] = ['kind' => 'no-spend', 'markedAt' => $mark->created_at?->setTimezone($this->user()->settings()->timezone)->format('H:i')];
+            }
+
+            // Money moved between a pocket and this month's budget, as the pocket sheet recorded it.
+            $moves = \App\Models\PocketMovement::query()->with('pocket')
+                ->where('period_id', $period->id)->where('to_budget', true)
+                ->orderByDesc('id')->get();
+
+            foreach ($moves as $move) {
+                $key = $move->occurred_on->toDateString();
+                $days[$key] ??= ['date' => $move->occurred_on, 'total' => 0, 'payday' => false, 'fromPocket' => false, 'rows' => []];
+                $days[$key]['rows'][] = ['kind' => $move->amount > 0 ? 'to-pocket' : 'from-pocket', 'pocket' => $move->pocket->name ?? '', 'amount' => abs($move->amount), 'note' => $move->note];
             }
 
             if (! $period->starts_on->greaterThan($today)) {
                 $key = $period->starts_on->toDateString();
-                $fixed = $this->overview->fixedItems;
-                $days[$key] ??= ['date' => $period->starts_on, 'total' => 0, 'payday' => true, 'rows' => []];
+                // Skipped items count as 0, so they are not among what the fixed items take.
+                $fixed = array_values(array_filter($this->overview->fixedItems, fn (FixedItem $item): bool => ! $item->isSkipped()));
+                $days[$key] ??= ['date' => $period->starts_on, 'total' => 0, 'payday' => true, 'fromPocket' => false, 'rows' => []];
                 $days[$key]['payday'] = true;
                 $days[$key]['rows'][] = ['kind' => 'income', 'amount' => $period->income()];
                 if ($fixed !== []) {
-                    $days[$key]['rows'][] = ['kind' => 'fixed', 'count' => count($fixed), 'amount' => array_sum(array_map(fn ($item) => $item->line->counted(), $fixed))];
+                    $days[$key]['rows'][] = ['kind' => 'fixed', 'count' => count($fixed), 'amount' => array_sum(array_map(fn (FixedItem $item): int => $item->line->counted(), $fixed))];
                 }
             }
         }
@@ -519,7 +566,7 @@ new #[Title('Month')] class extends Component {
     $navClasses = 'aria-disabled:cursor-default aria-disabled:bg-transparent aria-disabled:text-muted aria-disabled:ring-1 aria-disabled:ring-inset aria-disabled:ring-line aria-disabled:active:scale-100';
 @endphp
 
-<div x-data="monthPage({
+<div @if (! $period->isOpen()) data-hides-record-button @endif x-data="monthPage({
         decimals: {{ $currency->decimals() }},
         locale: @js(str_replace('_', '-', app()->getLocale())),
         today: @js($today->toDateString()),
@@ -562,18 +609,37 @@ new #[Title('Month')] class extends Component {
         @if ($period->isOpen())
             @php
                 $closeLeftover = $this->closePreview->leftover();
-                $closeDiff = $closeLeftover - $this->closePreview->plannedLeftover();
+                $deviation = $this->deviation;
+                $deviationAmount = $deviation->amount();
             @endphp
             <div class="mb-3.5 border-b border-line pb-3.5" data-test="close-now">
-                <div class="num flex items-baseline justify-between text-[13px] text-muted">
-                    <span>{{ __('If you closed today') }}</span>
-                    <span>{{ __('vs. the plan') }}</span>
-                </div>
-                <div class="mt-1 flex items-baseline justify-between gap-3">
-                    <x-ui.amount :value="$closeLeftover" size="lg" :tone="$closeLeftover >= 0 ? 'accent' : 'danger'" class="[&>span:first-child]:text-[26px]" />
-                    <span @class(['num text-[17px] font-semibold', 'text-accent' => $closeDiff > 0, 'text-danger' => $closeDiff < 0, 'text-muted' => $closeDiff === 0])>{{ $closeDiff > 0 ? '+' : '' }}{{ money($closeDiff) }}</span>
-                </div>
+                <div class="text-[13px] text-muted">{{ __('If the month ended today') }}</div>
+                <x-ui.amount :value="$closeLeftover" size="lg" :tone="$closeLeftover >= 0 ? 'accent' : 'danger'" class="mt-1 [&>span:first-child]:text-[26px]" />
                 <div class="mt-1.5 text-xs text-pretty text-muted">{{ __('Based on your spending so far: what you have not spent yet counts as leftover.') }}</div>
+            </div>
+            {{-- ForecastService::deviation(): "if you spend every budget in full" against the planned leftover. --}}
+            <div class="mb-3.5 border-b border-line pb-3.5" data-test="plan-deviation">
+                <div @class(['num text-[15px] font-semibold', 'text-accent-strong' => $deviationAmount > 0, 'text-danger' => $deviationAmount < 0, 'text-ink' => $deviationAmount === 0]) data-test="plan-deviation-verdict">
+                    @if ($deviationAmount > 0)
+                        {{ __(':amount better than the plan', ['amount' => money($deviationAmount)]) }}
+                    @elseif ($deviationAmount < 0)
+                        {{ __(':amount over the plan', ['amount' => money(-$deviationAmount)]) }}
+                    @else
+                        {{ __('You are on plan') }}
+                    @endif
+                </div>
+                @if ($deviation->items !== [])
+                    <ul class="num mt-1.5 text-[13px]" aria-label="{{ __('Why it differs from the plan') }}" data-test="plan-deviation-items">
+                        @foreach ($deviation->items as $deviationItem)
+                            <li class="flex justify-between gap-3 py-0.5">
+                                <span class="min-w-0 truncate text-muted">{{ $deviationItem->label() }}</span>
+                                <span @class(['shrink-0', 'text-danger' => $deviationItem->reason === \App\Enums\DeviationReason::Overspent, 'text-ink-2' => $deviationItem->reason !== \App\Enums\DeviationReason::Overspent])>{{ $deviationItem->amount > 0 ? '+'.money($deviationItem->amount) : '−'.money(-$deviationItem->amount) }}</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <div class="mt-1 text-xs text-pretty text-muted">{{ __('Only going over a budget, a skipped fixed item or a pocket move changes this.') }}</div>
+                @endif
             </div>
         @endif
 
@@ -616,26 +682,42 @@ new #[Title('Month')] class extends Component {
     {{-- Closed month: plan against actual per variable category, from the closing record. --}}
     @if ($this->closedBreakdown !== [])
         <div class="mx-4 mt-3 rounded-[22px] bg-surface px-2 py-1.5" data-test="closed-breakdown">
-            <div class="grid grid-cols-[minmax(0,1fr)_64px_64px_70px] gap-1.5 px-2.5 pb-1.5 pt-2.5 text-xs font-semibold text-muted">
-                <span>{{ __('Category') }}</span><span class="text-right">{{ __('Plan') }}</span><span class="text-right">{{ __('Actual') }}</span><span class="text-right">{{ __('Diff.') }}</span>
-            </div>
-            @foreach ($this->closedBreakdown as $row)
-                <div wire:key="closed-row-{{ $row['category_id'] }}" @class([
-                    'num grid grid-cols-[minmax(0,1fr)_64px_64px_70px] items-center gap-1.5 rounded-[14px] px-2.5 py-[11px] text-sm',
-                    'bg-warn/12' => $row['diff'] > 0,
-                    'bg-accent/8' => $row['diff'] < 0 && $row['deviates'],
-                ]) @if ($row['diff'] > 0) data-test="over-budget-row" @endif>
-                    <span class="min-w-0"><span class="block truncate">{{ $row['name'] }}</span>@if ($row['skipped'])<span class="block text-xs text-muted" data-test="skipped-row">{{ __('not paid') }}</span>@endif</span>
-                    <span class="text-right text-muted">{{ money_number($row['planned']) }}</span>
-                    <span class="text-right">{{ money_number($row['actual']) }}</span>
-                    <span @class(['text-right font-semibold', 'text-warn' => $row['diff'] > 0, 'text-accent' => $row['diff'] < 0, 'text-muted' => $row['diff'] === 0])>
-                        {{ $row['diff'] > 0 ? '+' : '' }}{{ $row['diff'] === 0 ? '0' : money_number($row['diff']) }}
-                    </span>
-                    @if ($row['diff'] !== 0)
-                        <span class="col-span-4 -mt-1 text-xs leading-snug text-ink-2" data-test="closed-row-verdict">{{ $row['diff'] > 0 ? __('over the budget by :amount', ['amount' => money($row['diff'])]) : __('under the budget by :amount', ['amount' => money(-$row['diff'])]) }}</span>
-                    @endif
-                </div>
-            @endforeach
+            <table class="num w-full table-fixed border-separate border-spacing-0 text-sm">
+                <caption class="sr-only">{{ __('Plan against actual, by category') }}</caption>
+                <colgroup><col><col class="w-16"><col class="w-16"><col class="w-[70px]"></colgroup>
+                <thead>
+                    <tr class="text-xs font-semibold text-muted">
+                        <th scope="col" class="px-2.5 pb-1.5 pt-2.5 text-left font-semibold">{{ __('Category') }}</th>
+                        <th scope="col" class="pb-1.5 pl-1.5 pt-2.5 text-right font-semibold">{{ __('Plan') }}</th>
+                        <th scope="col" class="pb-1.5 pl-1.5 pt-2.5 text-right font-semibold">{{ __('Actual') }}</th>
+                        <th scope="col" class="pb-1.5 pl-1.5 pr-2.5 pt-2.5 text-right font-semibold">{{ __('Diff.') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($this->closedBreakdown as $row)
+                        @php
+                            // Going over a budget is red, with words; a skipped fixed item just says so.
+                            $over = $row['diff'] > 0;
+                            $cell = $over ? 'bg-danger/10' : ($row['diff'] < 0 && $row['deviates'] && ! $row['skipped'] ? 'bg-accent/8' : '');
+                        @endphp
+                        <tr wire:key="closed-row-{{ $row['category_id'] }}" @if ($over) data-test="over-budget-row" @endif>
+                            <th scope="row" @class(['rounded-l-[14px] px-2.5 py-[11px] text-left align-top font-normal', $cell])>
+                                <span class="block truncate">{{ $row['name'] }}</span>
+                                @if ($row['skipped'])
+                                    <span class="block text-xs text-muted" data-test="skipped-row">{{ __('not paid') }}</span>
+                                @elseif ($row['diff'] !== 0)
+                                    <span @class(['block text-xs leading-snug', 'text-danger' => $over, 'text-ink-2' => ! $over]) data-test="closed-row-verdict">{{ $over ? __('over the budget by :amount', ['amount' => money($row['diff'])]) : __('under the budget by :amount', ['amount' => money(-$row['diff'])]) }}</span>
+                                @endif
+                            </th>
+                            <td @class(['py-[11px] pl-1.5 text-right align-top text-muted', $cell])>{{ money_number($row['planned']) }}</td>
+                            <td @class(['py-[11px] pl-1.5 text-right align-top', $cell])>{{ money_number($row['actual']) }}</td>
+                            <td @class(['rounded-r-[14px] py-[11px] pl-1.5 pr-2.5 text-right align-top font-semibold', $cell, 'text-danger' => $over, 'text-accent' => $row['diff'] < 0, 'text-muted' => $row['diff'] === 0])>
+                                {{ $over ? '+' : '' }}{{ $row['diff'] === 0 ? '0' : money_number($row['diff']) }}
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
         </div>
     @endif
 
@@ -649,6 +731,7 @@ new #[Title('Month')] class extends Component {
             $fixedDone = count(array_filter($this->fixedItems, fn ($item) => $item->paid));
             $fixedDue = count(array_filter($this->fixedItems, fn ($item) => $item->isOverdue($today)));
             $fixedSkipped = count(array_filter($this->fixedItems, fn ($item) => $item->isSkipped()));
+            $fixedLeft = count($this->fixedItems) - $fixedDone - $fixedSkipped;
         @endphp
         <x-ui.card class="mx-4 mt-3 px-[18px]" data-test="fixed-items"
                    x-data="{
@@ -664,7 +747,7 @@ new #[Title('Month')] class extends Component {
                 <span class="min-w-0">
                     <span class="block text-[15px] font-semibold">{{ __('Fixed items') }}</span>
                     <span class="num mt-0.5 block text-[13px] text-muted">
-                        {{ __(':done of :count done', ['done' => $fixedDone, 'count' => count($this->fixedItems)]) }}@if ($fixedDue > 0)<span class="font-medium text-warn" data-test="fixed-due"> · {{ __(':count due', ['count' => $fixedDue]) }}</span>@endif@if ($fixedSkipped > 0)<span data-test="fixed-skipped"> · {{ __(':count not paid', ['count' => $fixedSkipped]) }}</span>@endif
+                        {{ __(':count done', ['count' => $fixedDone]) }}@if ($fixedSkipped > 0)<span data-test="fixed-skipped"> · {{ __(':count skipped', ['count' => $fixedSkipped]) }}</span>@endif@if ($fixedLeft > 0) · {{ __(':count left', ['count' => $fixedLeft]) }}@endif@if ($fixedDue > 0)<span class="font-medium text-warn" data-test="fixed-due"> · {{ __(':count due', ['count' => $fixedDue]) }}</span>@endif
                     </span>
                 </span>
                 <x-ui.icon name="expand_more" :size="22" class="text-muted transition-transform" x-bind:class="open && 'rotate-180'" />
@@ -685,7 +768,13 @@ new #[Title('Month')] class extends Component {
                    placeholder="{{ __('Search notes or amounts') }}" aria-label="{{ __('Search notes or amounts') }}"
                    class="min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-muted" data-test="month-search">
         </label>
-        @if ($this->filterCategories->isNotEmpty())
+        @if (trim($search) !== '')
+            <label class="mt-2 flex min-h-11 items-center gap-2.5 px-1.5 text-[13px] text-ink-2" data-test="search-all">
+                <input type="checkbox" wire:model.live="searchAll" class="size-[18px] accent-[var(--app-accent)]">
+                {{ __('Search in every month') }}
+            </label>
+        @endif
+        @if ($this->filterCategories->isNotEmpty() && ! $this->searchesAllMonths())
             <div class="no-scrollbar -mx-4 mt-2 flex gap-2 overflow-x-auto px-4" role="group" aria-label="{{ __('Filter by category') }}" data-test="category-filter">
                 <x-ui.choice :selected="$categoryId === null" wire:click="$set('categoryId', null)" class="shrink-0 rounded-xl px-3.5 text-[13px]">{{ __('All') }}</x-ui.choice>
                 @foreach ($this->filterCategories as $filterCategory)
@@ -699,7 +788,11 @@ new #[Title('Month')] class extends Component {
         <div class="px-4" wire:key="day-{{ $day['date']->toDateString() }}">
             <div class="num flex justify-between px-1.5 pb-2 pt-[18px] text-[13px]">
                 <span class="font-semibold text-ink-2">{{ Dates::day($day['date'], $today) }}@if ($day['payday']) · {{ __('Payday') }}@endif</span>
-                @if ($day['total'] > 0 || ! $day['payday'])<span class="text-muted">{{ money($day['total']) }}</span>@endif
+                @if ($day['fromPocket'])
+                    <span class="text-muted" data-test="day-total">{{ __(':amount from the budget', ['amount' => money($day['total'])]) }}</span>
+                @elseif ($day['total'] > 0 || ! $day['payday'])
+                    <span class="text-muted" data-test="day-total">{{ money($day['total']) }}</span>
+                @endif
             </div>
             <div class="rounded-[20px] bg-surface px-4">
                 @foreach ($day['rows'] as $row)
@@ -708,14 +801,20 @@ new #[Title('Month')] class extends Component {
                         <button type="button" x-on:click="openEdit(@js($row['edit']))" wire:key="transaction-{{ $row['id'] }}"
                                 @class(['focus-ring grid w-full grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-[11px] text-left', 'border-b border-line' => $border]) data-test="transaction">
                             <x-ui.icon-tile :icon="$row['icon']" :size="36" />
-                            <span class="min-w-0"><span class="block truncate text-[15px]">{{ $row['title'] }}</span>@if ($row['pocket'])<span class="mt-0.5 block truncate text-xs text-accent">{{ __('paid from :pocket', ['pocket' => $row['pocket']]) }}</span>@elseif ($row['note'])<span class="mt-0.5 block truncate text-xs text-muted">{{ $row['note'] }}</span>@endif</span>
-                            <x-ui.amount size="sm" :value="$row['amount']" class="text-[15px] font-medium" />
+                            <span class="min-w-0"><span class="block truncate text-[15px]">{{ $row['title'] }}</span>@if ($row['pocket'])<span class="mt-0.5 block truncate text-xs text-accent-strong">{{ __('paid from :pocket', ['pocket' => $row['pocket']]) }}@if ($row['note']) · {{ $row['note'] }}@endif</span>@elseif ($row['note'])<span class="mt-0.5 block truncate text-xs text-muted">{{ $row['note'] }}</span>@endif</span>
+                            <x-ui.amount size="sm" :value="$row['amount']" @class(['text-[15px] font-medium', 'text-ink-2' => $row['pocket']]) />
                         </button>
                     @elseif ($row['kind'] === 'no-spend')
                         <div @class(['grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-[11px]', 'border-b border-line' => $border])>
                             <x-ui.icon-tile icon="do_not_disturb_on" tone="accent" :size="36" />
                             <span><span class="block text-[15px] text-ink-2">{{ __("Didn't spend") }}</span>@if ($row['markedAt'])<span class="mt-0.5 block text-xs text-muted">{{ __('marked at :time', ['time' => $row['markedAt']]) }}</span>@endif</span>
                             <span></span>
+                        </div>
+                    @elseif (in_array($row['kind'], ['to-pocket', 'from-pocket'], true))
+                        <div @class(['grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-[11px]', 'border-b border-line' => $border]) data-test="pocket-move">
+                            <x-ui.icon-tile icon="savings" tone="accent" :size="36" />
+                            <span class="min-w-0"><span class="block truncate text-[15px]">{{ $row['kind'] === 'to-pocket' ? __('Put into pockets') : __('From pockets into the budget') }}</span><span class="mt-0.5 block truncate text-xs text-muted">{{ $row['pocket'] }}@if ($row['note']) · {{ $row['note'] }}@endif</span></span>
+                            <span @class(['num whitespace-nowrap text-[15px] font-medium', 'text-accent-strong' => $row['kind'] === 'from-pocket'])>{{ $row['kind'] === 'from-pocket' ? '+' : '−' }}{{ money($row['amount']) }}</span>
                         </div>
                     @elseif ($row['kind'] === 'income')
                         <div @class(['grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-[11px]', 'border-b border-line' => $border])>
@@ -739,7 +838,7 @@ new #[Title('Month')] class extends Component {
         <div class="flex flex-col items-center gap-2.5 px-10 pb-6 pt-12 text-center" data-test="no-results">
             <x-ui.icon-tile icon="receipt_long" tone="muted" :size="56" class="!bg-surface" />
             <div class="mt-1 text-lg font-semibold">{{ __('No matching spending') }}</div>
-            <div class="text-sm leading-normal text-pretty text-muted">{{ __('Nothing in this month matches the search or the category.') }}</div>
+            <div class="text-sm leading-normal text-pretty text-muted">{{ $this->searchesAllMonths() ? __('No spending in any month matches the search.') : __('Nothing in this month matches the search or the category.') }}</div>
             <x-ui.button size="md" variant="secondary" wire:click="clearFilters" class="mt-2" data-test="clear-filters">{{ __('Clear filters') }}</x-ui.button>
         </div>
     @elseif (! $hasSpending)
@@ -762,6 +861,7 @@ new #[Title('Month')] class extends Component {
            x-text="@js(__('Paid from the archived :pocket pocket, so its amount cannot change.')).replace(':pocket', edit?.pocket ?? '')"></p>
 
         @if ($period->isOpen())
+            <div x-show="! edit?.readonly">
             <x-ui.form-group>
                 <x-ui.amount-row name="amount" :label="__('Amount')" fallback="0" x-show="! edit?.pocketArchived" data-test="edit-amount" />
                 <x-ui.select-row :label="__('Category')" x-model.number="form.category" data-test="edit-category">
@@ -778,16 +878,19 @@ new #[Title('Month')] class extends Component {
             <div class="mt-4 flex justify-center">
                 <button type="button" x-on:click="remove()" :disabled="saving" class="focus-ring flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-medium text-danger" data-test="delete-transaction"><x-ui.icon name="delete" :size="18" />{{ __('Delete entry') }}</button>
             </div>
-        @else
+            </div>
+        @endif
+        <div @if ($period->isOpen()) x-show="edit?.readonly" @endif>
             <div class="pb-2 text-center text-sm text-muted">
                 <span x-text="dateLabel(edit?.date)"></span><span x-show="edit?.note"> · </span><span x-text="edit?.note"></span>
             </div>
             <p class="px-6 pb-2 text-center text-xs text-muted">{{ __('The month is closed, so its spending cannot change.') }}</p>
-        @endif
+        </div>
 
         <x-slot:footer>
             @if ($period->isOpen())
-                <x-ui.button x-on:click="save()" ::disabled="saving" class="w-full" data-test="save-transaction">{{ __('Save') }}</x-ui.button>
+                <x-ui.button x-show="! edit?.readonly" x-on:click="save()" ::disabled="saving" class="w-full" data-test="save-transaction">{{ __('Save') }}</x-ui.button>
+                <x-ui.button variant="secondary" x-show="edit?.readonly" x-on:click="closeEdit()" class="w-full">{{ __('Close') }}</x-ui.button>
             @else
                 <x-ui.button variant="secondary" x-on:click="closeEdit()" class="w-full">{{ __('Close') }}</x-ui.button>
             @endif

@@ -1,7 +1,7 @@
 @props(['open' => false, 'dismiss' => 'dismissIntro'])
 
 {{--
-    "How it works": three cards (plan, recording spending, closing) shown once after onboarding
+    "How it works": four cards (plan, recording spending, the two numbers, closing) shown once after onboarding
     and reopened from Settings. Closing it in any way calls the Livewire `dismiss` method, which
     remembers it server-side.
 --}}
@@ -9,7 +9,8 @@
     $cards = [
         ['icon' => 'edit_note', 'title' => __('1. The plan'), 'body' => __('Your monthly income, fixed items and variable budgets. The leftover is calculated from these. You can change them any time on the Plan screen.')],
         ['icon' => 'add', 'title' => __('2. Recording spending'), 'body' => __('Fixed items are already in the plan, so you only write down the variable spending with the + button. If you did not spend anything, one tap tells the app.')],
-        ['icon' => 'task_alt', 'title' => __('3. Closing the period'), 'body' => __('At the end of the period you close it: you see the plan next to what really happened and decide where the leftover goes. The app only keeps track, you move the money in your bank yourself.')],
+        ['icon' => 'savings', 'title' => __('3. The two numbers'), 'body' => __('The big number: what would be left if the month ended today. The smaller one: what is left if you spend every budget in full.')],
+        ['icon' => 'task_alt', 'title' => __('4. Closing the month'), 'body' => __('At the end of the period you close it: you see the plan next to what really happened and decide where the leftover goes. The app only keeps track, you move the money in your bank yourself.')],
     ];
 @endphp
 

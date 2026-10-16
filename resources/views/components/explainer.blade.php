@@ -11,11 +11,12 @@
         // PeriodCloser::preview()->leftover(): the same figure as the Month page and the closing.
         'leftover' => [
             'title' => __('Leftover as things stand'),
-            'lead' => __('What would be left if you closed the period today.'),
+            'lead' => __('What would be left if the month ended today.'),
             'notes' => [
                 __('Fixed items, transfers, loan installments and monthly savings count with their full planned amount; the variable categories only with what you have spent so far.'),
                 __('So the part of the variable budgets you have not spent yet is still in this number: early in the period it is high and it goes down as you spend.'),
-                __('Money added to the budget from a pocket counts as income; spending paid from a pocket does not count.'),
+                __('Money added to the budget from a pocket counts as income, money put into a pocket is taken off; spending paid from a pocket does not count.'),
+                __('A fixed item skipped this month counts as 0.'),
             ],
         ],
         // ForecastService::forecast()->expectedLeftover: variable categories with max(budget, spent).
@@ -27,12 +28,13 @@
                 __('As long as you stay within your budgets, this is the leftover your plan expects. Whatever you spend over a budget lowers it.'),
             ],
         ],
-        // ForecastService::dailyAllowance(): (variable budget − variable spent) / remaining days incl. today.
+        // ForecastService::dailyAllowance(): (variable budget + net pocket moves − variable spent) / remaining days incl. today.
         'daily' => [
             'title' => __('You can still spend today'),
             'lead' => __('What is left of your variable budgets, spread evenly over the remaining days, today included.'),
             'notes' => [
                 __('Today’s spending is already taken off, so the amount is recalculated after every entry. Fixed items are not in it.'),
+                __('Money taken from a pocket into the budget raises it, money put into a pocket lowers it.'),
                 __('If spending every budget in full would end the period in the red, it shows 0.'),
             ],
         ],
@@ -47,7 +49,7 @@
         <x-ui.icon name="info" :size="18" />
     </button>
 
-    <x-ui.sheet show="explain" close="explain = false" :label="$entry['title']" :full="false" data-test="explainer-{{ $topic }}">
+    <x-ui.sheet show="explain" close="explain = false" :label="$entry['title']" :close-label="__('Got it')" :full="false" data-test="explainer-{{ $topic }}">
         <div class="whitespace-normal pt-2 text-left font-sans text-[15px] leading-relaxed text-ink-2">
             <p class="text-ink">{{ $entry['lead'] }}</p>
 

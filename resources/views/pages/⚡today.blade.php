@@ -39,10 +39,19 @@ new #[Title('Today')] class extends Component {
         $this->showIntro = false;
     }
 
-    /** How many fixed items the checklist shows before "+N more". */
+    /** How many open fixed items the checklist shows before "+N more"; done ones always show. */
     public const int FIXED_PREVIEW = 4;
 
     public bool $showAllFixed = false;
+
+    /**
+     * The fixed items already paid or skipped when the page was opened: they sit at the bottom
+     * of the checklist, dimmed, and never fold away.
+     *
+     * @var list<int>
+     */
+    #[Locked]
+    public array $doneAtLoad = [];
 
     /**
      * The fixed items' order when the page was opened, so a ticked item does not jump away.
@@ -63,6 +72,10 @@ new #[Title('Today')] class extends Component {
         $items = $this->overview->fixedItems;
         $ids = array_values(array_filter(array_map(fn (FixedItem $item): ?int => $item->line->lineId, $items), fn (?int $id): bool => $id !== null));
 
+        if ($this->fixedOrder === []) {
+            $this->doneAtLoad = array_values(array_filter(array_map(fn (FixedItem $item): ?int => $item->status() === LineStatus::Open ? null : $item->line->lineId, $items), fn (?int $id): bool => $id !== null));
+        }
+
         $this->fixedOrder = $this->fixedOrder === []
             ? $ids
             : [...array_values(array_intersect($this->fixedOrder, $ids)), ...array_values(array_diff($ids, $this->fixedOrder))];
@@ -82,7 +95,7 @@ new #[Title('Today')] class extends Component {
     }
 
     /**
-     * Mark a plain fixed item as not paid this period: it counts as 0.
+     * Skip a plain fixed item this period: it counts as 0.
      */
     public function skipLine(int $budgetLineId): void
     {
@@ -90,7 +103,7 @@ new #[Title('Today')] class extends Component {
     }
 
     /**
-     * Set an item marked as not paid back to due.
+     * A skipped item comes up after all: back to due.
      */
     public function unskipLine(int $budgetLineId): void
     {
@@ -246,38 +259,68 @@ new #[Title('Today')] class extends Component {
     $forecastNegative = $forecast->expectedLeftover < 0;
     $categories = $forecast->categories;
     $over = array_values(array_filter($categories, fn ($c) => $c->isOver()));
-    $fixed = $this->fixedItems;
-    $visibleFixed = $this->showAllFixed ? $fixed : array_slice($fixed, 0, $this::FIXED_PREVIEW);
-    $hiddenFixed = $this->showAllFixed ? [] : array_slice($fixed, $this::FIXED_PREVIEW);
     $dailyShown = $forecastNegative ? 0 : $forecast->dailyAllowance;
+    // The part of the variable budgets not spent yet: it is in the big number, not in "if you spend every budget".
+    $unspentBudget = $forecast->variableExpected - $forecast->variableSpent;
+
+    // The checklist keeps the order the page opened with. Items already done then sit at the bottom
+    // and stay visible (dimmed); only further open items fold away behind "+N".
+    $fixed = $this->fixedItems;
+    $openPositions = 0;
+    $visibleFixed = [];
+    $hiddenFixed = [];
+    foreach ($fixed as $item) {
+        $isOpenAtLoad = ! in_array($item->line->lineId, $this->doneAtLoad, true);
+        if ($this->showAllFixed || ! $isOpenAtLoad || $openPositions < $this::FIXED_PREVIEW) {
+            $visibleFixed[] = $item;
+        } else {
+            $hiddenFixed[] = $item;
+        }
+        $openPositions += $isOpenAtLoad ? 1 : 0;
+    }
+    $dueItems = $period->isOpen() ? array_values(array_filter($fixed, fn ($item) => $item->isOverdue($overview->today))) : [];
 
     // The period's own numbers for the "how is this calculated" sheets.
+    $minus = fn (int $amount): string => $amount > 0 ? '−'.money($amount) : money(0);
     $preview = $this->closePreview;
     $previewRows = collect($preview->categories);
     $variableType = \App\Enums\LineType::Variable->value;
-    $leftoverRows = array_values(array_filter([
+    $fixedPlanned = (int) $previewRows->where('type', '!=', $variableType)->sum('planned');
+    $skippedTotal = (int) $previewRows->where('type', '!=', $variableType)->where('skipped', true)->sum(fn ($row) => $row['planned'] - $row['actual']);
+    $pocketRows = array_filter([
+        $forecast->pocketWithdrawals > 0 ? [__('From pockets into the budget'), '+'.money($forecast->pocketWithdrawals)] : null,
+        $forecast->pocketDeposits > 0 ? [__('Put into pockets'), '−'.money($forecast->pocketDeposits)] : null,
+    ]);
+    $fixedRows = array_filter([
+        [__('Fixed items, transfers, installments, savings'), $minus($fixedPlanned)],
+        $skippedTotal > 0 ? [__('Skipped this month'), '+'.money($skippedTotal)] : null,
+    ]);
+    $leftoverRows = [
         [__('Income'), money($preview->incomeActual)],
-        $preview->topUps > 0 ? [__('Added to the budget from pockets'), '+'.money($preview->topUps)] : null,
-        $preview->topUps < 0 ? [__('Put into pockets from the budget'), '−'.money(-$preview->topUps)] : null,
-        [__('Fixed items, transfers, installments, savings'), '−'.money($previewRows->where('type', '!=', $variableType)->sum('actual'))],
-        [__('Variable spending so far'), '−'.money($previewRows->where('type', $variableType)->sum('actual'))],
+        ...$pocketRows,
+        ...$fixedRows,
+        [__('Variable spending so far'), $minus((int) $previewRows->where('type', $variableType)->sum('actual'))],
         [__('Leftover as things stand'), money($current)],
-    ]));
+    ];
     $ifSpentRows = [
-        [__('Income, with money moved to and from pockets'), money($forecast->income)],
-        [__('Fixed items, transfers, installments, savings'), '−'.money($forecast->committed)],
-        [__('Variable budgets (or spending, where more)'), '−'.money($forecast->variableExpected)],
+        [__('Income'), money($forecast->baseIncome)],
+        ...$pocketRows,
+        ...$fixedRows,
+        [__('Variable budgets (or spending, where more)'), $minus($forecast->variableExpected)],
         [__('If you spend every budget in full'), money($forecast->expectedLeftover)],
     ];
     $dailyRows = [
         [__('Variable budgets'), money($forecast->variablePlanned)],
-        [__('Spent so far'), '−'.money($forecast->variableSpent)],
+        ...$pocketRows,
+        [__('Spent so far'), $minus($forecast->variableSpent)],
         [__('Days left, today included'), trans_choice('{1} :count day|[2,*] :count days', $forecast->remainingDays, ['count' => $forecast->remainingDays])],
         [__('Per day'), money($dailyShown)],
     ];
 @endphp
 
 <div @class(['min-h-dvh', 'bg-[radial-gradient(120%_40%_at_30%_0%,rgba(242,85,90,0.12),rgba(242,85,90,0)_70%)]' => $negative])>
+    <h1 class="sr-only">{{ __('Today') }}</h1>
+
     <div class="flex items-center justify-between px-5 pt-6">
         <div class="flex h-[34px] items-center gap-2 rounded-full bg-surface px-3.5 text-[13px] font-medium text-ink-2" data-test="period-chip">
             <span @class(['size-1.5 rounded-full', 'bg-danger' => $negative, 'bg-accent' => ! $negative])></span>
@@ -285,7 +328,7 @@ new #[Title('Today')] class extends Component {
         </div>
     </div>
 
-    <section class="px-6 pb-[26px] pt-[30px]" data-test="expected-leftover">
+    <section class="px-6 pb-[22px] pt-[30px]" data-test="expected-leftover">
         <div class="flex items-center gap-1 text-sm text-muted">
             <span>{{ __('Leftover as things stand') }}</span>
             <x-explainer topic="leftover" :rows="$leftoverRows" />
@@ -296,13 +339,32 @@ new #[Title('Today')] class extends Component {
             @endif
         </div>
         <x-ui.amount :value="$current" size="hero" :tone="$negative ? 'danger' : 'accent'" class="mt-1.5" />
-        <div class="num mt-2.5 text-sm text-muted" data-test="leftover-if-spent">
-            <div>
-                <span @class(['text-danger' => $forecastNegative])>{{ __('If you spend every budget in full: :amount', ['amount' => money($forecast->expectedLeftover)]) }}</span><x-explainer topic="if-spent" :rows="$ifSpentRows" />
-            </div>
-            <div class="mt-0.5">{{ trans_choice('{1} :count day left|[2,*] :count days left', $forecast->remainingDays, ['count' => $forecast->remainingDays]) }}</div>
+        @if ($unspentBudget > 0)
+            <p class="num mt-2 text-xs text-pretty text-muted" data-test="unspent-budget">{{ __('This includes your budget not spent yet: :amount', ['amount' => money($unspentBudget)]) }}</p>
+        @endif
+        <div class="num mt-3 text-[15px] font-medium" data-test="leftover-if-spent">
+            <span @class(['text-danger' => $forecastNegative, 'text-ink' => ! $forecastNegative])>{{ __('If you spend every budget in full: :amount', ['amount' => money($forecast->expectedLeftover)]) }}</span><x-explainer topic="if-spent" :rows="$ifSpentRows" />
         </div>
+        <div class="num mt-0.5 text-sm text-muted">{{ trans_choice('{1} :count day left|[2,*] :count days left', $forecast->remainingDays, ['count' => $forecast->remainingDays]) }}</div>
     </section>
+
+    <div class="mx-4 mb-3 flex items-center justify-between gap-3 rounded-card bg-surface px-5 py-[18px]" data-test="daily-allowance">
+        <div class="min-w-0">
+            <div class="flex items-center gap-1 text-[13px] text-muted">
+                <span>{{ __('You can still spend today') }}</span>
+                <x-explainer topic="daily" :rows="$dailyRows" />
+            </div>
+            <x-ui.amount :value="$dailyShown" size="lg" :tone="$forecastNegative ? 'muted' : null" class="mt-1" />
+            @if ($forecastNegative)
+                <span class="mt-1.5 block text-xs text-muted">{{ $this->isPaydayPeriod ? __('Every further spending lowers the leftover at payday.') : __('Every further spending lowers the month-end leftover.') }}</span>
+            @endif
+        </div>
+        <button type="button" x-data x-on:click="$dispatch('open-entry')"
+                class="focus-ring inline-flex h-11 shrink-0 items-center gap-1 rounded-full bg-accent/14 pl-3 pr-4 text-sm font-semibold text-accent transition active:scale-[0.98]"
+                data-test="daily-record">
+            <x-ui.icon name="add" :size="20" />{{ __('Record') }}
+        </button>
+    </div>
 
     @if ($forecastNegative)
         <div class="mx-4 mb-3 flex flex-col gap-3 rounded-[22px] border border-danger/28 bg-danger/10 px-4 pb-3.5 pt-4" data-test="negative-alert">
@@ -335,51 +397,39 @@ new #[Title('Today')] class extends Component {
         </div>
     @endforeach
 
-    @if ($period->isOpen())
-        @foreach (array_filter($fixed, fn ($item) => $item->isOverdue($overview->today)) as $item)
-            @php
-                $isTransfer = in_array($item->line->type, [\App\Enums\LineType::Transfer, \App\Enums\LineType::Sinking], true);
-                $late = $item->dueOn->lessThan($overview->today);
-            @endphp
-            <div class="mx-4 mb-3 rounded-[22px] border border-accent/22 bg-accent/10 px-4 pb-3.5 pt-3.5" wire:key="due-{{ $item->line->lineId }}" data-test="due-item">
-                <div class="flex items-center gap-3">
-                    <x-ui.icon-tile icon="autorenew" tone="accent" />
-                    <div class="min-w-0 flex-1">
+    {{-- Fixed items due today or overdue: one folded row, the cards with their actions open from it. --}}
+    @if ($dueItems !== [])
+        <div class="mx-4 mb-3 rounded-[22px] border border-warn/28 bg-warn/10 px-4 py-2" x-data="{ showDue: false }" data-test="due-items">
+            <button type="button" x-on:click="showDue = ! showDue" :aria-expanded="showDue ? 'true' : 'false'" aria-expanded="false" aria-controls="today-due-list"
+                    class="focus-ring flex min-h-12 w-full items-center gap-3 rounded-xl text-left" data-test="due-summary">
+                <x-ui.icon name="schedule" :size="22" class="text-warn" />
+                <span class="num min-w-0 flex-1 text-[15px] font-semibold">{{ trans_choice('{1} :count fixed item due|[2,*] :count fixed items due', count($dueItems), ['count' => count($dueItems)]) }}</span>
+                <span class="shrink-0 text-sm font-semibold text-accent-strong" x-text="showDue ? @js(__('Hide')) : @js(__('Show me'))">{{ __('Show me') }}</span>
+            </button>
+            <div id="today-due-list" x-show="showDue" x-cloak class="pb-1">
+                @foreach ($dueItems as $item)
+                    @php
+                        $isTransfer = in_array($item->line->type, [\App\Enums\LineType::Transfer, \App\Enums\LineType::Sinking], true);
+                        $late = $item->dueOn->lessThan($overview->today);
+                    @endphp
+                    <div class="border-t border-warn/20 py-3" wire:key="due-{{ $item->line->lineId }}" data-test="due-item">
                         {{-- Only the name gives way on a narrow screen, never the amount. --}}
                         <div class="flex min-w-0 items-baseline gap-1 text-[15px] font-semibold">
                             <span class="truncate">{{ $item->line->categoryName }}</span>
                             <span class="num shrink-0 whitespace-nowrap" data-test="due-amount">· {{ money($item->line->planned()) }}</span>
                         </div>
-                        <div @class(['truncate text-xs', 'text-warn' => $late, 'text-muted' => ! $late])>{{ $late ? __('was due :date', ['date' => \App\Support\Dates::short($item->dueOn)]) : ($isTransfer ? __('Transfer due today') : __('Due today')) }}</div>
+                        <div class="truncate text-xs text-warn">{{ $late ? __('was due :date', ['date' => \App\Support\Dates::short($item->dueOn)]) : ($isTransfer ? __('Transfer due today') : __('Due today')) }}</div>
+                        <div class="mt-2.5 flex flex-wrap gap-2">
+                            <x-ui.button size="sm" variant="light" wire:click="togglePaid({{ (int) $item->line->lineId }})" class="!h-11" data-test="mark-due-done">{{ $isTransfer ? __('Transferred') : __('Done') }}</x-ui.button>
+                            @if ($item->line->isSkippable())
+                                <x-ui.button size="sm" variant="secondary" wire:click="skipLine({{ (int) $item->line->lineId }})" class="!h-11 !bg-ink/8" data-test="skip-due">{{ __('Skipped this month') }}</x-ui.button>
+                            @endif
+                        </div>
                     </div>
-                </div>
-                <div class="mt-3 flex flex-wrap gap-2 pl-[52px]">
-                    <x-ui.button size="sm" variant="light" wire:click="togglePaid({{ (int) $item->line->lineId }})" class="!h-11" data-test="mark-due-done">{{ $isTransfer ? __('Transferred') : __('Done') }}</x-ui.button>
-                    @if ($item->line->isSkippable())
-                        <x-ui.button size="sm" variant="secondary" wire:click="skipLine({{ (int) $item->line->lineId }})" class="!h-11 !bg-ink/8" data-test="skip-due">{{ __('Skip this month') }}</x-ui.button>
-                    @endif
-                </div>
+                @endforeach
             </div>
-        @endforeach
-    @endif
-
-    <div class="mx-4 mb-3 flex items-center justify-between gap-3 rounded-card bg-surface px-5 py-[18px]" data-test="daily-allowance">
-        <div class="min-w-0">
-            <div class="flex items-center gap-1 text-[13px] text-muted">
-                <span>{{ __('You can still spend today') }}</span>
-                <x-explainer topic="daily" :rows="$dailyRows" />
-            </div>
-            <x-ui.amount :value="$dailyShown" size="lg" :tone="$forecastNegative ? 'muted' : null" class="mt-1" />
-            @if ($forecastNegative)
-                <span class="mt-1.5 block text-xs text-muted">{{ $this->isPaydayPeriod ? __('Every further spending lowers the leftover at payday.') : __('Every further spending lowers the month-end leftover.') }}</span>
-            @endif
         </div>
-        <button type="button" x-data x-on:click="$dispatch('open-entry')"
-                class="focus-ring inline-flex h-11 shrink-0 items-center gap-1 rounded-full bg-accent/14 pl-3 pr-4 text-sm font-semibold text-accent transition active:scale-[0.98]"
-                data-test="daily-record">
-            <x-ui.icon name="add" :size="20" />{{ __('Record') }}
-        </button>
-    </div>
+    @endif
 
     @if (! $this->hasSpending && ! $this->hasPlan)
         <x-ui.empty-state icon="edit_note" :title="__('Start with your plan')" class="mx-4 mb-3" data-test="empty-state-no-plan">
@@ -406,7 +456,7 @@ new #[Title('Today')] class extends Component {
     @if ($categories !== [])
         <x-ui.card class="mx-4 mb-3 px-[18px] pb-1.5 pt-[18px]" data-test="categories">
             <div class="flex items-baseline justify-between">
-                <span class="text-[15px] font-semibold">{{ __('Variable spending') }}</span>
+                <h2 class="text-[15px] font-semibold">{{ __('Variable spending') }}</h2>
                 <span @class(['num text-[13px]', 'text-danger' => $forecast->variableSpent > $forecast->variablePlanned, 'text-muted' => $forecast->variableSpent <= $forecast->variablePlanned])>
                     {{ money_number($forecast->variableSpent) }} / {{ money($forecast->variablePlanned) }}
                 </span>
@@ -414,32 +464,50 @@ new #[Title('Today')] class extends Component {
 
             @foreach ($categories as $category)
                 @php
-                    $ratio = $category->planned > 0 ? $category->spent / $category->planned : ($category->spent > 0 ? 2 : 0);
-                    $tone = $category->spent > $category->planned ? 'danger' : ($ratio >= 0.8 ? 'warn' : 'accent');
+                    $noBudget = $category->planned <= 0;
+                    $ratio = $noBudget ? 0 : $category->spent / $category->planned;
+                    // Red only for going over a budget, amber from 80%; a category without a budget stays neutral.
+                    $tone = match (true) {
+                        $noBudget => 'muted',
+                        $category->spent > $category->planned => 'danger',
+                        $ratio >= \App\Services\Data\CategoryForecast::WARNING_RATIO => 'warn',
+                        default => 'accent',
+                    };
                 @endphp
-                <a href="{{ route('month', ['kategoria' => $category->categoryId]) }}" wire:navigate wire:key="category-{{ $category->categoryId }}"
-                   @class(['grid grid-cols-[40px_minmax(0,1fr)_18px] items-center gap-3 py-3', 'border-b border-line' => ! $loop->last]) data-test="category-row">
-                    <x-ui.icon-tile :icon="$this->icons[$category->categoryId] ?? 'more_horiz'" />
-                    <div>
-                        <div class="flex items-baseline justify-between gap-2">
-                            <span class="truncate text-[15px] font-medium">{{ $category->categoryName }}</span>
-                            <x-ui.amount size="sm" :value="$category->spent" :of="$category->planned" class="shrink-0 text-sm [&>span:first-child]:font-semibold" />
-                        </div>
-                        @if ($this->hasSpending)
-                            <x-ui.bar :label="$category->categoryName" :value="$category->planned > 0 ? $category->spent / $category->planned : ($category->spent > 0 ? 1 : 0)" :tone="$tone" class="mt-2" />
-                            <div @class(['num mt-1.5 text-xs', 'text-danger' => $tone === 'danger', 'text-warn' => $tone === 'warn', 'text-muted' => $tone === 'accent'])>
-                                @if ($category->spent > $category->planned)
-                                    {{ __('+:amount over', ['amount' => money($category->spent - $category->planned)]) }}
-                                @elseif ($category->planned > 0 && $category->spent === $category->planned)
-                                    {{ __('Budget used up') }}
+                <div wire:key="category-{{ $category->categoryId }}" @class(['border-b border-line' => ! $loop->last]) data-test="category-row">
+                    <a href="{{ route('month', ['kategoria' => $category->categoryId]) }}" wire:navigate
+                       class="grid grid-cols-[40px_minmax(0,1fr)_18px] items-center gap-3 py-3">
+                        <x-ui.icon-tile :icon="$this->icons[$category->categoryId] ?? 'more_horiz'" />
+                        <div>
+                            <div class="flex items-baseline justify-between gap-2">
+                                <span class="truncate text-[15px] font-medium">{{ $category->categoryName }}</span>
+                                @if ($noBudget)
+                                    <span class="num shrink-0 text-sm text-muted" data-test="no-budget"><x-ui.amount size="sm" :value="$category->spent" class="font-semibold text-ink" /> · {{ __('no budget') }}</span>
                                 @else
-                                    {{ __(':amount left', ['amount' => money($category->planned - $category->spent)]) }}
+                                    <x-ui.amount size="sm" :value="$category->spent" :of="$category->planned" class="shrink-0 text-sm [&>span:first-child]:font-semibold" />
                                 @endif
                             </div>
-                        @endif
-                    </div>
-                    <x-ui.icon name="chevron_right" :size="18" class="text-faint" />
-                </a>
+                            @if ($this->hasSpending && ! $noBudget)
+                                <x-ui.bar :label="$category->categoryName" :value="$ratio" :tone="$tone" class="mt-2" />
+                                <div @class(['num mt-1.5 text-xs', 'text-danger' => $tone === 'danger', 'text-warn' => $tone === 'warn', 'text-muted' => $tone === 'accent'])>
+                                    @if ($category->spent > $category->planned)
+                                        {{ __('+:amount over', ['amount' => money($category->spent - $category->planned)]) }}
+                                    @elseif ($category->spent === $category->planned)
+                                        {{ __('Budget used up') }}
+                                    @else
+                                        {{ __(':amount left', ['amount' => money($category->planned - $category->spent)]) }}
+                                    @endif
+                                </div>
+                            @endif
+                        </div>
+                        <x-ui.icon name="chevron_right" :size="18" class="text-faint" />
+                    </a>
+                    @if ($noBudget)
+                        <div class="-mt-2 pb-2 pl-[52px]">
+                            <x-ui.link :href="route('plan')" wire:navigate class="min-h-11 text-[13px]" data-test="set-budget">{{ __('Set a budget') }}</x-ui.link>
+                        </div>
+                    @endif
+                </div>
             @endforeach
         </x-ui.card>
     @endif
@@ -448,16 +516,16 @@ new #[Title('Today')] class extends Component {
     @if ($fixed !== [])
         <x-ui.card class="mx-4 mb-3 px-[18px] pb-1.5 pt-[18px]" data-test="fixed-items">
             <div class="mb-1 flex items-baseline justify-between gap-3">
-                <span class="text-[15px] font-semibold">{{ __('Fixed items') }}</span>
-                <span class="text-[13px] text-muted">{{ __('automatically in the plan') }}</span>
+                <h2 class="text-[15px] font-semibold">{{ __('Fixed items') }}</h2>
+                <span class="text-[13px] text-muted">{{ __('already in the plan, no need to record them') }}</span>
             </div>
             @foreach ($visibleFixed as $item)
                 <x-fixed-item-row :item="$item" :today="$overview->today" :open="$period->isOpen()" @class(['border-b border-line' => ! $loop->last || $hiddenFixed !== []]) wire:key="fixed-{{ $item->line->lineId }}" />
             @endforeach
             @if ($hiddenFixed !== [])
-                <button type="button" wire:click="$set('showAllFixed', true)" class="focus-ring num flex min-h-11 w-full items-center justify-between rounded-xl text-[13px] text-muted" data-test="fixed-more">
-                    <span>{{ trans_choice('{1} +:count more item|[2,*] +:count more items', count($hiddenFixed), ['count' => count($hiddenFixed)]) }}</span>
-                    <x-ui.amount size="sm" :value="array_sum(array_map(fn ($item) => $item->line->planned(), $hiddenFixed))" />
+                <button type="button" wire:click="$set('showAllFixed', true)" class="focus-ring num flex min-h-11 w-full items-center justify-between gap-3 rounded-xl text-left text-[13px] text-muted" data-test="fixed-more">
+                    <span>{{ trans_choice('{1} +:count more item to tick off: :names|[2,*] +:count more items to tick off: :names', count($hiddenFixed), ['count' => count($hiddenFixed), 'names' => implode(', ', array_map(fn ($item) => $item->line->categoryName, $hiddenFixed))]) }}</span>
+                    <x-ui.amount size="sm" :value="array_sum(array_map(fn ($item) => $item->line->planned(), $hiddenFixed))" class="shrink-0" />
                 </button>
             @endif
         </x-ui.card>

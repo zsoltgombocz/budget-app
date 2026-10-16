@@ -1,11 +1,14 @@
 <?php
 
+use App\Actions\Budget\MovePocketMoney;
+use App\Actions\Budget\ToggleLinePaid;
 use App\Enums\Currency;
 use App\Enums\PeriodMode;
 use App\Models\BudgetLine;
 use App\Models\BudgetSetting;
 use App\Models\Category;
 use App\Models\DayMark;
+use App\Models\Pocket;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Services\Data\CategoryForecast;
@@ -207,9 +210,9 @@ it('ticks a fixed item off without moving it, with a toast that can undo it', fu
 
     $component->call('togglePaid', $rent->id)
         ->assertDispatched('budget-updated')
-        ->assertDispatched('app-toast', title: __('Marked as done.'), undo: 'fixed-item-undo', params: ['budgetLineId' => $rent->id, 'status' => 'open'])
+        ->assertDispatched('app-toast', title: __('Paid.'), subtitle: __('The leftover does not change: this amount was taken off all along.'), undo: 'fixed-item-undo', params: ['budgetLineId' => $rent->id, 'status' => 'open'])
         // A paid item would sort last on a fresh page; while this one is open it stays where it was.
-        ->assertSeeInOrder(['Rent', 'done', 'Phone']);
+        ->assertSeeInOrder(['Rent', 'Paid this month', 'Phone']);
 
     $component->dispatch('fixed-item-undo', budgetLineId: $rent->id, status: 'open');
     expect(resolve(OverviewService::class)->forUser($this->user)->fixedItems[0]->paid)->toBeFalse();
@@ -253,4 +256,80 @@ it('reopens the intro from settings without touching when it was first seen', fu
         ->call('dismissIntro');
 
     expect($this->user->settings()->refresh()->intro_seen_at?->toDateTimeString())->toBe($seen?->toDateTimeString());
+});
+
+it('puts the daily allowance right under the leftover, then the due items folded into one row, the budgets and the checklist', function (): void {
+    BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail()->update(['due_day' => 5]);
+    $phone = Category::factory()->for($this->user)->create(['name' => 'Phone', 'type' => 'fixed']);
+    BudgetLine::factory()->for($this->user)->for($phone)->create(['amount' => 12_000, 'due_day' => 11]);
+    Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 10_000, 'occurred_on' => '2026-10-05']);
+
+    Livewire::test('pages::today')
+        ->assertSeeHtmlInOrder([
+            '<h1 class="sr-only">', 'data-test="expected-leftover"', 'data-test="daily-allowance"', 'data-test="daily-record"',
+            'data-test="due-summary"', '2 fixed items due', 'Show me', 'data-test="due-item"', 'data-test="due-item"',
+            'data-test="categories"', 'data-test="fixed-items"',
+        ]);
+});
+
+it('says how much of the leftover is budget not spent yet', function (): void {
+    Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 30_000, 'occurred_on' => '2026-10-05']);
+
+    // Budgets 150 000, spent 30 000: 120 000 of the big number is budget still to spend.
+    $this->get(route('dashboard'))
+        ->assertSeeInOrder(['data-test="unspent-budget"', 'This includes your budget not spent yet: '.money(120_000), 'data-test="leftover-if-spent"'], false);
+});
+
+it('shows a category without a budget neutrally with a way to set one, not as overspending', function (): void {
+    $other = Category::factory()->for($this->user)->create(['name' => 'Other', 'type' => 'variable']);
+    BudgetLine::factory()->for($this->user)->for($other)->create(['amount' => 0]);
+    Transaction::factory()->for($this->user)->for($this->period)->for($other)->create(['amount' => 3_990, 'occurred_on' => '2026-10-05']);
+
+    $html = Livewire::test('pages::today')->html();
+    $row = substr($html, (int) strpos($html, '>Other<'), 1500);
+
+    expect($row)->toContain('data-test="no-budget"')
+        ->toContain('no budget')
+        ->toContain('data-test="set-budget"')
+        ->toContain(route('plan'))
+        ->not->toContain('over')
+        ->not->toContain('text-danger');
+});
+
+it('keeps fixed items already paid visible and dimmed at the bottom, and says what is behind the more row', function (): void {
+    foreach (['Phone', 'Internet', 'Gym', 'Insurance', 'Streaming'] as $name) {
+        $category = Category::factory()->for($this->user)->create(['name' => $name, 'type' => 'fixed']);
+        BudgetLine::factory()->for($this->user)->for($category)->create(['amount' => 5_000]);
+    }
+    $rent = BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail();
+    resolve(ToggleLinePaid::class)->handle($this->user, $this->period, $rent->id);
+
+    $component = Livewire::test('pages::today');
+
+    // Four open items, then the paid Rent; the fifth open item folds away and is named.
+    expect(substr_count($component->html(), 'data-test="fixed-item"'))->toBe(5);
+    $component->assertSeeHtmlInOrder(['data-test="fixed-items"', 'data-status="open"', 'data-status="paid"', 'Rent', 'Paid this month', 'data-test="fixed-more"', '+1 more item to tick off: Streaming'])
+        ->assertSeeHtml('opacity-60');
+});
+
+it('says a fixed item without a due day is ticked off once paid, and labels a monthly saving as one', function (): void {
+    $pocket = Pocket::factory()->for($this->user)->create(['name' => 'Reserve', 'is_reserve' => true]);
+    $category = Category::factory()->for($this->user)->create(['name' => 'Reserve', 'type' => 'sinking']);
+    BudgetLine::factory()->for($this->user)->for($category)->create(['amount' => 20_000, 'pocket_id' => $pocket->id]);
+
+    Livewire::test('pages::today')
+        ->assertSeeInOrder(['Rent', 'Tap once you have paid it'])
+        ->assertSeeInOrder(['Reserve', 'Monthly saving, goes into the pocket at closing'])
+        ->assertDontSee('Sinking funds');
+});
+
+it('explains pocket moves as two rows and counts them in the daily allowance', function (): void {
+    $pocket = Pocket::factory()->for($this->user)->create(['name' => 'Holiday', 'balance' => 100_000]);
+    resolve(MovePocketMoney::class)->handle($this->user, $pocket, -42_000, null, toBudget: true);
+    resolve(MovePocketMoney::class)->handle($this->user, $pocket, 21_000, null, toBudget: true);
+
+    // Daily: (150 000 + 42 000 − 21 000) / 21 days left including today.
+    $this->get(route('dashboard'))
+        ->assertSeeInOrder(['Income', money(500_000), 'From pockets into the budget', '+'.money(42_000), 'Put into pockets', '−'.money(21_000), 'Fixed items, transfers, installments, savings'], false)
+        ->assertSeeInOrder(['Variable budgets', money(150_000), 'From pockets into the budget', '+'.money(42_000), 'Put into pockets', '−'.money(21_000), 'Spent so far', 'Per day', money(intdiv(171_000, 21))], false);
 });

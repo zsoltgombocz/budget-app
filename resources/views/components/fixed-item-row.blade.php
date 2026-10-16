@@ -1,29 +1,32 @@
 @props(['item', 'today', 'open' => true])
 
 {{--
-    One fixed item in a checklist (Today, Month): tap to tick it off. A plain fixed item also has
-    an options button for marking it as not paid this month; a row marked so opens the same
-    options on tap (paid after all, or due again) instead of ticking. Needs <x-fixed-item-sheet />
-    on the page and the SetsFixedItemStatus methods on the component.
+    One fixed item in a checklist (Today, Month): tap to tick it off. A plain fixed item that is
+    not ticked off also has an options button for skipping it this month; a skipped row opens the
+    same options on tap (it comes up after all) instead of ticking. A ticked-off item cannot be
+    skipped. Needs <x-fixed-item-sheet /> on the page and the fixed item methods on the component.
 --}}
 @php
     $status = $item->status();
     $skipped = $status === \App\Enums\LineStatus::Skipped;
     $overdue = $item->isOverdue($today);
     $lineId = (int) $item->line->lineId;
-    $options = $open && $item->line->isSkippable();
+    $options = $open && $item->line->isSkippable() && ! $item->paid;
+    $isTransfer = in_array($item->line->type, [\App\Enums\LineType::Transfer, \App\Enums\LineType::Sinking], true);
+    // A monthly saving into a pocket is not a bill: the closing adds it to the pocket.
+    $isSaving = $item->line->type === \App\Enums\LineType::Sinking && $item->line->pocketId !== null;
     $detail = [
         'id' => $lineId,
         'name' => $item->line->categoryName,
         'amount' => money($item->line->planned()),
         'status' => $status->value,
         'note' => $skipped
-            ? __('Marked as not paid this month: it counts as 0, so :amount is not taken off the leftover.', ['amount' => money($item->line->planned())])
-            : __('Not paying it this month? Then it counts as 0, so :amount is not taken off the leftover. You can set it back any time.', ['amount' => money($item->line->planned())]),
+            ? __('Skipped this month: it counts as 0, so :amount more is left.', ['amount' => money($item->line->planned())])
+            : __('Does it not come up this month? Then it counts as 0, so :amount more is left. You can set it back any time.', ['amount' => money($item->line->planned())]),
     ];
 @endphp
 
-<div {{ $attributes->class(['flex items-center gap-1']) }} data-test="fixed-item-row" data-status="{{ $status->value }}">
+<div {{ $attributes->class(['flex items-center gap-1', 'opacity-60' => $item->paid]) }} data-test="fixed-item-row" data-status="{{ $status->value }}">
     <button type="button"
             @if ($skipped && $options) x-on:click="$dispatch('open-fixed-item', @js($detail))" aria-haspopup="dialog"
             @else role="checkbox" aria-checked="{{ $item->paid ? 'true' : 'false' }}" wire:click="togglePaid({{ $lineId }})" @endif
@@ -38,15 +41,19 @@
         @endif
         <span class="min-w-0">
             <span @class(['block truncate text-[15px]', 'text-ink-2' => $item->paid, 'text-muted' => $skipped])>{{ $item->line->categoryName }}</span>
-            <span @class(['mt-0.5 block text-xs', 'text-warn' => $overdue, 'text-muted' => ! $overdue])>
+            <span @class(['mt-0.5 block text-xs', 'text-warn' => $overdue, 'text-muted' => ! $overdue]) data-test="fixed-item-state">
                 @if ($item->paid)
-                    {{ __('done') }}
+                    {{ $isTransfer ? __('Transferred this month') : __('Paid this month') }}
                 @elseif ($skipped)
-                    {{ __('not paid this month') }}
+                    {{ __('skipped – counted as :zero', ['zero' => money(0)]) }}
                 @elseif ($item->dueOn)
                     {{ $overdue ? __('was due :date', ['date' => \App\Support\Dates::short($item->dueOn)]) : __('due :date', ['date' => \App\Support\Dates::short($item->dueOn)]) }}
+                @elseif ($isSaving)
+                    {{ __('Monthly saving, goes into the pocket at closing') }}
+                @elseif ($isTransfer)
+                    {{ __('Tap once you have transferred it') }}
                 @else
-                    {{ $item->line->type->label() }}
+                    {{ __('Tap once you have paid it') }}
                 @endif
             </span>
         </span>
