@@ -96,12 +96,11 @@ final readonly class PeriodCloser
     }
 
     /**
-     * @param  int|null  $toReserve  manual split of a positive leftover; the rest goes to the surplus target
-     * @param  string|null  $surplusTarget  'account:ID', 'pocket:ID' or 'none' for this closing only; null uses the settings
-     */
-    /**
      * A deficit is taken from the reserve only when $coverDeficit is true (the user's choice on
      * the closing screen); otherwise it stays uncovered and nothing moves.
+     *
+     * @param  int|null  $toReserve  manual split of a positive leftover; the rest goes to the surplus target
+     * @param  string|null  $surplusTarget  'account:ID', 'pocket:ID' or 'none' for this closing only; null uses the settings
      */
     public function preview(User $user, Period $period, ?int $incomeActual = null, ?int $toReserve = null, ?string $surplusTarget = null, bool $coverDeficit = true): ClosePreview
     {
@@ -198,6 +197,7 @@ final readonly class PeriodCloser
             categories: $categories,
             allocation: $allocation,
             reservePocketId: $reserve?->id,
+            reserveBalanceAfter: $reserve === null ? null : $balancesAfter[$reserve->id],
             surplusTarget: [
                 'type' => $newPocket ? 'new-pocket' : ($surplusPocket !== null ? 'pocket' : ($surplusAccount !== null ? 'account' : null)),
                 'id' => $surplusPocket->id ?? $surplusAccount?->id,

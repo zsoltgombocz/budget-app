@@ -22,6 +22,8 @@ final readonly class ClosePreview
         public array $categories,
         public Allocation $allocation,
         public ?int $reservePocketId,
+        /** The reserve's balance after the closing: monthly deposit, leftover share and any deficit cover included. */
+        public ?int $reserveBalanceAfter,
         public array $surplusTarget,
         public array $pocketDeposits,
         public array $prepayReady,

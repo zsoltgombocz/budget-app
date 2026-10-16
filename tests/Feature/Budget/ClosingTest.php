@@ -124,6 +124,40 @@ it('moves planned pocket savings into their pockets', function (): void {
     expect($this->savings->movements()->where('type', PocketMovementType::Deposit)->where('note', 'Monthly saving')->value('amount'))->toBe(25_000);
 });
 
+it('shows the reserve\'s new balance including its monthly deposit', function (): void {
+    $this->reserve->update(['target_amount' => null]);
+    $category = Category::factory()->for($this->user)->create(['name' => 'Reserve saving', 'type' => 'sinking']);
+    BudgetLine::factory()->for($this->user)->for($category)->create(['amount' => 20_000, 'pocket_id' => $this->reserve->id]);
+
+    $preview = resolve(PeriodCloser::class)->preview($this->user, $this->period, null, 200_000);
+
+    expect($preview->reserveBalanceAfter)->toBe(80_000 + 20_000 + 200_000);
+
+    Livewire::test('pages::close', ['period' => $this->period->id])
+        ->call('goTo', 2)
+        ->call('split', 200_000)
+        ->assertSee('new balance '.money(300_000))
+        ->call('goTo', 3)
+        ->assertSee('new balance '.money(300_000))
+        ->call('close');
+
+    expect($this->reserve->refresh()->balance)->toBe(300_000);
+});
+
+it('describes where the rest goes by the chosen target', function (): void {
+    $broker = $this->user->accounts()->create(['name' => 'Broker', 'type' => 'investment', 'currency' => 'HUF']);
+    $component = Livewire::test('pages::close', ['period' => $this->period->id])->call('goTo', 2);
+
+    $component->assertSee('the app puts it into this pocket')->assertDontSee('manual transfer');
+    $component->call('chooseTarget', 'account:'.$broker->id)->assertSee('manual transfer');
+    $component->call('chooseTarget', 'none')->assertSee('nothing moves')->assertDontSee('manual transfer');
+    $component->call('chooseTarget', 'new-pocket')->assertSee('the app opens a new pocket for it');
+
+    $component->call('chooseTarget', 'pocket:'.$this->savings->id)->call('goTo', 3)
+        ->assertSee('the app puts it into this pocket')->assertDontSee('we remind you to transfer it');
+    $component->call('chooseTarget', 'account:'.$broker->id)->assertSee('we remind you to transfer it');
+});
+
 it('keeps the closed period\'s snapshot when the plan changes later', function (): void {
     resolve(PeriodCloser::class)->close($this->user, $this->period);
     $before = resolve(PlanService::class)->summaryFor($this->period->refresh());

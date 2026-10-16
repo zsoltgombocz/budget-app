@@ -240,12 +240,6 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
     }
 
     #[Computed]
-    public function reserveBalance(): int
-    {
-        return (int) ($this->user()->pockets()->where('is_reserve', true)->value('balance') ?? 0);
-    }
-
-    #[Computed]
     public function isEarly(): bool
     {
         return app(PeriodService::class)->today($this->user()->settings())->lessThan($this->period->ends_on);
@@ -339,6 +333,12 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
             $allocation = $preview->allocation;
             $hasReserve = $preview->reservePocketId !== null;
             $target = $preview->surplusTarget['name'] ?? __('Stays on the account');
+            $targetNote = match ($preview->surplusTarget['type']) {
+                'account' => __('manual transfer'),
+                'pocket' => __('the app puts it into this pocket'),
+                'new-pocket' => __('the app opens a new pocket for it'),
+                default => __('nothing moves'),
+            };
         @endphp
         <div class="px-6 pt-[22px]">
             <h1 class="text-[28px] font-semibold tracking-[-0.03em]">{{ $preview->leftover() >= 0 ? __('Split the leftover') : __('Cover the deficit') }}</h1>
@@ -361,13 +361,13 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
                         @class(['rounded-[22px] bg-surface p-4 text-left', 'cursor-default' => ! $canSplit]) data-test="edit-reserve" @disabled(! $canSplit)>
                     <span class="flex items-center gap-2 text-[13px] text-ink-2"><span class="size-2.5 rounded-[3px] bg-accent"></span>{{ __('To the reserve') }}</span>
                     <span class="mt-2 flex items-center gap-1.5"><x-ui.amount size="sm" :value="$allocation->toReserve" class="text-2xl font-semibold" />@if ($canSplit)<x-ui.icon name="edit" :size="16" class="text-faint" />@endif</span>
-                    <span class="num mt-0.5 block text-xs text-muted">@if ($hasReserve){{ __('new balance') }} {{ money($this->reserveBalance + $allocation->toReserve) }}@else{{ __('no reserve pocket') }}@endif</span>
+                    <span class="num mt-0.5 block text-xs text-muted">@if ($hasReserve){{ __('new balance') }} {{ money($preview->reserveBalanceAfter ?? 0) }}@else{{ __('no reserve pocket') }}@endif</span>
                 </button>
                 <button type="button" @if ($canSplit) x-on:click="edit('rest', @js(str_replace('.', ',', Money::toInput($allocation->toSurplus, $currency))), @js($target))" @endif
                         @class(['rounded-[22px] bg-surface p-4 text-left', 'cursor-default' => ! $canSplit]) data-test="edit-rest" @disabled(! $canSplit)>
                     <span class="flex items-center gap-2 text-[13px] text-ink-2"><span class="size-2.5 shrink-0 rounded-[3px] bg-ink-2"></span><span class="truncate">{{ $target }}</span></span>
                     <span class="mt-2 flex items-center gap-1.5"><x-ui.amount size="sm" :value="$allocation->toSurplus" class="text-2xl font-semibold" />@if ($canSplit)<x-ui.icon name="edit" :size="16" class="text-faint" />@endif</span>
-                    <span class="mt-0.5 block text-xs text-muted">{{ __('manual transfer') }}</span>
+                    <span class="mt-0.5 block text-xs text-muted" data-test="rest-note">{{ $targetNote }}</span>
                 </button>
             </div>
 
@@ -434,6 +434,12 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         @php
             $allocation = $preview->allocation;
             [$nextStart, $nextEnd] = $this->nextBounds;
+            $targetNote = match ($preview->surplusTarget['type']) {
+                'account' => __('we remind you to transfer it'),
+                'pocket' => __('the app puts it into this pocket'),
+                'new-pocket' => __('the app opens a new pocket for it'),
+                default => __('nothing moves'),
+            };
         @endphp
         <div class="px-6 pt-[22px]">
             <h1 class="text-[28px] font-semibold tracking-[-0.03em]">{{ __('Summary') }}</h1>
@@ -453,12 +459,12 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
             @if ($preview->leftover() >= 0)
                 <div class="grid grid-cols-[32px_1fr_auto] items-center gap-2.5 border-b border-line py-[13px]">
                     <x-ui.icon name="shield" :size="22" class="text-accent" />
-                    <div><div class="text-[15px]">{{ __('To the reserve') }}</div>@if ($preview->reservePocketId)<div class="mt-0.5 text-xs text-muted">{{ __('new balance :amount', ['amount' => money($this->reserveBalance + $allocation->toReserve)]) }}</div>@endif</div>
+                    <div><div class="text-[15px]">{{ __('To the reserve') }}</div>@if ($preview->reservePocketId)<div class="mt-0.5 text-xs text-muted">{{ __('new balance :amount', ['amount' => money($preview->reserveBalanceAfter ?? 0)]) }}</div>@endif</div>
                     <x-ui.amount size="sm" :value="$allocation->toReserve" signed class="text-[15px] font-semibold" />
                 </div>
                 <div class="grid grid-cols-[32px_1fr_auto] items-center gap-2.5 py-[13px]">
                     <x-ui.icon name="show_chart" :size="22" class="text-ink-2" />
-                    <div><div class="text-[15px]">{{ $preview->surplusTarget['name'] ?? __('Stays on the account') }}</div><div class="mt-0.5 text-xs text-muted">{{ __('we remind you to transfer it') }}</div></div>
+                    <div><div class="text-[15px]">{{ $preview->surplusTarget['name'] ?? __('Stays on the account') }}</div><div class="mt-0.5 text-xs text-muted" data-test="summary-rest-note">{{ $targetNote }}</div></div>
                     <x-ui.amount size="sm" :value="$allocation->toSurplus" signed class="text-[15px] font-semibold" />
                 </div>
             @else
