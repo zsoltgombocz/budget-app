@@ -12,7 +12,9 @@
     Record button: floats above the tab bar and slides down behind it while scrolling down.
     Scrolling up brings it back, but only when the last finger drag pointed up the page (or
     there is no touch, e.g. a mouse): the iOS rubber-band bounce after a hard fling down scrolls
-    up on its own and must not count. Hidden on the settings pages.
+    up on its own and must not count. Hidden on the settings pages (and their sub-pages), and
+    while the page has an element marked data-hides-record-button (a closed month, the plan's
+    edit mode): there is nothing to record into there.
 --}}
 <button type="button"
         x-data="{
@@ -22,10 +24,18 @@
             touchY: null,
             lastDrag: null,
             hiddenOn: @js(array_map(fn (string $name): string => (string) parse_url(route($name), PHP_URL_PATH), ['settings', 'install', 'changelog'])),
+            pageAllows: true,
+            marked: false,
+            get allowed() { return this.pageAllows && ! this.marked },
             syncPage() {
-                this.allowed = ! this.hiddenOn.some(path => location.pathname === path || location.pathname.startsWith(path + '/'))
+                const path = location.pathname.replace(/\/+$/, '') || '/'
+                this.pageAllows = ! this.hiddenOn.some(hidden => path === hidden || path.startsWith(hidden + '/'))
+                this.syncMarker()
                 this.visible = true
                 this.anchorY = window.scrollY
+            },
+            syncMarker() {
+                this.marked = document.querySelector('[data-hides-record-button]') !== null
             },
             onTouchMove(y) {
                 if (this.touchY !== null && Math.abs(y - this.touchY) > 4) this.lastDrag = y > this.touchY ? 'up' : 'down'
@@ -48,10 +58,11 @@
         x-on:touchstart.window.passive="touchY = $event.touches[0]?.clientY ?? null"
         x-on:touchmove.window.passive="onTouchMove($event.touches[0]?.clientY ?? 0)"
         x-on:scroll.window.passive="onScroll()"
-        x-init="syncPage(); document.addEventListener('livewire:navigated', () => syncPage())"
+        x-init="syncPage(); document.addEventListener('livewire:navigated', () => syncPage()); new MutationObserver(() => syncMarker()).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-hides-record-button'] })"
         x-on:click="$dispatch('open-entry')"
         class="fixed right-5 bottom-[calc(82px+env(safe-area-inset-bottom)+16px)] z-20 flex size-[58px] items-center justify-center rounded-[20px] bg-accent text-accent-ink shadow-[0_10px_24px_color-mix(in_srgb,var(--app-accent)_32%,transparent)] transition-transform active:scale-95"
         :class="visible && allowed ? 'translate-y-0 duration-300 ease-out' : 'pointer-events-none translate-y-[calc(100%_+_160px)] duration-[400ms] ease-in'"
+        :aria-hidden="allowed ? null : 'true'" :tabindex="allowed ? null : '-1'"
         aria-label="{{ __('Record spending') }}" data-test="tab-entry">
     <x-ui.icon name="add" :size="32" :weight="500" />
 </button>

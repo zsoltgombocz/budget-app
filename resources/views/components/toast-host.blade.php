@@ -2,17 +2,20 @@
 
 {{--
     Design toast. Livewire: $this->dispatch('app-toast', title: '…', subtitle: '…', undo: 'event-name', params: [...]);
-    "Visszavonás" re-dispatches the undo event to Livewire with the params.
+    "Visszavonás" re-dispatches the undo event to Livewire with the params. A toast that can be
+    undone stays 8 seconds (time to notice and react), any other 5; `duration` (ms) overrides it.
 --}}
 <div x-data="{
         toast: null,
         timer: null,
         key: 0,
+        duration: 5000,
         show(detail) {
             this.toast = detail
+            this.duration = detail.duration ?? (detail.undo ? 8000 : 5000)
             this.key++
             clearTimeout(this.timer)
-            this.timer = setTimeout(() => this.toast = null, 5000)
+            this.timer = setTimeout(() => this.toast = null, this.duration)
         },
         undo() {
             if (this.toast?.undo) Livewire.dispatch(this.toast.undo, this.toast.params ?? {})
@@ -49,7 +52,7 @@
             <button type="button" x-show="toast.undo" x-on:click.stop="dismiss()" class="focus-ring flex size-11 shrink-0 items-center justify-center rounded-xl text-muted" aria-label="{{ __('Close') }}" data-test="toast-close"><x-ui.icon name="close" :size="20" /></button>
             {{-- The action gets its own row so the message keeps the full width on a narrow phone. --}}
             <button type="button" x-show="toast.undo" x-on:click.stop="undo()" class="focus-ring col-span-2 col-start-2 -my-1 h-11 -ml-2 justify-self-start whitespace-nowrap rounded-xl px-2 text-sm font-semibold text-accent-strong">{{ __('Undo') }}</button>
-            <div :key="key" class="absolute bottom-0 left-0 h-0.5 bg-accent/60" x-init="$el.animate([{ width: '100%' }, { width: '0%' }], { duration: 5000, fill: 'forwards' })"></div>
+            <div :key="key" class="absolute bottom-0 left-0 h-0.5 bg-accent/60" x-init="$el.animate([{ width: '100%' }, { width: '0%' }], { duration, fill: 'forwards' })"></div>
         </div>
     </template>
 </div>
