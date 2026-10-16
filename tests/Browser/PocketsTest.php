@@ -79,3 +79,19 @@ it('starts a new pocket from the empty state', function (): void {
         ->assertMissing('[data-test="money-pad"]')
         ->assertNoJavaScriptErrors();
 });
+
+it('offers only a deposit on an empty pocket and says why', function (): void {
+    $user = onboardedUser();
+    $pocket = Pocket::factory()->for($user)->create(['name' => 'Holiday', 'balance' => 0]);
+    $this->actingAs($user);
+
+    visit(route('pockets'))->on()->mobile()->resize(390, 844)
+        ->assertDisabled('[data-test="pocket-withdraw-'.$pocket->id.'"]')
+        ->click('[data-test="pocket-'.$pocket->id.'"]')
+        ->assertVisible('[data-test="pocket-sheet"]')
+        ->assertAttribute('[data-test="mode-deposit"]', 'aria-checked', 'true')
+        ->assertDisabled('[data-test="mode-budget"]')
+        ->assertDisabled('[data-test="mode-spend"]')
+        ->assertSeeIn('[data-test="mode-spend"]', 'The pocket is empty, there is nothing to take out.')
+        ->assertNoJavaScriptErrors();
+});

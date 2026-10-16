@@ -615,17 +615,15 @@ new #[Title('Month')] class extends Component {
                     'bg-warn/12' => $row['diff'] > 0,
                     'bg-accent/8' => $row['diff'] < 0 && $row['deviates'],
                 ]) @if ($row['diff'] > 0) data-test="over-budget-row" @endif>
-                    <span class="min-w-0">
-                        <span class="block truncate">{{ $row['name'] }}</span>
-                        @if ($row['diff'] !== 0)
-                            <span class="mt-0.5 block text-xs leading-snug text-ink-2" data-test="closed-row-verdict">{{ $row['diff'] > 0 ? __('over the budget by :amount', ['amount' => money($row['diff'])]) : __('under the budget by :amount', ['amount' => money(-$row['diff'])]) }}</span>
-                        @endif
-                    </span>
+                    <span class="truncate">{{ $row['name'] }}</span>
                     <span class="text-right text-muted">{{ money_number($row['planned']) }}</span>
                     <span class="text-right">{{ money_number($row['actual']) }}</span>
                     <span @class(['text-right font-semibold', 'text-warn' => $row['diff'] > 0, 'text-accent' => $row['diff'] < 0, 'text-muted' => $row['diff'] === 0])>
                         {{ $row['diff'] > 0 ? '+' : '' }}{{ $row['diff'] === 0 ? '0' : money_number($row['diff']) }}
                     </span>
+                    @if ($row['diff'] !== 0)
+                        <span class="col-span-4 -mt-1 text-xs leading-snug text-ink-2" data-test="closed-row-verdict">{{ $row['diff'] > 0 ? __('over the budget by :amount', ['amount' => money($row['diff'])]) : __('under the budget by :amount', ['amount' => money(-$row['diff'])]) }}</span>
+                    @endif
                 </div>
             @endforeach
         </div>

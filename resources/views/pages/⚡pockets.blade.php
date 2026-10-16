@@ -471,7 +471,7 @@ new #[Title('Pockets and loans')] class extends Component {
                     <span class="flex items-center gap-3">
                         <x-ui.icon-tile :icon="$icon" tone="accent" />
                         <span class="min-w-0 flex-1">
-                            <span class="line-clamp-2 block text-[15px] font-semibold leading-snug text-pretty">{{ $pocket->name }}</span>
+                            <span class="line-clamp-2 text-[15px] font-semibold leading-snug text-pretty">{{ $pocket->name }}</span>
                             @foreach ($notes as $note)<span class="num mt-0.5 block text-xs leading-snug text-pretty text-muted" data-test="pocket-note">{{ $note }}</span>@endforeach
                         </span>
                         <x-ui.icon name="chevron_right" :size="22" class="text-faint" />
@@ -522,7 +522,7 @@ new #[Title('Pockets and loans')] class extends Component {
                 <button type="button" x-on:click="openLoan({{ $loan->id }})" class="focus-ring flex w-full items-center gap-3 rounded-xl text-left" data-test="edit-loan-{{ $loan->id }}">
                     <x-ui.icon-tile icon="account_balance" />
                     <span class="min-w-0 flex-1">
-                        <span class="line-clamp-2 block text-[15px] font-semibold leading-snug text-pretty">{{ $loan->name }}</span>
+                        <span class="line-clamp-2 text-[15px] font-semibold leading-snug text-pretty">{{ $loan->name }}</span>
                         @if ($loan->lender)<span class="mt-0.5 block text-xs leading-snug text-pretty text-muted" data-test="loan-lender">{{ $loan->lender }}</span>@endif
                     </span>
                     <x-ui.icon name="chevron_right" :size="22" class="text-faint" />
@@ -734,7 +734,7 @@ new #[Title('Pockets and loans')] class extends Component {
         errors: {},
         saving: false,
         ...window.amountFields({ decimals, locale, rules: { thm: { decimals: 3 }, months: { decimals: 0 }, dueDay: { decimals: 0, max: 31 } } }),
-        moneyFormatter: new Intl.NumberFormat(locale, { maximumFractionDigits: 0, useGrouping: 'always' }),
+        moneyFormatter: new Intl.NumberFormat(locale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals, useGrouping: 'always' }),
 
         init() {
             // On the money tab the sheet's own numpad types straight into the amount.

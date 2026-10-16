@@ -81,3 +81,12 @@ it('keeps the fixed items folded into one row until it is opened, and remembers 
         ->assertMissing('[data-test="fixed-item"]:visible')
         ->assertNoJavaScriptErrors();
 });
+
+it('titles the edit sheet with the category picked before saving', function (): void {
+    visit(route('month'))->on()->mobile()->resize(390, 844)
+        ->click('[data-test="transaction"]')
+        ->assertSeeIn('[data-test="transaction-sheet"] [data-test="sheet-title"]', 'Fuel')
+        ->select('[data-test="edit-category"]', 'Groceries')
+        ->assertSeeIn('[data-test="transaction-sheet"] [data-test="sheet-title"]', 'Groceries')
+        ->assertNoJavaScriptErrors();
+});

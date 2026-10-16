@@ -16,11 +16,12 @@ if (! function_exists('money')) {
 
 if (! function_exists('money_number')) {
     /**
-     * Just the number of an amount, e.g. "12 951" — paired with the currency symbol in the UI.
+     * Just the number of an amount, e.g. "12 951" or "24,99" — paired with the currency symbol in the UI.
+     * Keeps the currency's decimals, like money(), so the amounts of a summary add up on screen.
      */
     function money_number(int $amount, ?Currency $currency = null): string
     {
-        return Money::of($amount, $currency ?? user_currency())->formatNumber();
+        return Money::of($amount, $currency ?? user_currency())->formatNumber(withDecimals: true);
     }
 }
 

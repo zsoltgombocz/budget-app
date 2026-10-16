@@ -193,7 +193,7 @@ it('shows plan against actual per category on a closed month, with the overspend
         ->test('pages::month')
         ->assertSee('Variable spending total')
         ->assertSee(money(20_000).' over the budget')
-        ->assertSeeInOrder(['data-test="closed-breakdown"', 'data-test="over-budget-row"', 'Fuel', money_number(60_000), money_number(110_000), '+'.money_number(50_000), 'Groceries', 'under the budget by '.money(30_000), money_number(-30_000)], false)
+        ->assertSeeInOrder(['data-test="closed-breakdown"', 'data-test="over-budget-row"', 'Fuel', money_number(60_000), money_number(110_000), '+'.money_number(50_000), 'Groceries', money_number(-30_000), 'under the budget by '.money(30_000)], false)
         ->assertSee('over the budget by '.money(50_000))
         ->assertDontSee('data-test="fixed-items"', false);
 });

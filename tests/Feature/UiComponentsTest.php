@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\Currency;
 use Illuminate\Support\Facades\Blade;
 
 it('renders the sheet as a named modal dialog with the shared dialog behaviour', function (): void {
@@ -38,6 +39,18 @@ it('shows an amount with a separate currency symbol and an optional goal', funct
 
     expect($html)->toContain('>/ '.money_number(50_000_000).'<')
         ->and($html)->toContain('>'.user_currency()->symbol().'<');
+});
+
+it('keeps the cents of a euro amount so the amounts of a summary add up on screen', function (): void {
+    app()->setLocale('hu');
+    $eur = Currency::EUR;
+
+    // 1 789,40 − 1 625,60 = 163,80: rounded to whole euros it would read 1 789 − 1 626 = 164.
+    expect(money_number(178_940, $eur))->toBe("1\u{00A0}789,40")
+        ->and(money_number(-16_380, $eur))->toBe("\u{2212}163,80")
+        ->and(money_number(178_940, Currency::HUF))->toBe("178\u{00A0}940")
+        ->and(Blade::render('<x-ui.amount :value="16380" :currency="$eur" />', ['eur' => $eur]))->toContain('>163,80<')
+        ->and(money_number(-0, $eur))->toBe('0,00');
 });
 
 it('writes section labels in normal case and keeps the uppercase variant for plan groups', function (): void {
