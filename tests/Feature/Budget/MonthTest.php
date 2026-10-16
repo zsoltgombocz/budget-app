@@ -224,14 +224,14 @@ it('ticks a fixed item with an undo and keeps the list order', function (): void
     $page = Livewire::test('pages::month')
         ->assertSeeInOrder(['data-test="fixed-items"', 'role="checkbox"', 'aria-checked="false"', 'Rent', 'Insurance'], false)
         ->call('togglePaid', $rentLine->id)
-        ->assertDispatched('app-toast', undo: 'month-undo-paid');
+        ->assertDispatched('app-toast', undo: 'fixed-item-undo', params: ['budgetLineId' => $rentLine->id, 'status' => 'open']);
 
     // The ticked item stays first although ticked items sort last on a fresh page.
     expect($page->html())->toMatch('/data-test="fixed-items".*aria-checked="true".*Rent.*aria-checked="false".*Insurance/s')
         ->and($this->period->lineStatuses()->whereNotNull('paid_on')->count())->toBe(1);
 
-    $page->dispatch('month-undo-paid', budgetLineId: $rentLine->id, paid: false)
-        ->dispatch('month-undo-paid', budgetLineId: $rentLine->id, paid: false);
+    $page->dispatch('fixed-item-undo', budgetLineId: $rentLine->id, status: 'open')
+        ->dispatch('fixed-item-undo', budgetLineId: $rentLine->id, status: 'open');
 
     expect($this->period->lineStatuses()->whereNotNull('paid_on')->count())->toBe(0);
 });

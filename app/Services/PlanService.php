@@ -37,17 +37,24 @@ final readonly class PlanService
     }
 
     /**
-     * Plan of a period: the frozen snapshot once closed, the live plan while open.
+     * Plan of a period: the frozen snapshot once closed, the live plan while open. Fixed items
+     * marked as not paid in this period come back as skipped.
      *
      * @return list<PlanLine>
      */
     public function linesFor(Period $period): array
     {
-        if (! $period->isOpen()) {
-            return $this->calculator->fromSnapshot($period->plan_snapshot);
+        $lines = $period->isOpen()
+            ? $this->liveLines($period->user_id, $period->starts_on, $period->ends_on)
+            : $this->calculator->fromSnapshot($period->plan_snapshot);
+
+        $skipped = $period->lineStatuses()->whereNotNull('skipped_on')->pluck('budget_line_id')->flip();
+
+        if ($skipped->isEmpty()) {
+            return $lines;
         }
 
-        return $this->liveLines($period->user_id, $period->starts_on, $period->ends_on);
+        return array_map(fn (PlanLine $line): PlanLine => $line->isSkippable() && $skipped->has($line->lineId) ? $line->asSkipped() : $line, $lines);
     }
 
     public function summaryFor(Period $period): PlanSummary

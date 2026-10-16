@@ -1,9 +1,10 @@
 <?php
 
+use App\Actions\Budget\ChangeFixedItemStatus;
 use App\Actions\Budget\DeleteTransaction;
 use App\Actions\Budget\RestoreTransaction;
-use App\Actions\Budget\ToggleLinePaid;
 use App\Actions\Budget\UpdateTransaction;
+use App\Enums\LineStatus;
 use App\Enums\LineType;
 use App\Models\Category;
 use App\Models\Period;
@@ -187,39 +188,46 @@ new #[Title('Month')] class extends Component {
      */
     public function togglePaid(int $budgetLineId): void
     {
-        if (! $this->period->isOpen()) {
-            return;
-        }
-
-        $paid = app(ToggleLinePaid::class)->handle($this->user(), $this->period, $budgetLineId);
-        $this->refresh();
-
-        $this->dispatch('budget-updated');
-        $this->dispatch('app-toast',
-            title: $paid ? __('Marked as done.') : __('Marked as not done.'),
-            icon: $paid ? 'check_circle' : 'remove',
-            undo: 'month-undo-paid',
-            params: ['budgetLineId' => $budgetLineId, 'paid' => ! $paid],
-        );
+        $this->fixedItemChanged(resolve(ChangeFixedItemStatus::class)->toggle($this->user(), $this->period, $this->overview->fixedItems, $budgetLineId));
     }
 
     /**
-     * Undo a tick: set the item back to how it was, once (a second tap changes nothing).
+     * Mark a plain fixed item as not paid this period: it counts as 0.
      */
-    #[On('month-undo-paid')]
-    public function undoPaid(int $budgetLineId, bool $paid): void
+    public function skipLine(int $budgetLineId): void
     {
-        if (! $this->period->isOpen()) {
-            return;
-        }
+        $this->fixedItemChanged(resolve(ChangeFixedItemStatus::class)->set($this->user(), $this->period, $this->overview->fixedItems, $budgetLineId, LineStatus::Skipped));
+    }
 
-        $item = collect($this->overview->fixedItems)->first(fn (FixedItem $item): bool => $item->line->lineId === $budgetLineId);
+    /**
+     * Set an item marked as not paid back to due.
+     */
+    public function unskipLine(int $budgetLineId): void
+    {
+        $this->fixedItemChanged(resolve(ChangeFixedItemStatus::class)->set($this->user(), $this->period, $this->overview->fixedItems, $budgetLineId, LineStatus::Open));
+    }
 
-        if ($item instanceof FixedItem && $item->paid !== $paid) {
-            app(ToggleLinePaid::class)->handle($this->user(), $this->period, $budgetLineId);
+    #[On(ChangeFixedItemStatus::UNDO_EVENT)]
+    public function undoFixedItem(int $budgetLineId, string $status): void
+    {
+        if (resolve(ChangeFixedItemStatus::class)->undo($this->user(), $this->period, $this->overview->fixedItems, $budgetLineId, $status)) {
             $this->refresh();
             $this->dispatch('budget-updated');
         }
+    }
+
+    /**
+     * @param  array{title: string, subtitle: string|null, icon: string, undo: string, params: array{budgetLineId: int, status: string}}|null  $toast
+     */
+    private function fixedItemChanged(?array $toast): void
+    {
+        if ($toast === null) {
+            return;
+        }
+
+        $this->refresh();
+        $this->dispatch('budget-updated');
+        $this->dispatch('app-toast', ...$toast);
     }
 
     public function showPeriod(int $periodId): void
@@ -291,9 +299,10 @@ new #[Title('Month')] class extends Component {
     }
 
     /**
-     * The closed period's variable categories, planned against actual, from the closing record.
+     * The closed period's variable categories, planned against actual, from the closing record,
+     * and the fixed items marked as not paid that period.
      *
-     * @return list<array{category_id: int, name: string, planned: int, actual: int, diff: int, deviates: bool}>
+     * @return list<array{category_id: int, name: string, planned: int, actual: int, diff: int, deviates: bool, skipped: bool}>
      */
     #[Computed]
     public function closedBreakdown(): array
@@ -306,7 +315,7 @@ new #[Title('Month')] class extends Component {
         $rows = [];
 
         foreach (is_array($categories) ? $categories : [] as $row) {
-            if (is_array($row) && ($row['type'] ?? null) === LineType::Variable->value) {
+            if (is_array($row) && (($row['type'] ?? null) === LineType::Variable->value || ($row['skipped'] ?? false) === true)) {
                 $rows[] = [
                     'category_id' => (int) ($row['category_id'] ?? 0),
                     'name' => (string) ($row['name'] ?? ''),
@@ -314,6 +323,7 @@ new #[Title('Month')] class extends Component {
                     'actual' => (int) ($row['actual'] ?? 0),
                     'diff' => (int) ($row['diff'] ?? 0),
                     'deviates' => (bool) ($row['deviates'] ?? false),
+                    'skipped' => (bool) ($row['skipped'] ?? false),
                 ];
             }
         }
@@ -416,7 +426,7 @@ new #[Title('Month')] class extends Component {
                 $days[$key]['payday'] = true;
                 $days[$key]['rows'][] = ['kind' => 'income', 'amount' => $period->income()];
                 if ($fixed !== []) {
-                    $days[$key]['rows'][] = ['kind' => 'fixed', 'count' => count($fixed), 'amount' => array_sum(array_map(fn ($item) => $item->line->planned(), $fixed))];
+                    $days[$key]['rows'][] = ['kind' => 'fixed', 'count' => count($fixed), 'amount' => array_sum(array_map(fn ($item) => $item->line->counted(), $fixed))];
                 }
             }
         }
@@ -614,7 +624,7 @@ new #[Title('Month')] class extends Component {
                     'bg-warn/12' => $row['diff'] > 0,
                     'bg-accent/8' => $row['diff'] < 0 && $row['deviates'],
                 ]) @if ($row['diff'] > 0) data-test="over-budget-row" @endif>
-                    <span class="truncate">{{ $row['name'] }}</span>
+                    <span class="min-w-0"><span class="block truncate">{{ $row['name'] }}</span>@if ($row['skipped'])<span class="block text-xs text-muted" data-test="skipped-row">{{ __('not paid') }}</span>@endif</span>
                     <span class="text-right text-muted">{{ money_number($row['planned']) }}</span>
                     <span class="text-right">{{ money_number($row['actual']) }}</span>
                     <span @class(['text-right font-semibold', 'text-warn' => $row['diff'] > 0, 'text-accent' => $row['diff'] < 0, 'text-muted' => $row['diff'] === 0])>
@@ -635,6 +645,7 @@ new #[Title('Month')] class extends Component {
         @php
             $fixedDone = count(array_filter($this->fixedItems, fn ($item) => $item->paid));
             $fixedDue = count(array_filter($this->fixedItems, fn ($item) => $item->isOverdue($today)));
+            $fixedSkipped = count(array_filter($this->fixedItems, fn ($item) => $item->isSkipped()));
         @endphp
         <x-ui.card class="mx-4 mt-3 px-[18px]" data-test="fixed-items"
                    x-data="{
@@ -650,35 +661,14 @@ new #[Title('Month')] class extends Component {
                 <span class="min-w-0">
                     <span class="block text-[15px] font-semibold">{{ __('Fixed items') }}</span>
                     <span class="num mt-0.5 block text-[13px] text-muted">
-                        {{ __(':done of :count done', ['done' => $fixedDone, 'count' => count($this->fixedItems)]) }}@if ($fixedDue > 0)<span class="font-medium text-warn" data-test="fixed-due"> · {{ __(':count due', ['count' => $fixedDue]) }}</span>@endif
+                        {{ __(':done of :count done', ['done' => $fixedDone, 'count' => count($this->fixedItems)]) }}@if ($fixedDue > 0)<span class="font-medium text-warn" data-test="fixed-due"> · {{ __(':count due', ['count' => $fixedDue]) }}</span>@endif@if ($fixedSkipped > 0)<span data-test="fixed-skipped"> · {{ __(':count not paid', ['count' => $fixedSkipped]) }}</span>@endif
                     </span>
                 </span>
                 <x-ui.icon name="expand_more" :size="22" class="text-muted transition-transform" x-bind:class="open && 'rotate-180'" />
             </button>
             <div id="month-fixed-list" x-show="open" x-cloak class="border-t border-line pb-2" data-test="fixed-list">
             @foreach ($this->fixedItems as $item)
-                @php $overdue = $item->isOverdue($today); @endphp
-                <button type="button" role="checkbox" aria-checked="{{ $item->paid ? 'true' : 'false' }}" wire:key="fixed-{{ $item->line->lineId }}" wire:click="togglePaid({{ (int) $item->line->lineId }})"
-                        @class(['focus-ring grid w-full grid-cols-[26px_minmax(0,1fr)_auto] items-center gap-3 py-[11px] text-left', 'border-b border-line' => ! $loop->last]) data-test="fixed-item">
-                    @if ($item->paid)
-                        <span class="flex size-6 items-center justify-center rounded-full bg-accent/16 text-accent" aria-hidden="true"><x-ui.icon name="check" :size="16" :weight="600" /></span>
-                    @else
-                        <span @class(['size-6 rounded-full border-[1.5px] border-dashed', 'border-warn' => $overdue, 'border-faint' => ! $overdue]) aria-hidden="true"></span>
-                    @endif
-                    <span class="min-w-0">
-                        <span @class(['block truncate text-[15px]', 'text-ink-2' => $item->paid])>{{ $item->line->categoryName }}</span>
-                        <span @class(['mt-0.5 block text-xs', 'text-warn' => $overdue, 'text-muted' => ! $overdue])>
-                            @if ($item->paid)
-                                {{ __('done') }}
-                            @elseif ($item->dueOn)
-                                {{ $overdue ? __('was due :date', ['date' => Dates::short($item->dueOn)]) : __('due :date', ['date' => Dates::short($item->dueOn)]) }}
-                            @else
-                                {{ $item->line->type->label() }}
-                            @endif
-                        </span>
-                    </span>
-                    <x-ui.amount size="sm" :value="$item->line->planned()" class="text-[15px] font-medium" />
-                </button>
+                <x-fixed-item-row :item="$item" :today="$today" @class(['border-b border-line' => ! $loop->last]) wire:key="fixed-{{ $item->line->lineId }}" />
             @endforeach
             </div>
         </x-ui.card>
@@ -801,6 +791,8 @@ new #[Title('Month')] class extends Component {
         </x-slot:footer>
         <x-slot:pad><x-ui.amount-pad :decimal="$currency->decimals() > 0" /></x-slot:pad>
     </x-ui.sheet>
+
+    <x-fixed-item-sheet />
 </div>
 
 @script

@@ -4,7 +4,9 @@ use App\Actions\Budget\MovePocketMoney;
 use App\Actions\Budget\RecordPrepayment;
 use App\Actions\Budget\RecordTransaction;
 use App\Actions\Budget\ReopenPeriod;
+use App\Actions\Budget\SetLineStatus;
 use App\Actions\Budget\ToggleLinePaid;
+use App\Enums\LineStatus;
 use App\Enums\PeriodStatus;
 use App\Enums\PrepayMode;
 use App\Models\Category;
@@ -220,6 +222,15 @@ it('refuses when a fixed item was ticked off in the new month', function (): voi
     resolve(ToggleLinePaid::class)->handle($this->user, $next, $this->user->budgetLines()->firstOrFail()->id);
 
     expectRefusal('A fixed item was already ticked off');
+});
+
+it('refuses when a fixed item was marked as not paid in the new month', function (): void {
+    closeEarly();
+    $next = resolve(PeriodService::class)->current($this->user);
+    $rent = $this->user->budgetLines()->whereRelation('category', 'name', 'Rent')->firstOrFail();
+    resolve(SetLineStatus::class)->handle($this->user, $next, $rent->id, LineStatus::Skipped);
+
+    expectRefusal('A fixed item was already ticked off or marked as not paid');
 });
 
 it('refuses after a base currency change', function (): void {

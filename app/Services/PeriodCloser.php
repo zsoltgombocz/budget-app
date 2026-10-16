@@ -328,9 +328,11 @@ final readonly class PeriodCloser
     }
 
     /**
+     * Fixed items count with their planned amount, or 0 when marked as not paid ("skipped").
+     *
      * @param  list<PlanLine>  $lines
      * @param  array<int, int>  $spent
-     * @return list<array{category_id: int, name: string, type: string, planned: int, actual: int, diff: int, deviates: bool}>
+     * @return list<array{category_id: int, name: string, type: string, planned: int, actual: int, diff: int, deviates: bool, skipped: bool}>
      */
     private function categoryRows(User $user, array $lines, array $spent): array
     {
@@ -343,9 +345,11 @@ final readonly class PeriodCloser
                 'type' => $line->type->value,
                 'planned' => 0,
                 'actual' => 0,
+                'skipped' => false,
             ];
             $row['planned'] += $line->planned();
-            $row['actual'] = $line->type === LineType::Variable ? ($spent[$line->categoryId] ?? 0) : $row['planned'];
+            $row['actual'] = $line->type === LineType::Variable ? ($spent[$line->categoryId] ?? 0) : $row['actual'] + $line->counted();
+            $row['skipped'] = $row['skipped'] || $line->skipped;
             $rows[$line->categoryId] = $row;
         }
 
@@ -361,6 +365,7 @@ final readonly class PeriodCloser
                     'type' => LineType::Variable->value,
                     'planned' => 0,
                     'actual' => $amount,
+                    'skipped' => false,
                 ];
             }
         }

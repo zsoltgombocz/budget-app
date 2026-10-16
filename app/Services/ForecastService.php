@@ -13,7 +13,8 @@ final class ForecastService
      * Expected end-of-period leftover at the current spending pace.
      *
      * Fixed, transfer, loan and sinking lines always count with their planned amount, also when
-     * spending was recorded in their category (the closing counts them the same way).
+     * spending was recorded in their category (the closing counts them the same way); a fixed
+     * item marked as not paid this period counts as 0.
      * Variable categories count with max(plan, spent): a one-off purchase is not
      * extrapolated over the rest of the period.
      *
@@ -39,7 +40,7 @@ final class ForecastService
                 $variablePlan[$line->categoryId] = ($variablePlan[$line->categoryId] ?? 0) + $line->planned();
                 $names[$line->categoryId] = $line->categoryName;
             } else {
-                $committed += $line->planned();
+                $committed += $line->counted();
                 $committedCategories[$line->categoryId] = true;
             }
         }

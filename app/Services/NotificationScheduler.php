@@ -115,7 +115,7 @@ final readonly class NotificationScheduler
         $transfers = [];
 
         foreach ($this->overviews->fixedItems($period, resolve(PlanService::class)->linesFor($period)) as $item) {
-            if (in_array($item->line->type, [LineType::Transfer, LineType::Sinking], true)) {
+            if (in_array($item->line->type, [LineType::Transfer, LineType::Sinking], true) && ! $item->isSkipped()) {
                 $transfers[] = ['name' => $item->line->categoryName, 'amount' => $item->line->planned()];
             }
         }
@@ -133,7 +133,7 @@ final readonly class NotificationScheduler
         $due = [];
 
         foreach ($this->overviews->fixedItems($period, resolve(PlanService::class)->linesFor($period)) as $item) {
-            if (! $item->paid && $item->dueOn?->isSameDay($today)) {
+            if (! $item->paid && ! $item->isSkipped() && $item->dueOn?->isSameDay($today)) {
                 $due[] = ['name' => $item->line->categoryName, 'amount' => $item->line->planned()];
             }
         }

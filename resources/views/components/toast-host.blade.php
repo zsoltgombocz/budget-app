@@ -39,7 +39,7 @@
             <span class="ms ms-fill text-accent" style="font-size:22px;width:22px;height:22px" aria-hidden="true" x-text="toast.icon ?? 'check_circle'"></span>
             <div class="min-w-0 flex-1">
                 <div class="num line-clamp-2 text-sm font-medium leading-snug" x-text="toast.title"></div>
-                <div class="num truncate text-xs text-muted" x-show="toast.subtitle" x-text="toast.subtitle"></div>
+                <div class="num line-clamp-3 text-xs leading-snug text-muted" x-show="toast.subtitle" x-text="toast.subtitle"></div>
             </div>
             <button type="button" x-show="toast.undo" x-on:click.stop="undo()" class="focus-ring h-11 shrink-0 rounded-xl px-3 text-sm font-semibold text-accent">{{ __('Undo') }}</button>
             <button type="button" x-show="toast.undo" x-on:click.stop="dismiss()" class="focus-ring flex size-11 shrink-0 items-center justify-center rounded-xl text-muted" aria-label="{{ __('Close') }}" data-test="toast-close"><x-ui.icon name="close" :size="20" /></button>

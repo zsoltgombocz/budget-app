@@ -66,7 +66,8 @@ final readonly class OverviewService
 
     /**
      * Lines that are fulfilled by the plan (transfers, loans, fixed costs, sinking funds),
-     * with their due date in the period and whether they were ticked off.
+     * with their due date in the period and whether they were ticked off (or marked as not paid,
+     * which PlanService::linesFor() carries on the line).
      *
      * @param  list<PlanLine>  $lines
      * @return list<FixedItem>
@@ -88,7 +89,8 @@ final readonly class OverviewService
             );
         }
 
-        usort($items, fn (FixedItem $a, FixedItem $b): int => [$a->paid, $a->dueOn->timestamp ?? PHP_INT_MAX] <=> [$b->paid, $b->dueOn->timestamp ?? PHP_INT_MAX]);
+        // Open items first, by due date; paid and not paid ones after them.
+        usort($items, fn (FixedItem $a, FixedItem $b): int => [$a->paid || $a->isSkipped(), $a->dueOn->timestamp ?? PHP_INT_MAX] <=> [$b->paid || $b->isSkipped(), $b->dueOn->timestamp ?? PHP_INT_MAX]);
 
         return $items;
     }

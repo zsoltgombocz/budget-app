@@ -116,8 +116,8 @@ final readonly class ReopenPeriod
 
         $next = $user->periods()->whereDate('starts_on', '>', $period->starts_on->toDateString())->oldest('starts_on')->first();
 
-        if ($next !== null && $next->lineStatuses()->where(fn ($query) => $query->whereNotNull('paid_on')->orWhereNotNull('amount_actual'))->exists()) {
-            $this->refuse(__('A fixed item was already ticked off in the new month. Untick it first, then undo the closing.'));
+        if ($next !== null && $next->lineStatuses()->where(fn ($query) => $query->whereNotNull('paid_on')->orWhereNotNull('skipped_on')->orWhereNotNull('amount_actual'))->exists()) {
+            $this->refuse(__('A fixed item was already ticked off or marked as not paid in the new month. Set it back first, then undo the closing.'));
         }
 
         $pocketChanges = [];

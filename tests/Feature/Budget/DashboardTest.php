@@ -199,7 +199,7 @@ it('shows the first four fixed items and the rest behind a more row', function (
 
 it('ticks a fixed item off without moving it, with a toast that can undo it', function (): void {
     $phone = Category::factory()->for($this->user)->create(['name' => 'Phone', 'type' => 'fixed']);
-    $phoneLine = BudgetLine::factory()->for($this->user)->for($phone)->create(['amount' => 12_990, 'due_day' => 20]);
+    BudgetLine::factory()->for($this->user)->for($phone)->create(['amount' => 12_990, 'due_day' => 20]);
     $rent = BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail();
     $rent->update(['due_day' => 5]);
 
@@ -207,17 +207,16 @@ it('ticks a fixed item off without moving it, with a toast that can undo it', fu
 
     $component->call('togglePaid', $rent->id)
         ->assertDispatched('budget-updated')
-        ->assertDispatched('app-toast', title: __('Marked as done.'), undo: 'today-undo-paid', params: ['budgetLineId' => $rent->id, 'paid' => false])
+        ->assertDispatched('app-toast', title: __('Marked as done.'), undo: 'fixed-item-undo', params: ['budgetLineId' => $rent->id, 'status' => 'open'])
         // A paid item would sort last on a fresh page; while this one is open it stays where it was.
         ->assertSeeInOrder(['Rent', 'done', 'Phone']);
 
-    $component->dispatch('today-undo-paid', budgetLineId: $rent->id, paid: false);
+    $component->dispatch('fixed-item-undo', budgetLineId: $rent->id, status: 'open');
     expect(resolve(OverviewService::class)->forUser($this->user)->fixedItems[0]->paid)->toBeFalse();
 
     // A second undo changes nothing.
-    $component->dispatch('today-undo-paid', budgetLineId: $rent->id, paid: false);
-    expect(collect(resolve(OverviewService::class)->forUser($this->user)->fixedItems)->every(fn ($item) => ! $item->paid))->toBeTrue()
-        ->and($phoneLine->id)->toBeInt();
+    $component->dispatch('fixed-item-undo', budgetLineId: $rent->id, status: 'open');
+    expect(collect(resolve(OverviewService::class)->forUser($this->user)->fixedItems)->every(fn ($item): bool => ! $item->paid))->toBeTrue();
 });
 
 it('says a transfer due today was transferred, and the due card keeps its amount whole', function (): void {
@@ -228,7 +227,7 @@ it('says a transfer due today was transferred, and the due card keeps its amount
     expect($component->html())->toMatch('/<span class="truncate">Telefon és internet előfizetés<\/span>\s*<span class="num shrink-0 whitespace-nowrap" data-test="due-amount">/');
 
     $component->call('togglePaid', $line->id)
-        ->assertDispatched('app-toast', title: __('Marked as transferred.'), undo: 'today-undo-paid');
+        ->assertDispatched('app-toast', title: __('Marked as transferred.'), undo: 'fixed-item-undo');
 });
 
 it('shows the how-it-works intro once after onboarding', function (): void {
