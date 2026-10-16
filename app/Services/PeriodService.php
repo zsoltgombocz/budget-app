@@ -109,6 +109,28 @@ final readonly class PeriodService
     }
 
     /**
+     * The money moved between pockets and this period's budget, each direction on its own:
+     * put into pockets from the budget, and taken from pockets into it (both positive).
+     *
+     * @return array{deposits: int, withdrawals: int}
+     */
+    public function pocketMoves(Period $period): array
+    {
+        $totals = PocketMovement::query()
+            ->withoutGlobalScopes()
+            ->where('period_id', $period->id)
+            ->where('to_budget', true)
+            ->selectRaw('coalesce(sum(case when amount > 0 then amount else 0 end), 0) as deposits, coalesce(sum(case when amount < 0 then -amount else 0 end), 0) as withdrawals')
+            ->toBase()
+            ->first();
+
+        return [
+            'deposits' => is_numeric($totals?->deposits) ? (int) $totals->deposits : 0,
+            'withdrawals' => is_numeric($totals?->withdrawals) ? (int) $totals->withdrawals : 0,
+        ];
+    }
+
+    /**
      * Income the period can spend: actual (or planned) income plus the net pocket moves.
      */
     public function availableIncome(Period $period): int

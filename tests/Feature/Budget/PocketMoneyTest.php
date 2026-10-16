@@ -43,6 +43,21 @@ it('takes a deposit out of the period budget', function (): void {
         ->and(resolve(OverviewService::class)->forUser($this->user)->forecast->expectedLeftover)->toBe($before - 20_000);
 });
 
+it('raises the daily allowance with a withdrawal into the budget and lowers it with a deposit', function (): void {
+    $daily = fn (): int => resolve(OverviewService::class)->forUser($this->user)->forecast->dailyAllowance;
+    $before = $daily();
+    $remainingDays = resolve(OverviewService::class)->forUser($this->user)->forecast->remainingDays;
+
+    resolve(MovePocketMoney::class)->handle($this->user, $this->reserve, -21_000, null, toBudget: true);
+    $afterWithdrawal = $daily();
+    resolve(MovePocketMoney::class)->handle($this->user, $this->reserve, 7_000, null, toBudget: true);
+
+    expect($afterWithdrawal)->toBe(intdiv(150_000 + 21_000, $remainingDays))
+        ->and($before)->toBe(intdiv(150_000, $remainingDays))
+        ->and($daily())->toBe(intdiv(150_000 + 21_000 - 7_000, $remainingDays))
+        ->and(resolve(PeriodService::class)->pocketMoves(resolve(PeriodService::class)->current($this->user)))->toBe(['deposits' => 7_000, 'withdrawals' => 21_000]);
+});
+
 it('does not touch the budget for a plain withdrawal', function (): void {
     resolve(MovePocketMoney::class)->handle($this->user, $this->reserve, -30_000, null, toBudget: false);
 

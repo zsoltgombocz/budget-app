@@ -2,9 +2,12 @@
 
 namespace App\Services;
 
+use App\Enums\DeviationReason;
 use App\Enums\LineType;
 use App\Services\Data\CategoryForecast;
+use App\Services\Data\DeviationItem;
 use App\Services\Data\Forecast;
+use App\Services\Data\PlanDeviation;
 use App\Services\Data\PlanLine;
 
 final class ForecastService
@@ -17,10 +20,16 @@ final class ForecastService
      * item marked as not paid this period counts as 0.
      * Variable categories count with max(plan, spent): a one-off purchase is not
      * extrapolated over the rest of the period.
+     * Money moved between the pockets and this period's budget changes what the period can spend:
+     * a withdrawal into the budget adds to it, a deposit from it takes off (also from the daily
+     * allowance).
      *
      * @param  list<PlanLine>  $lines
+     * @param  int  $income  the period's own income, without pocket moves
      * @param  array<int, int>  $spentByCategory  category id => spent amount
      * @param  array<int, string>  $categoryNames  names for spent categories without a plan line
+     * @param  int  $pocketDeposits  put into pockets from this period's budget (positive)
+     * @param  int  $pocketWithdrawals  taken out of pockets into this period's budget (positive)
      */
     public function forecast(
         array $lines,
@@ -29,7 +38,11 @@ final class ForecastService
         int $totalDays,
         int $elapsedDays,
         array $categoryNames = [],
+        int $pocketDeposits = 0,
+        int $pocketWithdrawals = 0,
     ): Forecast {
+        $baseIncome = $income;
+        $income = $baseIncome + $pocketWithdrawals - $pocketDeposits;
         $committed = 0;
         $variablePlan = [];
         $committedCategories = [];
@@ -82,8 +95,52 @@ final class ForecastService
             plannedLeftover: $income - $committed - $variablePlanned,
             expectedLeftover: $income - $committed - $variableExpected,
             remainingDays: $remainingDays,
-            dailyAllowance: $this->dailyAllowance($variablePlanned, $variableSpent, $remainingDays),
+            dailyAllowance: $this->dailyAllowance($variablePlanned + $pocketWithdrawals - $pocketDeposits, $variableSpent, $remainingDays),
             categories: $categories,
+            baseIncome: $baseIncome,
+            pocketDeposits: $pocketDeposits,
+            pocketWithdrawals: $pocketWithdrawals,
+        );
+    }
+
+    /**
+     * The month against its plan: the leftover if every budget is spent in full, minus the
+     * leftover the plan expects (income − every planned line, skipped ones at full amount).
+     * The reasons add up to the difference: each budget overspent, each fixed item skipped
+     * this month, money put into pockets and money taken from them into the budget.
+     *
+     * @param  list<PlanLine>  $lines  the same lines the forecast was made from
+     */
+    public function deviation(Forecast $forecast, array $lines): PlanDeviation
+    {
+        $items = [];
+        $skippedTotal = 0;
+
+        foreach ($forecast->categories as $category) {
+            if ($category->spent > $category->planned) {
+                $items[] = new DeviationItem(DeviationReason::Overspent, -($category->spent - $category->planned), $category->categoryName, withoutBudget: $category->planned === 0);
+            }
+        }
+
+        foreach ($lines as $line) {
+            if ($line->type !== LineType::Variable && $line->skipped && $line->planned() > 0) {
+                $skippedTotal += $line->planned();
+                $items[] = new DeviationItem(DeviationReason::Skipped, $line->planned(), $line->categoryName);
+            }
+        }
+
+        if ($forecast->pocketDeposits > 0) {
+            $items[] = new DeviationItem(DeviationReason::ToPockets, -$forecast->pocketDeposits);
+        }
+
+        if ($forecast->pocketWithdrawals > 0) {
+            $items[] = new DeviationItem(DeviationReason::FromPockets, $forecast->pocketWithdrawals);
+        }
+
+        return new PlanDeviation(
+            plannedLeftover: $forecast->baseIncome - $forecast->committed - $skippedTotal - $forecast->variablePlanned,
+            expectedLeftover: $forecast->expectedLeftover,
+            items: $items,
         );
     }
 

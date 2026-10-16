@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\DeviationReason;
 use App\Enums\LineType;
 use App\Services\Data\PlanLine;
 use App\Services\ForecastService;
@@ -98,4 +99,62 @@ it('lets only a plain fixed item be marked as not paid', function (): void {
         ->and(new PlanLine(4, 4, 'Holiday', LineType::Sinking, 20_000, pocketId: 7)->isSkippable())->toBeFalse()
         ->and(new PlanLine(5, 5, 'Car loan', LineType::Loan, 40_000, loanId: 3)->isSkippable())->toBeFalse()
         ->and(new PlanLine(null, 6, 'Old', LineType::Fixed, 1_000)->isSkippable())->toBeFalse();
+});
+
+it('adds money taken from pockets and takes off money put into them, daily allowance included', function (): void {
+    $forecast = new ForecastService()->forecast(forecastPlan(), 500_000, [3 => 30_000], totalDays: 30, elapsedDays: 21, pocketDeposits: 10_000, pocketWithdrawals: 40_000);
+
+    // (150 000 + 40 000 − 10 000 − 30 000) / 10 remaining days.
+    expect($forecast->income)->toBe(530_000)
+        ->and($forecast->baseIncome)->toBe(500_000)
+        ->and($forecast->expectedLeftover)->toBe(80_000)
+        ->and($forecast->dailyAllowance)->toBe(15_000);
+});
+
+it('lowers the daily allowance by a deposit into a pocket', function (): void {
+    $forecast = new ForecastService()->forecast(forecastPlan(), 500_000, [], totalDays: 30, elapsedDays: 1, pocketDeposits: 30_000);
+
+    expect($forecast->dailyAllowance)->toBe(4_000);
+});
+
+it('is on plan while every budget holds and nothing moved', function (): void {
+    $service = new ForecastService;
+    $lines = forecastPlan();
+    $deviation = $service->deviation($service->forecast($lines, 500_000, [3 => 59_000], 30, 10), $lines);
+
+    expect($deviation->plannedLeftover)->toBe(50_000)
+        ->and($deviation->expectedLeftover)->toBe(50_000)
+        ->and($deviation->amount())->toBe(0)
+        ->and($deviation->isOnPlan())->toBeTrue()
+        ->and($deviation->items)->toBe([]);
+});
+
+it('explains the deviation from the plan with reasons that add up to it', function (): void {
+    $service = new ForecastService;
+    $lines = forecastPlan();
+    $lines[0] = $lines[0]->asSkipped();
+    $forecast = $service->forecast($lines, 500_000, [3 => 63_990, 4 => 10_000, 99 => 2_000], 30, 10, [99 => 'Gift'], pocketDeposits: 10_000, pocketWithdrawals: 5_000);
+
+    $deviation = $service->deviation($forecast, $lines);
+    $items = collect($deviation->items)->map(fn ($item): array => [$item->reason, $item->amount, $item->label()])->all();
+
+    expect($deviation->plannedLeftover)->toBe(50_000)
+        ->and($deviation->amount())->toBe(-3_990 - 2_000 + 200_000 - 10_000 + 5_000)
+        ->and($deviation->expectedLeftover)->toBe($forecast->expectedLeftover)
+        ->and(array_sum(array_column($items, 1)))->toBe($deviation->amount())
+        ->and($items)->toBe([
+            [DeviationReason::Overspent, -3_990, 'Fuel over budget'],
+            [DeviationReason::Overspent, -2_000, 'Gift, without a budget'],
+            [DeviationReason::Skipped, 200_000, 'Rent skipped'],
+            [DeviationReason::ToPockets, -10_000, 'Put into pockets'],
+            [DeviationReason::FromPockets, 5_000, 'From pockets into the budget'],
+        ]);
+});
+
+it('does not count a raised budget as a deviation', function (): void {
+    $service = new ForecastService;
+    $lines = forecastPlan();
+    $lines[2] = new PlanLine(3, 3, 'Fuel', LineType::Variable, 90_000);
+
+    expect($service->deviation($service->forecast($lines, 500_000, [3 => 80_000], 30, 10), $lines)->amount())->toBe(0);
 });

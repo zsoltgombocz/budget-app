@@ -14,6 +14,7 @@ final readonly class Overview
         public Period $period,
         public CarbonImmutable $today,
         public Forecast $forecast,
+        public PlanDeviation $deviation,
         public array $fixedItems,
         public int $spentToday,
         public bool $noSpendMarked,

@@ -1059,5 +1059,10 @@
     "Only a fixed item without a pocket or loan can be marked as not paid.": "Csak persely és hitel nélküli fix tétel jelölhető nem fizetettnek.",
     "Money into the pocket from this month's money: the leftover goes down by the same amount.": "Pénz a perselybe a havi pénzedből: a maradék ugyanennyivel csökken.",
     "Put into pockets from the budget": "Keretből perselybe",
-    "Income, with money moved to and from pockets": "Bevétel, a perselyekbe tett és onnan kivett pénzzel"
+    "Income, with money moved to and from pockets": "Bevétel, a perselyekbe tett és onnan kivett pénzzel",
+    ":name over budget": ":name túllépés",
+    ":name, without a budget": ":name, keret nélkül",
+    ":name skipped": ":name kimarad",
+    "Put into pockets": "Perselybe tettél",
+    "From pockets into the budget": "Perselyből a keretbe"
 }

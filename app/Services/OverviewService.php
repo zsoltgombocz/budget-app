@@ -7,6 +7,7 @@ use App\Models\Period;
 use App\Models\User;
 use App\Services\Data\FixedItem;
 use App\Services\Data\Overview;
+use App\Services\Data\PlanDeviation;
 use App\Services\Data\PlanLine;
 use Carbon\CarbonImmutable;
 
@@ -45,23 +46,37 @@ final readonly class OverviewService
             $categoryNames[$category->id] = $category->name;
         }
 
+        $pocketMoves = $this->periods->pocketMoves($period);
+
         $forecast = $this->forecasts->forecast(
             lines: $lines,
-            income: $this->periods->availableIncome($period),
+            income: $period->income(),
             spentByCategory: $spent,
             totalDays: $period->totalDays(),
             elapsedDays: max(1, $period->elapsedDays($today)),
             categoryNames: $categoryNames,
+            pocketDeposits: $pocketMoves['deposits'],
+            pocketWithdrawals: $pocketMoves['withdrawals'],
         );
 
         return new Overview(
             period: $period,
             today: $today,
             forecast: $forecast,
+            deviation: $this->forecasts->deviation($forecast, $lines),
             fixedItems: $this->fixedItems($period, $lines),
             spentToday: (int) $period->transactions()->whereDate('occurred_on', $today->toDateString())->sum('amount'),
             noSpendMarked: $user->dayMarks()->whereDate('date', $today->toDateString())->exists(),
         );
+    }
+
+    /**
+     * The period against its plan (ForecastService::deviation()): what moved the leftover away
+     * from the plan, with the reasons.
+     */
+    public function deviation(User $user, Period $period): PlanDeviation
+    {
+        return $this->forPeriod($user, $period, $this->periods->today($user->settings()))->deviation;
     }
 
     /**
