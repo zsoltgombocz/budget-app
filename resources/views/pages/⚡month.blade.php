@@ -95,7 +95,7 @@ new #[Title('Month')] class extends Component {
             'category' => ['required', 'integer'],
             'date' => ['required', 'date_format:Y-m-d', 'before_or_equal:'.app(PeriodService::class)->today($user->settings())->toDateString()],
             'note' => ['nullable', 'string', 'max:255'],
-        ]);
+        ], ['date.before_or_equal' => __('You cannot record spending on a future day.')]);
 
         $errors = $validator->fails() ? $this->firstMessages($validator->errors()->toArray()) : [];
 

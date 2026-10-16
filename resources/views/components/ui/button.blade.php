@@ -12,7 +12,8 @@
     $sizes = [
         'lg' => 'h-14 rounded-btn px-5 text-[17px] gap-2',
         'md' => 'h-11 rounded-[14px] px-4 text-sm gap-2',
-        'sm' => 'h-9 rounded-xl px-3.5 text-[13px] gap-1.5',
+        // 36px tall to sit inside cards; the invisible ::before stretches the touch target to 44px.
+        'sm' => 'relative h-9 rounded-xl px-3.5 text-[13px] gap-1.5 before:absolute before:inset-x-0 before:-inset-y-1',
     ];
     $classes = 'focus-ring inline-flex items-center justify-center whitespace-nowrap transition active:scale-[0.98] disabled:active:scale-100 '.($variants[$variant] ?? $variants['primary']).' '.($sizes[$size] ?? $sizes['lg']);
 @endphp

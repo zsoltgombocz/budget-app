@@ -39,12 +39,12 @@
          ]) }}>
         <div class="mx-auto mt-2 h-[5px] w-9 shrink-0 rounded-full bg-ink/18" aria-hidden="true"></div>
         @if ($header)
-            <div class="mt-1 grid h-11 shrink-0 grid-cols-[72px_1fr_72px] items-center px-4">
+            <div class="mt-1 grid min-h-11 shrink-0 grid-cols-[72px_minmax(0,1fr)_72px] items-center px-4">
                 <button type="button" class="-ml-2 h-11 rounded-xl px-2 text-left text-[15px] text-muted focus-ring" x-on:click="{{ $close }}">{{ __('Cancel') }}</button>
                 @if ($label)
-                    <h2 class="truncate text-center text-base font-semibold">{{ $label }}</h2>
+                    <h2 class="line-clamp-2 text-center text-base font-semibold leading-tight text-balance" data-test="sheet-title">{{ $label }}</h2>
                 @else
-                    <h2 class="truncate text-center text-base font-semibold" x-text="{{ $title }}"></h2>
+                    <h2 class="line-clamp-2 text-center text-base font-semibold leading-tight text-balance" x-text="{{ $title }}" data-test="sheet-title"></h2>
                 @endif
                 <div class="flex justify-end">{{ $action ?? '' }}</div>
             </div>

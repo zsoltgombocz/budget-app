@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\Currency;
 use App\Enums\PeriodMode;
 use App\Models\BudgetLine;
 use App\Models\User;
@@ -107,12 +108,26 @@ it('asks for a yes or no before moving past a question', function (): void {
 
     Livewire::test('pages::onboarding')
         ->set('step', 5)
+        ->assertSee('Choose one to continue.')
         ->call('next')
         ->assertHasErrors('shared')
         ->assertSet('step', 5)
         ->assertDontSee('Shared contribution')
         ->set('shared', true)
-        ->assertSee('Shared contribution');
+        ->assertSee('Shared contribution')
+        ->assertDontSee('Choose one to continue.');
+});
+
+it('shows a zero reserve saving without a minus sign', function (): void {
+    $this->actingAs(User::factory()->create());
+
+    Livewire::test('pages::onboarding')
+        ->set('step', 8)
+        ->set('income', '500000')
+        ->set('shared', false)
+        ->set('hasLoan', false)
+        ->set('amounts.14', '0')
+        ->assertSeeHtml('data-test="preview-reserve-monthly">'.money(0, Currency::HUF).'<');
 });
 
 it('validates each step before moving on', function (): void {

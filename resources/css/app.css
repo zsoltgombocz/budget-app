@@ -238,6 +238,11 @@
     @apply !mb-0 !leading-tight;
 }
 
+/* Flux text inputs are 40px; the app's touch targets are at least 44px. */
+input[data-flux-control]:not([type='checkbox'], [type='radio'], [type='file']) {
+    min-height: 2.75rem;
+}
+
 input:focus[data-flux-control],
 textarea:focus[data-flux-control],
 select:focus[data-flux-control] {

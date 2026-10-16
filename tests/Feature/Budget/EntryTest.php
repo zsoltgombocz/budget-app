@@ -111,7 +111,7 @@ it('rejects invalid input with the reason and saves nothing', function (array $o
     'zero amount' => [['amount' => '0'], 'amount', 'The amount must be greater than zero.'],
     'not a number' => [['amount' => '12a'], 'amount', 'Enter a valid amount.'],
     'cents in forint' => [['amount' => '12,5'], 'amount', 'Enter a valid amount.'],
-    'future date' => [fn (): array => ['date' => now()->addDays(2)->toDateString()], 'date', null],
+    'future date' => [fn (): array => ['date' => now()->addDays(2)->toDateString()], 'date', 'You cannot record spending on a future day.'],
     'another user\'s category' => [fn (): array => ['category' => Category::factory()->create()->id], 'category', 'Choose a category.'],
 ]);
 

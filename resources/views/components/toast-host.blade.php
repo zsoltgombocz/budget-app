@@ -22,6 +22,11 @@
             clearTimeout(this.timer)
             this.toast = null
         },
+        announcement() {
+            if (! this.toast) return ''
+
+            return [this.toast.title, this.toast.subtitle].filter(Boolean).map((text) => /[.!?…]$/.test(text) ? text : text + '.').join(' ')
+        },
     }"
      x-on:app-toast.window="show($event.detail)"
      @class([
@@ -30,18 +35,18 @@
          'bottom-[calc(24px+env(safe-area-inset-bottom))]' => ! $tabs,
      ])>
     {{-- The live region stays in the DOM so screen readers announce what appears in it. --}}
-    <div class="sr-only" role="status" aria-live="polite" x-text="toast ? [toast.title, toast.subtitle].filter(Boolean).join('. ') : ''"></div>
+    <div class="sr-only" role="status" aria-live="polite" x-text="announcement()" data-test="toast-status"></div>
     <template x-if="toast">
         <div x-transition:enter="transition duration-200" x-transition:enter-start="translate-y-3 opacity-0"
              x-on:click="dismiss()"
-             class="pointer-events-auto relative flex h-[58px] cursor-pointer items-center gap-3 overflow-hidden rounded-btn bg-surface-3 pl-4 pr-2 text-ink shadow-[0_14px_34px_rgba(0,0,0,0.5)]"
+             class="pointer-events-auto relative flex min-h-[58px] cursor-pointer items-center gap-3 overflow-hidden rounded-btn bg-surface-3 py-2 pl-4 pr-2 text-ink shadow-[0_14px_34px_rgba(0,0,0,0.5)]"
              data-test="toast">
             <span class="ms ms-fill text-accent" style="font-size:22px;width:22px;height:22px" aria-hidden="true" x-text="toast.icon ?? 'check_circle'"></span>
             <div class="min-w-0 flex-1">
-                <div class="num truncate text-sm font-medium" x-text="toast.title"></div>
-                <div class="num truncate text-xs text-muted" x-show="toast.subtitle" x-text="toast.subtitle"></div>
+                <div class="num line-clamp-2 text-sm font-medium leading-snug text-pretty" x-text="toast.title" data-test="toast-title"></div>
+                <div class="num line-clamp-2 text-xs leading-snug text-pretty text-muted" x-show="toast.subtitle" x-text="toast.subtitle"></div>
             </div>
-            <button type="button" x-show="toast.undo" x-on:click.stop="undo()" class="focus-ring h-11 rounded-xl px-3 text-sm font-semibold text-accent">{{ __('Undo') }}</button>
+            <button type="button" x-show="toast.undo" x-on:click.stop="undo()" class="focus-ring h-11 shrink-0 whitespace-nowrap rounded-xl px-3 text-sm font-semibold text-accent">{{ __('Undo') }}</button>
             <button type="button" x-show="toast.undo" x-on:click.stop="dismiss()" class="focus-ring flex size-11 shrink-0 items-center justify-center rounded-xl text-muted" aria-label="{{ __('Close') }}" data-test="toast-close"><x-ui.icon name="close" :size="20" /></button>
             <div :key="key" class="absolute bottom-0 left-0 h-0.5 bg-accent/60" x-init="$el.animate([{ width: '100%' }, { width: '0%' }], { duration: 5000, fill: 'forwards' })"></div>
         </div>

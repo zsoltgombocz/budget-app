@@ -104,7 +104,7 @@ it('returns the errors of an invalid correction and changes nothing', function (
 
     Livewire::test('pages::month')
         ->call('updateTransaction', $transaction->id, ['amount' => '0', 'category' => $this->fuel->id, 'date' => $tomorrow->toDateString(), 'note' => null])
-        ->assertReturned(fn (array $result): bool => $result['ok'] === false && isset($result['errors']['amount'], $result['errors']['date']));
+        ->assertReturned(fn (array $result): bool => $result['ok'] === false && isset($result['errors']['amount']) && $result['errors']['date'] === 'You cannot record spending on a future day.');
 
     expect($transaction->refresh()->amount)->toBe(12_000);
 });

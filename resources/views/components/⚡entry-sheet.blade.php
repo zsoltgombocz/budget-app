@@ -59,7 +59,7 @@ new class extends Component {
             'date' => ['required', 'date_format:Y-m-d', 'before_or_equal:'.$this->currentDay()],
             'note' => ['nullable', 'string', 'max:255'],
             'client_uuid' => ['required', 'uuid'],
-        ]);
+        ], ['date.before_or_equal' => __('You cannot record spending on a future day.')]);
 
         $errors = $validator->fails() ? $this->firstMessages($validator->errors()->toArray()) : [];
 
@@ -262,7 +262,7 @@ new class extends Component {
              :aria-busy="busy">
             <div class="mx-auto h-[5px] w-9 shrink-0 rounded-full bg-ink/18"></div>
             <div class="mt-1 grid h-[clamp(36px,5.2dvh,44px)] shrink-0 grid-cols-[72px_1fr_72px] items-center">
-                <button type="button" class="focus-ring -ml-2 h-full rounded-xl px-2 text-left text-[15px] text-muted" x-on:click="close()">{{ __('Cancel') }}</button>
+                <button type="button" class="focus-ring relative -ml-2 h-full rounded-xl px-2 text-left text-[15px] text-muted before:absolute before:inset-x-0 before:-inset-y-1" x-on:click="close()" data-test="entry-cancel">{{ __('Cancel') }}</button>
                 <h2 class="text-center text-base font-semibold">{{ __('New spending') }}</h2>
                 <span></span>
             </div>
@@ -301,11 +301,11 @@ new class extends Component {
                         <label class="relative flex h-[clamp(38px,5.2dvh,44px)] flex-none items-center gap-1.5 rounded-[14px] bg-surface-2 px-3.5 text-sm font-medium focus-within:ring-2 focus-within:ring-accent">
                             <x-ui.icon name="calendar_today" :size="18" class="text-muted" />
                             <span x-text="date === today ? texts.today : shortDate(date)"></span>
-                            <input type="date" x-model="date" :max="today" x-on:change="error = null" class="absolute inset-0 opacity-0" aria-label="{{ __('Date') }}">
+                            <input type="date" x-model="date" :max="today" x-on:change="error = null" class="absolute inset-x-0 -inset-y-1 opacity-0" aria-label="{{ __('Date') }}" data-test="entry-date">
                         </label>
-                        <label class="flex h-[clamp(38px,5.2dvh,44px)] min-w-0 flex-1 items-center gap-1.5 rounded-[14px] bg-surface-2 px-3.5 text-sm text-muted focus-within:ring-2 focus-within:ring-accent">
+                        <label class="relative flex h-[clamp(38px,5.2dvh,44px)] min-w-0 flex-1 items-center gap-1.5 rounded-[14px] bg-surface-2 px-3.5 text-sm text-muted focus-within:ring-2 focus-within:ring-accent before:absolute before:inset-x-0 before:-inset-y-1" data-test="entry-note">
                             <x-ui.icon name="edit_note" :size="18" />
-                            <input type="text" x-model="note" maxlength="255" placeholder="{{ __('Note (optional)') }}" class="min-w-0 flex-1 bg-transparent text-ink outline-none placeholder:text-muted">
+                            <input type="text" x-model="note" maxlength="255" placeholder="{{ __('Note (optional)') }}" class="relative min-w-0 flex-1 self-stretch bg-transparent text-ink outline-none placeholder:text-muted">
                         </label>
                     </div>
 

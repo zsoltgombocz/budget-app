@@ -110,9 +110,6 @@ new #[Title('Pockets and loans')] class extends Component {
     }
 
     /**
-     * @return array{ok: bool, errors: array<string, string>}
-     */
-    /**
      * Deposit (direction 1) or withdraw (-1). A withdrawal tops up this period's budget
      * unless $toBudget is false (money simply leaves the pocket).
      *
@@ -474,7 +471,7 @@ new #[Title('Pockets and loans')] class extends Component {
                     <span class="flex items-center gap-3">
                         <x-ui.icon-tile :icon="$icon" tone="accent" />
                         <span class="min-w-0 flex-1">
-                            <span class="block truncate text-[15px] font-semibold">{{ $pocket->name }}</span>
+                            <span class="line-clamp-2 block text-[15px] font-semibold leading-snug text-pretty">{{ $pocket->name }}</span>
                             @foreach ($notes as $note)<span class="num mt-0.5 block text-xs leading-snug text-pretty text-muted" data-test="pocket-note">{{ $note }}</span>@endforeach
                         </span>
                         <x-ui.icon name="chevron_right" :size="22" class="text-faint" />
@@ -525,8 +522,8 @@ new #[Title('Pockets and loans')] class extends Component {
                 <button type="button" x-on:click="openLoan({{ $loan->id }})" class="focus-ring flex w-full items-center gap-3 rounded-xl text-left" data-test="edit-loan-{{ $loan->id }}">
                     <x-ui.icon-tile icon="account_balance" />
                     <span class="min-w-0 flex-1">
-                        <span class="block truncate text-[15px] font-semibold">{{ $loan->name }}</span>
-                        @if ($loan->lender)<span class="block truncate text-xs text-muted">{{ $loan->lender }}</span>@endif
+                        <span class="line-clamp-2 block text-[15px] font-semibold leading-snug text-pretty">{{ $loan->name }}</span>
+                        @if ($loan->lender)<span class="mt-0.5 block text-xs leading-snug text-pretty text-muted" data-test="loan-lender">{{ $loan->lender }}</span>@endif
                     </span>
                     <x-ui.icon name="chevron_right" :size="22" class="text-faint" />
                 </button>
@@ -601,14 +598,19 @@ new #[Title('Pockets and loans')] class extends Component {
                     'spend' => [__('Pay a spending from the pocket'), __('The spending is paid by the pocket: it does not use up the monthly budget.')],
                 ] as $mode => [$modeLabel, $modeHint])
                     <button type="button" role="radio" x-on:click="moveMode = @js($mode)" :aria-checked="moveMode === @js($mode) ? 'true' : 'false'"
-                            class="focus-ring flex w-full items-start gap-3 rounded-2xl border px-3.5 py-2.5 text-left transition-colors"
+                            @if ($mode !== 'deposit') :disabled="form.balance <= 0" @endif
+                            class="focus-ring flex w-full items-start gap-3 rounded-2xl border px-3.5 py-2.5 text-left transition-colors disabled:cursor-default disabled:text-muted"
                             :class="moveMode === @js($mode) ? 'border-accent bg-accent/10' : 'border-transparent bg-surface-2'" data-test="mode-{{ $mode }}">
                         <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2" :class="moveMode === @js($mode) ? 'border-accent' : 'border-ink/25'" aria-hidden="true">
                             <span class="h-2.5 w-2.5 rounded-full bg-accent" x-show="moveMode === @js($mode)"></span>
                         </span>
                         <span class="min-w-0">
                             <span class="block text-[15px] font-semibold leading-snug">{{ $modeLabel }}</span>
-                            <span class="mt-0.5 block text-xs leading-snug text-muted">{{ $modeHint }}</span>
+                            @if ($mode === 'deposit')
+                                <span class="mt-0.5 block text-xs leading-snug text-muted">{{ $modeHint }}</span>
+                            @else
+                                <span class="mt-0.5 block text-xs leading-snug text-muted" x-text="form.balance > 0 ? @js($modeHint) : @js(__('The pocket is empty, there is nothing to take out.'))"></span>
+                            @endif
                         </span>
                     </button>
                 @endforeach
@@ -784,7 +786,7 @@ new #[Title('Pockets and loans')] class extends Component {
         /** mode: 'deposit' | 'budget' | 'spend' — the card buttons open the sheet with it preset. */
         async openPocket(id, mode = 'deposit') {
             const data = await $wire.pocketData(id)
-            this.moveMode = mode
+            this.moveMode = data.balance > 0 ? mode : 'deposit'
             this.pocketTab = 'money'
             this.spendCategory = ''
             this.spendNote = ''

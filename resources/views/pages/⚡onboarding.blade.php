@@ -663,9 +663,9 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                 <div class="flex items-center gap-2 text-[13px] font-semibold text-accent"><x-ui.icon name="info" :size="18" />{{ __('A month with your numbers') }}</div>
                 <div class="num mt-2 text-[13px]">
                     <div class="flex justify-between py-1"><span class="text-muted">{{ __('Income') }}</span><span>{{ money($preview['income'], $currency) }}</span></div>
-                    <div class="flex justify-between py-1"><span class="text-muted">{{ __('Planned costs and budgets') }}</span><span>−{{ money($preview['planned'], $currency) }}</span></div>
+                    <div class="flex justify-between py-1"><span class="text-muted">{{ __('Planned costs and budgets') }}</span><span>{{ $preview['planned'] > 0 ? '−' : '' }}{{ money($preview['planned'], $currency) }}</span></div>
                     @if ($preview['reserveOn'])
-                        <div class="flex justify-between py-1"><span class="text-muted">{{ __('Put aside in the reserve') }}</span><span>−{{ money($preview['reserveMonthly'], $currency) }}</span></div>
+                        <div class="flex justify-between py-1"><span class="text-muted">{{ __('Put aside in the reserve') }}</span><span data-test="preview-reserve-monthly">{{ $preview['reserveMonthly'] > 0 ? '−' : '' }}{{ money($preview['reserveMonthly'], $currency) }}</span></div>
                     @endif
                     <div @class(['flex justify-between border-t border-accent/20 pt-1.5 mt-1 font-semibold', 'text-danger' => $preview['leftover'] < 0])><span>{{ __('Expected leftover') }}</span><span>{{ money($preview['leftover'], $currency) }}</span></div>
                 </div>
@@ -690,7 +690,14 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
 
     <x-ui.action-bar>
         @if ($step < $this::STEPS)
-            <x-ui.button class="flex-1" wire:click="next" :disabled="$question !== null && $question['value'] === null" data-test="onboarding-next">{{ __('Next') }}</x-ui.button>
+            @if ($question !== null && $question['value'] === null)
+                <div class="flex flex-1 flex-col gap-2">
+                    <p id="onboarding-next-hint" class="text-center text-xs text-muted" data-test="onboarding-next-hint">{{ __('Choose one to continue.') }}</p>
+                    <x-ui.button class="w-full" disabled aria-describedby="onboarding-next-hint" data-test="onboarding-next">{{ __('Next') }}</x-ui.button>
+                </div>
+            @else
+                <x-ui.button class="flex-1" wire:click="next" data-test="onboarding-next">{{ __('Next') }}</x-ui.button>
+            @endif
         @else
             <x-ui.button class="flex-1" wire:click="finish" data-test="onboarding-next">{{ __('Start budgeting') }}</x-ui.button>
         @endif

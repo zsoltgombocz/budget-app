@@ -634,7 +634,7 @@
     "to :account, from the month-end leftover": "ide: :account, a hó végi maradékból",
     "was due :date": "esedékes volt: :date",
     "we remind you to transfer it": "emlékeztetünk az utalásra",
-    "when :pocket reaches :step": "ha a(z) :pocket eléri a(z) :step összeget",
+    "when :pocket reaches :step": "ha a perselyben (:pocket) összegyűlik :step",
     "{0} no items|{1} :count item|[2,*] :count items": "{0} nincs tétel|{1} :count tétel|[2,*] :count tétel",
     "{1} +:count more item|[2,*] +:count more items": "{1} +:count további tétel|[2,*] +:count további tétel",
     "{1} :count day left|[2,*] :count days left": "{1} :count nap van hátra|[2,*] :count nap van hátra",
@@ -1038,5 +1038,8 @@
     "Three dots": "Három pont",
     "the app puts it into this pocket": "az app ebbe a perselybe teszi",
     "the app opens a new pocket for it": "az app új perselyt nyit neki",
-    "nothing moves": "nem mozdul sehova"
+    "nothing moves": "nem mozdul sehova",
+    "The pocket is empty, there is nothing to take out.": "Üres a persely, nincs mit kivenni.",
+    "Choose one to continue.": "Válassz egyet a továbblépéshez.",
+    "You cannot record spending on a future day.": "Jövőbeli napra nem rögzíthetsz költést."
 }
