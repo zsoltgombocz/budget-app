@@ -904,7 +904,6 @@
     "If spending every budget in full would end the period in the red, it shows 0.": "Ha minden keret elköltésével mínuszban zárnád az időszakot, 0-t mutat.",
     "Added to the budget from pockets": "Perselyből a keretbe",
     "Fixed items, transfers, installments, savings": "Fix tételek, átutalások, törlesztők, gyűjtések",
-    "Income, with money added from pockets": "Bevétel, a perselyből keretbe tett pénzzel",
     "Variable budgets (or spending, where more)": "Változó keretek (ahol több, a költés)",
     "Variable budgets": "Változó keretek",
     "Spent so far": "Eddig elköltve",
@@ -947,7 +946,6 @@
     "Saving for a prepayment": "Előtörlesztésre gyűjt",
     "What you owe and what you pay every month.": "A tartozásaid és a havi törlesztőid.",
     "No loans yet. A loan you add gets a repayment line in the plan.": "Még nincs hitel. Ha hozzáadsz egyet, a törlesztője bekerül a tervbe.",
-    "Money into the pocket. The monthly budget does not change.": "Pénz a perselybe. A havi keret nem változik.",
     "Withdraw to the monthly budget": "Kivét a havi keretbe",
     "The money leaves the pocket and counts as extra income in this period.": "A pénz kikerül a perselyből, és ebben a periódusban plusz bevételnek számít.",
     "Pay a spending from the pocket": "Költés kifizetése a perselyből",
@@ -1058,5 +1056,8 @@
     "It counts as 0, so :amount is not taken off the leftover.": "0-nak számít, így a maradékból nem von le :amount összeget.",
     "Marked as not paid this month: it counts as 0, so :amount is not taken off the leftover.": "Ebben a hónapban nem fizetettnek jelölted: 0-nak számít, így a maradékból nem von le :amount összeget.",
     "Not paying it this month? Then it counts as 0, so :amount is not taken off the leftover. You can set it back any time.": "Ebben a hónapban nem fizeted? Akkor 0-nak számít, így a maradékból nem von le :amount összeget. Bármikor visszaállíthatod.",
-    "Only a fixed item without a pocket or loan can be marked as not paid.": "Csak persely és hitel nélküli fix tétel jelölhető nem fizetettnek."
+    "Only a fixed item without a pocket or loan can be marked as not paid.": "Csak persely és hitel nélküli fix tétel jelölhető nem fizetettnek.",
+    "Money into the pocket from this month's money: the leftover goes down by the same amount.": "Pénz a perselybe a havi pénzedből: a maradék ugyanennyivel csökken.",
+    "Put into pockets from the budget": "Keretből perselybe",
+    "Income, with money moved to and from pockets": "Bevétel, a perselyekbe tett és onnan kivett pénzzel"
 }

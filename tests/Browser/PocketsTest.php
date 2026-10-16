@@ -25,7 +25,7 @@ it('deposits into a pocket straight from its card', function (): void {
         ->assertNoJavaScriptErrors();
 
     expect($pocket->refresh()->balance)->toBe(35_000)
-        ->and(resolve(PeriodService::class)->topUps(resolve(PeriodService::class)->current($user)))->toBe(0);
+        ->and(resolve(PeriodService::class)->topUps(resolve(PeriodService::class)->current($user)))->toBe(-15_000);
 });
 
 it('withdraws to the monthly budget from the card', function (): void {

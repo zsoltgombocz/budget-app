@@ -31,6 +31,18 @@ it('tops up the period budget with a withdrawal', function (): void {
         ->and(resolve(OverviewService::class)->forUser($this->user)->forecast->expectedLeftover)->toBe($before + 30_000);
 });
 
+it('takes a deposit out of the period budget', function (): void {
+    $before = resolve(OverviewService::class)->forUser($this->user)->forecast->expectedLeftover;
+
+    resolve(MovePocketMoney::class)->handle($this->user, $this->reserve, 20_000, null, toBudget: true);
+
+    $period = resolve(PeriodService::class)->current($this->user);
+
+    expect($this->reserve->refresh()->balance)->toBe(120_000)
+        ->and(resolve(PeriodService::class)->topUps($period))->toBe(-20_000)
+        ->and(resolve(OverviewService::class)->forUser($this->user)->forecast->expectedLeftover)->toBe($before - 20_000);
+});
+
 it('does not touch the budget for a plain withdrawal', function (): void {
     resolve(MovePocketMoney::class)->handle($this->user, $this->reserve, -30_000, null, toBudget: false);
 

@@ -280,7 +280,7 @@ it('names the three money moves and says what each does', function (): void {
 
     $this->get(route('pockets'))
         ->assertSeeInOrder([
-            'Money into the pocket. The monthly budget does not change.',
+            'Money into the pocket from this month\'s money: the leftover goes down by the same amount.',
             'Withdraw to the monthly budget', 'The money leaves the pocket and counts as extra income in this period.',
             'Pay a spending from the pocket', 'The spending is paid by the pocket: it does not use up the monthly budget.',
         ])

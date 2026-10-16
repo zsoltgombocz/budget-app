@@ -257,13 +257,14 @@ new #[Title('Today')] class extends Component {
     $variableType = \App\Enums\LineType::Variable->value;
     $leftoverRows = array_values(array_filter([
         [__('Income'), money($preview->incomeActual)],
-        $preview->topUps !== 0 ? [__('Added to the budget from pockets'), '+'.money($preview->topUps)] : null,
+        $preview->topUps > 0 ? [__('Added to the budget from pockets'), '+'.money($preview->topUps)] : null,
+        $preview->topUps < 0 ? [__('Put into pockets from the budget'), '−'.money(-$preview->topUps)] : null,
         [__('Fixed items, transfers, installments, savings'), '−'.money($previewRows->where('type', '!=', $variableType)->sum('actual'))],
         [__('Variable spending so far'), '−'.money($previewRows->where('type', $variableType)->sum('actual'))],
         [__('Leftover as things stand'), money($current)],
     ]));
     $ifSpentRows = [
-        [__('Income, with money added from pockets'), money($forecast->income)],
+        [__('Income, with money moved to and from pockets'), money($forecast->income)],
         [__('Fixed items, transfers, installments, savings'), '−'.money($forecast->committed)],
         [__('Variable budgets (or spending, where more)'), '−'.money($forecast->variableExpected)],
         [__('If you spend every budget in full'), money($forecast->expectedLeftover)],

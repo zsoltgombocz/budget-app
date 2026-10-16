@@ -110,8 +110,8 @@ new #[Title('Pockets and loans')] class extends Component {
     }
 
     /**
-     * Deposit (direction 1) or withdraw (-1). A withdrawal tops up this period's budget
-     * unless $toBudget is false (money simply leaves the pocket).
+     * Deposit (direction 1) or withdraw (-1). With $toBudget the money moves against this
+     * period: a withdrawal tops up its budget, a deposit is taken off its leftover.
      *
      * @return array{ok: bool, errors: array<string, string>}
      */
@@ -126,7 +126,7 @@ new #[Title('Pockets and loans')] class extends Component {
         $pocket = $this->user()->pockets()->findOrFail($pocketId);
 
         try {
-            $movePocketMoney->handle($this->user(), $pocket, ($direction < 0 ? -1 : 1) * $value, $note, $direction < 0 && $toBudget);
+            $movePocketMoney->handle($this->user(), $pocket, ($direction < 0 ? -1 : 1) * $value, $note, $toBudget);
         } catch (ValidationException $exception) {
             return ['ok' => false, 'errors' => ['move' => (string) collect($exception->errors())->flatten()->first()]];
         }
@@ -593,7 +593,7 @@ new #[Title('Pockets and loans')] class extends Component {
         <div x-show="form.id && pocketTab === 'money'" class="pt-3">
             <div role="radiogroup" aria-label="{{ __('What do you want to do?') }}" class="grid gap-2">
                 @foreach ([
-                    'deposit' => [__('Deposit'), __('Money into the pocket. The monthly budget does not change.')],
+                    'deposit' => [__('Deposit'), __('Money into the pocket from this month\'s money: the leftover goes down by the same amount.')],
                     'budget' => [__('Withdraw to the monthly budget'), __('The money leaves the pocket and counts as extra income in this period.')],
                     'spend' => [__('Pay a spending from the pocket'), __('The spending is paid by the pocket: it does not use up the monthly budget.')],
                 ] as $mode => [$modeLabel, $modeHint])

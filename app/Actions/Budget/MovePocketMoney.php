@@ -15,8 +15,9 @@ final readonly class MovePocketMoney
     public function __construct(private PeriodService $periods) {}
 
     /**
-     * Manual deposit (positive) or withdrawal (negative). A withdrawal with $toBudget
-     * tops up the current period's budget, as if it were extra income.
+     * Manual deposit (positive) or withdrawal (negative). With $toBudget the money moves
+     * against the current period: a withdrawal tops up its budget like extra income, a
+     * deposit comes out of it, so the leftover goes down by the same amount.
      */
     public function handle(User $user, Pocket $pocket, int $amount, ?string $note = null, bool $toBudget = false): PocketMovement
     {
@@ -36,7 +37,7 @@ final readonly class MovePocketMoney
                 'period_id' => $this->periods->forDate($user, $today)->id,
                 'amount' => $amount,
                 'type' => $amount > 0 ? PocketMovementType::Deposit : PocketMovementType::Withdraw,
-                'to_budget' => $amount < 0 && $toBudget,
+                'to_budget' => $toBudget,
                 'occurred_on' => $today->toDateString(),
                 'note' => filled($note) ? $note : null,
             ]);

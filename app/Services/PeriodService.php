@@ -96,7 +96,8 @@ final readonly class PeriodService
     }
 
     /**
-     * Money taken out of pockets into this period's budget (counts as extra income).
+     * Net money moved between pockets and this period's budget: withdrawals into the
+     * budget count as extra income, deposits from it are taken off (negative result).
      */
     public function topUps(Period $period): int
     {
@@ -108,7 +109,7 @@ final readonly class PeriodService
     }
 
     /**
-     * Income the period can spend: actual (or planned) income plus pocket top-ups.
+     * Income the period can spend: actual (or planned) income plus the net pocket moves.
      */
     public function availableIncome(Period $period): int
     {
