@@ -75,11 +75,12 @@ it('renders the device-aware reminder prompt', function (): void {
 });
 
 it('previews the daily reminder with the product name and the real push text', function (): void {
+    config(['app.name' => 'Budget']);
     $this->actingAs(onboardedUser());
 
     Livewire::test('pages::notifications')
         ->assertSeeInOrder(['MoneySight', __('Did you record today\'s spending?'), __('One tap and you are done.')])
-        ->assertDontSee('<b class="font-semibold">'.config('app.name').'</b>', false);
+        ->assertDontSee('<b class="font-semibold">Budget</b>', false);
 });
 
 it('stores the reminder choices from the notification onboarding', function (): void {
