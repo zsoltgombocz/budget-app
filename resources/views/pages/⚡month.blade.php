@@ -786,12 +786,12 @@ new #[Title('Month')] class extends Component {
 
     @foreach ($this->days as $day)
         <div class="px-4" wire:key="day-{{ $day['date']->toDateString() }}">
-            <div class="num flex justify-between px-1.5 pb-2 pt-[18px] text-[13px]">
-                <span class="font-semibold text-ink-2">{{ Dates::day($day['date'], $today) }}@if ($day['payday']) · {{ __('Payday') }}@endif</span>
+            <div class="num flex justify-between gap-3 px-1.5 pb-2 pt-[18px] text-[13px]">
+                <span class="min-w-0 font-semibold text-ink-2">{{ Dates::day($day['date'], $today) }}@if ($day['payday']) · {{ __('Payday') }}@endif</span>
                 @if ($day['fromPocket'])
-                    <span class="text-muted" data-test="day-total">{{ __(':amount from the budget', ['amount' => money($day['total'])]) }}</span>
+                    <span class="shrink-0 whitespace-nowrap text-muted" data-test="day-total">{{ __(':amount from the budget', ['amount' => money($day['total'])]) }}</span>
                 @elseif ($day['total'] > 0 || ! $day['payday'])
-                    <span class="text-muted" data-test="day-total">{{ money($day['total']) }}</span>
+                    <span class="shrink-0 whitespace-nowrap text-muted" data-test="day-total">{{ money($day['total']) }}</span>
                 @endif
             </div>
             <div class="rounded-[20px] bg-surface px-4">

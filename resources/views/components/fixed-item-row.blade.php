@@ -47,7 +47,11 @@
                 @elseif ($skipped)
                     {{ __('skipped – counted as :zero', ['zero' => money(0)]) }}
                 @elseif ($item->dueOn)
-                    {{ $overdue ? __('was due :date', ['date' => \App\Support\Dates::short($item->dueOn)]) : __('due :date', ['date' => \App\Support\Dates::short($item->dueOn)]) }}
+                    @if ($item->dueOn->isSameDay($today))
+                        {{ __('Due today') }}
+                    @else
+                        {{ $overdue ? __('was due :date', ['date' => \App\Support\Dates::short($item->dueOn)]) : __('due :date', ['date' => \App\Support\Dates::short($item->dueOn)]) }}
+                    @endif
                 @elseif ($isSaving)
                     {{ __('Monthly saving, goes into the pocket at closing') }}
                 @elseif ($isTransfer)

@@ -40,6 +40,7 @@ final readonly class ChangeFixedItemStatus
 
         $paid = $this->toggleLinePaid->handle($user, $period, $budgetLineId);
         $isTransfer = in_array($item->line->type, [LineType::Transfer, LineType::Sinking], true);
+        $unchanged = __('The leftover does not change: this amount was taken off all along.');
 
         return $this->toast(
             title: match (true) {
@@ -47,7 +48,7 @@ final readonly class ChangeFixedItemStatus
                 $isTransfer => __('Marked as transferred.'),
                 default => __('Paid.'),
             },
-            subtitle: $paid ? __('The leftover does not change: this amount was taken off all along.') : null,
+            subtitle: $paid && is_string($unchanged) ? $unchanged : null,
             icon: $paid ? 'check_circle' : 'remove',
             budgetLineId: $budgetLineId,
             previous: $item->status(),

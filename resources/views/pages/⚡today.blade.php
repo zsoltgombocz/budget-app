@@ -379,7 +379,7 @@ new #[Title('Today')] class extends Component {
                     @endif
                 </div>
             </div>
-            <div class="flex gap-2 pl-[34px]">
+            <div class="flex flex-wrap gap-2 pl-[34px]">
                 <x-ui.button variant="light" size="sm" :href="route('pockets', ['fedezes' => max(0, -$forecast->expectedLeftover)])" wire:navigate data-test="cover-from-reserve">{{ __('Cover from the reserve') }}</x-ui.button>
                 <x-ui.button variant="secondary" size="sm" :href="route('month')" wire:navigate class="!bg-ink/8">{{ __('Details') }}</x-ui.button>
             </div>
@@ -482,12 +482,14 @@ new #[Title('Today')] class extends Component {
                             <div class="flex items-baseline justify-between gap-2">
                                 <span class="truncate text-[15px] font-medium">{{ $category->categoryName }}</span>
                                 @if ($noBudget)
-                                    <span class="num shrink-0 text-sm text-muted" data-test="no-budget"><x-ui.amount size="sm" :value="$category->spent" class="font-semibold text-ink" /> · {{ __('no budget') }}</span>
+                                    <x-ui.amount size="sm" :value="$category->spent" class="shrink-0 text-sm [&>span:first-child]:font-semibold" />
                                 @else
                                     <x-ui.amount size="sm" :value="$category->spent" :of="$category->planned" class="shrink-0 text-sm [&>span:first-child]:font-semibold" />
                                 @endif
                             </div>
-                            @if ($this->hasSpending && ! $noBudget)
+                            @if ($noBudget)
+                                <div class="mt-1 text-xs text-muted" data-test="no-budget">{{ __('no budget') }}</div>
+                            @elseif ($this->hasSpending)
                                 <x-ui.bar :label="$category->categoryName" :value="$ratio" :tone="$tone" class="mt-2" />
                                 <div @class(['num mt-1.5 text-xs', 'text-danger' => $tone === 'danger', 'text-warn' => $tone === 'warn', 'text-muted' => $tone === 'accent'])>
                                     @if ($category->spent > $category->planned)
@@ -515,9 +517,9 @@ new #[Title('Today')] class extends Component {
     {{-- The fixed items to tick off, in a stable order while the page is open. --}}
     @if ($fixed !== [])
         <x-ui.card class="mx-4 mb-3 px-[18px] pb-1.5 pt-[18px]" data-test="fixed-items">
-            <div class="mb-1 flex items-baseline justify-between gap-3">
+            <div class="mb-1">
                 <h2 class="text-[15px] font-semibold">{{ __('Fixed items') }}</h2>
-                <span class="text-[13px] text-muted">{{ __('already in the plan, no need to record them') }}</span>
+                <p class="mt-0.5 text-[13px] text-muted">{{ __('already in the plan, no need to record them') }}</p>
             </div>
             @foreach ($visibleFixed as $item)
                 <x-fixed-item-row :item="$item" :today="$overview->today" :open="$period->isOpen()" @class(['border-b border-line' => ! $loop->last || $hiddenFixed !== []]) wire:key="fixed-{{ $item->line->lineId }}" />

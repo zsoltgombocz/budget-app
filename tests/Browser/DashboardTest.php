@@ -35,7 +35,10 @@ it('walks through the intro after onboarding and explains the daily figure', fun
         ->click('[data-test="intro-next"]')
         ->assertSee('2. Recording spending')
         ->click('[data-test="intro-next"]')
-        ->assertSee('3. Closing the period')
+        ->assertSee('3. The two numbers')
+        ->assertSee('The big number: what would be left if the month ended today.')
+        ->click('[data-test="intro-next"]')
+        ->assertSee('4. Closing the month')
         ->click('[data-test="intro-done"]')
         ->assertMissing('[data-test="how-it-works"]:visible')
         ->click('[data-test="explain-daily"]')
@@ -59,7 +62,7 @@ it('ticks a fixed item on Today, keeps it in place and undoes it from the toast'
     expect(explode(',', (string) $before))->toHaveCount(2);
 
     $page->click('[data-test="fixed-item"] >> nth=0')
-        ->waitForText('Marked as done.')
+        ->waitForText('Paid.')
         ->assertSee('Undo');
     // Paid items sort last on a fresh page; the ticked first item stays where it was.
     expect($page->script($order))->toBe($before)
@@ -78,24 +81,84 @@ it('skips a due fixed item for this month on Today and undoes it, and sets it ba
 
     $page = visit(route('dashboard'))->on()->mobile()->resize(390, 844);
 
-    $page->assertVisible('[data-test="due-item"]')
+    $page->assertSeeIn('[data-test="due-summary"]', '1 fixed item due')
+        ->assertMissing('[data-test="due-item"]:visible')
+        ->click('[data-test="due-summary"]')
+        ->assertVisible('[data-test="due-item"]')
         ->click('[data-test="skip-due"]')
-        ->waitForText('Marked as not paid this month.')
-        ->assertMissing('[data-test="due-item"]')
-        ->assertSee('not paid this month')
+        ->waitForText('Skipped this month.')
+        ->assertSee(money(4_990).' more is left.')
+        ->assertMissing('[data-test="due-summary"]')
+        ->assertSee('skipped – counted as')
         ->click('Undo')
-        ->assertVisible('[data-test="due-item"]');
+        ->assertVisible('[data-test="due-summary"]');
 
     $page->click('[data-test="fixed-item-row"][data-status="open"] [data-test="fixed-item-options"] >> nth=0')
         ->assertVisible('[data-test="fixed-item-sheet"]')
         ->click('[data-test="skip-line"]')
-        ->waitForText('Marked as not paid this month.')
+        ->waitForText('Skipped this month.')
         ->click('[data-test="fixed-item-row"][data-status="skipped"] [data-test="fixed-item"]')
         ->assertVisible('[data-test="due-again"]')
+        ->assertMissing('[data-test="paid-after-all"]')
         ->click('[data-test="due-again"]')
-        ->waitForText('Due again.')
-        ->assertVisible('[data-test="due-item"]')
+        ->waitForText('It comes up after all.')
+        ->assertVisible('[data-test="due-summary"]')
         ->assertNoJavaScriptErrors();
 
     expect(PeriodLineStatus::query()->where('budget_line_id', $line->id)->whereNotNull('skipped_on')->exists())->toBeFalse();
 });
+
+it('shows the leftover, the daily figure with its record button and the due row in that order, on a 320 px phone too', function (): void {
+    $user = onboardedUser();
+    BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail()->update(['due_day' => 1]);
+    $this->actingAs($user);
+
+    $page = visit(route('dashboard'))->on()->mobile()->resize(320, 568);
+
+    $layout = $page->script(<<<'JS'
+        () => {
+            const top = selector => document.querySelector(selector).getBoundingClientRect().top
+            const tabBar = top('nav[aria-label="Main navigation"]')
+            return {
+                order: ['[data-test="expected-leftover"]', '[data-test="daily-allowance"]', '[data-test="due-items"]', '[data-test="categories"]', '[data-test="fixed-items"]']
+                    .map(top).every((value, index, all) => index === 0 || value > all[index - 1]),
+                recordAboveTabBar: document.querySelector('[data-test="daily-record"]').getBoundingClientRect().bottom <= tabBar,
+                noSideScroll: document.documentElement.scrollWidth <= window.innerWidth,
+            }
+        }
+    JS);
+
+    expect($layout)->toBe(['order' => true, 'recordAboveTabBar' => true, 'noSideScroll' => true]);
+    $page->assertNoJavaScriptErrors();
+});
+
+it('leaves room under the last row so the record button covers nothing at the end of the page', function (string $route, int $width, int $height): void {
+    $user = onboardedUser();
+    foreach (['Phone', 'Internet', 'Gym', 'Insurance', 'Streaming'] as $name) {
+        $category = Category::factory()->for($user)->create(['name' => $name, 'type' => 'fixed']);
+        BudgetLine::factory()->for($user)->for($category)->create(['amount' => 5_000]);
+    }
+    $this->actingAs($user);
+
+    $page = visit(route($route))->on()->mobile()->resize($width, $height);
+
+    $clear = $page->script(<<<'JS'
+        async () => {
+            window.scrollTo(0, document.documentElement.scrollHeight)
+            await new Promise(resolve => setTimeout(resolve, 100))
+            const button = document.querySelector('[data-test="tab-entry"]')
+            const content = [...document.querySelectorAll('main .page-enter *')].filter(el => el.offsetParent !== null && el.getBoundingClientRect().height > 0)
+            const lastBottom = Math.max(...content.map(el => el.getBoundingClientRect().bottom))
+            // offsetTop ignores the slide-away transform: where the button sits when it shows.
+            return lastBottom <= button.offsetTop
+        }
+    JS);
+
+    expect($clear)->toBeTrue();
+})->with([
+    'Today 320' => ['dashboard', 320, 568],
+    'Today iPhone 15' => ['dashboard', 393, 852],
+    'Month 320' => ['month', 320, 568],
+    'Plan 320' => ['plan', 320, 568],
+    'Pockets 320' => ['pockets', 320, 568],
+]);

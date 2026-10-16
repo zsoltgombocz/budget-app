@@ -1,5 +1,9 @@
 <?php
 
+use App\Enums\PeriodStatus;
+use App\Models\PeriodClose;
+use App\Services\PeriodService;
+
 it('marks the tab and shows the loader as soon as it is tapped', function (): void {
     $this->actingAs(onboardedUser());
 
@@ -83,4 +87,34 @@ it('has no record button on the settings pages', function (): void {
     $visible = $page->script("async () => { await new Promise(r => setTimeout(r, 600)); return document.querySelector('[data-test=\"tab-entry\"]').className.includes('translate-y-0') }");
 
     expect($visible)->toBeFalse();
+});
+
+it('has no record button on the settings sub-pages either', function (): void {
+    $this->actingAs(onboardedUser());
+
+    $page = visit(route('budget.edit'))->on()->mobile();
+
+    $visible = $page->script("async () => { await new Promise(r => setTimeout(r, 600)); return document.querySelector('[data-test=\"tab-entry\"]').className.includes('translate-y-0') }");
+
+    expect($visible)->toBeFalse();
+});
+
+it('hides the record button on a closed month and shows it again on the open one', function (): void {
+    $user = onboardedUser();
+    $this->actingAs($user);
+    $current = resolve(PeriodService::class)->current($user);
+    $previous = resolve(PeriodService::class)->forDate($user, $current->starts_on->subDay());
+    $previous->update(['status' => PeriodStatus::Closed]);
+    PeriodClose::factory()->for($user)->for($previous)->create();
+
+    $visible = "async () => { await new Promise(r => setTimeout(r, 500)); return document.querySelector('[data-test=tab-entry]').className.includes('translate-y-0') }";
+    $page = visit(route('month', ['periodus' => $previous->id]))->on()->mobile()->assertSee('September');
+
+    expect($page->script($visible))->toBeFalse();
+
+    $page->click('[data-test="next-period"]')->assertSee('Close the month');
+    expect($page->script($visible))->toBeTrue();
+
+    $page->click('[data-test="previous-period"]')->assertSee('To the reserve');
+    expect($page->script($visible))->toBeFalse();
 });
