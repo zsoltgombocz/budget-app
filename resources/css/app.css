@@ -83,7 +83,7 @@
         --app-faint: #828884;
         --app-line: rgba(14, 17, 15, 0.06);
         --app-accent: #1FB866;
-        --app-accent-strong: #0B7A3A;
+        --app-accent-strong: #096F35;
         --app-warn: #D9800B;
         --app-danger: #E0383E;
         --app-track: rgba(14, 17, 15, 0.08);
@@ -421,7 +421,9 @@ html[data-busy] :is(button, a, [role='button'], [role='switch'], [role='checkbox
 
 /* Light theme: coloured TEXT needs 4.5:1 on white, which the fill colours (bars, tints,
    selected borders) don't have. Text utilities get darker shades there; fills are unchanged.
-   Ratios on #FFFFFF: accent-strong 4.9, warn text 5.6, danger text 5.7. */
+   Ratios on #FFFFFF: accent-strong 6.3, warn text 5.6, danger text 7.0; still at least 4.5 on
+   their own tints (a selected chip, a danger button) and on surface-2. The important (!) variant
+   of a text colour gets the same shade. */
 html:not(.dark) :is(.text-accent, .hover\:text-accent:hover) {
     color: var(--app-accent-strong);
 }
@@ -431,5 +433,9 @@ html:not(.dark) .text-warn {
 }
 
 html:not(.dark) .text-danger {
-    color: #C2242A;
+    color: #A91F25;
+}
+
+html:not(.dark) .\!text-danger {
+    color: #A91F25 !important;
 }
