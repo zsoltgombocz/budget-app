@@ -44,7 +44,7 @@
             <span class="ms ms-fill text-accent" style="font-size:22px;width:22px;height:22px" aria-hidden="true" x-text="toast.icon ?? 'check_circle'"></span>
             <div class="min-w-0 py-1">
                 <div class="num line-clamp-2 text-sm font-medium leading-snug text-pretty" x-text="toast.title" data-test="toast-title"></div>
-                <div class="num line-clamp-2 text-xs leading-snug text-pretty text-muted" x-show="toast.subtitle" x-text="toast.subtitle"></div>
+                <div class="num line-clamp-3 text-xs leading-snug text-pretty text-muted" x-show="toast.subtitle" x-text="toast.subtitle"></div>
             </div>
             <button type="button" x-show="toast.undo" x-on:click.stop="dismiss()" class="focus-ring flex size-11 shrink-0 items-center justify-center rounded-xl text-muted" aria-label="{{ __('Close') }}" data-test="toast-close"><x-ui.icon name="close" :size="20" /></button>
             {{-- The action gets its own row so the message keeps the full width on a narrow phone. --}}

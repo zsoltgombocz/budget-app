@@ -7,7 +7,8 @@ use App\Enums\LineType;
 
 /**
  * A plan line detached from Eloquent, so calculations work the same on the live plan
- * and on a frozen period snapshot.
+ * and on a frozen period snapshot. $skipped: a fixed item marked as not paid in the period
+ * it was read for (PlanService::linesFor()); it then counts as 0 spent.
  */
 final readonly class PlanLine
 {
@@ -23,7 +24,44 @@ final readonly class PlanLine
         public ?int $dueDay = null,
         public ?int $pocketId = null,
         public ?int $loanId = null,
+        public bool $skipped = false,
     ) {}
+
+    /**
+     * What the period counts as spent on a fixed item: its planned amount, or 0 when it was
+     * marked as not paid. Variable lines are counted from their spending instead.
+     */
+    public function counted(): int
+    {
+        return $this->skipped ? 0 : $this->planned();
+    }
+
+    /**
+     * Only a plain fixed item can be marked as not paid: a line that fills a pocket or repays
+     * a loan moves money at closing, so skipping it would need more than counting it as 0.
+     */
+    public function isSkippable(): bool
+    {
+        return $this->lineId !== null && $this->type !== LineType::Variable && $this->pocketId === null && $this->loanId === null;
+    }
+
+    public function asSkipped(): self
+    {
+        return new self(
+            lineId: $this->lineId,
+            categoryId: $this->categoryId,
+            categoryName: $this->categoryName,
+            type: $this->type,
+            amount: $this->amount,
+            amountAvg: $this->amountAvg,
+            amountMax: $this->amountMax,
+            calcMode: $this->calcMode,
+            dueDay: $this->dueDay,
+            pocketId: $this->pocketId,
+            loanId: $this->loanId,
+            skipped: true,
+        );
+    }
 
     /**
      * The amount the plan counts with, according to the calculation mode.

@@ -8,7 +8,7 @@ namespace App\Services\Data;
 final readonly class ClosePreview
 {
     /**
-     * @param  list<array{category_id: int, name: string, type: string, planned: int, actual: int, diff: int, deviates: bool}>  $categories
+     * @param  list<array{category_id: int, name: string, type: string, planned: int, actual: int, diff: int, deviates: bool, skipped: bool}>  $categories
      * @param  list<array{pocket_id: int, name: string, amount: int}>  $pocketDeposits
      * @param  list<array{pocket_id: int, name: string, loan_id: int|null, balance: int, step: int}>  $prepayReady
      * @param  array{type: string|null, id: int|null, name: string|null}  $surplusTarget

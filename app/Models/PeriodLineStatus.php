@@ -17,10 +17,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $budget_line_id
  * @property int|null $amount_actual
  * @property CarbonImmutable|null $paid_on
+ * @property CarbonImmutable|null $skipped_on
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
-#[Fillable(['period_id', 'budget_line_id', 'amount_actual', 'paid_on'])]
+#[Fillable(['period_id', 'budget_line_id', 'amount_actual', 'paid_on', 'skipped_on'])]
 class PeriodLineStatus extends Model
 {
     /** @use HasFactory<PeriodLineStatusFactory> */
@@ -36,6 +37,7 @@ class PeriodLineStatus extends Model
         return [
             'amount_actual' => 'integer',
             'paid_on' => 'immutable_date',
+            'skipped_on' => 'immutable_date',
         ];
     }
 

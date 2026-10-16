@@ -12,7 +12,8 @@ final readonly class ToggleLinePaid
     public function __construct(private PeriodService $periods) {}
 
     /**
-     * Tick a fixed item off for the period, or untick it.
+     * Tick a fixed item off for the period, or untick it. Ticking an item marked as not paid
+     * makes it paid after all.
      */
     public function handle(User $user, Period $period, int $budgetLineId): bool
     {
@@ -28,7 +29,7 @@ final readonly class ToggleLinePaid
         $paidOn = $this->periods->today($user->settings())->toDateString();
 
         if ($status !== null) {
-            $status->update(['paid_on' => $paidOn]);
+            $status->update(['paid_on' => $paidOn, 'skipped_on' => null]);
         } else {
             $status = new PeriodLineStatus(['budget_line_id' => $line->id, 'paid_on' => $paidOn]);
             $status->user_id = $user->id;

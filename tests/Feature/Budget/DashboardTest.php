@@ -35,8 +35,7 @@ it('shows the expected leftover from the plan and the overspending so far', func
     $this->get(route('dashboard'))
         ->assertOk()
         ->assertSee(money_number(135_000))
-        ->assertSee('Fuel')
-        ->assertDontSee('data-test="fixed-items"', false);
+        ->assertSee('Fuel');
 });
 
 it('lists fixed items with due dates and ticks them off', function (): void {
@@ -175,12 +174,60 @@ it('explains each figure with the period\'s own numbers', function (): void {
         ->assertSeeInOrder(['Variable budgets', money(150_000), 'Spent so far', '−'.money(30_000), '21 days', 'Per day', money(intdiv(120_000, 21))], false);
 });
 
-it('keeps only the due fixed items on Today and links each budget to the month', function (): void {
+it('lists the fixed items to tick below the budgets and links each budget to the month', function (): void {
+    $this->user->settings()->update(['currency' => Currency::EUR]);
+
     $this->get(route('dashboard'))
         ->assertOk()
-        ->assertDontSee('data-test="fixed-items"', false)
+        ->assertSeeInOrder(['data-test="categories"', 'data-test="fixed-items"', __('Fixed items'), 'data-test="fixed-item"', 'Rent', '€'], false)
         ->assertSee(route('month', ['kategoria' => $this->fuel->id]), false)
         ->assertSee('data-test="daily-record"', false);
+});
+
+it('shows the first four fixed items and the rest behind a more row', function (): void {
+    foreach (['Phone', 'Internet', 'Gym', 'Insurance', 'Streaming'] as $name) {
+        $category = Category::factory()->for($this->user)->create(['name' => $name, 'type' => 'fixed']);
+        BudgetLine::factory()->for($this->user)->for($category)->create(['amount' => 5_000]);
+    }
+
+    $component = Livewire::test('pages::today');
+    expect(substr_count($component->html(), 'data-test="fixed-item"'))->toBe(4);
+    $component->assertSee('+2 more items')->assertSee('data-test="fixed-more"', false)
+        ->set('showAllFixed', true);
+    expect(substr_count($component->html(), 'data-test="fixed-item"'))->toBe(6);
+});
+
+it('ticks a fixed item off without moving it, with a toast that can undo it', function (): void {
+    $phone = Category::factory()->for($this->user)->create(['name' => 'Phone', 'type' => 'fixed']);
+    BudgetLine::factory()->for($this->user)->for($phone)->create(['amount' => 12_990, 'due_day' => 20]);
+    $rent = BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail();
+    $rent->update(['due_day' => 5]);
+
+    $component = Livewire::test('pages::today')->assertSeeInOrder(['Rent', 'Phone']);
+
+    $component->call('togglePaid', $rent->id)
+        ->assertDispatched('budget-updated')
+        ->assertDispatched('app-toast', title: __('Marked as done.'), undo: 'fixed-item-undo', params: ['budgetLineId' => $rent->id, 'status' => 'open'])
+        // A paid item would sort last on a fresh page; while this one is open it stays where it was.
+        ->assertSeeInOrder(['Rent', 'done', 'Phone']);
+
+    $component->dispatch('fixed-item-undo', budgetLineId: $rent->id, status: 'open');
+    expect(resolve(OverviewService::class)->forUser($this->user)->fixedItems[0]->paid)->toBeFalse();
+
+    // A second undo changes nothing.
+    $component->dispatch('fixed-item-undo', budgetLineId: $rent->id, status: 'open');
+    expect(collect(resolve(OverviewService::class)->forUser($this->user)->fixedItems)->every(fn ($item): bool => ! $item->paid))->toBeTrue();
+});
+
+it('says a transfer due today was transferred, and the due card keeps its amount whole', function (): void {
+    $category = Category::factory()->for($this->user)->create(['name' => 'Telefon és internet előfizetés', 'type' => 'transfer']);
+    $line = BudgetLine::factory()->for($this->user)->for($category)->create(['amount' => 12_990, 'due_day' => 11]);
+
+    $component = Livewire::test('pages::today');
+    expect($component->html())->toMatch('/<span class="truncate">Telefon és internet előfizetés<\/span>\s*<span class="num shrink-0 whitespace-nowrap" data-test="due-amount">/');
+
+    $component->call('togglePaid', $line->id)
+        ->assertDispatched('app-toast', title: __('Marked as transferred.'), undo: 'fixed-item-undo');
 });
 
 it('shows the how-it-works intro once after onboarding', function (): void {

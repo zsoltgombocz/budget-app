@@ -78,3 +78,24 @@ it('does not count spending in a fixed category on top of its planned amount', f
         ->and($forecast->expectedLeftover)->toBe(50_000)
         ->and(collect($forecast->categories)->pluck('categoryId')->all())->toBe([3, 4]);
 });
+
+it('counts a fixed item marked as not paid as 0', function (): void {
+    $lines = forecastPlan();
+    $lines[0] = $lines[0]->asSkipped();
+
+    $forecast = new ForecastService()->forecast($lines, 500_000, [], totalDays: 30, elapsedDays: 4);
+
+    expect($forecast->committed)->toBe(100_000)
+        ->and($forecast->expectedLeftover)->toBe(250_000)
+        ->and($lines[0]->planned())->toBe(200_000)
+        ->and($lines[0]->counted())->toBe(0);
+});
+
+it('lets only a plain fixed item be marked as not paid', function (): void {
+    expect(new PlanLine(1, 1, 'Rent', LineType::Fixed, 200_000)->isSkippable())->toBeTrue()
+        ->and(new PlanLine(2, 2, 'Shared account', LineType::Transfer, 100_000)->isSkippable())->toBeTrue()
+        ->and(new PlanLine(3, 3, 'Fuel', LineType::Variable, 60_000)->isSkippable())->toBeFalse()
+        ->and(new PlanLine(4, 4, 'Holiday', LineType::Sinking, 20_000, pocketId: 7)->isSkippable())->toBeFalse()
+        ->and(new PlanLine(5, 5, 'Car loan', LineType::Loan, 40_000, loanId: 3)->isSkippable())->toBeFalse()
+        ->and(new PlanLine(null, 6, 'Old', LineType::Fixed, 1_000)->isSkippable())->toBeFalse();
+});

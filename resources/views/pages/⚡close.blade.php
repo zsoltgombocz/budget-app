@@ -293,7 +293,8 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         @endif
 
         @php
-            $variableRows = array_values(array_filter($preview->categories, fn ($row) => $row['type'] === 'variable'));
+            // Variable categories and fixed items marked as not paid get a row each; the other fixed items go as planned.
+            $variableRows = array_values(array_filter($preview->categories, fn ($row) => $row['type'] === 'variable' || $row['skipped']));
             $fixedCount = count($preview->categories) - count($variableRows);
             $variableDiff = array_sum(array_column($variableRows, 'diff'));
         @endphp
@@ -313,7 +314,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
                     'bg-warn/12' => $row['diff'] > 0,
                     'bg-accent/8' => $row['diff'] < 0 && $row['deviates'],
                 ])>
-                    <span class="truncate">{{ $row['name'] }}</span>
+                    <span class="min-w-0"><span class="block truncate">{{ $row['name'] }}</span>@if ($row['skipped'])<span class="block text-xs text-muted" data-test="skipped-row">{{ __('not paid') }}</span>@endif</span>
                     <span class="text-right text-muted">{{ money_number($row['planned']) }}</span>
                     <span class="text-right">{{ money_number($row['actual']) }}</span>
                     <span @class(['text-right font-semibold', 'text-warn' => $row['diff'] > 0, 'text-accent' => $row['diff'] < 0, 'text-muted' => $row['diff'] === 0])>{{ $row['diff'] > 0 ? '+' : '' }}{{ $row['diff'] === 0 ? '0' : money_number($row['diff']) }}</span>
