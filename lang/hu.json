@@ -221,7 +221,6 @@
     "Everything that does not fit elsewhere.": "Minden, ami máshova nem illik.",
     "Expected installment after the next prepayment:": "Következő előtörlesztés után várható részlet:",
     "Expected leftover at period end": "Várható maradék hó végén",
-    "Expected leftover: :amount. Close the month when you are ready.": "Várható maradék: :amount. Zárd le a hónapot, ha készen állsz.",
     "Expenses": "Kiadás",
     "Fill in the amounts": "Töltsd ki az összegeket",
     "Fixed": "Fix",
@@ -378,7 +377,6 @@
     "Payday (day of month)": "Fizetésnap (a hónap napja)",
     "Payday to payday": "Fizetésnaptól fizetésnapig",
     "Payday transfers": "Fizetésnapi utalások",
-    "Payday! Time for the transfers": "Fizetésnap! Jöhetnek az utalások",
     "Period": "Periódus",
     "Period closed": "Periódus lezárva",
     "Period closed. A new one has started.": "Periódus lezárva, új indult.",
@@ -1044,5 +1042,7 @@
     "You cannot record spending on a future day.": "Jövőbeli napra nem rögzíthetsz költést.",
     "{1} :count item, counted at its planned amount|[2,*] :count items, counted at their planned amount": "{1} :count tétel, a tervezett összeggel számolva|[2,*] :count tétel, a tervezett összeggel számolva",
     "over the budget by :amount": "keret felett: :amount",
-    "under the budget by :amount": "keret alatt: :amount"
+    "under the budget by :amount": "keret alatt: :amount",
+    "Leftover as things stand: :amount. Close the month when you are ready.": "Maradék a mostani állás szerint: :amount. Zárd le a hónapot, ha készen állsz.",
+    "Payday – time for the transfers": "Fizetésnap – jöhetnek az utalások"
 }

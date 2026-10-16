@@ -30,8 +30,7 @@ final readonly class PayFromPocket
         }
 
         return DB::transaction(function () use ($user, $pocket, $categoryId, $amount, $note, $date): Transaction {
-            $transaction = $this->recordTransaction->handle($user, $categoryId, $amount, $date, $note ?? $pocket->name, (string) Str::uuid());
-            $transaction->update(['pocket_id' => $pocket->id]);
+            $transaction = $this->recordTransaction->handle($user, $categoryId, $amount, $date, $note ?? $pocket->name, (string) Str::uuid(), $pocket->id);
 
             $user->pocketMovements()->create([
                 'pocket_id' => $pocket->id,

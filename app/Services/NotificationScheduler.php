@@ -33,6 +33,7 @@ final readonly class NotificationScheduler
         private PeriodService $periods,
         private OverviewService $overviews,
         private NotificationLogger $logger,
+        private PeriodCloser $closer,
     ) {}
 
     /**
@@ -99,8 +100,8 @@ final readonly class NotificationScheduler
         if ($period->ends_on->isSameDay($today)
             && $time >= self::PERIOD_END_TIME
             && $this->claim('period-end', $user, $today)) {
-            $overview = $this->overviews->forPeriod($user, $period, $today);
-            $this->send($user, new PeriodEndReminder($overview->forecast->expectedLeftover));
+            // The same figure as the main number on Today: what closing now would leave.
+            $this->send($user, new PeriodEndReminder($this->closer->preview($user, $period)->leftover()));
             $sent[] = 'period-end';
         }
 

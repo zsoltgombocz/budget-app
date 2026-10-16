@@ -40,6 +40,7 @@ final readonly class BudgetAlerts
 
     /**
      * Notify the user when a new spending pushed a variable budget over a threshold.
+     * Spending paid from a pocket does not use up the budget, so it is not counted.
      */
     public function afterSpending(User $user, Period $period, int $categoryId, int $amount): void
     {
@@ -57,7 +58,7 @@ final readonly class BudgetAlerts
             }
         }
 
-        $spentAfter = (int) $period->transactions()->where('category_id', $categoryId)->sum('amount');
+        $spentAfter = (int) $period->transactions()->where('category_id', $categoryId)->whereNull('pocket_id')->sum('amount');
         $threshold = $this->crossedThreshold($planned, $spentAfter - $amount, $spentAfter);
 
         if ($threshold !== null) {

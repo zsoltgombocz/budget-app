@@ -1,10 +1,12 @@
 <?php
 
+use App\Actions\Budget\PayFromPocket;
 use App\Actions\Budget\RecordTransaction;
 use App\Enums\PeriodMode;
 use App\Models\BudgetLine;
 use App\Models\Category;
 use App\Models\PeriodClose;
+use App\Models\Pocket;
 use App\Models\Transaction;
 use App\Notifications\BudgetAlert;
 use App\Notifications\DailyReminder;
@@ -12,6 +14,7 @@ use App\Notifications\DueItemsReminder;
 use App\Notifications\PaydayReminder;
 use App\Notifications\PeriodEndReminder;
 use App\Services\NotificationScheduler;
+use App\Services\PeriodCloser;
 use App\Services\PeriodService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Notification;
@@ -66,13 +69,23 @@ it('sends the payday notification with the transfers on payday morning', functio
     expect($this->scheduler->run($this->user->refresh(), budapest('2026-10-10 07:59')))->toBe([])
         ->and($this->scheduler->run($this->user, budapest('2026-10-10 08:01')))->toBe(['payday']);
 
-    Notification::assertSentTo($this->user, PaydayReminder::class, fn (PaydayReminder $n): bool => $n->transfers === [['name' => 'Joint account', 'amount' => 150_000]]);
+    Notification::assertSentTo($this->user, PaydayReminder::class, fn (PaydayReminder $n): bool => $n->transfers === [['name' => 'Joint account', 'amount' => 150_000]]
+        && $n->toWebPush($this->user, $n)->toArray()['title'] === 'Payday – time for the transfers');
 });
 
 it('sends the period end notification on the last day', function (): void {
+    $period = resolve(PeriodService::class)->current($this->user);
+    Transaction::factory()->for($this->user)->for($period)->for(Category::query()->where('name', 'Fuel')->firstOrFail())->create(['amount' => 15_000, 'occurred_on' => '2026-10-20']);
+
     expect($this->scheduler->run($this->user, budapest('2026-10-31 09:05')))->toContain('period-end');
 
-    Notification::assertSentTo($this->user, PeriodEndReminder::class);
+    // The main number on Today (leftover as things stand), not the "every budget spent" forecast.
+    $leftover = resolve(PeriodCloser::class)->preview($this->user, $period)->leftover();
+    Notification::assertSentTo($this->user, PeriodEndReminder::class, function (PeriodEndReminder $reminder) use ($leftover): bool {
+        $message = $reminder->toWebPush($this->user, $reminder)->toArray();
+
+        return $reminder->leftover === $leftover && str_contains((string) $message['body'], 'Leftover as things stand: '.money($leftover));
+    });
 });
 
 it('builds the reminder payload with the record and no-spend actions', function (): void {
@@ -98,6 +111,22 @@ it('alerts when a spending crosses 80 percent of the budget', function (): void 
     Notification::assertNotSentTo($this->user, BudgetAlert::class);
 
     $record->handle($this->user, $fuel->id, 10_000);
+    Notification::assertSentTo($this->user, BudgetAlert::class, fn (BudgetAlert $alert): bool => $alert->percent === 80 && $alert->remaining === 10_000);
+});
+
+it('does not alert or count spending paid from a pocket against the budget', function (): void {
+    $fuel = Category::query()->where('name', 'Fuel')->firstOrFail();
+    $pocket = Pocket::factory()->for($this->user)->create(['balance' => 100_000]);
+
+    $paid = resolve(PayFromPocket::class)->handle($this->user, $pocket, $fuel->id, 50_000);
+    Notification::assertNotSentTo($this->user, BudgetAlert::class);
+    expect($paid->pocket_id)->toBe($pocket->id);
+
+    // 40 000 of the 60 000 budget: under 80 % once the pocket-paid 50 000 is left out.
+    resolve(RecordTransaction::class)->handle($this->user, $fuel->id, 40_000);
+    Notification::assertNotSentTo($this->user, BudgetAlert::class);
+
+    resolve(RecordTransaction::class)->handle($this->user, $fuel->id, 10_000);
     Notification::assertSentTo($this->user, BudgetAlert::class, fn (BudgetAlert $alert): bool => $alert->percent === 80 && $alert->remaining === 10_000);
 });
 

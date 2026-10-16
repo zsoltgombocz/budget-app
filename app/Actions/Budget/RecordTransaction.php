@@ -21,6 +21,9 @@ final readonly class RecordTransaction
     /**
      * Record a spending. Idempotent on the client generated UUID, so a retried
      * request (double tap, offline resend) never creates a duplicate.
+     *
+     * A spending paid from a pocket ($pocketId) leaves the category budget untouched,
+     * so it never triggers a budget alert.
      */
     public function handle(
         User $user,
@@ -29,6 +32,7 @@ final readonly class RecordTransaction
         ?CarbonImmutable $date = null,
         ?string $note = null,
         ?string $clientUuid = null,
+        ?int $pocketId = null,
     ): Transaction {
         if ($clientUuid !== null) {
             $existing = $user->transactions()->where('client_uuid', $clientUuid)->first();
@@ -58,6 +62,7 @@ final readonly class RecordTransaction
         $transaction = $user->transactions()->create([
             'period_id' => $period->id,
             'category_id' => $category->id,
+            'pocket_id' => $pocketId,
             'amount' => $amount,
             'occurred_on' => $date->toDateString(),
             'note' => filled($note) ? $note : null,
@@ -68,7 +73,9 @@ final readonly class RecordTransaction
         // Spending on a day contradicts "I didn't spend today".
         $user->dayMarks()->whereDate('date', $date->toDateString())->delete();
 
-        $this->alerts->afterSpending($user, $period, $category->id, $amount);
+        if ($pocketId === null) {
+            $this->alerts->afterSpending($user, $period, $category->id, $amount);
+        }
 
         return $transaction;
     }

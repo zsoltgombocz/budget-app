@@ -19,7 +19,7 @@ class PaydayReminder extends BudgetPushNotification
         $lines = array_map(fn (array $transfer): string => $transfer['name'].': '.money($transfer['amount'], $currency), $this->transfers);
 
         return $this->message(
-            title: __('Payday! Time for the transfers'),
+            title: __('Payday – time for the transfers'),
             body: $lines === [] ? __('A new period starts today.') : implode("\n", $lines),
             url: route('dashboard', absolute: false),
             tag: 'payday',
