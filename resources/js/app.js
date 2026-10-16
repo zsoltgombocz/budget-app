@@ -1,6 +1,6 @@
 import { registerBusyLock } from './busy.js'
 import { registerDialog } from './dialog.js'
-import { amountFields, formatAmount, registerNumpad } from './numpad.js'
+import { amountFields, formatAmount, numpadKeydown, registerNumpad } from './numpad.js'
 import { install, markStandalone, push, registerServiceWorker } from './pwa.js'
 import { lockScroll, unlockScroll } from './scroll-lock.js'
 
@@ -13,6 +13,7 @@ window.budgetInstall = install
 window.appScrollLock = { lock: lockScroll, unlock: unlockScroll }
 window.amountFields = amountFields
 window.formatAmount = formatAmount
+window.numpadKeydown = numpadKeydown
 
 // The app's confirmation dialog (components/confirm-dialog): resolves true on confirm.
 // Options: title, body, confirm (button label), danger; optionally highlight (one emphasised
