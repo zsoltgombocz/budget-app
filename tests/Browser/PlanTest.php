@@ -156,3 +156,24 @@ it('sets the leftover rules inline on the plan and creates a reserve there with 
     expect(BudgetLine::query()->whereNotNull('pocket_id')->value('amount'))->toBe(25_000)
         ->and(auth()->user()->settings()->refresh()->reserve_pct)->toBe(50);
 });
+
+it('keeps the plan summary inside a 320 px screen with long euro amounts', function (): void {
+    $user = onboardedUser(['locale' => 'hu', 'currency' => 'EUR', 'income' => 1_234_567_89]);
+    BudgetLine::query()->whereRelation('category', 'name', 'Rent')->update(['amount' => 987_654_32]);
+    $this->actingAs($user);
+
+    $page = visit(route('plan'))->on()->mobile()->resize(320, 640);
+
+    $fits = $page->script(<<<'JS'
+        () => {
+            const card = document.querySelector('[data-test="plan-summary"]').getBoundingClientRect();
+            const inside = [...document.querySelectorAll('[data-test="plan-summary"] .num')].every(el => {
+                const box = el.getBoundingClientRect();
+                return box.left >= card.left && box.right <= card.right;
+            });
+            return inside && document.documentElement.scrollWidth <= window.innerWidth;
+        }
+    JS);
+
+    expect($fits)->toBeTrue();
+});

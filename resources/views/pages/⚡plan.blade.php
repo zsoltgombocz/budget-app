@@ -574,11 +574,12 @@ new #[Title('Plan')] class extends Component {
     </x-ui.page-header>
 
     <div class="sticky top-[var(--safe-top)] z-10 bg-bg px-4 pb-1 pt-3.5">
-        <div class="grid grid-cols-3 gap-2 rounded-[22px] border border-ink/7 bg-surface-2 px-[18px] py-3.5" data-test="plan-summary">
-            <div><div class="text-xs text-muted">{{ __('Income') }}</div><x-ui.amount size="sm" :value="$summary->income" class="mt-[3px] text-base font-semibold" /></div>
-            <div><div class="text-xs text-muted">{{ __('Expenses') }}</div><x-ui.amount size="sm" :value="$summary->totalExpenses" class="mt-[3px] text-base font-semibold" /></div>
+        {{-- Three figures side by side; on a very narrow screen with long amounts they wrap instead of overflowing. --}}
+        <div class="flex flex-wrap justify-between gap-x-3 gap-y-2 rounded-[22px] border border-ink/7 bg-surface-2 px-[18px] py-3.5 max-[359px]:px-3.5" data-test="plan-summary">
+            <div class="min-w-0"><div class="text-xs text-muted">{{ __('Income') }}</div><x-ui.amount size="sm" :value="$summary->income" class="mt-[3px] text-base font-semibold max-[359px]:text-[15px]" /></div>
+            <div class="min-w-0"><div class="text-xs text-muted">{{ __('Expenses') }}</div><x-ui.amount size="sm" :value="$summary->totalExpenses" class="mt-[3px] text-base font-semibold max-[359px]:text-[15px]" /></div>
             {{-- Green only when something is really left; zero stays neutral. --}}
-            <div class="text-right"><div class="text-xs text-muted">{{ __('Left') }}</div><x-ui.amount size="sm" :value="$summary->leftover" :tone="match (true) { $summary->leftover > 0 => 'accent', $summary->leftover < 0 => 'danger', default => null }" class="mt-[3px] text-base font-bold" data-test="plan-left" /></div>
+            <div class="ml-auto min-w-0 text-right"><div class="text-xs text-muted">{{ __('Left') }}</div><x-ui.amount size="sm" :value="$summary->leftover" :tone="match (true) { $summary->leftover > 0 => 'accent', $summary->leftover < 0 => 'danger', default => null }" class="mt-[3px] text-base font-bold max-[359px]:text-[15px]" data-test="plan-left" /></div>
         </div>
     </div>
 
@@ -758,9 +759,9 @@ new #[Title('Plan')] class extends Component {
             <div class="flex items-center gap-2 text-[13px] font-semibold text-accent"><x-ui.icon name="info" :size="18" />{{ __('A month with your numbers') }}</div>
             <div class="num mt-2 text-[13px]">
                 <div class="flex justify-between py-1"><span class="text-muted">{{ __('Income') }}</span><span>{{ money($monthEnd->income) }}</span></div>
-                <div class="flex justify-between py-1"><span class="text-muted">{{ __('Planned costs and budgets') }}</span><span>−{{ money($monthEnd->planned) }}</span></div>
+                <div class="flex justify-between py-1"><span class="text-muted">{{ __('Planned costs and budgets') }}</span><span>{{ $monthEnd->planned > 0 ? '−' : '' }}{{ money($monthEnd->planned) }}</span></div>
                 @if ($monthEnd->hasReserve)
-                    <div class="flex justify-between py-1"><span class="text-muted">{{ __('Put aside in the reserve') }}</span><span>−{{ money($monthEnd->reserveMonthly) }}</span></div>
+                    <div class="flex justify-between py-1"><span class="text-muted">{{ __('Put aside in the reserve') }}</span><span>{{ $monthEnd->reserveMonthly > 0 ? '−' : '' }}{{ money($monthEnd->reserveMonthly) }}</span></div>
                 @endif
                 <div @class(['mt-1 flex justify-between border-t border-accent/20 pt-1.5 font-semibold', 'text-danger' => $monthEnd->leftover < 0])><span>{{ __('Expected leftover') }}</span><span>{{ money($monthEnd->leftover) }}</span></div>
             </div>

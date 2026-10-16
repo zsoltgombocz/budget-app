@@ -423,3 +423,12 @@ it('offers the icons with a name in words and marks the reorder handle and the m
 
     expect($html)->toMatch('/<button[^>]*:aria-pressed="line\.icon ===[^>]*min-h-11/');
 });
+
+it('puts no minus sign before a zero in the month preview', function (): void {
+    Pocket::factory()->for($this->user)->create(['is_reserve' => true]);
+
+    $this->get(route('plan'))->assertOk()
+        ->assertSeeInOrder([__('Put aside in the reserve'), money(0)], false)
+        ->assertDontSee('−'.money(0), false)
+        ->assertSee('−'.money(350_000), false);
+});
