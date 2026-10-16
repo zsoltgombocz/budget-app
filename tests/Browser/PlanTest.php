@@ -133,13 +133,12 @@ it('goes back to the plan when the loan opened from there is cancelled', functio
         ->assertPathIs('/terv');
 });
 
-it('opens the leftover rule from its summary row and creates a reserve there with the numpad', function (): void {
+it('sets the leftover rules inline on the plan and creates a reserve there with the numpad', function (): void {
     $this->actingAs(onboardedUser());
 
     visit(route('plan'))->on()->mobile()
         ->assertSee('All of it stays on the account')
-        ->click('[data-test="leftover-rule"]')
-        ->assertVisible('[data-test="leftover-sheet"]')
+        ->assertVisible('[data-test="leftover-preview"]')
         ->click('[data-test="create-reserve"]')
         ->assertVisible('[data-test="reserve-sheet"]')
         ->click('[data-test="reserve-monthly"]')
@@ -150,8 +149,8 @@ it('opens the leftover rule from its summary row and creates a reserve there wit
         ->click('[data-test="save-reserve"]')
         ->assertVisible('[data-test="reserve-row"] >> nth=0')
         ->click('[data-test="reserve-pct-50"]')
-        ->click('[data-test="leftover-done"]')
         ->waitForText('50% to the reserve, the rest stays on the account')
+        ->assertDontSee('Plan updated.')
         ->assertNoJavaScriptErrors();
 
     expect(BudgetLine::query()->whereNotNull('pocket_id')->value('amount'))->toBe(25_000)

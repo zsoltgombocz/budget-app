@@ -170,8 +170,26 @@ it('opens the loan itself from its repayment line', function (): void {
     $this->get(route('pockets', ['hitel' => 999_999]))->assertOk()->assertSee('openLoan: null', false);
 });
 
-it('shows each line with its category icon', function (): void {
-    $this->get(route('plan'))->assertOk()->assertSee('data-test="line-icon"', false);
+it('shows each line with its coloured category tile, in edit mode next to the drag handle', function (): void {
+    $html = $this->get(route('plan'))->assertOk()->getContent();
+    expect(substr_count($html, 'data-test="line-icon"'))->toBe(3)
+        ->and($html)->toMatch('/class="[^"]*bg-surface-2[^"]*" data-test="line-icon" style="width: 36px; height: 36px/');
+
+    Livewire::test('pages::plan')->set('editing', true)
+        ->assertSeeHtmlInOrder(['data-test="line-handle"', 'data-test="line-icon"', 'Rent']);
+});
+
+it('saves the average or maximum toggle without a toast and with a 44 px target', function (): void {
+    line('Fuel')->update(['amount_avg' => 65_000, 'amount_max' => 80_000]);
+
+    $html = $this->get(route('plan'))->getContent();
+    expect($html)->toMatch('/wire:click="setCalcMode\(\d+, \'max\'\)"[^>]*class="focus-ring num h-11 /');
+
+    Livewire::test('pages::plan')->call('setCalcMode', line('Fuel')->id, 'max')
+        ->assertDispatched('budget-updated')
+        ->assertNotDispatched('app-toast');
+
+    expect(line('Fuel')->calc_mode)->toBe(CalcMode::Max);
 });
 
 it('keeps rows compact: a due day marker, and a subtotal only for groups with several lines', function (): void {
@@ -246,10 +264,6 @@ it('says after saving that the change reaches the open period from its first day
         ->assertReturned(['ok' => true, 'errors' => []])
         ->assertDispatched('app-toast', title: __('Plan updated.'), subtitle: 'Also applies to the current period (from Oct 1).');
 
-    line('Fuel')->update(['amount_avg' => 65_000, 'amount_max' => 80_000]);
-    Livewire::test('pages::plan')->call('setCalcMode', line('Fuel')->id, 'max')
-        ->assertDispatched('app-toast', subtitle: 'Also applies to the current period (from Oct 1).');
-
     Livewire::test('pages::plan')->call('saveIncome', '600000')
         ->assertDispatched('app-toast', subtitle: 'Also applies to the current period (from Oct 1).');
 
@@ -297,17 +311,36 @@ it('sums up the leftover rule in one sentence on the plan', function (): void {
     expect($rule())->toBe('All of it stays on the account');
 
     $this->get(route('plan'))->assertOk()
-        ->assertSeeInOrder(['data-test="leftover-rule"', 'All of it stays on the account', __('Change'), 'data-test="leftover-sheet"', 'data-test="surplus-target"'], false);
+        ->assertSeeInOrder(['data-test="month-end"', __('Reserve and leftover'), 'data-test="leftover-rule"', 'All of it stays on the account', __('What you choose here is saved right away.'), 'data-test="reserve-card"'], false);
 });
 
-it('updates the leftover sentence when the rule changes on the sheet', function (): void {
+it('shows the leftover rules inline on the plan, as on the onboarding, without a sheet', function (): void {
+    Pocket::factory()->for($this->user)->create(['is_reserve' => true, 'balance' => 120_000]);
+
+    $this->get(route('plan'))->assertOk()
+        ->assertSeeInOrder([
+            'data-test="reserve-card"', __('Balance: :amount', ['amount' => money(120_000)]), 'data-test="reserve-row"',
+            __('If money is left at month end'), 'data-test="reserve-mode-pct"', 'data-test="reserve-pct-50"',
+            __('The rest goes to:'), 'data-test="surplus-target"',
+            'data-test="leftover-preview"', __('A month with your numbers'),
+        ], false)
+        ->assertDontSee('data-test="leftover-sheet"', false);
+});
+
+it('saves the inline leftover choices at once and silently, and updates the sentence', function (): void {
     Pocket::factory()->for($this->user)->create(['is_reserve' => true]);
+    $account = $this->user->accounts()->create(['name' => 'Broker', 'type' => 'investment', 'currency' => 'HUF']);
 
     Livewire::test('pages::plan')
         ->call('setReservePct', 25)
         ->assertSee('25% to the reserve, the rest stays on the account')
+        ->call('setSurplusTarget', 'account:'.$account->id)
+        ->assertSee('25% to the reserve, the rest goes to Broker')
         ->call('setReserveMode', 'fixed')
-        ->assertSee('All of it stays on the account');
+        ->assertSee('All of it goes to Broker')
+        ->assertNotDispatched('app-toast');
+
+    expect($this->user->settings()->refresh()->surplus_account_id)->toBe($account->id);
 });
 
 it('asks before a type change recounts spending already recorded in the open period', function (): void {

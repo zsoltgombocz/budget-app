@@ -2,16 +2,19 @@
 
 use App\Actions\Budget\MarkNoSpendDay;
 use App\Actions\Budget\ToggleLinePaid;
+use App\Enums\LineType;
 use App\Enums\PeriodMode;
 use App\Models\Category;
 use App\Models\User;
 use App\Services\Data\ClosePreview;
+use App\Services\Data\FixedItem;
 use App\Services\Data\Overview;
 use App\Services\OverviewService;
 use App\Services\PeriodCloser;
 use App\Support\Icons;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -36,10 +39,89 @@ new #[Title('Today')] class extends Component {
         $this->showIntro = false;
     }
 
+    /** How many fixed items the checklist shows before "+N more". */
+    public const int FIXED_PREVIEW = 4;
+
+    public bool $showAllFixed = false;
+
+    /**
+     * The fixed items' order when the page was opened, so a ticked item does not jump away.
+     *
+     * @var list<int>
+     */
+    #[Locked]
+    public array $fixedOrder = [];
+
+    /**
+     * Tick a fixed item off for the period, or untick it; the toast offers the way back.
+     */
     public function togglePaid(int $budgetLineId): void
     {
-        app(ToggleLinePaid::class)->handle($this->user(), $this->overview->period, $budgetLineId);
-        unset($this->overview, $this->closePreview, $this->currentLeftover);
+        $period = $this->overview->period;
+
+        if (! $period->isOpen()) {
+            return;
+        }
+
+        $item = $this->fixedItem($budgetLineId);
+        $paid = app(ToggleLinePaid::class)->handle($this->user(), $period, $budgetLineId);
+        $this->refresh();
+
+        $isTransfer = $item instanceof FixedItem && in_array($item->line->type, [LineType::Transfer, LineType::Sinking], true);
+
+        $this->dispatch('budget-updated');
+        $this->dispatch('app-toast',
+            title: match (true) {
+                ! $paid => __('Marked as not done.'),
+                $isTransfer => __('Marked as transferred.'),
+                default => __('Marked as done.'),
+            },
+            icon: $paid ? 'check_circle' : 'remove',
+            undo: 'today-undo-paid',
+            params: ['budgetLineId' => $budgetLineId, 'paid' => ! $paid],
+        );
+    }
+
+    /**
+     * Undo a tick: set the item back to how it was, once (a second tap changes nothing).
+     */
+    #[On('today-undo-paid')]
+    public function undoPaid(int $budgetLineId, bool $paid): void
+    {
+        $period = $this->overview->period;
+        $item = $this->fixedItem($budgetLineId);
+
+        if ($period->isOpen() && $item instanceof FixedItem && $item->paid !== $paid) {
+            app(ToggleLinePaid::class)->handle($this->user(), $period, $budgetLineId);
+            $this->refresh();
+            $this->dispatch('budget-updated');
+        }
+    }
+
+    /**
+     * The fixed items in the order they had when the page was opened.
+     *
+     * @return list<FixedItem>
+     */
+    #[Computed]
+    public function fixedItems(): array
+    {
+        $items = $this->overview->fixedItems;
+        $ids = array_values(array_filter(array_map(fn (FixedItem $item): ?int => $item->line->lineId, $items), fn (?int $id): bool => $id !== null));
+
+        $this->fixedOrder = $this->fixedOrder === []
+            ? $ids
+            : [...array_values(array_intersect($this->fixedOrder, $ids)), ...array_values(array_diff($ids, $this->fixedOrder))];
+
+        $position = array_flip($this->fixedOrder);
+        usort($items, fn (FixedItem $a, FixedItem $b): int => ($position[$a->line->lineId ?? -1] ?? PHP_INT_MAX) <=> ($position[$b->line->lineId ?? -1] ?? PHP_INT_MAX));
+
+        return $items;
+    }
+
+    private function fixedItem(int $budgetLineId): ?FixedItem
+    {
+        return collect($this->overview->fixedItems)->first(fn (FixedItem $item): bool => $item->line->lineId === $budgetLineId);
     }
 
     public function markNoSpend(): void
@@ -64,7 +146,14 @@ new #[Title('Today')] class extends Component {
         $this->user()->periodCloses()->whereKey($periodCloseId)->update(['surplus_transferred_at' => now()]);
         unset($this->pendingTransfers);
 
-        $this->dispatch('app-toast', title: __('Marked as transferred.'));
+        $this->dispatch('app-toast', title: __('Marked as transferred.'), icon: 'check_circle', undo: 'today-undo-transferred', params: ['periodCloseId' => $periodCloseId]);
+    }
+
+    #[On('today-undo-transferred')]
+    public function undoTransferred(int $periodCloseId): void
+    {
+        $this->user()->periodCloses()->whereKey($periodCloseId)->update(['surplus_transferred_at' => null]);
+        unset($this->pendingTransfers);
     }
 
     /**
@@ -81,7 +170,7 @@ new #[Title('Today')] class extends Component {
     #[On('budget-updated')]
     public function refresh(): void
     {
-        unset($this->overview, $this->icons, $this->closePreview, $this->currentLeftover);
+        unset($this->overview, $this->icons, $this->closePreview, $this->currentLeftover, $this->fixedItems);
     }
 
     #[Computed]
@@ -161,7 +250,9 @@ new #[Title('Today')] class extends Component {
     $forecastNegative = $forecast->expectedLeftover < 0;
     $categories = $forecast->categories;
     $over = array_values(array_filter($categories, fn ($c) => $c->isOver()));
-    $fixed = $overview->fixedItems;
+    $fixed = $this->fixedItems;
+    $visibleFixed = $this->showAllFixed ? $fixed : array_slice($fixed, 0, $this::FIXED_PREVIEW);
+    $hiddenFixed = $this->showAllFixed ? [] : array_slice($fixed, $this::FIXED_PREVIEW);
     $dailyShown = $forecastNegative ? 0 : $forecast->dailyAllowance;
 
     // The period's own numbers for the "how is this calculated" sheets.
@@ -243,7 +334,7 @@ new #[Title('Today')] class extends Component {
                 <div class="num text-[15px] font-semibold">{{ __('Transfer :amount', ['amount' => money($close->to_invest)]) }}</div>
                 <div class="truncate text-xs text-muted">{{ __('to :account, from the month-end leftover', ['account' => $close->surplusAccount->name ?? '']) }}</div>
             </div>
-            <x-ui.button size="sm" variant="light" wire:click="markTransferred({{ $close->id }})" data-test="mark-transferred">{{ __('Transferred') }}</x-ui.button>
+            <x-ui.button size="sm" variant="light" wire:click="markTransferred({{ $close->id }})" class="!h-11 shrink-0" data-test="mark-transferred">{{ __('Transferred') }}</x-ui.button>
         </div>
     @endforeach
 
@@ -256,10 +347,14 @@ new #[Title('Today')] class extends Component {
             <div class="mx-4 mb-3 flex items-center gap-3 rounded-[22px] border border-accent/22 bg-accent/10 px-4 py-3.5" wire:key="due-{{ $item->line->lineId }}" data-test="due-item">
                 <x-ui.icon-tile icon="autorenew" tone="accent" />
                 <div class="min-w-0 flex-1">
-                    <div class="num truncate text-[15px] font-semibold">{{ $item->line->categoryName }} · {{ money($item->line->planned()) }}</div>
+                    {{-- Only the name gives way on a narrow screen, never the amount. --}}
+                    <div class="flex min-w-0 items-baseline gap-1 text-[15px] font-semibold">
+                        <span class="truncate">{{ $item->line->categoryName }}</span>
+                        <span class="num shrink-0 whitespace-nowrap" data-test="due-amount">· {{ money($item->line->planned()) }}</span>
+                    </div>
                     <div @class(['truncate text-xs', 'text-warn' => $late, 'text-muted' => ! $late])>{{ $late ? __('was due :date', ['date' => \App\Support\Dates::short($item->dueOn)]) : ($isTransfer ? __('Transfer due today') : __('Due today')) }}</div>
                 </div>
-                <x-ui.button size="sm" variant="light" wire:click="togglePaid({{ (int) $item->line->lineId }})" data-test="mark-due-done">{{ $isTransfer ? __('Transferred') : __('Done') }}</x-ui.button>
+                <x-ui.button size="sm" variant="light" wire:click="togglePaid({{ (int) $item->line->lineId }})" class="!h-11 shrink-0" data-test="mark-due-done">{{ $isTransfer ? __('Transferred') : __('Done') }}</x-ui.button>
             </div>
         @endforeach
     @endif
@@ -342,6 +437,46 @@ new #[Title('Today')] class extends Component {
                     <x-ui.icon name="chevron_right" :size="18" class="text-faint" />
                 </a>
             @endforeach
+        </x-ui.card>
+    @endif
+
+    {{-- The fixed items to tick off, in a stable order while the page is open. --}}
+    @if ($fixed !== [])
+        <x-ui.card class="mx-4 mb-3 px-[18px] pb-1.5 pt-[18px]" data-test="fixed-items">
+            <div class="mb-1 flex items-baseline justify-between gap-3">
+                <span class="text-[15px] font-semibold">{{ __('Fixed items') }}</span>
+                <span class="text-[13px] text-muted">{{ __('automatically in the plan') }}</span>
+            </div>
+            @foreach ($visibleFixed as $item)
+                @php $overdue = $item->isOverdue($overview->today); @endphp
+                <button type="button" role="checkbox" aria-checked="{{ $item->paid ? 'true' : 'false' }}" wire:key="fixed-{{ $item->line->lineId }}" wire:click="togglePaid({{ (int) $item->line->lineId }})" @disabled(! $period->isOpen())
+                        @class(['focus-ring grid min-h-11 w-full grid-cols-[26px_minmax(0,1fr)_auto] items-center gap-3 py-[11px] text-left', 'border-b border-line' => ! $loop->last || $hiddenFixed !== []]) data-test="fixed-item">
+                    @if ($item->paid)
+                        <span class="flex size-6 items-center justify-center rounded-full bg-accent/16 text-accent" aria-hidden="true"><x-ui.icon name="check" :size="16" :weight="600" /></span>
+                    @else
+                        <span @class(['size-6 rounded-full border-[1.5px] border-dashed', 'border-warn' => $overdue, 'border-faint' => ! $overdue]) aria-hidden="true"></span>
+                    @endif
+                    <span class="min-w-0">
+                        <span @class(['block truncate text-[15px]', 'text-ink-2' => $item->paid])>{{ $item->line->categoryName }}</span>
+                        <span @class(['mt-0.5 block text-xs', 'text-warn' => $overdue, 'text-muted' => ! $overdue])>
+                            @if ($item->paid)
+                                {{ __('done') }}
+                            @elseif ($item->dueOn)
+                                {{ $overdue ? __('was due :date', ['date' => \App\Support\Dates::short($item->dueOn)]) : __('due :date', ['date' => \App\Support\Dates::short($item->dueOn)]) }}
+                            @else
+                                {{ $item->line->type->label() }}
+                            @endif
+                        </span>
+                    </span>
+                    <x-ui.amount size="sm" :value="$item->line->planned()" class="text-[15px] font-medium" />
+                </button>
+            @endforeach
+            @if ($hiddenFixed !== [])
+                <button type="button" wire:click="$set('showAllFixed', true)" class="focus-ring num flex min-h-11 w-full items-center justify-between rounded-xl text-[13px] text-muted" data-test="fixed-more">
+                    <span>{{ trans_choice('{1} +:count more item|[2,*] +:count more items', count($hiddenFixed), ['count' => count($hiddenFixed)]) }}</span>
+                    <x-ui.amount size="sm" :value="array_sum(array_map(fn ($item) => $item->line->planned(), $hiddenFixed))" />
+                </button>
+            @endif
         </x-ui.card>
     @endif
 

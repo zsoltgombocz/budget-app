@@ -682,7 +682,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                 @else
                     <p class="mt-2 text-[13px] leading-relaxed text-ink-2">{{ __('Your plan is :gap over the income a month.', ['gap' => money(-$preview['leftover'], $currency)]) }} {{ __('It is worth lowering a budget before you start.') }}</p>
                 @endif
-                <p class="mt-2 text-xs leading-snug text-muted">{{ __('The real numbers come at closing, from what you actually spent. You can change all of this later in Settings.') }}</p>
+                <p class="mt-2 text-xs leading-snug text-muted">{{ __('The real numbers come at closing, from what you actually spent. You can change all of this later on the Plan screen.') }}</p>
             </div>
         @endif
     </div>
