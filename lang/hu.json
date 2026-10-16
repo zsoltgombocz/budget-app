@@ -244,7 +244,7 @@
     "I didn't spend today": "Ma nem költöttem",
     "Icon": "Ikon",
     "If :email has an account, a sign-in link is on its way. It works once, for :minutes minutes. Look in the spam folder too.": "Ha ezzel a címmel van fiókod, már úton a belépési link: :email. Egyszer használható, :minutes percig érvényes. Ha nem találod, nézd meg a spam mappát is.",
-    "If :email has an account, we sent a 6-digit code. It works for :minutes minutes. Look in the spam folder too.": "Ha ezzel a címmel van fiókod, elküldtük rá a 6 jegyű kódot: :email. A kód :minutes percig érvényes. Ha nem találod, nézd meg a spam mappát is.",
+    "If :email has an account, we sent a 6-digit code. It works for :minutes minutes. Look in the spam folder too.": "Ha :email címhez tartozik fiók, elküldtük rá a 6 jegyű kódot. A kód :minutes percig érvényes. Ha nem találod, nézd meg a spam mappát is.",
     "If it is missing: scroll to the end, tap “Edit Actions…” and add “Add to Home Screen”.": "Ha nincs ott: görgess a lista végére, koppints a „Műveletek szerkesztése…” elemre, és add hozzá a „Főképernyőhöz adás” műveletet.",
     "If the month is shorter, the last day counts.": "Ha a hónap rövidebb, az utolsó napja számít.",
     "If you did not ask for it, just ignore this email.": "Ha nem te kérted, hagyd figyelmen kívül ezt a levelet.",
@@ -1041,5 +1041,8 @@
     "nothing moves": "nem mozdul sehova",
     "The pocket is empty, there is nothing to take out.": "Üres a persely, nincs mit kivenni.",
     "Choose one to continue.": "Válassz egyet a továbblépéshez.",
-    "You cannot record spending on a future day.": "Jövőbeli napra nem rögzíthetsz költést."
+    "You cannot record spending on a future day.": "Jövőbeli napra nem rögzíthetsz költést.",
+    "{1} :count item, counted at its planned amount|[2,*] :count items, counted at their planned amount": "{1} :count tétel, a tervezett összeggel számolva|[2,*] :count tétel, a tervezett összeggel számolva",
+    "over the budget by :amount": "keret felett: :amount",
+    "under the budget by :amount": "keret alatt: :amount"
 }

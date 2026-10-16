@@ -12,12 +12,12 @@
         <livewire:auth.magic-link-form />
 
         @if (config('budget.registration_open'))
-            <div class="text-center text-sm text-muted">
+            <div class="text-center text-sm text-muted" x-show="! codeSent">
                 {{ __('Don\'t have an account?') }}
                 <x-ui.link :href="route('register')" wire:navigate>{{ __('Sign up') }}</x-ui.link>
             </div>
         @else
-            <p class="text-center text-sm text-muted">{{ __('The app is invite only for now.') }}</p>
+            <p class="text-center text-sm text-muted" x-show="! codeSent" data-test="invite-only">{{ __('The app is invite only for now.') }}</p>
         @endif
     </div>
 </x-layouts::auth>

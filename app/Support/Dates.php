@@ -87,6 +87,6 @@ final class Dates
 
         $name = mb_strtolower($name).($adjective ? 'i' : '');
 
-        return (preg_match('/^[aáeéiíoóöőuúüű]/u', $name) === 1 ? 'az ' : 'a ').$name;
+        return Hungarian::withArticle($name);
     }
 }

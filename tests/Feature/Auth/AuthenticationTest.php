@@ -168,3 +168,17 @@ test('once the code is sent the page steps aside for the code field', function (
         ->assertDispatched('magic-link-step', sent: false)
         ->assertSee('data-test="magic-link-email"', false);
 });
+
+it('names the address with the right Hungarian article and hides the invite note while the code is typed', function (): void {
+    Notification::fake();
+    app()->setLocale('hu');
+    User::factory()->create(['email' => 'anna@example.com']);
+
+    Livewire::test('auth.magic-link-form')
+        ->set('email', 'anna@example.com')
+        ->call('send')
+        ->assertSee('Ha az anna@example.com címhez tartozik fiók, elküldtük rá a 6 jegyű kódot.');
+
+    config(['budget.registration_open' => false]);
+    $this->get(route('login'))->assertSee('x-show="! codeSent" data-test="invite-only"', false);
+});

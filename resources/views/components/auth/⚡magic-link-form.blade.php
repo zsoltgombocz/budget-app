@@ -2,6 +2,7 @@
 
 use App\Actions\Auth\SendMagicLink;
 use App\Models\User;
+use App\Support\Hungarian;
 use App\Support\SecurityEvents;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
@@ -100,14 +101,14 @@ new class extends Component {
                     <span class="mb-1.5 block text-[13px] text-muted">{{ __('Code from the email') }}</span>
                     <input type="text" wire:model="code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" pattern="[0-9 ]*" autofocus
                            x-on:input="if ($event.target.value.replace(/\D/g, '').length === 6) $wire.verify()"
-                           class="num h-14 w-full rounded-[14px] bg-surface-2 px-4 text-center text-[28px] font-semibold tracking-[0.35em] outline-none placeholder:text-faint focus:ring-2 focus:ring-accent"
+                           class="num h-14 w-full rounded-[14px] bg-surface-2 px-4 text-center text-[28px] font-semibold tracking-[0.35em] outline-none placeholder:text-muted focus:ring-2 focus:ring-accent"
                            placeholder="000000" data-test="login-code">
                     @error('code')<span class="mt-1.5 block text-xs text-danger">{{ $message }}</span>@enderror
                 </label>
                 <x-ui.button type="submit" class="w-full" data-test="login-code-submit">{{ __('Sign in') }}</x-ui.button>
             </form>
 
-            <p class="text-[13px] leading-snug text-pretty text-muted" data-test="magic-link-note">{{ __('If :email has an account, we sent a 6-digit code. It works for :minutes minutes. Look in the spam folder too.', ['email' => $sentTo, 'minutes' => SendMagicLink::MINUTES]) }}</p>
+            <p class="text-[13px] leading-snug text-pretty text-muted" data-test="magic-link-note">{{ __('If :email has an account, we sent a 6-digit code. It works for :minutes minutes. Look in the spam folder too.', ['email' => app()->getLocale() === 'hu' ? Hungarian::withArticle($sentTo) : $sentTo, 'minutes' => SendMagicLink::MINUTES]) }}</p>
 
             <x-ui.button variant="ghost" size="md" wire:click="again">{{ __('Use another email') }}</x-ui.button>
         </div>

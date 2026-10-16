@@ -514,6 +514,7 @@ new #[Title('Month')] class extends Component {
         locale: @js(str_replace('_', '-', app()->getLocale())),
         today: @js($today->toDateString()),
         failed: @js(__('Could not save. Check your connection and try again.')),
+        categoryNames: @js($period->isOpen() ? $this->editCategories->pluck('name', 'id') : []),
     })">
     @if ($periodNotFound)
         <div class="mx-4 mt-3 flex items-start gap-2 rounded-[18px] bg-warn/12 px-4 py-3 text-[13px] text-ink-2" role="status" data-test="period-not-found">
@@ -614,12 +615,16 @@ new #[Title('Month')] class extends Component {
                     'bg-warn/12' => $row['diff'] > 0,
                     'bg-accent/8' => $row['diff'] < 0 && $row['deviates'],
                 ]) @if ($row['diff'] > 0) data-test="over-budget-row" @endif>
-                    <span class="truncate">{{ $row['name'] }}</span>
+                    <span class="min-w-0">
+                        <span class="block truncate">{{ $row['name'] }}</span>
+                        @if ($row['diff'] !== 0)
+                            <span class="mt-0.5 block text-xs leading-snug text-ink-2" data-test="closed-row-verdict">{{ $row['diff'] > 0 ? __('over the budget by :amount', ['amount' => money($row['diff'])]) : __('under the budget by :amount', ['amount' => money(-$row['diff'])]) }}</span>
+                        @endif
+                    </span>
                     <span class="text-right text-muted">{{ money_number($row['planned']) }}</span>
                     <span class="text-right">{{ money_number($row['actual']) }}</span>
                     <span @class(['text-right font-semibold', 'text-warn' => $row['diff'] > 0, 'text-accent' => $row['diff'] < 0, 'text-muted' => $row['diff'] === 0])>
                         {{ $row['diff'] > 0 ? '+' : '' }}{{ $row['diff'] === 0 ? '0' : money_number($row['diff']) }}
-                        @if ($row['diff'] > 0)<span class="sr-only">{{ __('over the budget') }}</span>@endif
                     </span>
                 </div>
             @endforeach
@@ -733,7 +738,7 @@ new #[Title('Month')] class extends Component {
                     @else
                         <div @class(['grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-[11px]', 'border-b border-line' => $border])>
                             <x-ui.icon-tile icon="autorenew" tone="muted" :size="36" />
-                            <span><span class="block text-[15px]">{{ __('Fixed items') }}</span><span class="mt-0.5 block text-xs text-muted">{{ trans_choice('{1} :count item automatically|[2,*] :count items automatically', $row['count'], ['count' => $row['count']]) }}</span></span>
+                            <span><span class="block text-[15px]">{{ __('Fixed items') }}</span><span class="mt-0.5 block text-xs text-muted">{{ trans_choice('{1} :count item, counted at its planned amount|[2,*] :count items, counted at their planned amount', $row['count'], ['count' => $row['count']]) }}</span></span>
                             <x-ui.amount size="sm" :value="$row['amount']" class="text-[15px] font-medium" />
                         </div>
                     @endif
@@ -758,7 +763,7 @@ new #[Title('Month')] class extends Component {
     @endif
 
     {{-- A spending: correct it (open period) or just look at it (closed period). --}}
-    <x-ui.sheet show="edit" close="closeEdit()" title="edit?.title" data-test="transaction-sheet">
+    <x-ui.sheet show="edit" close="closeEdit()" title="editTitle()" data-test="transaction-sheet">
         <div class="py-3 text-center" :class="! filled('amount') && 'text-muted'">
             <x-ui.amount bind="display('amount')" size="xl" />
         </div>
@@ -805,7 +810,7 @@ new #[Title('Month')] class extends Component {
 
 @script
 <script>
-    Alpine.data('monthPage', ({ decimals, locale, today, failed }) => ({
+    Alpine.data('monthPage', ({ decimals, locale, today, failed, categoryNames }) => ({
         ...window.amountFields({ decimals, locale, fields: { amount: '' }, rules: { amount: { maxWhole: 9 } } }),
         edit: null,
         form: { category: null, date: today, note: '' },
@@ -819,6 +824,11 @@ new #[Title('Month')] class extends Component {
             this.fields = { amount: row.amount }
             this.active = null
             this.errors = {}
+        },
+
+        /** The sheet title follows the category picked in the form, before it is saved. */
+        editTitle() {
+            return categoryNames[this.form.category] ?? this.edit?.title ?? ''
         },
 
         closeEdit() {

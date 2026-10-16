@@ -76,8 +76,10 @@ new #[Title('Notifications')] #[Layout('layouts::app', ['tabs' => false])] class
     <div class="mx-4 mt-6 grid grid-cols-[38px_1fr] items-start gap-3 rounded-[20px] bg-ink/7 px-3.5 py-3">
         <x-ui.icon-tile icon="add" tone="solid" :size="38" />
         <div>
-            <div class="flex justify-between text-[13px]"><b class="font-semibold">{{ config('app.name') }}</b><span class="num text-muted" x-text="$wire.time"></span></div>
-            <div class="mt-[3px] text-sm leading-[1.35] text-ink-2">{{ __("What did you spend today? Record it now, or tell us you didn't spend.") }}</div>
+            {{-- The same title and text as the DailyReminder push; the system shows the installed app's name above it. --}}
+            <div class="flex justify-between text-[13px]"><b class="font-semibold">MoneySight</b><span class="num text-muted" x-text="$wire.time"></span></div>
+            <div class="mt-[3px] text-sm font-semibold leading-[1.35]" data-test="preview-title">{{ __('Did you record today\'s spending?') }}</div>
+            <div class="text-sm leading-[1.35] text-ink-2">{{ __('One tap and you are done.') }}</div>
         </div>
     </div>
 
