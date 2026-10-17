@@ -904,7 +904,7 @@ new #[Title('Pockets and loans')] class extends Component {
             }
         },
         async removePocket() {
-            if (! await window.appConfirm({ title: @js(__('Delete this pocket?')), body: @js(__('It disappears from Pockets, the plan and closing, and no more money goes into it. Its monthly saving is removed from the plan. If the month-end leftover went here, closing no longer moves it anywhere: it stays on your bank account, and you can pick a new place at closing. Past months stay as they were: its deposits, withdrawals and the spending it paid for are kept. Its balance is not moved; you can restore the pocket under Archived pockets, but its monthly saving has to be added again.')), confirm: @js(__('Delete')), danger: true })) return
+            if (! await window.appConfirm({ title: @js(__('Delete this pocket?')), body: @js(__('It disappears from Pockets, the plan and closing, together with its monthly saving. Past months stay as they were, and you can restore it under Archived pockets.')), confirm: @js(__('Delete')), danger: true })) return
             await $wire.deletePocket(this.form.id)
             this.sheet = null
         },
