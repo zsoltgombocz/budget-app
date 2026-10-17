@@ -46,7 +46,7 @@ new #[Title('Security settings')] class extends Component {
 <x-pages::settings.layout :heading="__('Security')" :subheading="__('Passkeys')">
     <x-ui.card class="p-[18px]">
         <div class="flex items-start gap-3">
-            <x-ui.icon-tile icon="lock" tone="accent" />
+            <x-ui.icon-tile icon="info" tone="accent" />
             <p class="text-[13px] leading-relaxed text-muted">{{ __('There is no password. You sign in with a link we email you, or with a passkey: Face ID, Touch ID or your phone’s screen lock, faster and safer.') }}</p>
         </div>
     </x-ui.card>
