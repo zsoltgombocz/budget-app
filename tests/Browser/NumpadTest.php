@@ -12,7 +12,8 @@ it('replaces a filled amount on the first key, takes a physical keyboard and clo
         ->click('[data-test="line-sheet"] [data-test="field-amount"]')
         ->assertVisible('[data-test="line-sheet"] [data-test="amount-pad"] [role="status"]');
 
-    expect($page->script("() => document.activeElement?.closest('[data-test=amount-pad]') !== null"))->toBeTrue();
+    // Focus moves into the pad after its open transition; wait for it rather than racing it.
+    expect($page->script("async () => { for (let i = 0; i < 40; i++) { if (document.activeElement?.closest('[data-test=amount-pad]')) return true; await new Promise(r => setTimeout(r, 50)) } return false }"))->toBeTrue();
 
     $page->keys('[data-test="line-sheet"] [data-test="amount-pad"] [role="group"]', ['9', '5', '0', '0', '1', 'Backspace', '0'])
         ->assertSeeIn('[data-test="line-sheet"] [data-test="amount-pad"] [role="status"]', '95,000')
@@ -22,7 +23,7 @@ it('replaces a filled amount on the first key, takes a physical keyboard and clo
         ->assertVisible('[data-test="save-line"]')
         ->assertSeeIn('[data-test="line-sheet"] [data-test="field-amount"]', '95,000');
 
-    expect($page->script("() => document.activeElement?.getAttribute('data-test')"))->toBe('field-amount');
+    expect($page->script("async () => { for (let i = 0; i < 40; i++) { if (document.activeElement?.getAttribute('data-test') === 'field-amount') break; await new Promise(r => setTimeout(r, 50)) } return document.activeElement?.getAttribute('data-test') }"))->toBe('field-amount');
 
     $page->click('[data-test="save-line"]')->waitForText('Plan updated.')->assertNoJavaScriptErrors();
 
