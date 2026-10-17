@@ -4,13 +4,14 @@
     A small "i" button next to a figure that opens a short sheet: what the number is and how
     it is calculated. The texts live here, one entry per topic; `rows` carries the period's
     own numbers for the calculation, as [label, value] pairs (the last one is the result).
-    Keep the texts in step with the code that computes the figure (named per entry).
+    Keep the texts in step with the code that computes the figure (named per entry). The title
+    is the sheet's one-line header: short enough to fit at 320px, the full sentence goes in the lead.
 --}}
 @php
     $entries = [
         // PeriodCloser::preview()->leftover(): the same figure as the Month page and the closing.
         'leftover' => [
-            'title' => __('Leftover as things stand'),
+            'title' => __('Leftover'),
             'lead' => __('What would be left if the month ended today.'),
             'notes' => [
                 __('Fixed items, transfers, loan installments and monthly savings count with their full planned amount; the variable categories only with what you have spent so far.'),
@@ -21,7 +22,7 @@
         ],
         // ForecastService::forecast()->expectedLeftover: variable categories with max(budget, spent).
         'if-spent' => [
-            'title' => __('If you spend every budget in full'),
+            'title' => __('Expected leftover'),
             'lead' => __('What is left at the end of the period if you spend every variable budget in full.'),
             'notes' => [
                 __('Every variable category counts with its full budget, or with what you have spent if that is more already.'),
@@ -30,7 +31,7 @@
         ],
         // Month page: PeriodCloser::preview()->leftover() and ForecastService::deviation() for the badge next to it.
         'month-leftover' => [
-            'title' => __('If the month ended today'),
+            'title' => __('Leftover'),
             'lead' => __('Based on your spending so far: what you have not spent yet counts as leftover.'),
             'notes' => [
                 __('The badge next to it compares the month with the plan, as if you spent every budget in full.'),
