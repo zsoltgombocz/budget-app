@@ -35,7 +35,7 @@
         <x-ui.icon-tile icon="install_mobile" tone="accent" />
         <div class="min-w-0 flex-1">
             <div class="text-[15px] font-semibold">{{ __('Install the app') }}</div>
-            <div class="mt-0.5 text-[13px] leading-snug text-muted">{{ __('One tap on the home screen, works offline and sends reminders.') }}</div>
+            <div class="mt-0.5 text-[13px] leading-snug text-muted">{{ __('One tap on the home screen, full screen, and it can send reminders.') }}</div>
         </div>
         <button type="button" x-on:click="dismiss()" class="focus-ring -mr-3 -mt-3 flex size-11 shrink-0 items-center justify-center rounded-full text-muted" aria-label="{{ __('Close') }}" data-test="install-dismiss"><x-ui.icon name="close" :size="20" /></button>
     </div>

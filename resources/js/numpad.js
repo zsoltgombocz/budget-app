@@ -98,10 +98,26 @@ export function amountFields({ fields = {}, active = null, decimals = 0, locale 
         amountLocale: locale,
         amountMaxLength: maxLength,
         amountRules: rules,
+        /** True until the first key after opening a filled field: that key replaces the value (like selected text). */
+        amountFresh: false,
 
         focus(name, label = '') {
             this.active = name
             this.activeLabel = label
+            this.amountFresh = this.filled(name)
+        },
+
+        /** Opens a field with a value to correct: the first key replaces it, the next ones append. */
+        editAmount(name, value, label = '') {
+            this.fields[name] = String(value ?? '').replace('.', ',')
+            this.focus(name, label)
+        },
+
+        /** The unit shown after a field's amount: rules[name].symbol (null for none), otherwise the fallback (the currency). */
+        amountSymbol(name, fallback = '') {
+            const rule = this.amountRules[name]
+
+            return rule && 'symbol' in rule ? (rule.symbol ?? '') : fallback
         },
 
         fieldRule(name) {
@@ -116,7 +132,10 @@ export function amountFields({ fields = {}, active = null, decimals = 0, locale 
             if (typeof this.amountGuard === 'function' && ! this.amountGuard()) {
                 return
             }
-            this.fields[this.active] = pressKey(this.fields[this.active], key, this.fieldRule(this.active))
+            // The first key after opening a filled field starts over, except Backspace, which edits it.
+            const current = this.amountFresh && key !== 'del' ? '' : this.fields[this.active]
+            this.amountFresh = false
+            this.fields[this.active] = pressKey(current, key, this.fieldRule(this.active))
         },
 
         display(name = this.active, fallback = '0') {
@@ -126,6 +145,56 @@ export function amountFields({ fields = {}, active = null, decimals = 0, locale 
         filled(name = this.active) {
             return String(this.fields[name] ?? '') !== ''
         },
+    }
+}
+
+const EDITABLE = 'input, textarea, select, [contenteditable="true"]'
+
+/**
+ * Physical keyboard on a visible x-ui.numpad: digits, Backspace, comma or period and Enter.
+ * Ignored while typing into a text field, when the numpad is hidden, or when another dialog
+ * (e.g. a confirmation) sits on top of the numpad's sheet. Enter on a numpad key runs the
+ * numpad's enter action instead of pressing that key again; on any other button it stays native.
+ */
+export function numpadKeydown(event, numpad, press, enter) {
+    if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || numpad.offsetParent === null) {
+        return
+    }
+
+    const target = event.target instanceof Element ? event.target : null
+
+    if (target?.closest(EDITABLE)) {
+        return
+    }
+
+    const dialog = numpad.closest('[role="dialog"]')
+    const focusInside = dialog === null || dialog.contains(document.activeElement) || document.activeElement === document.body
+
+    if (! focusInside) {
+        return
+    }
+
+    let key = null
+
+    if (/^[0-9]$/.test(event.key)) {
+        key = event.key
+    } else if (event.key === 'Backspace') {
+        key = 'del'
+    } else if (event.key === ',' || event.key === '.' || event.key === 'Decimal') {
+        key = numpad.querySelector('[data-key=","]') ? ',' : null
+    } else if (event.key === 'Enter') {
+        if (target?.closest('a, button') && ! target.closest('[data-numpad]')) {
+            return
+        }
+        event.preventDefault()
+        enter()
+
+        return
+    }
+
+    if (key !== null) {
+        event.preventDefault()
+        press(key)
     }
 }
 

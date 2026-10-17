@@ -99,3 +99,17 @@ it('limits a user to five reports an hour', function (): void {
 
     Http::assertSentCount(5);
 });
+
+it('titles the bug and idea pages by what they are for', function (): void {
+    $this->get(route('bug-report'))->assertSeeInOrder(['<title>', 'Report a bug - ', '</title>'], false);
+    $this->get(route('idea'))->assertSeeInOrder(['<title>', 'Share an idea - ', '</title>'], false)->assertDontSee('Contact - ');
+});
+
+it('ties the message error to the field and moves the focus there', function (): void {
+    Livewire::test('pages::settings.feedback')
+        ->call('send')
+        ->assertHasErrors('message')
+        ->assertSee('aria-invalid="true"', false)
+        ->assertSee('aria-describedby="feedback-message-error"', false)
+        ->assertSee('id="feedback-message-error"', false);
+});

@@ -119,6 +119,8 @@ new #[Title('Month')] class extends Component {
         /** @var array{category: int|string, date: string, note: ?string} $validated */
         $validated = $validator->validated();
 
+        $previous = ['id' => $transaction->id, 'category' => $transaction->category_id, 'amount' => $transaction->amount, 'date' => $transaction->occurred_on->toDateString(), 'note' => $transaction->note];
+
         try {
             app(UpdateTransaction::class)->handle($user, $transaction, (int) $validated['category'], $amount, CarbonImmutable::parse($validated['date']), $validated['note']);
         } catch (ValidationException $exception) {
@@ -130,7 +132,7 @@ new #[Title('Month')] class extends Component {
 
         // A corrected spending that no longer matches the search or the category leaves the list: say so.
         $stillListed = ! $this->isFiltered() || collect($this->days)->contains(fn (array $day): bool => collect($day['rows'])->contains(fn (array $row): bool => ($row['id'] ?? null) === $transactionId));
-        $this->dispatch('app-toast', title: __('Spending updated.'), subtitle: $stillListed ? null : __('It no longer matches the search, so it left the list.'));
+        $this->dispatch('app-toast', title: __('Spending updated.'), subtitle: $stillListed ? null : __('It no longer matches the search, so it left the list.'), undo: 'undo-transaction-edit', params: $previous);
 
         return ['ok' => true, 'errors' => []];
     }

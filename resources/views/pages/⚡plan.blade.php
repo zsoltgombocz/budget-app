@@ -36,6 +36,12 @@ new #[Title('Plan')] class extends Component {
 
     public bool $editing = false;
 
+    /** Read out after a line moves (aria-live), e.g. "Utilities is now 2nd of 4". */
+    public string $reorderStatus = '';
+
+    /** Counts leftover rule changes; each one shows a short "Saved" status by the rule sentence. */
+    public int $ruleSavedTick = 0;
+
     /**
      * Data for the line editor sheet, in major units as typed on the numpad.
      *
@@ -198,6 +204,16 @@ new #[Title('Plan')] class extends Component {
 
         $this->user()->settings()->update(['reserve_pct' => $pct, 'reserve_fixed' => null]);
         unset($this->monthEnd);
+        $this->ruleSaved();
+    }
+
+    /**
+     * Feedback after a leftover rule choice, inline next to the rule sentence (no toast: the
+     * choice shows itself as selected and saves at once).
+     */
+    private function ruleSaved(): void
+    {
+        $this->ruleSavedTick++;
     }
 
     /**
@@ -214,6 +230,7 @@ new #[Title('Plan')] class extends Component {
         }
 
         unset($this->monthEnd);
+        $this->ruleSaved();
     }
 
     /**
@@ -314,6 +331,8 @@ new #[Title('Plan')] class extends Component {
         $pocketId = $type === 'pocket' ? $user->pockets()->where('is_reserve', false)->whereKey((int) $id)->value('id') : null;
 
         $user->settings()->update(['surplus_account_id' => $accountId, 'surplus_pocket_id' => $pocketId]);
+        unset($this->monthEnd);
+        $this->ruleSaved();
     }
 
     #[Computed]
@@ -378,6 +397,40 @@ new #[Title('Plan')] class extends Component {
     {
         app(ReorderCategories::class)->handle($this->user(), (int) $categoryId, $position);
         $this->refreshPlan();
+        $this->reordered((int) $categoryId);
+    }
+
+    /**
+     * Move a line one place up (-1) or down (1) within its group: reordering without dragging.
+     */
+    public function move(int $categoryId, int $direction): void
+    {
+        $line = $this->lines->firstWhere('category_id', $categoryId);
+        abort_unless($line instanceof BudgetLine && $line->category !== null, 404);
+
+        $siblings = $this->groups[$line->category->type->value]->pluck('category_id')->values();
+        $index = (int) $siblings->search($categoryId);
+        $position = $index + ($direction < 0 ? -1 : 1);
+
+        if ($position < 0 || $position >= $siblings->count()) {
+            return;
+        }
+
+        $this->reorder($categoryId, $position);
+    }
+
+    private function reordered(int $categoryId): void
+    {
+        $line = $this->lines->firstWhere('category_id', $categoryId);
+
+        if (! $line instanceof BudgetLine || $line->category === null) {
+            return;
+        }
+
+        $siblings = $this->groups[$line->category->type->value]->pluck('category_id')->values();
+        $this->reorderStatus = __(':name is now in place :position of :count.', ['name' => $line->category->name, 'position' => (int) $siblings->search($categoryId) + 1, 'count' => $siblings->count()]);
+        $this->dispatch('budget-updated');
+        $this->dispatch('app-toast', title: __('Order saved.'));
     }
 
     /**
@@ -556,14 +609,18 @@ new #[Title('Plan')] class extends Component {
     $settings = auth()->user()->settings();
     $summary = $this->summary;
     $types = [LineType::Transfer, LineType::Loan, LineType::Fixed, LineType::Sinking, LineType::Variable];
-    $copyNote = $settings->period_mode === PeriodMode::Payday ? __('copied on every payday') : __('copied every month');
     $scopeFrom = $this->scopeFrom;
     $scopeNote = $scopeFrom ? __('The change also applies to the current period (:from).', ['from' => Dates::from($scopeFrom)]) : null;
 @endphp
 
-<div x-data="planPage({ decimals: {{ $this->currency->decimals() }}, locale: @js(str_replace('_', '-', app()->getLocale())) })">
+@php
+    // ?tetel=ID opens that line's editor (links from Today and Month, e.g. to set a budget).
+    $openLineId = is_numeric(request()->query('tetel')) && $this->lines->contains('id', (int) request()->query('tetel')) ? (int) request()->query('tetel') : null;
+@endphp
+<div x-data="planPage({ decimals: {{ $this->currency->decimals() }}, locale: @js(str_replace('_', '-', app()->getLocale())), openLineId: @js($openLineId) })" @if ($editing) data-hides-record-button @endif>
+    <p class="sr-only" role="status" aria-live="polite" data-test="reorder-status">{{ $reorderStatus }}</p>
     {{-- Edit mode is a visible state: the title changes and a Done button leaves it. --}}
-    <x-ui.page-header :title="$editing ? __('Edit') : __('Plan')" :subtitle="$editing ? __('Drag an item by its handle to reorder, tap it to edit.') : __('Monthly plan').' · '.$copyNote" data-test="plan-header">
+    <x-ui.page-header :title="$editing ? __('Edit') : __('Plan')" :subtitle="$editing ? __('Drag an item by its handle or use the arrows to reorder, tap it to edit.') : __('Every month starts with this plan.')" data-test="plan-header">
         <x-slot name="actions">
             @if ($editing)
                 <x-ui.button size="sm" wire:click="$set('editing', false)" data-test="toggle-edit">{{ __('Done') }}</x-ui.button>
@@ -608,7 +665,8 @@ new #[Title('Plan')] class extends Component {
                         @foreach ($lines as $line)
                             @php
                                 $hasToggle = $type === LineType::Variable && $line->amount_avg !== null && $line->amount_max !== null;
-                                $name = (string) $line->category?->name;
+                                // A repayment line is named after its loan.
+                                $name = (string) ($type === LineType::Loan && $line->loan !== null ? $line->loan->name : $line->category?->name);
                                 // One short line under the name, only where it says something the name does not.
                                 $detail = match (true) {
                                     $type === LineType::Loan && $line->loan !== null && $line->loan->principal_balance > 0 => __('principal :amount', ['amount' => money($line->loan->principal_balance)]).($line->loan->remaining_months ? ' · '.trans_choice('{1} :count month left|[2,*] :count months left', $line->loan->remaining_months, ['count' => $line->loan->remaining_months]) : ''),
@@ -622,6 +680,14 @@ new #[Title('Plan')] class extends Component {
                                 <div class="flex items-center gap-2">
                                     @if ($editing)
                                         <span wire:sort:handle class="-ml-2.5 flex size-11 shrink-0 cursor-grab touch-none items-center justify-center text-muted" role="img" aria-label="{{ __('Drag to reorder') }}" data-test="line-handle"><x-ui.icon name="drag_indicator" :size="20" /></span>
+                                        {{-- Reordering without dragging: one place up or down, for keyboards and screen readers. --}}
+                                        <span class="flex shrink-0 flex-col">
+                                            @foreach ([[-1, 'keyboard_arrow_up', __('Move up: :name', ['name' => $name])], [1, 'keyboard_arrow_down', __('Move down: :name', ['name' => $name])]] as [$direction, $arrow, $moveLabel])
+                                                <button type="button" x-on:click="moveLine({{ $line->category_id }}, {{ $direction }})" aria-label="{{ $moveLabel }}"
+                                                        @disabled(($direction < 0 && $loop->parent->first) || ($direction > 0 && $loop->parent->last))
+                                                        class="focus-ring flex h-6 w-9 items-center justify-center rounded-md text-ink-2 disabled:text-ink/15" data-move="{{ $line->category_id }}:{{ $direction }}" data-test="move-{{ $direction < 0 ? 'up' : 'down' }}"><x-ui.icon :name="$arrow" :size="20" /></button>
+                                            @endforeach
+                                        </span>
                                     @endif
                                     <{{ $opensLoan ? 'a' : 'button' }}
                                         @if ($opensLoan) href="{{ route('pockets', ['hitel' => $line->loan_id, 'vissza' => 'terv']) }}" wire:navigate data-test="open-loan-{{ $line->loan_id }}"
@@ -680,6 +746,11 @@ new #[Title('Plan')] class extends Component {
         <x-ui.section-label group :label="__('Reserve and leftover')" />
         <div class="px-1.5 pb-3">
             <p class="num text-[15px] font-medium leading-snug" data-test="leftover-rule">{{ $this->leftoverRule() }}</p>
+            <p class="min-h-5 text-[13px] font-medium text-accent-strong" role="status" aria-live="polite">
+                @if ($ruleSavedTick > 0)
+                    <span wire:key="rule-saved-{{ $ruleSavedTick }}" x-data x-init="setTimeout(() => $el.remove(), 3000)" class="inline-flex items-center gap-1" data-test="rule-saved"><x-ui.icon name="check" :size="16" />{{ __('Leftover rule saved.') }}</span>
+                @endif
+            </p>
             <p class="mt-1 text-[13px] leading-snug text-muted">{{ __('What you choose here is saved right away.') }}</p>
         </div>
 
@@ -766,7 +837,7 @@ new #[Title('Plan')] class extends Component {
                 <div @class(['mt-1 flex justify-between border-t border-accent/20 pt-1.5 font-semibold', 'text-danger' => $monthEnd->leftover < 0])><span>{{ __('Expected leftover') }}</span><span>{{ money($monthEnd->leftover) }}</span></div>
             </div>
             @if ($monthEnd->leftover > 0)
-                <div class="mt-3 text-[13px] font-semibold">{{ __('Put aside every month') }}</div>
+                <div class="mt-3 text-[13px] font-semibold">{{ __('Splitting the leftover') }}</div>
                 <div class="num mt-1 text-[13px]">
                     @if ($monthEnd->hasReserve)
                         <div class="flex justify-between gap-3 py-1"><span class="text-muted">{{ __('Reserve: :fixed fixed + :share from the leftover', ['fixed' => money($monthEnd->reserveMonthly), 'share' => money($monthEnd->allocation->toReserve)]) }}</span><span class="shrink-0 font-semibold">{{ money($monthEnd->toReserveTotal()) }}</span></div>
@@ -790,59 +861,26 @@ new #[Title('Plan')] class extends Component {
         @endif
     </div>
 
-    {{-- Line editor --}}
+    {{-- Line editor: the amount first (the usual change), the rarely needed settings behind "More". --}}
     <x-ui.sheet show="sheet === 'line'" close="sheet = null" title="lineTitle()" data-test="line-sheet">
-        <x-ui.form-group :title="__('Basics')">
-            <x-ui.text-row :label="__('Name')" x-model="line.name" maxlength="80" :placeholder="__('e.g. Rent')" error="form.name" data-test="line-name" />
-        </x-ui.form-group>
-
-        <x-ui.form-group :title="__('Kind')">
-            <div class="p-3">
-                <div class="flex flex-wrap gap-1.5">
-                    @foreach ($types as $type)
-                        <button type="button" x-on:click="line.type = @js($type->value)" :aria-pressed="line.type === @js($type->value) ? 'true' : 'false'" class="focus-ring min-h-11 rounded-xl border px-3.5 text-[13px] font-medium" :class="line.type === @js($type->value) ? 'border-accent bg-accent/14 text-accent' : 'border-transparent bg-surface-3 text-ink-2'" data-test="type-{{ $type->value }}">{{ $this->sectionTitle($type) }}</button>
-                    @endforeach
-                </div>
-                @foreach ($types as $type)
-                    <p class="mt-2.5 px-0.5 text-xs leading-snug text-muted" x-show="line.type === @js($type->value)">{{ match ($type) {
-                        LineType::Transfer => __('Moved to another account, e.g. the shared one.'),
-                        LineType::Loan => __('The monthly installment of a loan.'),
-                        LineType::Fixed => __('Same amount every month.'),
-                        LineType::Sinking => __('Put aside monthly for a later goal.'),
-                        LineType::Variable => __('Everyday spending you record.'),
-                    } }}</p>
-                @endforeach
-            </div>
-        </x-ui.form-group>
-
-        <x-ui.form-group :title="__('Amount')">
+        <x-ui.form-group>
             <template x-if="line.type !== 'variable'">
-                <div class="divide-y divide-line">
-                    <x-ui.amount-row name="amount" :label="__('Monthly amount')" fallback="0" error="form.amount" data-test="field-amount" />
-                    <x-ui.amount-row name="dueDay" :label="__('Due day')" error="form.dueDay" />
-                </div>
+                <x-ui.amount-row name="amount" :label="__('Monthly amount')" fallback="0" error="form.amount" data-test="field-amount" />
             </template>
             <template x-if="line.type === 'variable'">
-                <div class="divide-y divide-line">
-                    <x-ui.amount-row name="amount" :label="__('Monthly budget')" fallback="0" error="form.amount" data-test="field-amount" />
-                    <x-ui.amount-row name="amountAvg" :label="__('Typical month')" error="form.amountAvg" />
-                    <x-ui.amount-row name="amountMax" :label="__('Expensive month')" error="form.amountMax" />
-                    <div class="p-3">
-                        <div class="mb-2 px-0.5 text-[13px] text-muted">{{ __('The plan counts with') }}</div>
-                        <x-ui.segmented model="line.calcMode" :options="['fixed' => __('Budget amount'), 'avg' => __('Typical'), 'max' => __('Expensive')]" />
-                    </div>
-                </div>
+                <x-ui.amount-row name="amount" :label="__('Monthly budget')" fallback="0" error="form.amount" data-test="field-amount" />
             </template>
         </x-ui.form-group>
         @if ($scopeNote)
             <p class="px-1.5 pt-2 text-xs leading-snug text-muted" data-test="scope-note">{{ $scopeNote }}</p>
         @endif
 
-        <template x-if="line.type === 'variable'">
-            <x-ui.form-group>
-                <x-ui.switch-row model="line.isQuickEntry" :label="__('Show on the quick entry screen')" />
-            </x-ui.form-group>
-        </template>
+        <x-ui.form-group :title="__('Basics')">
+            <x-ui.text-row :label="__('Name')" x-model="line.name" maxlength="80" :placeholder="__('e.g. Rent')" error="form.name" data-test="line-name" />
+            <template x-if="line.type !== 'variable'">
+                <x-ui.day-field :label="__('Due day')" value="fields.dueDay" pick="fields.dueDay = day === null ? '' : String(day)" error="form.dueDay" data-test="field-due-day" />
+            </template>
+        </x-ui.form-group>
 
         <template x-if="line.type === 'transfer' || line.type === 'sinking'">
             <x-ui.form-group :hint="__('At closing the monthly amount goes into the pocket.')">
@@ -862,21 +900,65 @@ new #[Title('Plan')] class extends Component {
             </x-ui.form-group>
         </template>
 
-        <x-ui.form-group :title="__('Icon')">
-            <div class="grid grid-cols-6 gap-1.5 p-2.5" role="group" aria-label="{{ __('Icon') }}">
-                @foreach (Icons::CATEGORY as $icon)
-                    <button type="button" x-on:click="line.icon = @js($icon)" :aria-pressed="line.icon === @js($icon) ? 'true' : 'false'" class="focus-ring flex aspect-square min-h-11 items-center justify-center rounded-xl" :class="line.icon === @js($icon) ? 'bg-accent/14 text-accent ring-1 ring-accent' : 'bg-surface-3 text-ink-2'" aria-label="{{ Icons::label($icon) }}" data-test="icon-{{ $icon }}">
-                        <x-ui.icon :name="$icon" :size="22" />
-                    </button>
-                @endforeach
-            </div>
-        </x-ui.form-group>
+        <div class="mt-5">
+            <button type="button" x-on:click="more = ! more" :aria-expanded="more ? 'true' : 'false'" class="focus-ring flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-1.5 text-left text-[15px] font-medium text-ink-2" data-test="line-more">
+                <span>{{ __('More') }}<span class="block text-xs font-normal text-muted">{{ __('Kind, typical and expensive month, icon, active period') }}</span></span>
+                <x-ui.icon name="expand_more" :size="22" class="text-faint transition" ::class="more && 'rotate-180'" />
+            </button>
+        </div>
 
-        <x-ui.form-group :title="__('Active period')" :hint="__('Optional.')">
-            <label class="flex min-h-[52px] items-center justify-between gap-3 px-4 focus-within:bg-accent/10"><span class="text-[15px]">{{ __('Active from') }}</span><input type="date" x-model="line.activeFrom" class="bg-transparent text-right text-[15px] text-ink-2 outline-none"></label>
-            <label class="flex min-h-[52px] items-center justify-between gap-3 px-4 focus-within:bg-accent/10"><span class="text-[15px]">{{ __('Active until') }}</span><input type="date" x-model="line.activeTo" class="bg-transparent text-right text-[15px] text-ink-2 outline-none"></label>
-        </x-ui.form-group>
-        <p class="px-1.5 pt-2 text-xs text-danger" x-show="errors['form.activeTo']" x-text="errors['form.activeTo']"></p>
+        <div x-show="more" x-cloak data-test="line-more-panel">
+            <x-ui.form-group :title="__('Kind')">
+                <div class="p-3">
+                    <div class="flex flex-wrap gap-1.5">
+                        @foreach ($types as $type)
+                            <button type="button" x-on:click="line.type = @js($type->value)" :aria-pressed="line.type === @js($type->value) ? 'true' : 'false'" class="focus-ring min-h-11 rounded-xl border px-3.5 text-[13px] font-medium" :class="line.type === @js($type->value) ? 'border-accent bg-accent/14 text-accent' : 'border-transparent bg-surface-3 text-ink-2'" data-test="type-{{ $type->value }}">{{ $this->sectionTitle($type) }}</button>
+                        @endforeach
+                    </div>
+                    @foreach ($types as $type)
+                        <p class="mt-2.5 px-0.5 text-xs leading-snug text-muted" x-show="line.type === @js($type->value)">{{ match ($type) {
+                            LineType::Transfer => __('Moved to another account, e.g. the shared one.'),
+                            LineType::Loan => __('The monthly installment of a loan.'),
+                            LineType::Fixed => __('Same amount every month.'),
+                            LineType::Sinking => __('Put aside monthly for a later goal.'),
+                            LineType::Variable => __('Everyday spending you record.'),
+                        } }}</p>
+                    @endforeach
+                </div>
+            </x-ui.form-group>
+
+            <template x-if="line.type === 'variable'">
+                <div>
+                    <x-ui.form-group :title="__('Typical and expensive month')" :hint="__('Optional. With both filled in, the plan can count with either.')">
+                        <x-ui.amount-row name="amountAvg" :label="__('Typical month')" error="form.amountAvg" />
+                        <x-ui.amount-row name="amountMax" :label="__('Expensive month')" error="form.amountMax" />
+                        <div class="p-3">
+                            <div class="mb-2 px-0.5 text-[13px] text-muted">{{ __('The plan counts with') }}</div>
+                            <x-ui.segmented model="line.calcMode" :options="['fixed' => __('Budget amount'), 'avg' => __('Typical'), 'max' => __('Expensive')]" />
+                        </div>
+                    </x-ui.form-group>
+                    <x-ui.form-group>
+                        <x-ui.switch-row model="line.isQuickEntry" :label="__('Show on the quick entry screen')" />
+                    </x-ui.form-group>
+                </div>
+            </template>
+
+            <x-ui.form-group :title="__('Icon')">
+                <div class="grid grid-cols-6 gap-1.5 p-2.5" role="group" aria-label="{{ __('Icon') }}">
+                    @foreach (Icons::CATEGORY as $icon)
+                        <button type="button" x-on:click="line.icon = @js($icon)" :aria-pressed="line.icon === @js($icon) ? 'true' : 'false'" class="focus-ring flex aspect-square min-h-11 items-center justify-center rounded-xl" :class="line.icon === @js($icon) ? 'bg-accent/14 text-accent ring-1 ring-accent' : 'bg-surface-3 text-ink-2'" aria-label="{{ Icons::label($icon) }}" data-test="icon-{{ $icon }}">
+                            <x-ui.icon :name="$icon" :size="22" />
+                        </button>
+                    @endforeach
+                </div>
+            </x-ui.form-group>
+
+            <x-ui.form-group :title="__('Active period')" :hint="__('Optional.')">
+                <label class="flex min-h-[52px] items-center justify-between gap-3 px-4 focus-within:bg-accent/10"><span class="text-[15px]">{{ __('Active from') }}</span><input type="date" x-model="line.activeFrom" class="bg-transparent text-right text-[15px] text-ink-2 outline-none"></label>
+                <label class="flex min-h-[52px] items-center justify-between gap-3 px-4 focus-within:bg-accent/10"><span class="text-[15px]">{{ __('Active until') }}</span><input type="date" x-model="line.activeTo" class="bg-transparent text-right text-[15px] text-ink-2 outline-none"></label>
+            </x-ui.form-group>
+            <p class="px-1.5 pt-2 text-xs text-danger" x-show="errors['form.activeTo']" x-text="errors['form.activeTo']"></p>
+        </div>
 
         {{-- Deleting is rare and destructive: a quiet text button at the very bottom, not in the header. --}}
         <div class="mt-7 flex justify-center" x-show="line.lineId">
@@ -890,15 +972,7 @@ new #[Title('Plan')] class extends Component {
     </x-ui.sheet>
 
     {{-- Income editor --}}
-    <x-ui.sheet show="sheet === 'income'" close="sheet = null" :label="__('Monthly net income')" :full="false" data-test="income-sheet">
-        <x-slot:intro>{{ __('Monthly, after tax.') }}</x-slot:intro>
-        <div class="py-3 text-center"><x-ui.amount bind="display('income')" size="xl" /></div>
-        <div class="mb-2 text-center text-xs text-danger" x-show="incomeError" x-text="incomeError"></div>
-        <x-ui.numpad :decimal="$this->currency->decimals() > 0" />
-        <x-slot:footer>
-            <x-ui.button x-on:click="saveIncome()" class="w-full" data-test="save-income">{{ __('Save') }}</x-ui.button>
-        </x-slot:footer>
-    </x-ui.sheet>
+    <x-ui.numpad-sheet show="sheet === 'income'" close="sheet = null" :label="__('Monthly net income')" done="saveIncome()" display="display('income')" :decimal="$this->currency->decimals() > 0" error="incomeError" :intro="\Illuminate\Support\Js::from(__('Monthly, after tax.'))->toHtml()" data-test="income-sheet" />
 
     {{-- Reserve amounts: monthly saving, target, fixed share of the leftover. --}}
     <x-ui.sheet show="sheet === 'reserve'" close="sheet = null" :label="__('Reserve pocket')" data-test="reserve-sheet">
@@ -918,13 +992,30 @@ new #[Title('Plan')] class extends Component {
 
 @script
 <script>
-    Alpine.data('planPage', ({ decimals, locale }) => ({
+    Alpine.data('planPage', ({ decimals, locale, openLineId }) => ({
         sheet: null,
         line: {},
+        more: false,
         errors: {},
         saving: false,
         incomeError: null,
-        ...window.amountFields({ decimals, locale, rules: { dueDay: { decimals: 0, max: 31 } } }),
+        ...window.amountFields({ decimals, locale }),
+
+        init() {
+            if (openLineId) {
+                this.openLine(openLineId)
+                history.replaceState(null, '', location.pathname)
+            }
+        },
+
+        /** One place up or down; focus stays on the arrow so it can be pressed again. */
+        async moveLine(categoryId, direction) {
+            await $wire.move(categoryId, direction)
+            this.$nextTick(() => {
+                const button = document.querySelector(`[data-move="${categoryId}:${direction}"]`)
+                ;(button && ! button.disabled ? button : document.querySelector(`[data-move="${categoryId}:${-direction}"]`))?.focus()
+            })
+        },
 
         lineTitle() { return this.line.lineId ? @js(__('Edit item')) : @js(__('New item')) },
 
@@ -939,6 +1030,7 @@ new #[Title('Plan')] class extends Component {
             this.fields = { ...data.amounts }
             this.active = null
             this.errors = {}
+            this.more = false
             this.sheet = 'line'
         },
         async saveLine(typeChangeConfirmed = false) {
@@ -947,6 +1039,10 @@ new #[Title('Plan')] class extends Component {
             try {
                 result = await $wire.saveLine({ ...this.line, amounts: { ...this.fields }, typeChangeConfirmed })
                 this.errors = result.errors ?? {}
+                // An error in a setting behind "More" opens it, so the message is seen.
+                if (['form.type', 'form.amountAvg', 'form.amountMax', 'form.activeFrom', 'form.activeTo', 'form.icon'].some((key) => this.errors[key])) this.more = true
+                // Focus goes to the first field with an error, which tells what is wrong (aria-describedby).
+                if (! result.ok) this.$nextTick(() => document.querySelector('[data-test=line-sheet] [aria-invalid=true]')?.focus())
                 if (result.ok) this.sheet = null
             } finally {
                 this.saving = false
@@ -961,8 +1057,8 @@ new #[Title('Plan')] class extends Component {
         },
 
         openIncome(value) {
-            this.fields = { income: String(value).replace('.', ',') }
-            this.active = 'income'
+            this.fields = {}
+            this.editAmount('income', value)
             this.incomeError = null
             this.sheet = 'income'
         },

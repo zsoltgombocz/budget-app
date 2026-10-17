@@ -29,14 +29,14 @@ new #[Title('Settings')] class extends Component {
             ['route' => 'dashboard', 'params' => ['bemutato' => 1], 'test' => 'how-it-works', 'icon' => 'lightbulb', 'title' => __('How it works'), 'subtitle' => __('Plan, recording spending, closing the period')],
             ['route' => 'install', 'icon' => 'install_mobile', 'title' => __('Install the app'), 'subtitle' => __('Steps for your phone and browser')],
             ['route' => 'contact', 'icon' => 'mail', 'title' => __('Contact'), 'subtitle' => __('E-mail, bug reports and ideas')],
-            ['route' => 'changelog', 'icon' => 'celebration', 'title' => __('What’s new'), 'subtitle' => __('Version :version', ['version' => config('app.version')])],
+            ['route' => 'changelog', 'params' => ['honnan' => 'beallitasok'], 'icon' => 'celebration', 'title' => __('What’s new'), 'subtitle' => __('Version :version', ['version' => config('app.version')])],
         ],
     ];
 @endphp
 
 <div class="pb-6">
-    <div class="flex items-center gap-3 px-4 pt-6">
-        <x-ui.icon-button icon="arrow_back" :href="route('dashboard')" wire:navigate :label="__('Back')" />
+    {{-- A tab of its own: no back arrow, the tab bar is the way out. --}}
+    <div class="px-4 pt-6">
         <h1 class="text-[30px] font-semibold tracking-[-0.03em]">{{ __('Settings') }}</h1>
     </div>
 

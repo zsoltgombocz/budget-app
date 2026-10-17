@@ -4,6 +4,7 @@ use App\Models\User;
 use App\Services\BugReporter;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -36,10 +37,17 @@ new #[Title('Contact')] class extends Component {
 
     public function send(BugReporter $reporter): void
     {
-        $this->validate([
-            'message' => ['required', 'string', 'min:5', 'max:4000'],
-            'screenshot' => ['nullable', 'image', 'max:5120'],
-        ]);
+        try {
+            $this->validate([
+                'message' => ['required', 'string', 'min:5', 'max:4000'],
+                'screenshot' => ['nullable', 'image', 'max:5120'],
+            ]);
+        } catch (ValidationException $exception) {
+            // Focus goes to the message field, which is described by the error under it.
+            $this->js("document.getElementById('feedback-message')?.focus()");
+
+            throw $exception;
+        }
 
         $key = 'bug-report:'.$this->user()->id;
 
@@ -62,6 +70,14 @@ new #[Title('Contact')] class extends Component {
         RateLimiter::hit($key, 3600);
         $this->reset('message', 'screenshot');
         $this->sent = true;
+    }
+
+    /**
+     * The page title follows the kind: "Report a bug" or "Share an idea".
+     */
+    public function rendering(\Illuminate\View\View $view): void
+    {
+        $view->title(__($this->kind === 'idea' ? 'Share an idea' : 'Report a bug'));
     }
 
     public function removeScreenshot(): void
@@ -103,11 +119,11 @@ new #[Title('Contact')] class extends Component {
             <x-ui.card class="p-[18px]">
                 <label class="block">
                     <span class="mb-1.5 block text-[13px] text-muted">{{ $idea ? __('Your idea') : __('What happened, and what did you expect?') }}</span>
-                    <textarea wire:model="message" rows="6" maxlength="4000"
+                    <textarea wire:model="message" rows="6" maxlength="4000" id="feedback-message" @error('message') aria-invalid="true" aria-describedby="feedback-message-error" @enderror
                               class="block w-full resize-none rounded-[14px] bg-surface-2 px-4 py-3 text-[15px] text-ink outline-none placeholder:text-muted focus:ring-2 focus:ring-accent"
                               placeholder="{{ $idea ? __('E.g. I would like to see last month next to this one.') : __('E.g. on the closing screen the Next button does nothing.') }}" data-test="bug-report-message"></textarea>
                 </label>
-                @error('message')<span class="mt-1.5 block text-xs text-danger">{{ $message }}</span>@enderror
+                @error('message')<span id="feedback-message-error" class="mt-1.5 block text-xs text-danger" role="alert">{{ $message }}</span>@enderror
 
                 <div class="mt-3">
                     @if ($screenshot)

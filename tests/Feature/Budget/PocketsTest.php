@@ -279,12 +279,10 @@ it('names the three money moves and says what each does', function (): void {
     Pocket::factory()->for($this->user)->create();
 
     $this->get(route('pockets'))
-        ->assertSeeInOrder([
-            'Money into the pocket from this month\'s money: the leftover goes down by the same amount.',
-            'Withdraw to the monthly budget', 'The money leaves the pocket and counts as extra income in this period.',
-            'Pay a spending from the pocket', 'The spending is paid by the pocket: it does not use up the monthly budget.',
-        ])
-        ->assertDontSee('To the budget');
+        ->assertSeeInOrder(['Deposit', 'Withdraw to the monthly budget', 'Pay a spending'])
+        ->assertSee('From this month’s money: the month’s leftover goes down by the same amount.')
+        ->assertSee('Leaves the pocket and counts as extra income this month.')
+        ->assertSee('The pocket pays it: the monthly budget is not used up.');
 });
 
 it('keeps the primary buttons off until an amount is typed', function (): void {
@@ -344,4 +342,72 @@ it('has Hungarian copy for the money moves', function (): void {
         ->and(__('Pay a spending from the pocket'))->toBe('Költés kifizetése a perselyből')
         ->and(__('The money leaves the pocket and counts as extra income in this period.'))->toBe('A pénz kikerül a perselyből, és ebben a periódusban plusz bevételnek számít.')
         ->and(__('Delete pocket'))->toBe('Persely törlése');
+});
+
+it('names the repayment line after its loan when the loan is saved', function (): void {
+    $user = onboardedUser();
+    $this->actingAs($user);
+    $loan = Loan::factory()->for($user)->create(['name' => 'Személyi kölcsön']);
+    $category = Category::factory()->for($user)->create(['name' => 'Hitel', 'type' => 'loan']);
+    BudgetLine::factory()->for($user)->for($category)->create(['loan_id' => $loan->id]);
+
+    resolve(SaveLoan::class)->handle($user, [...$loan->only(['name', 'lender', 'principal_balance', 'installment', 'insurance', 'thm', 'remaining_months']), 'prepay_mode' => $loan->prepay_mode], $loan);
+
+    expect($category->refresh()->name)->toBe('Személyi kölcsön');
+});
+
+it('takes back a deposit from the toast and gives the month its money back', function (): void {
+    $pocket = Pocket::factory()->for($this->user)->create(['name' => 'Holiday', 'balance' => 10_000]);
+    $periods = resolve(PeriodService::class);
+
+    $component = Livewire::test('pages::pockets')
+        ->call('movePocketMoney', $pocket->id, 1, '5000', null)
+        ->assertDispatched('app-toast', fn (string $event, array $params): bool => $params['subtitle'] === 'This month’s leftover went down by '.money(5_000).'.' && $params['undo'] === 'undo-pocket-movement');
+
+    $movement = PocketMovement::query()->sole();
+    expect($pocket->refresh()->balance)->toBe(15_000)
+        ->and($periods->topUps($periods->current($this->user)))->toBe(-5_000);
+
+    $component->call('undoPocketMovement', $movement->id)->assertDispatched('app-toast', title: 'Money movement undone.');
+
+    expect($pocket->refresh()->balance)->toBe(10_000)
+        ->and(PocketMovement::query()->count())->toBe(0)
+        ->and($periods->topUps($periods->current($this->user)))->toBe(0);
+});
+
+it('takes back a withdrawal to the budget, but not a closing\'s or another user\'s movement', function (): void {
+    $pocket = Pocket::factory()->for($this->user)->create(['balance' => 10_000]);
+    $component = Livewire::test('pages::pockets')->call('movePocketMoney', $pocket->id, -1, '4000', null);
+    $component->call('undoPocketMovement', PocketMovement::query()->sole()->id);
+
+    expect($pocket->refresh()->balance)->toBe(10_000);
+
+    $prepay = $this->user->pocketMovements()->create(['pocket_id' => $pocket->id, 'amount' => -1_000, 'type' => 'prepay', 'occurred_on' => now()->toDateString()]);
+    $foreign = PocketMovement::factory()->create();
+
+    $component->call('undoPocketMovement', $prepay->id)->assertDispatched('app-toast', title: 'This money movement can no longer be undone.');
+    $component->call('undoPocketMovement', $foreign->id);
+
+    expect(PocketMovement::withoutGlobalScopes()->whereKey([$prepay->id, $foreign->id])->count())->toBe(2);
+});
+
+it('pays from a pocket only for everyday categories and starts with the last one used', function (): void {
+    Pocket::factory()->for($this->user)->create(['balance' => 50_000]);
+    $sinking = Category::factory()->for($this->user)->create(['name' => 'Holiday saving', 'type' => 'sinking']);
+    $groceries = Category::query()->where('name', 'Groceries')->firstOrFail();
+    Transaction::factory()->for($this->user)->for(resolve(PeriodService::class)->current($this->user))->for($groceries)->create(['amount' => 1_000]);
+
+    $page = Livewire::test('pages::pockets');
+
+    expect($page->instance()->spendCategories->pluck('name')->all())->toBe(['Fuel', 'Groceries'])
+        ->and($page->instance()->lastSpendCategoryId)->toBe($groceries->id)
+        ->and($page->instance()->spendCategories->contains($sinking))->toBeFalse();
+});
+
+it('says when the monthly saving reaches the pocket', function (): void {
+    $pocket = Pocket::factory()->for($this->user)->create(['name' => 'Holiday']);
+    $category = Category::factory()->for($this->user)->create(['type' => 'sinking']);
+    BudgetLine::factory()->for($this->user)->for($category)->create(['amount' => 20_000, 'pocket_id' => $pocket->id]);
+
+    $this->get(route('pockets'))->assertSee('+'.money(20_000).' a month, added at closing');
 });

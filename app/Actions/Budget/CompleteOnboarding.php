@@ -26,10 +26,11 @@ final readonly class CompleteOnboarding
      * categories spending is recorded in), and so is the reserve (its pocket).
      *
      * @param  array<int, int>  $amounts  template item index => planned amount
-     * @param  'investment'|'pocket'  $surplusTarget
+     * @param  'none'|'investment'|'pocket'  $surplusTarget  'none': the leftover stays on the account
      * @param  list<int>|null  $included  template item indexes to create, null for all
      * @param  array{principal?: int|null, thm?: float|null, months?: int|null}  $loanDetails  optional details of the loan line's loan
      * @param  int|null  $reserveFixed  a fixed amount of the leftover for the reserve instead of the share
+     * @param  array<int, int|null>  $dueDays  template item index => due day of the month, for fixed lines
      */
     public function handle(
         User $user,
@@ -45,12 +46,18 @@ final readonly class CompleteOnboarding
         ?array $included = null,
         array $loanDetails = [],
         ?int $reserveFixed = null,
+        array $dueDays = [],
     ): void {
-        DB::transaction(function () use ($user, $income, $periodMode, $paydayDay, $currency, $template, $amounts, $reserveTarget, $reservePct, $surplusTarget, $included, $loanDetails, $reserveFixed): void {
+        DB::transaction(function () use ($user, $income, $periodMode, $paydayDay, $currency, $template, $amounts, $reserveTarget, $reservePct, $surplusTarget, $included, $loanDetails, $reserveFixed, $dueDays): void {
             $categories = $this->applyTemplate->handle($user, $template, $this->withoutEmptyFixedLines($template, $amounts, $included));
 
             foreach ($categories as $index => $category) {
-                $user->budgetLines()->where('category_id', $category->id)->update(['amount' => max(0, $amounts[$index] ?? 0)]);
+                $dueDay = $dueDays[$index] ?? null;
+
+                $user->budgetLines()->where('category_id', $category->id)->update([
+                    'amount' => max(0, $amounts[$index] ?? 0),
+                    'due_day' => $category->type === LineType::Fixed && $dueDay !== null && $dueDay >= 1 && $dueDay <= 31 ? $dueDay : null,
+                ]);
 
                 $loanId = $user->budgetLines()->where('category_id', $category->id)->value('loan_id');
 
@@ -84,7 +91,7 @@ final readonly class CompleteOnboarding
                     'type' => AccountType::Investment,
                     'currency' => $currency,
                 ])->id;
-            } else {
+            } elseif ($surplusTarget === 'pocket') {
                 $surplusPocketId = $user->pockets()->create(['name' => __('Savings')])->id;
             }
 

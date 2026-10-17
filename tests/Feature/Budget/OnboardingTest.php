@@ -3,6 +3,7 @@
 use App\Enums\Currency;
 use App\Enums\PeriodMode;
 use App\Models\BudgetLine;
+use App\Models\BudgetSetting;
 use App\Models\User;
 use App\Support\OnboardingItems;
 use Database\Seeders\CategoryTemplateSeeder;
@@ -122,7 +123,7 @@ it('shows a zero reserve saving without a minus sign', function (): void {
     $this->actingAs(User::factory()->create());
 
     Livewire::test('pages::onboarding')
-        ->set('step', 8)
+        ->set('step', 9)
         ->set('income', '500000')
         ->set('shared', false)
         ->set('hasLoan', false)
@@ -208,7 +209,7 @@ it('creates no reserve pocket when the reserve is switched off', function (): vo
         ->call('next')
         ->set('included.14', false)
         ->set('reserveTarget', '300000')
-        ->assertSee(__('No reserve pocket: the whole month-end leftover goes to the target below. You can add one later under Pockets.'))
+        ->assertSee(__('No reserve pocket: the whole month-end leftover goes where you choose on the next step. You can add one later under Pockets.'))
         ->call('finish')
         ->assertHasNoErrors();
 
@@ -255,7 +256,7 @@ it('works out where the leftover of the entered plan would go', function (): voi
     $this->actingAs(User::factory()->create());
 
     $wizard = Livewire::test('pages::onboarding')
-        ->set('step', 8)
+        ->set('step', 9)
         ->set('income', '500000')
         ->set('shared', false)
         ->set('hasLoan', false)
@@ -305,7 +306,9 @@ it('explains what the leftover targets mean', function (): void {
     $this->actingAs(User::factory()->create());
 
     Livewire::test('pages::onboarding')
-        ->set('step', 8)
+        ->set('step', 9)
+        ->assertSee('Nothing is moved: the money simply stays on your account.')
+        ->assertSee('If you have an investment account')
         ->assertSee('listed as a manual transfer')
         ->assertSee('added to a “Savings” pocket');
 });
@@ -369,7 +372,7 @@ it('ignores a malformed draft and keeps the defaults', function (): void {
     $this->actingAs($user);
 
     Livewire::test('pages::onboarding')
-        ->assertSet('step', 8)
+        ->assertSet('step', 9)
         ->assertSet('income', '')
         ->assertSet('currency', 'HUF')
         ->assertSet('amounts.0', '')
@@ -428,7 +431,7 @@ it('tells what an amount left at 0 means', function (): void {
 
     Livewire::test('pages::onboarding')
         ->set('step', 4)->assertSee('– stays out of the plan.')
-        ->set('step', 7)->assertSee('– the category is created for recording spending, without a budget.');
+        ->set('step', 7)->assertSee('– no budget for it. Spending here lowers the month-end leftover.');
 });
 
 it('leaves fixed lines at 0 out of the plan but keeps budgets and the reserve at 0', function (): void {
@@ -452,4 +455,92 @@ it('leaves fixed lines at 0 out of the plan but keeps budgets and the reserve at
         ->and($names)->not->toContain('Utilities', 'Phone and internet', 'Shared pocket', 'Loan', 'Prepayment fund')
         ->and($user->loans()->count())->toBe(0)
         ->and($user->pockets()->where('is_reserve', true)->exists())->toBeTrue();
+});
+
+it('keeps the leftover on the account unless another target is chosen', function (): void {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test('pages::onboarding')
+        ->assertSet('surplusTarget', 'none')
+        ->set('income', '500000')
+        ->set('shared', false)
+        ->set('hasLoan', false)
+        ->call('finish')
+        ->assertHasNoErrors();
+
+    $settings = $user->refresh()->settings();
+
+    expect($settings->surplus_account_id)->toBeNull()
+        ->and($settings->surplus_pocket_id)->toBeNull()
+        ->and($user->accounts()->count())->toBe(0)
+        ->and($user->pockets()->where('is_reserve', false)->count())->toBe(0);
+});
+
+it('asks about the reserve and the leftover on two separate steps', function (): void {
+    $this->actingAs(User::factory()->create());
+
+    Livewire::test('pages::onboarding')
+        ->set('step', 8)
+        ->assertSee('Would you like a reserve?')
+        ->assertSee('data-test="reserve-card"', false)
+        ->assertDontSee('data-test="surplus-options"', false)
+        ->set('included.14', false)
+        ->assertDontSee('data-test="reserve-card"', false)
+        ->call('next')
+        ->assertSet('step', 9)
+        ->assertSee('What should happen to the money left at month end?')
+        ->assertSee('Where the leftover goes')
+        ->assertSee('data-test="surplus-options"', false)
+        ->assertSee('aria-valuetext="Step 9 of 9"', false);
+});
+
+it('saves the optional due day of a fixed line', function (): void {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test('pages::onboarding')
+        ->set('income', '500000')->call('next')
+        ->call('next')->call('next')
+        ->assertSee('Which day do you pay it?')
+        ->set('amounts.0', '180000')->set('dueDays.0', 5)
+        ->set('amounts.1', '30000')
+        ->set('shared', false)->set('hasLoan', false)
+        ->call('finish')
+        ->assertHasNoErrors();
+
+    expect(BudgetLine::query()->whereRelation('category', 'name', 'Housing')->value('due_day'))->toBe(5)
+        ->and(BudgetLine::query()->whereRelation('category', 'name', 'Utilities')->value('due_day'))->toBeNull();
+});
+
+it('rejects a due day outside the month', function (): void {
+    $this->actingAs(User::factory()->create());
+
+    Livewire::test('pages::onboarding')
+        ->set('step', 4)
+        ->set('dueDays.0', 32)
+        ->call('next')
+        ->assertHasErrors('dueDays.0')
+        ->assertSet('step', 4);
+});
+
+it('does not keep the old investment default from a draft saved before the leftover question', function (): void {
+    $user = User::factory()->create();
+    BudgetSetting::factory()->for($user)->create(['onboarded_at' => null, 'onboarding_draft' => ['step' => 5, 'income' => '400000', 'surplusTarget' => 'investment']]);
+    $this->actingAs($user);
+
+    Livewire::test('pages::onboarding')
+        ->assertSet('step', 5)
+        ->assertSet('income', '400000')
+        ->assertSet('surplusTarget', 'none');
+});
+
+it('keeps an investment target chosen in a current draft', function (): void {
+    $user = User::factory()->create();
+    BudgetSetting::factory()->for($user)->create(['onboarded_at' => null, 'onboarding_draft' => ['version' => 2, 'step' => 9, 'surplusTarget' => 'investment']]);
+    $this->actingAs($user);
+
+    Livewire::test('pages::onboarding')
+        ->assertSet('step', 9)
+        ->assertSet('surplusTarget', 'investment');
 });

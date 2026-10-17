@@ -462,6 +462,11 @@ new #[Title('Today')] class extends Component {
                 </span>
             </div>
 
+            @php
+                $budgetLineIds = collect($categories)->contains(fn ($category): bool => $category->planned <= 0)
+                    ? auth()->user()?->budgetLines()->pluck('id', 'category_id') ?? collect()
+                    : collect();
+            @endphp
             @foreach ($categories as $category)
                 @php
                     $noBudget = $category->planned <= 0;
@@ -506,7 +511,7 @@ new #[Title('Today')] class extends Component {
                     </a>
                     @if ($noBudget)
                         <div class="-mt-2 pb-2 pl-[52px]">
-                            <x-ui.link :href="route('plan')" wire:navigate class="min-h-11 text-[13px]" data-test="set-budget">{{ __('Set a budget') }}</x-ui.link>
+                            <x-ui.link :href="route('plan', array_filter(['tetel' => $budgetLineIds->get($category->categoryId)]))" wire:navigate class="min-h-11 text-[13px]" data-test="set-budget">{{ __('Set a budget') }}</x-ui.link>
                         </div>
                     @endif
                 </div>

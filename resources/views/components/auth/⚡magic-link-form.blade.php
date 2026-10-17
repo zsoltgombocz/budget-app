@@ -30,6 +30,10 @@ new class extends Component {
         $this->validate([
             'name' => $this->register ? ['required', 'string', 'max:80'] : ['nullable'],
             'email' => ['required', 'string', 'email', 'max:255'],
+        ], [
+            'name.required' => __('Enter your name.'),
+            'email.required' => __('Enter your email address.'),
+            'email.email' => __('This does not look like an email address. It looks like this: name@example.com'),
         ]);
 
         $key = 'magic-link:'.Str::lower($this->email).'|'.request()->ip();
@@ -113,11 +117,12 @@ new class extends Component {
             <x-ui.button variant="ghost" size="md" wire:click="again">{{ __('Use another email') }}</x-ui.button>
         </div>
     @else
-        <form wire:submit="send" class="flex flex-col gap-4">
+        {{-- novalidate: our Hungarian message instead of the browser's English bubble. --}}
+        <form wire:submit="send" class="flex flex-col gap-4" novalidate>
             @if ($register)
                 <flux:input wire:model="name" :label="__('Name')" type="text" required autocomplete="name" />
             @endif
-            <flux:input wire:model="email" :label="__('Email address')" type="email" required autocomplete="email" inputmode="email" placeholder="email@example.com" data-test="magic-link-email" />
+            <flux:input wire:model="email" :label="__('Email address')" type="email" required autocomplete="email" inputmode="email" placeholder="{{ __('name@example.com') }}" data-test="magic-link-email" />
             <x-ui.button type="submit" wire:loading.attr="disabled" class="w-full" data-test="magic-link-send">
                 {{ $register ? __('Create account') : __('Email me a sign-in code') }}
             </x-ui.button>

@@ -12,7 +12,7 @@ it('keeps sheets pinned to the screen after the page has been scrolled', functio
             await new Promise(resolve => setTimeout(resolve, 100))
             document.querySelector('[data-test="income"]').click()
             await new Promise(resolve => setTimeout(resolve, 500))
-            const sheet = document.querySelector('[data-test="save-income"]').closest('.rounded-t-\\[30px\\]').getBoundingClientRect()
+            const sheet = document.querySelector('[data-test="income-sheet"] [data-test="numpad-done"]').closest('.rounded-t-\\[30px\\]').getBoundingClientRect()
             return { top: Math.round(sheet.top), bottom: Math.round(sheet.bottom), viewport: window.innerHeight }
         }
     JS);

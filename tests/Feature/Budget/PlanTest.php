@@ -122,7 +122,8 @@ it('shows loan details on loan lines', function (): void {
     $category = Category::factory()->for($this->user)->create(['name' => 'Car loan', 'type' => 'loan']);
     BudgetLine::factory()->for($this->user)->for($category)->create(['amount' => 87_549, 'loan_id' => $loan->id]);
 
-    $this->get(route('plan'))->assertSee('Car loan')->assertSee(money(3_200_000));
+    // The repayment line is named after its loan.
+    $this->get(route('plan'))->assertSee($loan->name)->assertSee(money(3_200_000));
 });
 
 it('removes a line and keeps its category for history', function (): void {
@@ -338,6 +339,7 @@ it('saves the inline leftover choices at once and silently, and updates the sent
         ->assertSee('25% to the reserve, the rest goes to Broker')
         ->call('setReserveMode', 'fixed')
         ->assertSee('All of it goes to Broker')
+        ->assertSee('data-test="rule-saved"', false)
         ->assertNotDispatched('app-toast');
 
     expect($this->user->settings()->refresh()->surplus_account_id)->toBe($account->id);
@@ -431,4 +433,35 @@ it('puts no minus sign before a zero in the month preview', function (): void {
         ->assertSeeInOrder([__('Put aside in the reserve'), money(0)], false)
         ->assertDontSee('−'.money(0), false)
         ->assertSee('−'.money(350_000), false);
+});
+
+it('moves a line one place up or down without dragging and says where it is now', function (): void {
+    $fuel = Category::query()->where('name', 'Fuel')->firstOrFail();
+    $groceries = Category::query()->where('name', 'Groceries')->firstOrFail();
+
+    Livewire::test('pages::plan')
+        ->set('editing', true)
+        ->call('move', $groceries->id, -1)
+        ->assertSet('reorderStatus', 'Groceries is now in place 1 of 2.')
+        ->assertDispatched('app-toast', title: 'Order saved.')
+        ->call('move', $groceries->id, -1)
+        ->call('move', $fuel->id, 1);
+
+    expect(Category::query()->where('type', 'variable')->orderBy('sort')->pluck('name')->all())->toBe(['Groceries', 'Fuel']);
+});
+
+it('opens a line from the link with its id and hides the record button while editing', function (): void {
+    $fuel = line('Fuel');
+
+    $this->get(route('plan', ['tetel' => $fuel->id]))->assertSee('openLineId: '.$fuel->id, false);
+    $this->get(route('plan', ['tetel' => 999_999]))->assertSee('openLineId: null', false);
+
+    Livewire::test('pages::plan')
+        ->assertDontSee('data-hides-record-button', false)
+        ->set('editing', true)
+        ->assertSee('data-hides-record-button', false);
+});
+
+it('tells that every month starts with the plan', function (): void {
+    $this->get(route('plan'))->assertSee('Every month starts with this plan.')->assertDontSee('copied every month');
 });

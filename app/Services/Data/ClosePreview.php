@@ -12,6 +12,7 @@ final readonly class ClosePreview
      * @param  list<array{pocket_id: int, name: string, amount: int}>  $pocketDeposits
      * @param  list<array{pocket_id: int, name: string, loan_id: int|null, balance: int, step: int}>  $prepayReady
      * @param  array{type: string|null, id: int|null, name: string|null}  $surplusTarget
+     * @param  list<array{pocket_id: int|null, name: string, is_reserve: bool, monthly: int, leftover: int, cover: int, total: int, balance_after: int}>  $pocketMoves
      */
     public function __construct(
         public int $incomePlanned,
@@ -27,6 +28,13 @@ final readonly class ClosePreview
         public array $surplusTarget,
         public array $pocketDeposits,
         public array $prepayReady,
+        /** Every pocket the closing moves money in: monthly saving + leftover share + deficit cover = total → new balance. */
+        public array $pocketMoves = [],
+        /** What the leftover rule alone puts into the reserve, before a split chosen by hand. */
+        public int $ruleToReserve = 0,
+        public ?int $reserveTarget = null,
+        /** How much the reserve still needs to reach its target after the monthly saving; null without a target. */
+        public ?int $reserveRoom = null,
     ) {}
 
     /**
@@ -61,6 +69,7 @@ final readonly class ClosePreview
             'surplus_target' => $this->surplusTarget,
             'pocket_deposits' => $this->pocketDeposits,
             'prepay_ready' => $this->prepayReady,
+            'pocket_moves' => $this->pocketMoves,
         ];
     }
 }

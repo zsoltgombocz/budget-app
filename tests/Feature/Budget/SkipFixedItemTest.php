@@ -134,7 +134,7 @@ it('closes with the skipped item as planned against 0 and a bigger leftover', fu
     expect($row)->toMatchArray(['planned' => 4_990, 'actual' => 0, 'diff' => -4_990, 'skipped' => true])
         ->and($preview->leftover())->toBe($before + 4_990);
 
-    $this->get(route('close', $this->period))->assertOk()->assertSeeInOrder(['PS Plus', 'data-test="skipped-row"', __('not paid')], false);
+    $this->get(route('close', $this->period))->assertOk()->assertSeeInOrder(['PS Plus', 'data-test="skipped-row"', __('skipped')], false);
 
     $close = $closer->close($this->user, $this->period);
     expect($close->breakdown['categories'])->toContain([...$row]);

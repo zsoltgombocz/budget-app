@@ -125,7 +125,7 @@ final readonly class PeriodCloser
         $reserve = $pockets->first(fn (Pocket $pocket): bool => $pocket->is_reserve);
         $reserveBalanceAfterDeposits = $reserve === null ? 0 : $reserve->balance + ($deposits[$reserve->id]['amount'] ?? 0);
 
-        $allocation = $this->allocations->allocate(
+        $ruleAllocation = $this->allocations->allocate(
             leftover: $income - $actualTotal,
             reservePct: $settings->reserve_pct,
             hasReserve: $reserve !== null,
@@ -133,6 +133,7 @@ final readonly class PeriodCloser
             reserveTarget: $reserve?->target_amount,
             reserveFixed: $settings->reserve_fixed,
         );
+        $allocation = $ruleAllocation;
 
         if (! $coverDeficit && $allocation->leftover < 0) {
             $allocation = new Allocation(
@@ -174,6 +175,8 @@ final readonly class PeriodCloser
             $balancesAfter[$surplusPocket->id] += $allocation->toSurplus;
         }
 
+        $pocketMoves = $this->pocketMoves($pockets->all(), $deposits, $allocation, $reserve, $surplusPocket, $newPocket, $balancesAfter);
+
         $prepayReady = [];
 
         foreach ($pockets as $pocket) {
@@ -205,7 +208,66 @@ final readonly class PeriodCloser
             ],
             pocketDeposits: array_values($deposits),
             prepayReady: $prepayReady,
+            pocketMoves: $pocketMoves,
+            ruleToReserve: $ruleAllocation->toReserve,
+            reserveTarget: $reserve?->target_amount,
+            reserveRoom: $reserve?->target_amount === null ? null : max(0, $reserve->target_amount - $reserveBalanceAfterDeposits),
         );
+    }
+
+    /**
+     * Every pocket the closing moves money in, with the parts that add up to its change:
+     * the plan's monthly saving, its share of the leftover and a deficit taken from it (negative).
+     * A new "Savings" pocket the closing would create has no id yet.
+     *
+     * @param  array<array-key, Pocket>  $pockets
+     * @param  array<int, array{pocket_id: int, name: string, amount: int}>  $deposits
+     * @param  array<int, int>  $balancesAfter
+     * @return list<array{pocket_id: int|null, name: string, is_reserve: bool, monthly: int, leftover: int, cover: int, total: int, balance_after: int}>
+     */
+    private function pocketMoves(array $pockets, array $deposits, Allocation $allocation, ?Pocket $reserve, ?Pocket $surplusPocket, bool $newPocket, array $balancesAfter): array
+    {
+        $moves = [];
+
+        foreach ($pockets as $pocket) {
+            $monthly = $deposits[$pocket->id]['amount'] ?? 0;
+            $leftover = match (true) {
+                $reserve instanceof Pocket && $pocket->is($reserve) => $allocation->toReserve,
+                $surplusPocket instanceof Pocket && $pocket->is($surplusPocket) => $allocation->toSurplus,
+                default => 0,
+            };
+            $cover = $reserve instanceof Pocket && $pocket->is($reserve) ? -$allocation->fromReserve : 0;
+
+            if ($monthly === 0 && $leftover === 0 && $cover === 0) {
+                continue;
+            }
+
+            $moves[] = [
+                'pocket_id' => $pocket->id,
+                'name' => $pocket->name,
+                'is_reserve' => $pocket->is_reserve,
+                'monthly' => $monthly,
+                'leftover' => $leftover,
+                'cover' => $cover,
+                'total' => $monthly + $leftover + $cover,
+                'balance_after' => $balancesAfter[$pocket->id],
+            ];
+        }
+
+        if ($newPocket && $allocation->toSurplus > 0) {
+            $moves[] = [
+                'pocket_id' => null,
+                'name' => $this->savingsName(),
+                'is_reserve' => false,
+                'monthly' => 0,
+                'leftover' => $allocation->toSurplus,
+                'cover' => 0,
+                'total' => $allocation->toSurplus,
+                'balance_after' => $allocation->toSurplus,
+            ];
+        }
+
+        return $moves;
     }
 
     public function close(User $user, Period $period, ?int $incomeActual = null, ?int $toReserve = null, ?string $surplusTarget = null, bool $coverDeficit = true): PeriodClose

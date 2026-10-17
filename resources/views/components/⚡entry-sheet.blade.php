@@ -2,6 +2,7 @@
 
 use App\Actions\Budget\MarkNoSpendDay;
 use App\Actions\Budget\RecordTransaction;
+use App\Actions\Budget\UpdateTransaction;
 use App\Enums\LineType;
 use App\Models\Transaction;
 use App\Models\User;
@@ -115,6 +116,35 @@ new class extends Component {
 
         $this->dispatch('budget-updated');
         $this->dispatch('app-toast', title: __('Entry removed.'), icon: 'undo');
+    }
+
+    /**
+     * Undo of a spending correction (the Month page's "Spending updated." toast): puts the
+     * spending back as it was before the edit. The page dispatches the toast with
+     * undo: 'undo-transaction-edit' and the previous values as params; this sheet is on every
+     * tabbed page, so the listener is here.
+     */
+    #[On('undo-transaction-edit')]
+    public function undoTransactionEdit(int $id, int $category, int $amount, string $date, ?string $note, UpdateTransaction $updateTransaction): void
+    {
+        $user = $this->user();
+        $transaction = $user->transactions()->find($id);
+
+        if (! $transaction instanceof Transaction) {
+            return;
+        }
+
+        try {
+            $updateTransaction->handle($user, $transaction, $category, $amount, CarbonImmutable::parse($date), $note);
+        } catch (ValidationException $exception) {
+            $this->dispatch('app-toast', title: (string) collect($exception->errors())->flatten()->first(), icon: 'error');
+
+            return;
+        }
+
+        $this->loadState();
+        $this->dispatch('budget-updated');
+        $this->dispatch('app-toast', title: __('Change undone.'), icon: 'undo');
     }
 
     public function toggleNoSpend(): void

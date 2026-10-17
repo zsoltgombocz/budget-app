@@ -313,6 +313,16 @@ it('says so when a corrected spending no longer matches the search', function ()
         ->assertDispatched('app-toast', title: 'Spending updated.', subtitle: 'It no longer matches the search, so it left the list.');
 });
 
+it('offers to undo a corrected spending with its previous values', function (): void {
+    $transaction = Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 12_000, 'note' => 'Shell']);
+    $today = resolve(PeriodService::class)->today($this->user->settings())->toDateString();
+    $before = $transaction->occurred_on->toDateString();
+
+    Livewire::test('pages::month')
+        ->call('updateTransaction', $transaction->id, ['amount' => '9 000', 'category' => $this->fuel->id, 'date' => $today, 'note' => 'OMV'])
+        ->assertDispatched('app-toast', params: ['id' => $transaction->id, 'category' => $this->fuel->id, 'amount' => 12_000, 'date' => $before, 'note' => 'Shell'], title: 'Spending updated.', undo: 'undo-transaction-edit');
+});
+
 it('searches every month when asked, closed months read-only', function (): void {
     $previous = resolve(PeriodService::class)->forDate($this->user, $this->period->starts_on->subDay());
     Transaction::factory()->for($this->user)->for($previous)->for($this->fuel)->create(['note' => 'Old Shell', 'occurred_on' => $previous->starts_on]);
