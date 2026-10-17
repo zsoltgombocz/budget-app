@@ -92,6 +92,25 @@ it('offers only a deposit on an empty pocket and says why', function (): void {
         ->assertAttribute('[data-test="mode-deposit"]', 'aria-checked', 'true')
         ->assertDisabled('[data-test="mode-budget"]')
         ->assertDisabled('[data-test="mode-spend"]')
-        ->assertSeeIn('[data-test="mode-spend"]', 'The pocket is empty, there is nothing to take out.')
+        ->assertSeeIn('[data-test="empty-note"]', 'The pocket is empty, there is nothing to take out.')
         ->assertNoJavaScriptErrors();
 });
+
+it('fits all three money moves, the amount and the button over the numpad on an iPhone 15', function (int $width, int $height): void {
+    $user = onboardedUser();
+    $pocket = Pocket::factory()->for($user)->create(['name' => 'Holiday', 'balance' => 20_000]);
+    $this->actingAs($user);
+
+    $page = visit(route('pockets'))->on()->mobile()->resize($width, $height)
+        ->click('[data-test="pocket-deposit-'.$pocket->id.'"]')
+        ->assertVisible('[data-test="pocket-sheet"]')
+        ->wait(0.5);
+
+    $inView = fn (string $selector): bool => (bool) $page->script("() => { const r = document.querySelector('{$selector}').getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight }");
+
+    expect($inView('[data-test="mode-spend"]'))->toBeTrue()
+        ->and($inView('[data-test="move-amount"]'))->toBeTrue()
+        ->and($inView('[data-test="pocket-move"]'))->toBeTrue();
+
+    $page->click('[data-test="mode-spend"]')->assertSeeIn('[data-test="mode-hint"]', 'The pocket pays it')->assertNoJavaScriptErrors();
+})->with([[393, 852], [375, 667]]);

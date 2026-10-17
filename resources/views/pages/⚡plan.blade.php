@@ -901,7 +901,7 @@ new #[Title('Plan')] class extends Component {
         </template>
 
         <div class="mt-5">
-            <button type="button" x-on:click="more = ! more" :aria-expanded="more ? 'true' : 'false'" class="focus-ring flex min-h-11 w-full items-center justify-between rounded-xl px-1.5 text-[15px] font-medium text-ink-2" data-test="line-more">
+            <button type="button" x-on:click="more = ! more" :aria-expanded="more ? 'true' : 'false'" class="focus-ring flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-1.5 text-left text-[15px] font-medium text-ink-2" data-test="line-more">
                 <span>{{ __('More') }}<span class="block text-xs font-normal text-muted">{{ __('Kind, typical and expensive month, icon, active period') }}</span></span>
                 <x-ui.icon name="expand_more" :size="22" class="text-faint transition" ::class="more && 'rotate-180'" />
             </button>

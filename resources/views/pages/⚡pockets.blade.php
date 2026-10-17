@@ -7,8 +7,8 @@ use App\Actions\Budget\PayFromPocket;
 use App\Enums\LineType;
 use App\Actions\Budget\RecordPrepayment;
 use App\Actions\Budget\SaveLoan;
+use App\Actions\Budget\UndoPocketMovement;
 use App\Enums\Currency;
-use App\Enums\PeriodMode;
 use App\Enums\PrepayMode;
 use App\Models\Loan;
 use App\Models\Pocket;
@@ -126,7 +126,7 @@ new #[Title('Pockets and loans')] class extends Component {
         $pocket = $this->user()->pockets()->findOrFail($pocketId);
 
         try {
-            $movePocketMoney->handle($this->user(), $pocket, ($direction < 0 ? -1 : 1) * $value, $note, $toBudget);
+            $movement = $movePocketMoney->handle($this->user(), $pocket, ($direction < 0 ? -1 : 1) * $value, $note, $toBudget);
         } catch (ValidationException $exception) {
             return ['ok' => false, 'errors' => ['move' => (string) collect($exception->errors())->flatten()->first()]];
         }
@@ -135,7 +135,13 @@ new #[Title('Pockets and loans')] class extends Component {
         $this->dispatch('budget-updated');
         $this->dispatch('app-toast',
             title: $direction < 0 ? __('Withdrawn: :amount', ['amount' => money($value)]) : __('Deposited: :amount', ['amount' => money($value)]),
-            subtitle: $direction < 0 && $toBudget ? __('Added to this period’s budget.') : null,
+            subtitle: match (true) {
+                ! $toBudget => null,
+                $direction < 0 => __('This month’s leftover went up by :amount.', ['amount' => money($value)]),
+                default => __('This month’s leftover went down by :amount.', ['amount' => money($value)]),
+            },
+            undo: 'undo-pocket-movement',
+            params: ['id' => $movement->id],
         );
 
         return ['ok' => true, 'errors' => []];
@@ -169,6 +175,25 @@ new #[Title('Pockets and loans')] class extends Component {
         $this->dispatch('app-toast', title: __('Paid from the pocket: :amount', ['amount' => money($value)]), subtitle: __('It does not use up this period’s budget.'));
 
         return ['ok' => true, 'errors' => []];
+    }
+
+    /**
+     * The toast's Undo after a deposit or withdrawal: the movement goes, the balance and the month's leftover come back.
+     */
+    #[On('undo-pocket-movement')]
+    public function undoPocketMovement(int $id, UndoPocketMovement $undoPocketMovement): void
+    {
+        try {
+            $movement = $undoPocketMovement->handle($this->user(), $id);
+        } catch (ValidationException $exception) {
+            $this->dispatch('app-toast', title: (string) collect($exception->errors())->flatten()->first(), icon: 'error');
+
+            return;
+        }
+
+        unset($this->pockets);
+        $this->dispatch('budget-updated');
+        $this->dispatch('app-toast', title: __('Money movement undone.'), subtitle: __(':pocket balance: :amount', ['pocket' => $movement->pocket->name, 'amount' => money($movement->pocket->balance)]), icon: 'undo');
     }
 
     public function deletePocket(int $pocketId, DeletePocket $deletePocket): void
@@ -345,14 +370,30 @@ new #[Title('Pockets and loans')] class extends Component {
     }
 
     /**
-     * Categories a pocket can pay for.
+     * Categories a pocket can pay a spending for: the everyday (variable) ones only.
      *
      * @return Collection<int, \App\Models\Category>
      */
     #[Computed]
     public function spendCategories(): Collection
     {
-        return $this->user()->categories()->whereIn('type', [LineType::Variable, LineType::Sinking])->orderBy('sort')->get();
+        return $this->user()->categories()->where('type', LineType::Variable)->orderBy('sort')->get();
+    }
+
+    /**
+     * The category picked first when paying from a pocket: the one used last for that, else the last spending's.
+     */
+    #[Computed]
+    public function lastSpendCategoryId(): ?int
+    {
+        $ids = $this->spendCategories->pluck('id');
+        $last = fn (bool $fromPocket): ?int => $this->user()->transactions()
+            ->whereIn('category_id', $ids)
+            ->when($fromPocket, fn ($query) => $query->whereNotNull('pocket_id'))
+            ->latest('occurred_on')->latest('id')
+            ->value('category_id');
+
+        return $last(true) ?? $last(false);
     }
 
     #[Computed]
@@ -419,7 +460,6 @@ new #[Title('Pockets and loans')] class extends Component {
     $reserve = $pockets->first(fn ($p) => $p->is_reserve);
     // The prepayment pocket first, then the reserve, then the rest in their own order.
     $ordered = collect([$featured, $reserve])->filter()->concat($pockets->reject(fn ($p) => $p->is($featured) || $p->is($reserve)))->values();
-    $perPeriod = auth()->user()->settings()->period_mode === PeriodMode::Payday ? __('per payday') : __('per month');
     $loans = $this->loans;
     $decimals = $this->currency->decimals();
 @endphp
@@ -435,7 +475,7 @@ new #[Title('Pockets and loans')] class extends Component {
     // Opened from the plan: closing the loan sheet (save or cancel) goes back there.
     $returnTo = $openLoan !== null && request()->query('vissza') === 'terv' ? route('plan') : null;
 @endphp
-<div x-data="pocketsPage({ decimals: {{ $decimals }}, locale: @js(str_replace('_', '-', app()->getLocale())), cover: @js($cover), openLoan: @js($openLoan), returnTo: @js($returnTo) })">
+<div x-data="pocketsPage({ decimals: {{ $decimals }}, locale: @js(str_replace('_', '-', app()->getLocale())), cover: @js($cover), openLoan: @js($openLoan), returnTo: @js($returnTo), lastSpendCategory: @js($this->lastSpendCategoryId) })">
     <x-ui.page-header :title="__('Pockets')" :subtitle="__('Saved in total: :amount', ['amount' => money((int) $pockets->sum('balance'))])">
         <x-slot name="actions">
             <x-ui.button variant="secondary" size="sm" icon="add" x-on:click="sheet = 'new'" data-test="add">{{ __('Add') }}</x-ui.button>
@@ -463,7 +503,8 @@ new #[Title('Pockets and loans')] class extends Component {
                 $notes = array_filter([
                     $isFeatured ? ($pocket->loan ? __('Saving to prepay :loan', ['loan' => $pocket->loan->name]) : __('Saving for a prepayment')) : null,
                     $isReserve ? __('filled from the month-end leftover') : null,
-                    $deposit > 0 ? '+'.money($deposit).' '.$perPeriod : null,
+                    // The plan's monthly saving moves into the pocket at closing (PeriodCloser), not on payday.
+                    $deposit > 0 ? __('+:amount a month, added at closing', ['amount' => money($deposit)]) : null,
                 ]);
             @endphp
             <div class="mx-4 mb-3 rounded-card bg-surface" wire:key="pocket-{{ $pocket->id }}" data-test="pocket-card-{{ $pocket->id }}">
@@ -484,7 +525,7 @@ new #[Title('Pockets and loans')] class extends Component {
                         <span class="num mt-2 flex justify-between text-xs text-muted">
                             @if ($missing > 0)
                                 <span>{{ __(':amount to go', ['amount' => money($missing)]) }}</span>
-                                @if ($deposit > 0)<span>{{ trans_choice('{1} about :count payday|[2,*] about :count paydays', (int) ceil($missing / $deposit), ['count' => (int) ceil($missing / $deposit)]) }}</span>@endif
+                                @if ($deposit > 0)<span>{{ trans_choice('{1} about :count closing|[2,*] about :count closings', (int) ceil($missing / $deposit), ['count' => (int) ceil($missing / $deposit)]) }}</span>@endif
                             @else
                                 <span class="font-medium text-warn">{{ __('Ready to prepay') }}</span>
                             @endif
@@ -591,31 +632,6 @@ new #[Title('Pockets and loans')] class extends Component {
         </template>
 
         <div x-show="form.id && pocketTab === 'money'" class="pt-3">
-            <div role="radiogroup" aria-label="{{ __('What do you want to do?') }}" class="grid gap-2">
-                @foreach ([
-                    'deposit' => [__('Deposit'), __('Money into the pocket from this month\'s money: the leftover goes down by the same amount.')],
-                    'budget' => [__('Withdraw to the monthly budget'), __('The money leaves the pocket and counts as extra income in this period.')],
-                    'spend' => [__('Pay a spending from the pocket'), __('The spending is paid by the pocket: it does not use up the monthly budget.')],
-                ] as $mode => [$modeLabel, $modeHint])
-                    <button type="button" role="radio" x-on:click="moveMode = @js($mode)" :aria-checked="moveMode === @js($mode) ? 'true' : 'false'"
-                            @if ($mode !== 'deposit') :disabled="form.balance <= 0" @endif
-                            class="focus-ring flex w-full items-start gap-3 rounded-2xl border px-3.5 py-2.5 text-left transition-colors disabled:cursor-default disabled:text-muted"
-                            :class="moveMode === @js($mode) ? 'border-accent bg-accent/10' : 'border-transparent bg-surface-2'" data-test="mode-{{ $mode }}">
-                        <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2" :class="moveMode === @js($mode) ? 'border-accent' : 'border-ink/25'" aria-hidden="true">
-                            <span class="h-2.5 w-2.5 rounded-full bg-accent" x-show="moveMode === @js($mode)"></span>
-                        </span>
-                        <span class="min-w-0">
-                            <span class="block text-[15px] font-semibold leading-snug">{{ $modeLabel }}</span>
-                            @if ($mode === 'deposit')
-                                <span class="mt-0.5 block text-xs leading-snug text-muted">{{ $modeHint }}</span>
-                            @else
-                                <span class="mt-0.5 block text-xs leading-snug text-muted" x-text="form.balance > 0 ? @js($modeHint) : @js(__('The pocket is empty, there is nothing to take out.'))"></span>
-                            @endif
-                        </span>
-                    </button>
-                @endforeach
-            </div>
-
             <template x-if="moveMode === 'spend'">
                 <div x-init="$nextTick(() => $el.scrollIntoView({ block: 'nearest' }))">
                     <x-ui.form-group>
@@ -664,9 +680,29 @@ new #[Title('Pockets and loans')] class extends Component {
 
         <x-slot:footer>
             <div x-show="form.id && pocketTab === 'money'" data-test="money-pad">
+                {{-- The three ways to move money: a compact control above the amount, so all of it fits over the numpad. --}}
+                @php
+                    $modes = [
+                        'deposit' => [__('Deposit'), __('From this month’s money: the month’s leftover goes down by the same amount.')],
+                        'budget' => [__('Withdraw to the monthly budget'), __('Leaves the pocket and counts as extra income this month.')],
+                        'spend' => [__('Pay a spending'), __('The pocket pays it: the monthly budget is not used up.')],
+                    ];
+                @endphp
+                <div role="radiogroup" aria-label="{{ __('What do you want to do?') }}" class="grid grid-cols-3 gap-[3px] rounded-xl bg-bg p-[3px]" data-test="move-modes">
+                    @foreach ($modes as $mode => [$modeLabel])
+                        <button type="button" role="radio" x-on:click="moveMode = @js($mode)" :aria-checked="moveMode === @js($mode) ? 'true' : 'false'" :tabindex="moveMode === @js($mode) ? 0 : -1"
+                                x-on:keydown.right.prevent="$el.nextElementSibling?.click(); $el.nextElementSibling?.focus()" x-on:keydown.left.prevent="$el.previousElementSibling?.click(); $el.previousElementSibling?.focus()"
+                                @if ($mode !== 'deposit') :disabled="form.balance <= 0" @endif
+                                class="focus-ring min-h-11 rounded-[9px] px-1 text-[13px] font-medium leading-tight transition-colors disabled:opacity-40"
+                                :class="moveMode === @js($mode) ? 'bg-surface-3 text-ink' : 'text-muted'" data-test="mode-{{ $mode }}">{{ $modeLabel }}</button>
+                    @endforeach
+                </div>
+                <p class="mt-1.5 min-h-8 text-center text-xs leading-snug text-muted" data-test="mode-hint"
+                   x-text="{{ \Illuminate\Support\Js::from(collect($modes)->map(fn ($mode) => $mode[1])->all()) }}[moveMode]"></p>
+                <p class="-mt-1 mb-1 text-center text-xs text-muted" x-show="form.balance <= 0" data-test="empty-note">{{ __('The pocket is empty, there is nothing to take out.') }}</p>
                 <div class="text-center" :class="! positive('move') && 'text-muted'"><x-ui.amount bind="display('move')" size="lg" data-test="move-amount" /></div>
                 <p class="mt-1 text-center text-xs text-danger" x-show="errors.move" x-text="errors.move" role="alert"></p>
-                <x-ui.numpad :decimal="$decimals > 0" class="mt-2" />
+                <x-ui.numpad :decimal="$decimals > 0" enter="move()" class="mt-2" />
                 <x-ui.button x-on:click="move()" ::disabled="saving || ! positive('move')" class="mt-3 w-full" data-test="pocket-move">
                     <span x-text="{ deposit: @js(__('Deposit')), budget: @js(__('Withdraw to the monthly budget')), spend: @js(__('Pay from the pocket')) }[moveMode]"></span>
                 </x-ui.button>
@@ -686,7 +722,7 @@ new #[Title('Pockets and loans')] class extends Component {
         <x-ui.form-group :title="__('Monthly payment')">
             <x-ui.amount-row name="installment" :label="__('Installment')" error="installment" data-test="loan-installment" />
             <x-ui.amount-row name="insurance" :label="__('Insurance')" error="insurance" data-test="loan-insurance" />
-            <x-ui.amount-row name="dueDay" :label="__('Due day')" :hint="__('Day of the month; you get a reminder that morning')" error="dueDay" data-test="loan-due-day" />
+            <x-ui.day-field :label="__('Due day')" value="fields.dueDay" pick="fields.dueDay = day === null ? '' : String(day)" :hint="__('Day of the month; you get a reminder that morning')" error="dueDay" data-test="loan-due-day" />
         </x-ui.form-group>
         <x-ui.form-group :title="__('Balance')">
             <x-ui.amount-row name="principal" :label="__('Outstanding principal')" :hint="__('Without interest')" error="principal" data-test="loan-principal" />
@@ -724,7 +760,7 @@ new #[Title('Pockets and loans')] class extends Component {
 
 @script
 <script>
-    Alpine.data('pocketsPage', ({ decimals, locale, cover, openLoan, returnTo }) => ({
+    Alpine.data('pocketsPage', ({ decimals, locale, cover, openLoan, returnTo, lastSpendCategory }) => ({
         sheet: null,
         moveMode: 'deposit',
         pocketTab: 'money',
@@ -733,7 +769,7 @@ new #[Title('Pockets and loans')] class extends Component {
         form: {},
         errors: {},
         saving: false,
-        ...window.amountFields({ decimals, locale, rules: { thm: { decimals: 3 }, months: { decimals: 0 }, dueDay: { decimals: 0, max: 31 } } }),
+        ...window.amountFields({ decimals, locale, rules: { months: { decimals: 0, symbol: @js(__('months')) }, thm: { decimals: 3, symbol: '%' } } }),
         moneyFormatter: new Intl.NumberFormat(locale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals, useGrouping: 'always' }),
 
         init() {
@@ -788,7 +824,7 @@ new #[Title('Pockets and loans')] class extends Component {
             const data = await $wire.pocketData(id)
             this.moveMode = data.balance > 0 ? mode : 'deposit'
             this.pocketTab = 'money'
-            this.spendCategory = ''
+            this.spendCategory = lastSpendCategory ?? ''
             this.spendNote = ''
             this.open('pocket', data, data.id ? 'move' : null)
         },
@@ -804,7 +840,7 @@ new #[Title('Pockets and loans')] class extends Component {
                     ? await $wire.payFromPocket(this.form.id, amount, this.spendCategory || null, this.spendNote || null)
                     : await $wire.movePocketMoney(this.form.id, this.moveMode === 'deposit' ? 1 : -1, amount, null, true)
                 this.errors = result?.errors ?? {}
-                if (result?.ok) { this.sheet = null; this.spendNote = ''; this.spendCategory = '' }
+                if (result?.ok) { this.sheet = null; this.spendNote = '' }
             } finally {
                 this.saving = false
             }
