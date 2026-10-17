@@ -544,11 +544,11 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
         @endif
 
         @if ($showItems)
-            {{-- What a 0 means is said once for the whole step; a 0 amount is muted in its row. --}}
+            {{-- What a 0 means (and, for fixed items, that the payment day is optional) is said once for the whole step; a 0 amount is muted in its row. --}}
             <p @class(['px-1.5 pb-3 text-[13px] leading-snug text-pretty text-muted', '-mt-1' => $question !== null]) data-test="zero-hint">
                 {{ $group === 'daily'
                     ? __('A budget left at 0 means no budget for it: spending there lowers the month-end leftover.')
-                    : __('A line left at 0 stays out of the plan; you can add it later on the Plan screen.') }}
+                    : __('A line left at 0 stays out of the plan; you can add it later on the Plan screen.').' '.__('The payment day is optional: with notifications on, the app reminds you that morning.') }}
             </p>
             <div class="flex flex-col gap-3">
                 @foreach ($this->indexesFor($group) as $index)
@@ -586,7 +586,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                                     @error('amounts.'.$index)<p class="-mt-1 px-4 pb-2.5 text-xs text-danger" role="alert">{{ $message }}</p>@enderror
                                 </div>
                                 @if ($group === 'fixed')
-                                    <x-ui.day-field :label="__('Which day do you pay it?')" value="$wire.dueDays[{{ $index }}]" pick="$wire.set('dueDays.{{ $index }}', day)" :hint="__('Optional. With notifications on, the app reminds you that morning.')" data-test="due-day-{{ $index }}" />
+                                    <x-ui.day-field :label="__('Which day do you pay it?')" value="$wire.dueDays[{{ $index }}]" pick="$wire.set('dueDays.{{ $index }}', day)" data-test="due-day-{{ $index }}" />
                                 @endif
                                 @if ($isLoan)
                                     @php

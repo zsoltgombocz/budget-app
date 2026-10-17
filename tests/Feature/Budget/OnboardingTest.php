@@ -430,7 +430,10 @@ it('tells once at the top of the step what an amount left at 0 means', function 
     $this->actingAs(User::factory()->create());
 
     $wizard = Livewire::test('pages::onboarding')
-        ->set('step', 4)->assertSee('A line left at 0 stays out of the plan')
+        ->set('step', 4)->assertSee('A line left at 0 stays out of the plan');
+    expect(substr_count($wizard->html(), 'the app reminds you that morning'))->toBe(1);
+
+    $wizard
         ->set('step', 7)->assertSee('A budget left at 0 means no budget for it')
         ->assertSeeHtmlInOrder(['data-test="zero-hint"', 'data-test="template-item"']);
     expect(substr_count($wizard->html(), 'data-test="zero-hint"'))->toBe(1);
