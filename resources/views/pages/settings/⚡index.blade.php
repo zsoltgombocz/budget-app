@@ -36,9 +36,7 @@ new #[Title('Settings')] class extends Component {
 
 <div class="pb-6">
     {{-- A tab of its own: no back arrow, the tab bar is the way out. --}}
-    <div class="px-4 pt-6">
-        <h1 class="text-[30px] font-semibold tracking-[-0.03em]">{{ __('Settings') }}</h1>
-    </div>
+    <x-ui.page-header :title="__('Settings')" data-test="settings-title" />
 
     <div class="mx-4 mt-5 flex items-center gap-3 rounded-card bg-surface px-[18px] py-4">
         <span class="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent/14 text-[15px] font-semibold text-accent">{{ $user->initials() }}</span>
