@@ -585,7 +585,6 @@
     "Your daily spending and the “didn’t spend” days land here. Record the first one with the + button.": "Ide kerülnek a napi költéseid és a „nem költöttem” napok. Az első rögzítés a + gombbal megy.",
     "Your email address is unverified.": "Az e-mail-címed nincs megerősítve.",
     "Your iOS is older than 16.4: installing only works from Safari.": "Az iOS-ed régebbi, mint 16.4: telepíteni csak Safariból lehet.",
-    "Your income and fixed items are already in. You only need to write down the variable spending – or tap once if you did not spend today.": "A fizetés és a fix tételek már bent vannak. Csak a változó költéseket kell felírnod – vagy jelezd egy koppintással, ha ma nem költöttél.",
     "Your monthly net income. The plan starts from this.": "A havi nettó bevételed. Innen indul a terv.",
     "Your share of the joint savings.": "A te részed a közös félretételből.",
     "Your sign-in code is :code. Type it in the app to sign in:": "A belépőkódod: :code. Írd be az appban a belépéshez:",
@@ -1020,7 +1019,6 @@
     "People": "Emberek",
     "Heart": "Szív",
     "Donation": "Adomány",
-    "Three dots": "Három pont",
     "the app puts it into this pocket": "az app ebbe a perselybe teszi",
     "the app opens a new pocket for it": "az app új perselyt nyit neki",
     "nothing moves": "nem mozdul sehova",
@@ -1085,7 +1083,6 @@
     ":count done": ":count kész",
     ":count skipped": ":count kimarad",
     ":count left": ":count hátra",
-    "Search in every month": "Keresés az összes hónapban",
     ":amount from the budget": ":amount a keretből",
     "No spending in any month matches the search.": "Egyik hónapban sincs a keresésnek megfelelő költés.",
     "Budapest (Central European Time)": "Budapest (közép-európai idő)",
@@ -1173,5 +1170,13 @@
     "Into pockets": "Perselyekbe",
     "monthly saving": "havi gyűjtés",
     "from the leftover": "a maradékból",
-    "deficit covered": "hiány fedezése"
+    "deficit covered": "hiány fedezése",
+    "Shapes": "Formák",
+    "Your income and fixed items are already in. Record the variable spending with the + button – or mark the day above if you did not spend.": "A fizetés és a fix tételek már bent vannak. A változó költéseket a + gombbal rögzítsd – vagy jelöld fent, ha ma nem költöttél.",
+    "{1} :names has no budget yet.|[2,*] :count categories have no budget yet.": "{1} :names: még nincs kerete.|[2,*] :count kategóriának még nincs kerete.",
+    "All items (:count)": "Összes tétel (:count)",
+    "Against the plan": "Eltérés a tervtől",
+    "The badge next to it compares the month with the plan, as if you spent every budget in full.": "A mellette lévő címke a tervhez méri a hónapot, mintha minden keretet elköltenél.",
+    "Every month": "Minden hónap",
+    "Quick split": "Gyors felosztás"
 }

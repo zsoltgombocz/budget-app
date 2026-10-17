@@ -82,7 +82,7 @@ it('renders a text link underlined in the accent colour, as an anchor or a butto
 });
 
 it('gives the small controls a 44px touch target', function (): void {
-    expect(Blade::render('<x-install-card />'))->toMatch('/data-test="install-dismiss"/')->toMatch('/<button[^>]*size-11[^>]*data-test="install-dismiss"/')
+    expect(Blade::render('<x-install-card />'))->toMatch('/data-test="install-dismiss"/')->toMatch('/<button[^>]*before:-inset-1[^>]*data-test="install-dismiss"/')
         ->and(Blade::render('<x-no-spend-button :marked="true" />'))->toMatch('/<button[^>]*h-11[^>]*data-test="undo-no-spend"/')
         ->and(Blade::render('<x-toast-host />'))->toMatch('/<button[^>]*h-11[^>]*data-test="toast-undo"/');
 });

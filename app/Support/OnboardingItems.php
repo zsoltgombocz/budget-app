@@ -40,7 +40,7 @@ final class OnboardingItems
                 ['name' => 'Groceries', 'type' => LineType::Variable->value, 'icon' => 'shopping_basket', 'color' => 'emerald', 'is_quick_entry' => true, 'hint' => 'Budget for food and household shopping you record day by day.'],
                 ['name' => 'Transport', 'type' => LineType::Variable->value, 'icon' => 'directions_car', 'color' => 'orange', 'is_quick_entry' => true, 'hint' => 'Fuel, tickets, parking.'],
                 ['name' => 'Entertainment', 'type' => LineType::Variable->value, 'icon' => 'movie', 'color' => 'fuchsia', 'is_quick_entry' => true, 'hint' => 'Going out, cinema, games.'],
-                ['name' => 'Other', 'type' => LineType::Variable->value, 'icon' => 'more_horiz', 'color' => 'zinc', 'is_quick_entry' => true, 'hint' => 'Everything that does not fit elsewhere.'],
+                ['name' => 'Other', 'type' => LineType::Variable->value, 'icon' => 'category', 'color' => 'zinc', 'is_quick_entry' => true, 'hint' => 'Everything that does not fit elsewhere.'],
             ],
             'reserve' => [
                 ['name' => 'Reserve', 'type' => LineType::Sinking->value, 'icon' => 'shield', 'color' => 'teal', 'pocket' => ['name' => 'Reserve', 'is_reserve' => true], 'hint' => 'Monthly amount put aside for emergencies. The month-end leftover also goes here.'],

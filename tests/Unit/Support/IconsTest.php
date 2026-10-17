@@ -19,3 +19,9 @@ it('labels an icon in the app language and falls back to the raw name', function
     expect(Icons::label('shopping_cart'))->toBe('Bevásárlókocsi')
         ->and(Icons::label('not_an_icon'))->toBe('not_an_icon');
 });
+
+it('shows the retired three-dots "Other" icon as the category icon, so it is not mistaken for a menu button', function (): void {
+    expect(Icons::forCategory('more_horiz'))->toBe('category')
+        ->and(Icons::forCategory(null))->toBe('category')
+        ->and(Icons::CATEGORY)->not->toContain('more_horiz');
+});

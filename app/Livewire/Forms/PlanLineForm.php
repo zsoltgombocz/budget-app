@@ -56,7 +56,8 @@ class PlanLineForm extends Form
         $this->lineId = $line->id;
         $this->name = $category->name ?? '';
         $this->type = $category?->type->value ?? LineType::Fixed->value;
-        $this->icon = $category->icon ?? '';
+        // A retired icon name (e.g. more_horiz) opens as its current one, so the picker shows it and saving passes.
+        $this->icon = $category->icon !== null && $category->icon !== '' ? Icons::forCategory($category->icon) : '';
         $this->color = $category->color ?? '';
         $this->isQuickEntry = $category->is_quick_entry ?? false;
         $this->amount = Money::toInput($line->amount, $currency);
