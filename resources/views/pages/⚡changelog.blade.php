@@ -9,27 +9,18 @@ new #[Title('What’s new')] class extends Component {
 }; ?>
 
 @php
-    // Opened from Settings it is one of its pages (← back there); from the new-version prompt it closes to Today.
+    // Like every settings page: a back arrow on the left. From Settings it goes back there, from the new-version prompt to Today.
     $fromSettings = request()->query('honnan') === 'beallitasok';
 @endphp
 <div x-data="{ init() { try { localStorage.setItem('seen-version', @js(Changelog::version())) } catch (e) {} } }">
-    @if ($fromSettings)
-        <x-pages::settings.layout :heading="__('What’s new')" :subheading="__('Version :version', ['version' => Changelog::version()])" />
-    @else
-        <x-ui.page-header :title="__('What’s new')" :subtitle="__('Version :version', ['version' => Changelog::version()])">
-            <x-slot name="actions">
-                <x-ui.icon-button icon="close" :href="route('dashboard')" wire:navigate :label="__('Close')" />
-            </x-slot>
-        </x-ui.page-header>
-    @endif
-
-    <div class="flex flex-col gap-3 px-4 pt-5" data-motion="stagger">
+    <x-pages::settings.layout :back="$fromSettings ? 'settings' : 'dashboard'" :heading="__('What’s new')" :subheading="__('Version :version', ['version' => Changelog::version()])">
+    <div class="flex flex-col gap-3" data-motion="stagger">
         @foreach (Changelog::all() as $entry)
             <x-ui.card class="p-[18px]" wire:key="version-{{ $entry['version'] }}" data-test="changelog-{{ $entry['version'] }}">
-                <div class="flex items-baseline justify-between">
-                    <div class="flex items-center gap-2">
-                        <span class="rounded-md bg-ink/8 px-2 py-0.5 font-mono text-xs text-accent">{{ $entry['version'] }}</span>
-                        @if ($loop->first)<span class="text-xs font-medium text-accent">{{ __('Current') }}</span>@endif
+                <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-1.5">
+                        <span class="num inline-flex h-[22px] items-center rounded-full bg-ink/8 px-2 text-xs font-semibold text-ink-2" data-test="version-badge">{{ $entry['version'] }}</span>
+                        @if ($loop->first)<span class="inline-flex h-[22px] items-center rounded-full bg-accent/16 px-2 text-xs font-semibold text-accent">{{ __('Current') }}</span>@endif
                     </div>
                     <span class="num text-xs text-muted">{{ \Carbon\CarbonImmutable::parse($entry['date'])->locale(app()->getLocale())->isoFormat('YYYY. MMM D.') }}</span>
                 </div>
@@ -41,4 +32,5 @@ new #[Title('What’s new')] class extends Component {
             </x-ui.card>
         @endforeach
     </div>
+    </x-pages::settings.layout>
 </div>
