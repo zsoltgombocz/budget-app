@@ -31,6 +31,7 @@ function measureUndoToast(string $theme): string
                 noCloseButton: toast.querySelector('[data-test="toast-close"]') === null,
                 darkBubble: r + g + b < 200,
                 mutedDeleteIcon: icon.textContent === 'delete' && icon.className.includes('toast-muted'),
+                iconCentred: Math.abs((icon.getBoundingClientRect().top + icon.getBoundingClientRect().bottom) / 2 - (title.top + title.bottom) / 2) <= 1,
                 fabHidden,
             }
             toast.click()
@@ -55,6 +56,7 @@ it('shows a toast with undo on one row right above the tab bar, with the record 
         'noCloseButton' => true,
         'darkBubble' => true,
         'mutedDeleteIcon' => true,
+        'iconCentred' => true,
         'fabHidden' => true,
         'dismissedOnTap' => true,
         'fabBack' => true,

@@ -65,7 +65,7 @@
              class="pointer-events-auto relative flex min-h-[52px] cursor-pointer items-center gap-3 overflow-hidden rounded-group bg-(--toast-bg) py-2.5 pl-4 text-(--toast-ink) shadow-(--toast-shadow)"
              :class="toast.undo ? 'pr-1.5' : 'pr-4'"
              data-test="toast">
-            <span class="ms ms-fill shrink-0 self-start mt-px" :class="iconColour()" style="font-size:20px;width:20px;height:20px" aria-hidden="true" x-text="icon()" data-test="toast-icon"></span>
+            <span class="ms ms-fill shrink-0" :class="[iconColour(), toast.subtitle ? 'self-start mt-px' : 'self-center']" style="font-size:20px;width:20px;height:20px" aria-hidden="true" x-text="icon()" data-test="toast-icon"></span>
             <div class="min-w-0 flex-1">
                 <div class="num line-clamp-2 text-sm font-medium leading-snug text-pretty" x-text="toast.title" data-test="toast-title"></div>
                 <div class="num mt-0.5 line-clamp-2 text-xs leading-snug text-pretty text-(--toast-muted)" x-show="toast.subtitle" x-text="toast.subtitle" data-test="toast-subtitle"></div>
