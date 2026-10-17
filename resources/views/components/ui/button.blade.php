@@ -2,7 +2,8 @@
 
 @php
     $variants = [
-        'primary' => 'bg-accent text-accent-ink font-semibold disabled:bg-surface-3 disabled:text-muted',
+        // The focus ring takes the ink colour: around a green button a green or dark-green ring would not show (≥3:1 on both themes).
+        'primary' => 'bg-accent text-accent-ink font-semibold disabled:bg-surface-3 disabled:text-muted focus-visible:outline-ink!',
         'secondary' => 'bg-surface-2 text-ink font-medium',
         'light' => 'bg-ink text-bg font-semibold',
         'ghost' => 'bg-transparent text-muted font-medium',
@@ -15,7 +16,7 @@
         // 36px tall to sit inside cards; the invisible ::before stretches the touch target to 44px.
         'sm' => 'relative h-9 rounded-xl px-3.5 text-[13px] gap-1.5 before:absolute before:inset-x-0 before:-inset-y-1',
     ];
-    $classes = 'focus-ring inline-flex items-center justify-center whitespace-nowrap transition active:scale-[0.98] disabled:active:scale-100 '.($variants[$variant] ?? $variants['primary']).' '.($sizes[$size] ?? $sizes['lg']);
+    $classes = 'focus-ring inline-flex items-center justify-center whitespace-nowrap transition focus-visible:transition-none active:scale-[0.98] disabled:active:scale-100 '.($variants[$variant] ?? $variants['primary']).' '.($sizes[$size] ?? $sizes['lg']);
 @endphp
 
 @if ($href)

@@ -14,6 +14,7 @@ use App\Services\PeriodCloser;
 use App\Services\PeriodService;
 use Carbon\CarbonImmutable;
 use Illuminate\Validation\ValidationException;
+use Livewire\Livewire;
 
 beforeEach(function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-11 10:00', 'Europe/Budapest'));
@@ -182,4 +183,27 @@ it('does not delete or restore spending of a closed period', function (): void {
 
     expect(correctionErrors(fn () => resolve(DeleteTransaction::class)->handle($this->user, $closedSpending)))->toHaveKey('date')
         ->and(Transaction::query()->count())->toBe(1);
+});
+
+it('puts a corrected spending back as it was from the toast\'s undo', function (): void {
+    $this->actingAs($this->user);
+    resolve(UpdateTransaction::class)->handle($this->user, $this->spending, $this->groceries->id, 45_005, $this->today->subDay(), 'Aldi');
+
+    Livewire::test('entry-sheet')
+        ->dispatch('undo-transaction-edit', id: $this->spending->id, category: $this->fuel->id, amount: 12_000, date: '2026-10-11', note: 'Shell')
+        ->assertDispatched('app-toast', title: 'Change undone.')
+        ->assertDispatched('budget-updated');
+
+    expect($this->spending->refresh()->only(['amount', 'category_id', 'note']))->toBe(['amount' => 12_000, 'category_id' => $this->fuel->id, 'note' => 'Shell'])
+        ->and($this->spending->occurred_on->toDateString())->toBe('2026-10-11');
+});
+
+it('does not undo a correction of another user\'s spending', function (): void {
+    $this->actingAs(onboardedUser());
+
+    Livewire::test('entry-sheet')
+        ->dispatch('undo-transaction-edit', id: $this->spending->id, category: $this->groceries->id, amount: 1, date: '2026-10-11', note: null)
+        ->assertNotDispatched('budget-updated');
+
+    expect($this->spending->refresh()->amount)->toBe(12_000);
 });

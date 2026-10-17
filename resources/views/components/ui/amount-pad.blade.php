@@ -7,8 +7,15 @@
     opens and back to the field when it closes; Escape closes only the pad, not the sheet under it.
 --}}
 <div x-show="active" x-cloak class="absolute inset-0 z-10 flex flex-col justify-end" data-test="amount-pad"
-     x-data="{ padOpener: null }"
-     x-effect="if (active && ! padOpener) { padOpener = document.activeElement; $nextTick(() => requestAnimationFrame(() => $refs.padPanel?.focus({ preventScroll: true }))) } else if (! active && padOpener) { const opener = padOpener; padOpener = null; if (opener.isConnected) opener.focus({ preventScroll: true }) }"
+     x-data="{
+        padOpener: null,
+        padFocus(tries) {
+            if (! active || ! this.$refs.padPanel) return
+            this.$refs.padPanel.focus({ preventScroll: true })
+            if (document.activeElement !== this.$refs.padPanel && tries > 0) requestAnimationFrame(() => this.padFocus(tries - 1))
+        },
+     }"
+     x-effect="if (active && ! padOpener) { padOpener = document.activeElement; requestAnimationFrame(() => padFocus(20)) } else if (! active && padOpener) { const opener = padOpener; padOpener = null; if (opener.isConnected) opener.focus({ preventScroll: true }) }"
      x-on:keydown.escape.window.capture="if (active && $el.offsetParent !== null) { $event.preventDefault(); $event.dialogHandled = true; active = null }">
     <div x-show="active" x-transition.opacity class="absolute inset-0 bg-black/40" x-on:click="active = null" aria-hidden="true"></div>
     <div x-show="active" x-ref="padPanel" tabindex="-1" role="group" :aria-label="activeLabel"

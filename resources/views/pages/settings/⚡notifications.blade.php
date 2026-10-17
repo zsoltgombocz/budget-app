@@ -104,7 +104,7 @@ new #[Title('Notifications')] class extends Component {
                             <x-ui.choice :selected="$reminderTime === $option" wire:click="$set('reminderTime', '{{ $option }}')" class="num h-11 rounded-xl text-sm">{{ $option }}</x-ui.choice>
                         @endforeach
                     </div>
-                    <label class="mt-2 flex h-11 items-center justify-between rounded-xl bg-surface-2 px-3.5 text-sm focus-within:ring-2 focus-within:ring-accent">
+                    <label class="mt-2 flex h-11 items-center justify-between rounded-xl bg-surface-2 px-3.5 text-sm focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ink focus-within:outline-solid" data-test="other-time">
                         <span class="text-muted">{{ __('Other time') }}</span>
                         <input type="time" wire:model.live="reminderTime" class="num bg-transparent text-right outline-none">
                     </label>
