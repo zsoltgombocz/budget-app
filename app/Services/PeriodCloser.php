@@ -232,11 +232,11 @@ final readonly class PeriodCloser
         foreach ($pockets as $pocket) {
             $monthly = $deposits[$pocket->id]['amount'] ?? 0;
             $leftover = match (true) {
-                $reserve !== null && $pocket->is($reserve) => $allocation->toReserve,
-                $surplusPocket !== null && $pocket->is($surplusPocket) => $allocation->toSurplus,
+                $reserve instanceof Pocket && $pocket->is($reserve) => $allocation->toReserve,
+                $surplusPocket instanceof Pocket && $pocket->is($surplusPocket) => $allocation->toSurplus,
                 default => 0,
             };
-            $cover = $reserve !== null && $pocket->is($reserve) ? -$allocation->fromReserve : 0;
+            $cover = $reserve instanceof Pocket && $pocket->is($reserve) ? -$allocation->fromReserve : 0;
 
             if ($monthly === 0 && $leftover === 0 && $cover === 0) {
                 continue;
