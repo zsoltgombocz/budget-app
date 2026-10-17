@@ -215,13 +215,21 @@ new #[Title('Budget settings')] class extends Component {
 <section class="w-full">
     <x-pages::settings.layout :heading="__('Budget')" :subheading="__('Period and base currency')">
         <form wire:submit="save" class="flex flex-col gap-3">
+            @php
+                // Short, one-line segment labels; what each means is said under the control.
+                $periodOptions = [
+                    'payday' => [__('From payday'), __('The month runs from payday to the day before the next payday.')],
+                    'calendar' => [__('Calendar month'), __('The month runs from the 1st to the last day of the month.')],
+                ];
+            @endphp
             <x-ui.card class="p-[18px]">
                 <div class="text-[15px] font-semibold">{{ __('Period') }}</div>
-                <div class="mt-3 grid grid-cols-2 gap-[3px] rounded-xl bg-bg p-[3px]">
+                <div class="mt-3 grid grid-cols-2 gap-[3px] rounded-control bg-bg p-[3px]" role="radiogroup" aria-label="{{ __('Period') }}">
                     @foreach (PeriodMode::cases() as $mode)
-                        <button type="button" wire:click="$set('periodMode', '{{ $mode->value }}')" aria-pressed="{{ $periodMode === $mode->value ? 'true' : 'false' }}" @class(['focus-ring h-11 rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $periodMode === $mode->value, 'text-muted' => $periodMode !== $mode->value])>{{ $mode->label() }}</button>
+                        <button type="button" role="radio" wire:click="$set('periodMode', '{{ $mode->value }}')" aria-checked="{{ $periodMode === $mode->value ? 'true' : 'false' }}" @class(['focus-ring relative h-[38px] whitespace-nowrap rounded-[10px] px-1 text-[13px] font-medium transition-colors before:absolute before:inset-x-0 before:-inset-y-[3px]', 'bg-surface-3 text-ink' => $periodMode === $mode->value, 'text-muted' => $periodMode !== $mode->value]) data-test="period-{{ $mode->value }}">{{ $periodOptions[$mode->value][0] ?? $mode->label() }}</button>
                     @endforeach
                 </div>
+                <p class="mt-2 px-0.5 text-xs leading-snug text-pretty text-muted" data-test="period-explanation">{{ $periodOptions[$periodMode][1] ?? '' }}</p>
                 @if ($periodMode === 'payday')
                     <div class="mt-4 text-[13px] text-muted">{{ __('Payday (day of month)') }}</div>
                     <div class="mt-2 grid grid-cols-7 gap-1.5">
@@ -264,13 +272,14 @@ new #[Title('Budget settings')] class extends Component {
 
         </form>
 
-        <x-ui.card class="mt-6 border border-danger/28 !bg-danger/8 p-[18px]" x-data="{ confirming: false }">
-            <div class="text-[15px] font-semibold">{{ __('Reset budget') }}</div>
-            <div class="mt-1 text-[13px] leading-snug text-muted">{{ __('Deletes the plan, every period, spending, pocket and loan, then starts onboarding again. Your login stays.') }}</div>
-            <x-ui.button x-show="! confirming" variant="danger" size="md" icon="history" x-on:click="confirming = true" class="mt-3" data-test="reset-budget">{{ __('Reset budget') }}</x-ui.button>
+        {{-- A plain surface card: the danger colour is kept for the title and the buttons, the final one solid. --}}
+        <x-ui.card class="mt-6 p-[18px]" x-data="{ confirming: false }" data-test="reset-card">
+            <div class="text-[15px] font-semibold text-danger">{{ __('Reset budget') }}</div>
+            <div class="mt-1 text-[13px] leading-snug text-pretty text-muted">{{ __('Deletes the plan, every period, spending, pocket and loan, then starts onboarding again. Your login stays.') }}</div>
+            <x-ui.button x-show="! confirming" variant="danger" size="md" icon="history" x-on:click="confirming = true" class="mt-3 w-full" data-test="reset-budget">{{ __('Reset budget') }}</x-ui.button>
             <div x-show="confirming" x-cloak class="mt-3 flex gap-2">
                 <x-ui.button variant="secondary" size="md" x-on:click="confirming = false">{{ __('Cancel') }}</x-ui.button>
-                <x-ui.button variant="danger" size="md" wire:click="resetBudget" class="flex-1 !bg-danger !text-white" data-test="confirm-reset">{{ __('Yes, delete everything') }}</x-ui.button>
+                <x-ui.button variant="danger-solid" size="md" wire:click="resetBudget" class="flex-1" data-test="confirm-reset">{{ __('Yes, delete everything') }}</x-ui.button>
             </div>
         </x-ui.card>
     </x-pages::settings.layout>

@@ -63,7 +63,11 @@ new #[Title('Settings')] class extends Component {
         </div>
     @endforeach
 
-    <div class="mx-4 mt-3">
-        <x-ui.button variant="secondary" icon="logout" wire:click="logout" class="w-full !text-danger" data-test="logout-button">{{ __('Log out') }}</x-ui.button>
+    {{-- A row like the others, only in the danger colour and without a chevron: it does not open a page. --}}
+    <div class="mx-4 mt-3 overflow-hidden rounded-card bg-surface">
+        <button type="button" wire:click="logout" class="focus-ring flex w-full items-center gap-3 px-[18px] py-3.5 text-left transition active:bg-ink/4" data-test="logout-button">
+            <x-ui.icon-tile icon="logout" tone="danger" :size="36" />
+            <span class="min-w-0 flex-1 text-[15px] font-medium text-danger">{{ __('Log out') }}</span>
+        </button>
     </div>
 </div>

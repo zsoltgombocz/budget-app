@@ -17,8 +17,11 @@
                 <div class="flex flex-col gap-6 rounded-card bg-surface p-6">
                     {{ $slot }}
                 </div>
+                {{-- Before signing in only a quiet link to the install guide: the card would pull focus from the form. Hidden once the app runs installed. --}}
                 @unless (request()->routeIs('install'))
-                    <x-install-card />
+                    <div x-data="{ installed: Boolean(window.budgetInstall?.installed()) }" x-show="! installed" class="flex justify-center">
+                        <x-ui.link :href="route('install')" icon="install_mobile" class="min-h-11 px-2 text-[13px]" data-test="install-link">{{ __('Install the app') }}</x-ui.link>
+                    </div>
                 @endunless
             </div>
         </div>

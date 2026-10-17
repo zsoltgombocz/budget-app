@@ -83,6 +83,15 @@ it('previews the daily reminder with the product name and the real push text', f
         ->assertDontSee('<b class="font-semibold">Budget</b>', false);
 });
 
+it('replaces the enable button with Next and a neutral note where push is not supported', function (): void {
+    $this->actingAs(onboardedUser());
+
+    Livewire::test('pages::notifications')
+        ->assertSeeHtmlInOrder(['<template x-if="! supported">', 'data-test="push-unsupported"', 'data-callout="neutral"'])
+        ->assertSeeHtmlInOrder(['<template x-if="supported">', 'data-test="not-now"', 'data-test="enable-notifications"', '</template>', '<template x-if="! supported">', 'data-test="notifications-next"'])
+        ->assertDontSee('! supported" data-test="enable-notifications"', false);
+});
+
 it('stores the reminder choices from the notification onboarding', function (): void {
     $user = onboardedUser();
     $this->actingAs($user);

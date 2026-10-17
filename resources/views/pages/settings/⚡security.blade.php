@@ -66,14 +66,11 @@ new #[Title('Security settings')] class extends Component {
                 </div>
                 <div x-show="confirming" x-cloak class="mt-3 flex gap-2">
                     <x-ui.button variant="secondary" size="sm" x-on:click="confirming = false">{{ __('Cancel') }}</x-ui.button>
-                    <x-ui.button variant="danger" size="sm" class="flex-1" wire:click="deletePasskey({{ $passkey['id'] }})">{{ __('Remove passkey') }}</x-ui.button>
+                    <x-ui.button variant="danger-solid" size="sm" class="flex-1" wire:click="deletePasskey({{ $passkey['id'] }})" data-test="confirm-remove-passkey">{{ __('Remove passkey') }}</x-ui.button>
                 </div>
             </div>
         @empty
-            <div class="px-6 py-8 text-center">
-                <div class="text-[15px] font-medium">{{ __('No passkeys yet') }}</div>
-                <div class="mt-1 text-[13px] text-muted">{{ __('Add one to sign in with Face ID or Touch ID.') }}</div>
-            </div>
+            <x-ui.empty-state compact icon="lock" :title="__('No passkeys yet')" class="px-[18px] py-4" data-test="passkeys-empty">{{ __('Add one to sign in with Face ID or Touch ID.') }}</x-ui.empty-state>
         @endforelse
     </div>
 

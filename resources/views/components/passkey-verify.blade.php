@@ -1,7 +1,8 @@
 @props([
     'optionsRoute' => 'passkey.login-options',
     'submitRoute' => 'passkey.login',
-    'label' => __('Quick sign-in with Face ID or fingerprint'),
+    'label' => __('Sign in with a passkey'),
+    'hint' => __('Face ID, fingerprint or your phone’s screen lock.'),
     'loadingLabel' => __('Authenticating...'),
     'separator' => __('or'),
 ])
@@ -46,28 +47,17 @@
 >
     <template x-if="supported">
         <div>
-            <div class="relative mb-4">
-                <div class="absolute inset-0 flex items-center">
-                    <div class="w-full border-t border-line"></div>
-                </div>
-                <div class="relative flex justify-center text-[13px]">
-                    <span class="bg-surface px-2 text-muted">{{ $separator }}</span>
-                </div>
+            <div class="mb-4 flex items-center gap-3 text-[13px] text-muted" aria-hidden="true">
+                <span class="h-px flex-1 bg-line"></span>{{ $separator }}<span class="h-px flex-1 bg-line"></span>
             </div>
-            <div class="grid gap-2">
-                <flux:button
-                    variant="outline"
-                    icon="finger-print"
-                    class="w-full !h-auto min-h-11 !whitespace-normal py-2 text-left leading-snug"
-                    x-on:click="verify()"
-                    x-bind:disabled="loading"
-                    data-test="passkey-sign-in"
-                >
-                    <span x-show="!loading">{{ $label }}</span>
-                    <span x-show="loading" x-cloak>{{ $loadingLabel }}</span>
-                </flux:button>
-                <p x-show="error" x-text="error" x-cloak class="text-center text-sm text-danger" role="alert"></p>
-            </div>
+            {{-- One line, the same shape as every other button; what a passkey is goes in the line under it. --}}
+            <x-ui.button variant="secondary" class="w-full" x-on:click="verify()" ::disabled="loading" aria-describedby="passkey-hint" data-test="passkey-sign-in">
+                <flux:icon.finger-print class="size-[22px] shrink-0" />
+                <span x-show="!loading" class="truncate">{{ $label }}</span>
+                <span x-show="loading" x-cloak class="truncate">{{ $loadingLabel }}</span>
+            </x-ui.button>
+            <p id="passkey-hint" class="mt-2 text-center text-[13px] leading-snug text-pretty text-muted">{{ $hint }}</p>
+            <p x-show="error" x-text="error" x-cloak class="mt-2 text-center text-[13px] leading-snug text-danger" role="alert"></p>
         </div>
     </template>
 </div>

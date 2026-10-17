@@ -24,17 +24,18 @@ new class extends Component {
     }
 }; ?>
 
-<div x-data="{ open: false }" class="mt-6 rounded-card border border-danger/28 bg-danger/8 p-[18px]">
-    <div class="text-[15px] font-semibold">{{ __('Delete account') }}</div>
-    <div class="mt-1 text-[13px] leading-snug text-muted">{{ __('Deletes your account and every budget data for good.') }}</div>
+{{-- A plain surface card: the danger colour is kept for the title and the buttons, the final one solid. --}}
+<div x-data="{ open: false }" class="mt-6 rounded-card bg-surface p-[18px]" data-test="delete-account">
+    <div class="text-[15px] font-semibold text-danger">{{ __('Delete account') }}</div>
+    <div class="mt-1 text-[13px] leading-snug text-pretty text-muted">{{ __('Deletes your account and every budget data for good.') }}</div>
 
-    <x-ui.button x-show="! open" variant="danger" size="md" icon="delete" x-on:click="open = true" class="mt-3" data-test="delete-user-button">{{ __('Delete account') }}</x-ui.button>
+    <x-ui.button x-show="! open" variant="danger" size="md" icon="delete" x-on:click="open = true" class="mt-3 w-full" data-test="delete-user-button">{{ __('Delete account') }}</x-ui.button>
 
     <form x-show="open" x-cloak wire:submit="deleteUser" class="mt-3 flex flex-col gap-3">
-        <flux:input wire:model="confirmation" :label="__('Type your email address to confirm')" type="email" autocomplete="off" />
+        <x-ui.input wire:model="confirmation" :label="__('Type your email address to confirm')" type="email" autocomplete="off" :error="$errors->first('confirmation')" />
         <div class="flex gap-2">
             <x-ui.button variant="secondary" size="md" x-on:click="open = false">{{ __('Cancel') }}</x-ui.button>
-            <x-ui.button type="submit" variant="danger" size="md" class="flex-1 !bg-danger !text-white" data-test="confirm-delete-user-button">{{ __('Delete account') }}</x-ui.button>
+            <x-ui.button type="submit" variant="danger-solid" size="md" class="flex-1" data-test="confirm-delete-user-button">{{ __('Delete account') }}</x-ui.button>
         </div>
     </form>
 </div>

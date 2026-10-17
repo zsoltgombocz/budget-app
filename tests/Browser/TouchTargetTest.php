@@ -47,8 +47,9 @@ it('gives small buttons, segments and settings controls a 44px touch target', fu
     expect(tapHeight($pockets, '[data-test="add-loan"]'))->toBeGreaterThanOrEqual(44);
 
     $budget = visit(route('budget.edit'))->on()->mobile()->resize(375, 667)->wait(0.5);
-    expect(tapHeight($budget, 'button[aria-pressed]'))->toBeGreaterThanOrEqual(44);
+    expect(tapHeight($budget, '[data-test="period-payday"]'))->toBeGreaterThanOrEqual(44);
 
     $profile = visit(route('profile.edit'))->on()->mobile()->resize(375, 667)->wait(0.5);
-    expect(tapHeight($profile, 'input[data-flux-control]'))->toBeGreaterThanOrEqual(44);
+    // The whole field box focuses the input (it sits in the label), so the box is the target.
+    expect(tapHeight($profile, 'form label:has(input[type="text"]) > span.h-12'))->toBeGreaterThanOrEqual(44);
 });

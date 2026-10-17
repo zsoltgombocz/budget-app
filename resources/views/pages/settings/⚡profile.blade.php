@@ -78,22 +78,24 @@ new #[Title('Profile settings')] class extends Component {
 }; ?>
 
 <x-pages::settings.layout :heading="__('Profile')" :subheading="__('Name, email, delete account')">
-    <form wire:submit="updateProfileInformation" class="flex flex-col gap-4 rounded-card bg-surface p-[18px]">
-        <flux:input wire:model="name" :label="__('Name')" type="text" required autocomplete="name" />
+    {{-- The fields on the card, the one main action under it, as on the other settings pages with a form. --}}
+    <form wire:submit="updateProfileInformation" class="flex flex-col gap-3">
+        <div class="flex flex-col gap-4 rounded-card bg-surface p-[18px]">
+            <x-ui.input wire:model="name" :label="__('Name')" type="text" required autocomplete="name" :error="$errors->first('name')" />
 
-        <div>
-            <flux:input wire:model="email" :label="__('Email')" type="email" required autocomplete="email" />
-            <p class="mt-1.5 text-xs text-muted">{{ __('Sign-in links are sent to this address.') }}</p>
+            <div>
+                <x-ui.input wire:model="email" :label="__('Email')" type="email" required autocomplete="email" :hint="__('Sign-in links are sent to this address.')" :error="$errors->first('email')" />
 
-            @if ($this->hasUnverifiedEmail)
-                <div class="mt-3 text-[13px] text-ink-2">
-                    {{ __('Your email address is unverified.') }}
-                    <x-ui.link class="min-h-11 text-left" wire:click.prevent="resendVerificationNotification">{{ __('Click here to re-send the verification email.') }}</x-ui.link>
-                    @if (session('status') === 'verification-link-sent')
-                        <div class="mt-2 font-medium text-accent">{{ __('A new verification link has been sent to your email address.') }}</div>
-                    @endif
-                </div>
-            @endif
+                @if ($this->hasUnverifiedEmail)
+                    <div class="mt-3 text-[13px] text-ink-2">
+                        {{ __('Your email address is unverified.') }}
+                        <x-ui.link class="min-h-11 text-left" wire:click.prevent="resendVerificationNotification">{{ __('Click here to re-send the verification email.') }}</x-ui.link>
+                        @if (session('status') === 'verification-link-sent')
+                            <div class="mt-2 font-medium text-accent">{{ __('A new verification link has been sent to your email address.') }}</div>
+                        @endif
+                    </div>
+                @endif
+            </div>
         </div>
 
         <x-ui.button type="submit" class="w-full" data-test="update-profile-button">{{ __('Save') }}</x-ui.button>

@@ -1177,5 +1177,22 @@
     "A loan you add gets a repayment line in the plan.": "Ha hozzáadsz egyet, a törlesztője bekerül a tervbe.",
     "The month’s leftover goes down by the same amount.": "A havi maradék ugyanennyivel csökken.",
     "Counts as extra income this month.": "Ebben a hónapban plusz bevételnek számít.",
-    "The pocket pays it, the budget stays untouched.": "A persely fizeti, a keretet nem terheli."
+    "The pocket pays it, the budget stays untouched.": "A persely fizeti, a keretet nem terheli.",
+    "Face ID, fingerprint or your phone’s screen lock.": "Face ID, ujjlenyomat vagy a telefonod képernyőzára.",
+    "If :email has an account, we sent a 6-digit code to it.": "Ha :email címhez tartozik fiók, küldtünk rá egy 6 jegyű kódot.",
+    "Look in the spam folder too. The code works for :minutes minutes; if it has expired, ask for a new one.": "Nézd meg a spam mappát is. A kód :minutes percig érvényes; ha lejárt, kérj újat.",
+    "We sent a new code.": "Küldtünk egy új kódot.",
+    "Didn’t get it?": "Nem jött meg?",
+    "Send a new code": "Új kód küldése",
+    "What you pay from your own account every month. Switch off what you do not have.": "Amit havonta a saját számládról fizetsz. Kapcsold ki, ami nincs.",
+    "A budget left at 0 means no budget for it: spending there lowers the month-end leftover.": "Ami 0-n marad, arra nincs keret: ha oda költesz, az a hó végi maradékot csökkenti.",
+    "A line left at 0 stays out of the plan; you can add it later on the Plan screen.": "Ami 0-n marad, nem kerül a tervbe – később a Terv oldalon felveheted.",
+    "Loan details: principal, APR, months left (optional)": "Hiteladatok: tőke, THM, hátralévő hónapok (nem kötelező)",
+    "At closing it goes into a “Savings” pocket in the app; you can take money out of it.": "Záráskor egy „Megtakarítás” perselybe kerül az appban; ki is veheted belőle.",
+    "At closing we remind you to move it to your investment account.": "Záráskor emlékeztetünk, hogy utald át a befektetési számládra.",
+    "From payday": "Fizetésnaptól",
+    "The month runs from payday to the day before the next payday.": "A hónap fizetésnaptól a következő fizetésnap előtti napig tart.",
+    "The month runs from the 1st to the last day of the month.": "A hónap 1-jétől az utolsó napjáig tart.",
+    "No notifications yet": "Még nincs értesítés",
+    "The first one shows up here once the app sends or skips a reminder.": "Az első itt jelenik meg, amint az app küld vagy kihagy egy emlékeztetőt."
 }

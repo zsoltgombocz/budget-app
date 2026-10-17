@@ -38,11 +38,11 @@ it('has no back arrow on the settings tab itself', function (): void {
     $this->get(route('settings'))->assertOk()->assertDontSee('data-test="settings-back"', false)->assertSee(route('changelog', ['honnan' => 'beallitasok']));
 });
 
-it('goes back to settings from What’s new opened there, and closes to Today otherwise', function (): void {
+it('goes back with an arrow from What’s new: to settings when opened there, to Today otherwise', function (): void {
     $this->actingAs(onboardedUser());
 
-    $this->get(route('changelog', ['honnan' => 'beallitasok']))->assertSee('data-test="settings-back"', false);
-    $this->get(route('changelog'))->assertDontSee('data-test="settings-back"', false)->assertSee(route('dashboard'));
+    $this->get(route('changelog', ['honnan' => 'beallitasok']))->assertSee('<a href="'.route('settings').'"', false)->assertSee('data-test="settings-back"', false);
+    $this->get(route('changelog'))->assertSee('<a href="'.route('dashboard').'"', false)->assertSee('data-test="settings-back"', false)->assertDontSee('>close<', false);
 });
 
 it('lists the time zones in words with Budapest first', function (): void {
@@ -52,4 +52,36 @@ it('lists the time zones in words with Budapest first', function (): void {
     $this->get(route('appearance.edit'))
         ->assertSeeInOrder(['Budapest (közép-európai idő)', 'Minden időzóna', 'Europe / Vienna'])
         ->assertDontSee('>Europe/Vienna<', false);
+});
+
+it('keeps the danger colour to text and buttons, with a solid button only for the final confirmation', function (): void {
+    $this->actingAs(onboardedUser());
+
+    $this->get(route('settings'))
+        ->assertSeeHtmlInOrder(['bg-danger/14 text-danger', 'logout', 'text-danger', 'Log out']);
+
+    Livewire::test('pages::settings.delete-user-form')
+        ->assertDontSee('bg-danger/8', false)
+        ->assertSeeHtmlInOrder(['data-test="delete-user-button"', 'data-variant="danger"', 'data-test="confirm-delete-user-button"', 'data-variant="danger-solid"']);
+
+    Livewire::test('pages::settings.budget')
+        ->assertDontSee('bg-danger/8', false)
+        ->assertSeeHtmlInOrder(['data-test="reset-budget"', 'data-variant="danger"', 'data-test="confirm-reset"', 'data-variant="danger-solid"']);
+});
+
+it('labels the period options in one short line and explains the chosen one below', function (): void {
+    $this->actingAs(onboardedUser());
+
+    Livewire::test('pages::settings.budget')
+        ->set('periodMode', 'calendar')
+        ->assertSeeHtmlInOrder(['data-test="period-payday"', 'From payday', 'data-test="period-calendar"', 'Calendar month', 'data-test="period-explanation"', 'The month runs from the 1st to the last day of the month.'])
+        ->set('periodMode', 'payday')
+        ->assertSee('The month runs from payday to the day before the next payday.');
+});
+
+it('shows a compact empty state for passkeys and for the notification log', function (): void {
+    $this->actingAs(onboardedUser());
+
+    Livewire::test('pages::settings.security')->assertSeeHtmlInOrder(['data-empty-state="compact"', 'No passkeys yet']);
+    Livewire::test('pages::settings.notifications')->assertSeeHtmlInOrder(['data-test="notification-log-empty"', 'data-empty-state="compact"', 'No notifications yet']);
 });

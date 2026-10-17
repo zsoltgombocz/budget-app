@@ -106,8 +106,12 @@ new #[Title('Appearance settings')] class extends Component {
                 <x-ui.choice :selected="$locale === 'hu'" wire:click="$set('locale', 'hu')" class="h-11 rounded-xl text-sm" data-test="locale-hu">Magyar</x-ui.choice>
                 <x-ui.choice :selected="$locale === 'en'" wire:click="$set('locale', 'en')" class="h-11 rounded-xl text-sm" data-test="locale-en">English</x-ui.choice>
             </div>
-            <div class="mt-4">
-                <x-ui.select wire:model.live="timezone" :label="__('Timezone')" data-test="timezone">
+        </x-ui.card>
+
+        {{-- A form row like everywhere else in the app: the label left, the friendly zone name right. --}}
+        <div>
+            <div class="overflow-hidden rounded-card bg-surface">
+                <x-ui.select-row wire:model.live="timezone" :label="__('Timezone')" data-test="timezone">
                     <optgroup label="{{ __('Common') }}">
                         @foreach ($this->commonTimezones() as $zone => $zoneLabel)
                             <option value="{{ $zone }}">{{ $zoneLabel }}</option>
@@ -118,9 +122,9 @@ new #[Title('Appearance settings')] class extends Component {
                             <option value="{{ $zone }}">{{ $zoneLabel }}</option>
                         @endforeach
                     </optgroup>
-                </x-ui.select>
-                <p class="mt-1.5 text-xs text-muted">{{ __('Reminders and the day boundary follow this time zone.') }}</p>
+                </x-ui.select-row>
             </div>
-        </x-ui.card>
+            <p class="px-1.5 pt-2 text-xs leading-snug text-muted">{{ __('Reminders and the day boundary follow this time zone.') }}</p>
+        </div>
     </div>
 </x-pages::settings.layout>
