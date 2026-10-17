@@ -51,8 +51,23 @@
     --color-danger: var(--app-danger);
     --color-track: var(--app-track);
 
+    /*
+     * Radius scale (rounded-*): card 24 (x-ui.card, empty states), callout 20, group 18
+     * (form/list groups, lg buttons, toast; rounded-btn is the same value), control 14 (md
+     * buttons, choices, inputs, the segmented track, 40px icon tiles), small 12 (sm buttons,
+     * day tiles, small icon tiles). rounded-full only on badges, avatars, switches and progress.
+     * "small" instead of "sm": Tailwind's own rounded-sm (4px) is used by Flux.
+     */
     --radius-card: 24px;
+    --radius-callout: 20px;
+    --radius-group: 18px;
     --radius-btn: 18px;
+    --radius-control: 14px;
+    --radius-small: 12px;
+
+    /* The final destructive button (x-ui.button variant="danger-solid"): ink on the fill, as primary. */
+    --color-danger-solid: var(--app-danger-solid);
+    --color-danger-ink: var(--app-danger-ink);
 
     /* Flux reads zinc and accent; map them onto the design's neutrals. */
     --color-zinc-50: #F3F4F2;
@@ -87,6 +102,17 @@
         --app-warn: #D9800B;
         --app-danger: #E0383E;
         --app-track: rgba(14, 17, 15, 0.08);
+        /* White on #C42B31: 5.6:1. */
+        --app-danger-solid: #C42B31;
+        --app-danger-ink: #FFFFFF;
+
+        /* Toast: inverse in the light theme (dark bubble, light text) so it stands off the page. */
+        --toast-bg: #1A1E1C;
+        --toast-ink: #F3F5F4;
+        --toast-muted: #A9B0AC;
+        --toast-accent: #4BD88A;
+        --toast-danger: #FF8A8E;
+        --toast-shadow: 0 10px 28px rgba(14, 17, 15, 0.22);
     }
 
     .dark {
@@ -104,6 +130,16 @@
         --app-warn: #F2A33A;
         --app-danger: #FF6B70;
         --app-track: rgba(255, 255, 255, 0.08);
+        /* Dark ink on #FF6B70: 7.4:1. */
+        --app-danger-solid: #FF6B70;
+        --app-danger-ink: #2A0507;
+
+        --toast-bg: var(--app-surface-3);
+        --toast-ink: var(--app-ink);
+        --toast-muted: #A6ADA9;
+        --toast-accent: var(--app-accent);
+        --toast-danger: var(--app-danger);
+        --toast-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
 
         /* Flux sets a white accent in dark mode; keep the design's green. */
         --color-accent: var(--app-accent);
@@ -121,6 +157,7 @@
     html[data-build="dev"] {
         --app-accent: #2563EB;
         --app-accent-strong: #1D4ED8;
+        --toast-accent: #5B9BFF;
         --color-accent-ink: #FFFFFF;
         --color-accent-foreground: #FFFFFF;
     }
@@ -144,6 +181,15 @@
 
     :root {
         --safe-top: env(safe-area-inset-top, 0px);
+
+        /*
+         * Bottom chrome (x-tab-bar): the tab bar's height without the home indicator, the
+         * floating record button and its gap above the bar. The page's bottom padding
+         * (layouts/app/mobile) adds them up plus 24px, so the last row's amount is never under it.
+         */
+        --tabbar-h: 82px;
+        --fab-size: 58px;
+        --fab-gap: 16px;
     }
 
     /*

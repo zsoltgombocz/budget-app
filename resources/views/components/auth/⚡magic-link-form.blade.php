@@ -114,7 +114,7 @@ new class extends Component {
 
             <p class="text-[13px] leading-snug text-pretty text-muted" data-test="magic-link-note">{{ __('If :email has an account, we sent a 6-digit code. It works for :minutes minutes. Look in the spam folder too.', ['email' => app()->getLocale() === 'hu' ? Hungarian::withArticle($sentTo) : $sentTo, 'minutes' => SendMagicLink::MINUTES]) }}</p>
 
-            <x-ui.button variant="ghost" size="md" wire:click="again">{{ __('Use another email') }}</x-ui.button>
+            <x-ui.button variant="text" size="md" wire:click="again">{{ __('Use another email') }}</x-ui.button>
         </div>
     @else
         {{-- novalidate: our Hungarian message instead of the browser's English bubble. --}}

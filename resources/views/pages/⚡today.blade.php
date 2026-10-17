@@ -380,8 +380,8 @@ new #[Title('Today')] class extends Component {
                 </div>
             </div>
             <div class="flex flex-wrap gap-2 pl-[34px]">
-                <x-ui.button variant="light" size="sm" :href="route('pockets', ['fedezes' => max(0, -$forecast->expectedLeftover)])" wire:navigate data-test="cover-from-reserve">{{ __('Cover from the reserve') }}</x-ui.button>
-                <x-ui.button variant="secondary" size="sm" :href="route('month')" wire:navigate class="!bg-ink/8">{{ __('Details') }}</x-ui.button>
+                <x-ui.button variant="secondary" size="sm" :href="route('pockets', ['fedezes' => max(0, -$forecast->expectedLeftover)])" wire:navigate data-test="cover-from-reserve">{{ __('Cover from the reserve') }}</x-ui.button>
+                <x-ui.button variant="text" size="sm" :href="route('month')" wire:navigate>{{ __('Details') }}</x-ui.button>
             </div>
         </div>
     @endif
@@ -393,7 +393,7 @@ new #[Title('Today')] class extends Component {
                 <div class="num text-[15px] font-semibold">{{ __('Transfer :amount', ['amount' => money($close->to_invest)]) }}</div>
                 <div class="truncate text-xs text-muted">{{ __('to :account, from the month-end leftover', ['account' => $close->surplusAccount->name ?? '']) }}</div>
             </div>
-            <x-ui.button size="sm" variant="light" wire:click="markTransferred({{ $close->id }})" class="!h-11 shrink-0" data-test="mark-transferred">{{ __('Transferred') }}</x-ui.button>
+            <x-ui.button size="sm" variant="tonal" wire:click="markTransferred({{ $close->id }})" class="shrink-0" data-test="mark-transferred">{{ __('Transferred') }}</x-ui.button>
         </div>
     @endforeach
 
@@ -420,9 +420,9 @@ new #[Title('Today')] class extends Component {
                         </div>
                         <div class="truncate text-xs text-warn">{{ $late ? __('was due :date', ['date' => \App\Support\Dates::short($item->dueOn)]) : ($isTransfer ? __('Transfer due today') : __('Due today')) }}</div>
                         <div class="mt-2.5 flex flex-wrap gap-2">
-                            <x-ui.button size="sm" variant="light" wire:click="togglePaid({{ (int) $item->line->lineId }})" class="!h-11" data-test="mark-due-done">{{ $isTransfer ? __('Transferred') : __('Done') }}</x-ui.button>
+                            <x-ui.button size="sm" variant="tonal" icon="check" wire:click="togglePaid({{ (int) $item->line->lineId }})" data-test="mark-due-done">{{ $isTransfer ? __('Transferred') : __('Done') }}</x-ui.button>
                             @if ($item->line->isSkippable())
-                                <x-ui.button size="sm" variant="secondary" wire:click="skipLine({{ (int) $item->line->lineId }})" class="!h-11 !bg-ink/8" data-test="skip-due">{{ __('Skipped this month') }}</x-ui.button>
+                                <x-ui.button size="sm" variant="text" wire:click="skipLine({{ (int) $item->line->lineId }})" data-test="skip-due">{{ __('Skipped this month') }}</x-ui.button>
                             @endif
                         </div>
                     </div>

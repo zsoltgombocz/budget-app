@@ -623,7 +623,7 @@ new #[Title('Plan')] class extends Component {
     <x-ui.page-header :title="$editing ? __('Edit') : __('Plan')" :subtitle="$editing ? __('Drag an item by its handle or use the arrows to reorder, tap it to edit.') : __('Every month starts with this plan.')" data-test="plan-header">
         <x-slot name="actions">
             @if ($editing)
-                <x-ui.button size="sm" wire:click="$set('editing', false)" data-test="toggle-edit">{{ __('Done') }}</x-ui.button>
+                <x-ui.button variant="tonal" size="sm" wire:click="$set('editing', false)" data-test="toggle-edit">{{ __('Done') }}</x-ui.button>
             @else
                 <x-ui.icon-button icon="edit" wire:click="$set('editing', true)" :label="__('Add or reorder items')" data-test="toggle-edit" />
             @endif
@@ -783,7 +783,7 @@ new #[Title('Plan')] class extends Component {
                 </div>
             @else
                 <p class="mt-3 text-[13px] leading-relaxed text-muted">{{ __('No reserve pocket: the whole month-end leftover goes to the target below. You can add one later under Pockets.') }}</p>
-                <x-ui.button variant="outline" size="md" icon="add" x-on:click="openReserve()" class="mt-3 w-full" data-test="create-reserve">{{ __('Create a reserve pocket') }}</x-ui.button>
+                <x-ui.button variant="secondary" size="md" icon="add" x-on:click="openReserve()" class="mt-3 w-full" data-test="create-reserve">{{ __('Create a reserve pocket') }}</x-ui.button>
             @endif
         </div>
 
