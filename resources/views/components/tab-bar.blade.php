@@ -13,7 +13,7 @@
     Scrolling up brings it back, but only when the last finger drag pointed up the page (or
     there is no touch, e.g. a mouse): the iOS rubber-band bounce after a hard fling down scrolls
     up on its own and must not count. Hidden on the settings pages (and their sub-pages), and
-    while the page has an element marked data-hides-record-button (a closed month, the plan's
+    while the page has an element marked data-hides-record-button (a closed month, Today's open due list, the plan's
     edit mode): there is nothing to record into there. It also steps aside while a toast shows
     (app-toast-visibility from x-toast-host): the toast sits right above the tab bar, where the
     button would cover it. Sizes come from --tabbar-h, --fab-size and --fab-gap (app.css).

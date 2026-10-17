@@ -1,8 +1,13 @@
 <?php
 
+use App\Enums\AccountType;
+use App\Enums\Currency;
 use App\Models\BudgetLine;
 use App\Models\Category;
+use App\Models\PeriodClose;
 use App\Models\PeriodLineStatus;
+use App\Models\Transaction;
+use App\Services\PeriodService;
 
 it('shows the expected leftover, the daily budget and the first budget without scrolling at 375 px', function (): void {
     $this->actingAs(onboardedUser());
@@ -192,3 +197,72 @@ it('opens the due items as list rows with one tonal and one text action, and lea
     expect($layout)->toBe(['done' => 'tonal', 'skip' => 'text', 'doneFirst' => true, 'nameRoom' => true, 'noSideScroll' => true]);
     $page->assertNoJavaScriptErrors();
 });
+
+it('moves the record button out of the way while the due items are open and brings it back when they fold', function (): void {
+    $user = onboardedUser();
+    BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail()->update(['due_day' => 1]);
+    $this->actingAs($user);
+
+    // Polls for up to two seconds: the button reacts to the open list through a MutationObserver.
+    $buttonShows = fn (bool $expected): string => sprintf(<<<'JS'
+        async () => {
+            const shows = () => document.querySelector('[data-test=tab-entry]').className.includes('translate-y-0')
+            for (let i = 0; i < 20 && shows() !== %s; i++) await new Promise(r => setTimeout(r, 100))
+            return shows()
+        }
+    JS, $expected ? 'true' : 'false');
+
+    $page = visit(route('dashboard'))->on()->mobile()->resize(393, 852);
+
+    expect($page->script($buttonShows(true)))->toBeTrue();
+
+    $page->click('[data-test="due-summary"]')->assertVisible('[data-test="mark-due-done"]');
+    expect($page->script('() => window.scrollY'))->toBe(0)
+        ->and($page->script($buttonShows(false)))->toBeFalse();
+
+    $page->click('[data-test="due-summary"]')->assertMissing('[data-test="mark-due-done"]:visible');
+    expect($page->script($buttonShows(true)))->toBeTrue();
+    $page->assertNoJavaScriptErrors();
+});
+
+it('keeps the actions on Today out from under the record button at rest', function (int $width, int $height, bool $overspent, bool $pendingTransfer): void {
+    $user = onboardedUser();
+    BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail()->update(['due_day' => 1]);
+    $period = resolve(PeriodService::class)->current($user);
+    if ($overspent) {
+        Transaction::factory()->for($user)->for($period)->for(Category::query()->where('name', 'Fuel')->firstOrFail())->create(['amount' => 400_000, 'occurred_on' => $period->starts_on]);
+    }
+    if ($pendingTransfer) {
+        $account = $user->accounts()->create(['name' => 'Brokerage', 'type' => AccountType::Investment, 'currency' => Currency::HUF]);
+        PeriodClose::factory()->for($user)->for(resolve(PeriodService::class)->forDate($user, $period->starts_on->subDay()))->create(['surplus_account_id' => $account->id]);
+    }
+    $this->actingAs($user);
+
+    $page = visit(route('dashboard'))->on()->mobile()->resize($width, $height);
+
+    // What is drawn inside each action (its text and icons), not its box: a full-width row may run under the button with nothing in it.
+    $covered = $page->script(<<<'JS'
+        async () => {
+            await new Promise(resolve => setTimeout(resolve, 400))
+            const fab = document.querySelector('[data-test="tab-entry"]').getBoundingClientRect()
+            const overlaps = box => box.width > 0 && box.right > fab.left && box.left < fab.right && box.bottom > fab.top && box.top < fab.bottom
+            return [...document.querySelectorAll('main button, main a[data-variant]')].filter(action => action.offsetParent !== null).filter(action => {
+                const walker = document.createTreeWalker(action, NodeFilter.SHOW_TEXT)
+                const boxes = [...action.querySelectorAll('.ms')].map(icon => icon.getBoundingClientRect())
+                for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+                    if (node.textContent.trim() === '') continue
+                    const range = document.createRange()
+                    range.selectNodeContents(node)
+                    boxes.push(...range.getClientRects())
+                }
+                return boxes.some(overlaps)
+            }).map(action => action.dataset.test ?? action.textContent.trim())
+        }
+    JS);
+
+    expect($covered)->toBe([]);
+})->with([
+    'small phone, due items' => [375, 667, false, false],
+    'small phone, pending transfer' => [375, 667, false, true],
+    'iPhone 15, overspent with a pending transfer' => [393, 852, true, true],
+]);

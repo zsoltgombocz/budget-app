@@ -387,28 +387,37 @@ new #[Title('Today')] class extends Component {
     @endif
 
     @foreach ($this->pendingTransfers as $close)
-        <x-ui.card class="mx-4 mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 px-[18px] py-3.5" wire:key="transfer-{{ $close->id }}" data-test="pending-transfer">
-            <div class="flex min-w-[min(100%,11rem)] flex-1 items-center gap-3">
+        {{-- The action goes under the text, from where the text starts: the right edge is where the + floats at rest. --}}
+        <x-ui.card class="mx-4 mb-3 px-[18px] py-3.5" wire:key="transfer-{{ $close->id }}" data-test="pending-transfer">
+            <div class="flex items-center gap-3">
                 <x-ui.icon-tile icon="show_chart" tone="accent" />
                 <div class="min-w-0 flex-1">
                     <div class="num text-[15px] font-semibold">{{ __('Transfer :amount', ['amount' => money($close->to_invest)]) }}</div>
                     <div class="truncate text-[13px] text-muted">{{ __('to :account, from the month-end leftover', ['account' => $close->surplusAccount->name ?? '']) }}</div>
                 </div>
             </div>
-            <x-ui.button size="sm" variant="tonal" icon="check" wire:click="markTransferred({{ $close->id }})" class="ml-auto shrink-0" data-test="mark-transferred">{{ __('Transferred') }}</x-ui.button>
+            <div class="mt-2.5 pl-[52px]">
+                <x-ui.button size="sm" variant="tonal" icon="check" wire:click="markTransferred({{ $close->id }})" data-test="mark-transferred">{{ __('Transferred') }}</x-ui.button>
+            </div>
         </x-ui.card>
     @endforeach
 
-    {{-- Fixed items due today or overdue: one folded row, the items with their actions open from it. --}}
+    {{--
+        Fixed items due today or overdue: one folded row, the items with their actions open from it.
+        While it is open the + steps aside (data-hides-record-button), so it never covers a row's buttons.
+    --}}
     @if ($dueItems !== [])
-        <x-ui.card class="mx-4 mb-3 px-[18px] py-1" x-data="{ showDue: false }" data-test="due-items">
+        <x-ui.card class="mx-4 mb-3 px-[18px] py-1" x-data="{ showDue: false }" x-bind:data-hides-record-button="showDue ? 'true' : null" data-test="due-items">
             <button type="button" x-on:click="showDue = ! showDue" :aria-expanded="showDue ? 'true' : 'false'" aria-expanded="false" aria-controls="today-due-list"
                     class="focus-ring -mx-1 flex min-h-[60px] w-[calc(100%+0.5rem)] items-center gap-3 rounded-xl px-1 text-left" data-test="due-summary">
                 <x-ui.icon-tile icon="schedule" tone="warn" />
-                <span class="num min-w-0 flex-1 text-[15px] font-semibold">{{ trans_choice('{1} :count fixed item due|[2,*] :count fixed items due', count($dueItems), ['count' => count($dueItems)]) }}</span>
-                <span class="flex shrink-0 items-center gap-0.5 text-sm font-medium text-ink-2">
-                    <span class="max-[360px]:sr-only" x-text="showDue ? @js(__('Hide')) : @js(__('Show me'))">{{ __('Show me') }}</span>
-                    <x-ui.icon name="expand_more" :size="20" class="text-muted transition-transform" x-bind:class="showDue && 'rotate-180'" />
+                {{-- Show me / Hide sits under the title, not at the right edge, where the + floats at rest on a short phone. --}}
+                <span class="min-w-0 flex-1">
+                    <span class="num block truncate text-[15px] font-semibold">{{ trans_choice('{1} :count fixed item due|[2,*] :count fixed items due', count($dueItems), ['count' => count($dueItems)]) }}</span>
+                    <span class="mt-0.5 flex items-center gap-0.5 text-[13px] font-medium text-ink-2">
+                        <span x-text="showDue ? @js(__('Hide')) : @js(__('Show me'))">{{ __('Show me') }}</span>
+                        <x-ui.icon name="expand_more" :size="18" class="text-muted transition-transform" x-bind:class="showDue && 'rotate-180'" />
+                    </span>
                 </span>
             </button>
             <div id="today-due-list" x-show="showDue" x-cloak class="pb-2">
