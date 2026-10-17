@@ -170,7 +170,9 @@ it('keeps the plan summary inside a 320 px screen with long euro amounts', funct
             const card = document.querySelector('[data-test="plan-summary"]').getBoundingClientRect();
             const inside = [...document.querySelectorAll('[data-test="plan-summary"] .num')].every(el => {
                 const box = el.getBoundingClientRect();
-                return box.left >= card.left && box.right <= card.right;
+                // Half a pixel of slack: a right-aligned amount ends exactly on the edge, and Linux
+                // fonts land a sub-pixel past it.
+                return box.left >= card.left - 0.5 && box.right <= card.right + 0.5;
             });
             return inside && document.documentElement.scrollWidth <= window.innerWidth;
         }
