@@ -6,7 +6,8 @@ use App\Models\Transaction;
 it('records a spending from the + button with the numpad', function (): void {
     $this->actingAs(onboardedUser());
 
-    $page = visit(route('dashboard'))->on()->mobile()->resize(390, 844);
+    // From the plan: on Today the floating + stays away while the card's own Record button is on screen.
+    $page = visit(route('plan'))->on()->mobile()->resize(390, 844);
 
     $page->click('[data-test="tab-entry"]')
         ->click('[data-test="category-grid"] button:has-text("Fuel")')
@@ -18,10 +19,10 @@ it('records a spending from the + button with the numpad', function (): void {
         ->assertSee('12,500')
         ->click('[data-test="save-entry"]')
         ->waitForText('Undo')
-        ->assertSee('47,500')
         ->assertNoJavaScriptErrors();
 
     expect(Transaction::query()->sole()->amount)->toBe(12_500);
+    visit(route('dashboard'))->on()->mobile()->resize(390, 844)->assertSee('47,500');
 });
 
 it('undoes the entry from the toast', function (): void {
