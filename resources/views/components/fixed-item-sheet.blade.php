@@ -1,6 +1,7 @@
 {{--
     Options for one fixed item, opened by x-fixed-item-row with
-    $dispatch('open-fixed-item', { id, name, amount, status, note, doneLabel }): tick it off
+    $dispatch('open-fixed-item', { id, name, amount, status, note, doneLabel }) (amount: the
+    formatted number without the currency, shown as an x-ui.amount): tick it off
     (tonal, the main action) or skip it this month (secondary), or set a skipped one back (then
     it can be ticked off as usual). A short sheet that grows with its content. Calls the page's
     fixed item methods (togglePaid, skipLine, unskipLine); each answers with a toast that can undo it.
@@ -8,7 +9,7 @@
 <div x-data="{ item: null }" x-on:open-fixed-item.window="item = $event.detail">
     <x-ui.sheet show="item !== null" close="item = null" title="item?.name" :full="false" data-test="fixed-item-sheet">
         <div class="px-1.5 pb-2 text-center">
-            <div class="num text-[22px] font-semibold" :class="item?.status === 'skipped' && 'text-muted line-through'" x-text="item?.amount"></div>
+            <div :class="item?.status === 'skipped' && 'text-muted line-through'" data-test="fixed-item-sheet-amount"><x-ui.amount bind="item?.amount" size="lg" /></div>
             <p class="mt-2 text-[13px] leading-snug text-muted" x-text="item?.note"></p>
         </div>
         <div class="mt-3 grid gap-2">

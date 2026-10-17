@@ -22,7 +22,7 @@
     $detail = [
         'id' => $lineId,
         'name' => $item->line->categoryName,
-        'amount' => money($item->line->planned()),
+        'amount' => money_number($item->line->planned()),
         'status' => $status->value,
         'doneLabel' => $isTransfer ? __('Transferred') : __('Done'),
         'note' => $skipped
