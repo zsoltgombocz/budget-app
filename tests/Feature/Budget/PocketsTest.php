@@ -348,6 +348,7 @@ it('has Hungarian copy for the money moves', function (): void {
 
 it('names the repayment line after its loan when the loan is saved', function (): void {
     $user = onboardedUser();
+    $this->actingAs($user);
     $loan = Loan::factory()->for($user)->create(['name' => 'Személyi kölcsön']);
     $category = Category::factory()->for($user)->create(['name' => 'Hitel', 'type' => 'loan']);
     BudgetLine::factory()->for($user)->for($category)->create(['loan_id' => $loan->id]);
