@@ -3,7 +3,8 @@
 {{--
     A day of the month (1–31) picked from a grid, like the payday, instead of typed on the numpad.
     value: Alpine expression of the current day ('' or null when none); pick: Alpine statement run
-    with `day` (a number, or null for "no set day"). The row opens the grid under itself.
+    with `day` (a number, or null for "no set day"). The row opens the grid under itself; without a
+    day it reads a muted "Not set".
 --}}
 <div x-data="{ dayOpen: false }" {{ $attributes }}>
     <button type="button" x-on:click="dayOpen = ! dayOpen" :aria-expanded="dayOpen ? 'true' : 'false'"
@@ -14,7 +15,7 @@
             @if ($error)<span class="mt-0.5 block text-xs text-danger" x-show="errors[@js($error)]" x-text="errors[@js($error)]"></span>@endif
         </span>
         <span class="flex shrink-0 items-center gap-1">
-            <span class="num text-[17px] font-semibold" :class="({{ $value }}) ? 'text-accent' : 'text-muted'" x-text="({{ $value }}) ? ({{ $value }}) + '.' : '–'" data-test="day-value"></span>
+            <span class="num" :class="({{ $value }}) ? 'text-[17px] font-semibold text-accent' : 'text-[15px] text-muted'" x-text="({{ $value }}) ? ({{ $value }}) + '.' : @js(__('Not set'))" data-test="day-value"></span>
             <x-ui.icon name="expand_more" :size="18" class="text-faint transition" ::class="dayOpen && 'rotate-180'" />
         </span>
     </button>
