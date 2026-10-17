@@ -247,6 +247,26 @@
     }
 }
 
+/*
+ * Divider under a row of an icon list (settings menu, contact, passkeys), inset to where the text
+ * starts (spec 2.3): the row's 18px padding + the 36px icon tile + the 12px gap. It ends at the
+ * row's right padding, like the dividers of the other lists.
+ */
+@utility divider-inset {
+    position: relative;
+
+    &::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 66px;
+        right: 18px;
+        height: 1px;
+        background: var(--color-line);
+        pointer-events: none;
+    }
+}
+
 @utility no-scrollbar {
     scrollbar-width: none;
 

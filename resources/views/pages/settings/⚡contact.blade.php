@@ -45,7 +45,7 @@ new #[Title('Contact')] class extends Component {
 
         <div class="rounded-card bg-surface">
             @foreach ($links as $link)
-                <a href="{{ $link['route'] }}" wire:navigate @class(['flex items-center gap-3 px-[18px] py-3.5 transition active:bg-ink/4', 'border-b border-line' => ! $loop->last]) data-test="{{ $link['test'] }}">
+                <a href="{{ $link['route'] }}" wire:navigate @class(['flex items-center gap-3 px-[18px] py-3.5 transition active:bg-ink/4', 'divider-inset' => ! $loop->last]) data-test="{{ $link['test'] }}">
                     <x-ui.icon-tile :icon="$link['icon']" :size="36" />
                     <span class="min-w-0 flex-1">
                         <span class="block text-[15px] font-medium">{{ $link['title'] }}</span>

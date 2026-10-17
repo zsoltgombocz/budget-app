@@ -53,7 +53,7 @@ new #[Title('Security settings')] class extends Component {
 
     <div class="mt-3 overflow-hidden rounded-card bg-surface" data-test="passkeys">
         @forelse ($passkeys as $passkey)
-            <div wire:key="passkey-{{ $passkey['id'] }}" x-data="{ confirming: false }" @class(['px-[18px] py-3.5', 'border-b border-line' => ! $loop->last])>
+            <div wire:key="passkey-{{ $passkey['id'] }}" x-data="{ confirming: false }" @class(['px-[18px] py-3.5', 'divider-inset' => ! $loop->last])>
                 <div class="flex items-center gap-3">
                     <x-ui.icon-tile icon="lock" :size="36" />
                     <div class="min-w-0 flex-1">
