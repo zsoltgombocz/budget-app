@@ -1,9 +1,9 @@
 @props([
     'optionsRoute' => 'passkey.login-options',
     'submitRoute' => 'passkey.login',
-    'label' => __('Sign in with a passkey'),
+    'label' => __('Quick sign-in with Face ID or fingerprint'),
     'loadingLabel' => __('Authenticating...'),
-    'separator' => __('Or continue with email'),
+    'separator' => __('or'),
 ])
 
 @assets
@@ -46,6 +46,14 @@
 >
     <template x-if="supported">
         <div>
+            <div class="relative mb-4">
+                <div class="absolute inset-0 flex items-center">
+                    <div class="w-full border-t border-line"></div>
+                </div>
+                <div class="relative flex justify-center text-[13px]">
+                    <span class="bg-surface px-2 text-muted">{{ $separator }}</span>
+                </div>
+            </div>
             <div class="grid gap-2">
                 <flux:button
                     variant="outline"
@@ -53,22 +61,12 @@
                     class="w-full"
                     x-on:click="verify()"
                     x-bind:disabled="loading"
+                    data-test="passkey-sign-in"
                 >
                     <span x-show="!loading">{{ $label }}</span>
                     <span x-show="loading" x-cloak>{{ $loadingLabel }}</span>
                 </flux:button>
-                <p x-show="error" x-text="error" x-cloak class="text-center text-sm text-danger"></p>
-            </div>
-
-            <div class="relative my-6">
-                <div class="absolute inset-0 flex items-center">
-                    <div class="w-full border-t border-line"></div>
-                </div>
-                <div class="relative flex justify-center text-[13px]">
-                    <span class="bg-surface px-2 text-muted">
-                        {{ $separator }}
-                    </span>
-                </div>
+                <p x-show="error" x-text="error" x-cloak class="text-center text-sm text-danger" role="alert"></p>
             </div>
         </div>
     </template>

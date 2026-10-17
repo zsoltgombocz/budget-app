@@ -1,6 +1,6 @@
 {{-- Install steps for the visitor's phone and browser (shared by the public and in-app page). --}}
 <div x-data="{ p: { route: 'none' }, all: false, init() { const decide = () => this.p = window.budgetInstall.platform(); decide(); window.addEventListener('install-available', decide); this.unlisten = () => window.removeEventListener('install-available', decide) }, destroy() { this.unlisten?.() } }" class="flex flex-col gap-5" data-test="install-guide">
-    <p class="text-sm leading-normal text-muted">{{ __('Installed it opens from the Home Screen like any app, works offline and can send the evening reminder.') }}</p>
+    <p class="text-sm leading-normal text-muted">{{ __('Installed it opens from the Home Screen like any app, full screen, and can send the evening reminder.') }}</p>
 
     <template x-if="p.route === 'prompt'">
         <x-ui.button x-on:click="window.budgetInstall.prompt().then(ok => ok && (p = { route: 'none', browser: 'standalone' }))" icon="add_box" class="w-full">{{ __('Install') }}</x-ui.button>
