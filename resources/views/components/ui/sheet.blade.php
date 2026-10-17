@@ -4,7 +4,7 @@
     'label' => null,
     'title' => null,
     'header' => true,
-    'full' => true,
+    'full' => null,
     'top' => null,
     'z' => 'z-50',
     'bodyClass' => '',
@@ -15,14 +15,25 @@
 {{--
     The app's bottom sheet, driven by the surrounding Alpine scope: `show` is the expression
     that opens it, `close` the statement that closes it (Cancel, backdrop tap, Escape).
-    Accessible name and header title: the static `label` or the Alpine `title` expression;
-    header=false drops the Cancel/title row for sheets with their own content on top; closeLabel
-    renames Cancel (e.g. "Got it" on a sheet that only explains).
-    full: tall sheet (top offset, `top` overrides it); otherwise it grows with its content.
-    Slots: intro (one line under the title), action (header right), footer (sticky, e.g. the
-    save button) and pad (an x-ui.amount-pad that slides over the footer).
+    Accessible name and header title: the static `label` or the Alpine `title` expression. The
+    title is ONE line (16/600, truncated): put secondary information ("· Personal loan") in the
+    intro slot instead. header=false drops the Cancel/title row for sheets with their own content
+    on top; closeLabel renames Cancel (e.g. "Got it" on a sheet that only explains).
+    full: true = tall sheet (top offset, `top` overrides it); false = grows with its content.
+    Left out, a sheet with a pad is tall and any other grows with its content (edit forms,
+    menus, explainers). A short sheet with a pad grows to full height while the pad is open,
+    so the numpad always fits.
+    Slots:
+      intro   one line under the title, centred, 13 muted.
+      action  header right.
+      danger  the destructive action at the end of the scrolling content, 24px under the rest:
+              <x-slot:danger><x-ui.button variant="danger" size="md" icon="delete" class="w-full">…</x-ui.button></x-slot:danger>
+      footer  sticky at the bottom: one primary lg button; a secondary action goes left of it
+              as a text button.
+      pad     an x-ui.amount-pad that slides over the footer.
     Focus, Escape, Tab and the iOS-safe scroll lock come from the appDialog helper (resources/js/dialog.js).
 --}}
+@php $full ??= isset($pad); @endphp
 <div x-data="appDialog" x-effect="dialogSync({{ $show }})"
      x-on:keydown.escape.window="dialogEscape($event) && ({{ $close }})"
      x-on:keydown.tab="dialogTrap($event)"
@@ -34,6 +45,7 @@
     <div x-show="{{ $show }}" x-ref="dialogPanel" tabindex="-1"
          x-transition:enter="transition duration-300 ease-out" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
          x-transition:leave="transition duration-200 ease-in" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full"
+         @if (! $full && isset($pad)) :class="active && @js($top ?? 'top-[calc(var(--safe-top)+0.75rem)]')" @endif
          {{ $attributes->class([
              'absolute inset-x-0 bottom-0 mx-auto flex max-w-lg flex-col overflow-hidden rounded-t-[30px] bg-surface text-ink outline-none',
              ($top ?? 'top-[calc(var(--safe-top)+0.75rem)]') => $full,
@@ -44,10 +56,10 @@
             <div class="mt-1 grid min-h-11 shrink-0 grid-cols-[72px_minmax(0,1fr)_72px] items-center px-4">
                 <button type="button" class="-ml-2 h-11 rounded-xl px-2 text-left text-[15px] text-muted focus-ring" x-on:click="{{ $close }}">{{ $closeLabel ?? __('Cancel') }}</button>
                 @if ($label)
-                    <h2 class="line-clamp-2 text-center text-base font-semibold leading-tight text-balance" data-test="sheet-title">{{ $label }}</h2>
+                    <h2 class="truncate text-center text-base font-semibold leading-tight" data-test="sheet-title">{{ $label }}</h2>
                 @else
                     {{-- Only in the DOM while open, so a closed sheet leaves no empty heading behind. --}}
-                    <div class="min-w-0"><template x-if="{{ $show }}"><h2 class="line-clamp-2 text-center text-base font-semibold leading-tight text-balance" x-text="{{ $title }}" data-test="sheet-title"></h2></template></div>
+                    <div class="min-w-0"><template x-if="{{ $show }}"><h2 class="truncate text-center text-base font-semibold leading-tight" x-text="{{ $title }}" :title="{{ $title }}" data-test="sheet-title"></h2></template></div>
                 @endif
                 <div class="flex justify-end">{{ $action ?? '' }}</div>
             </div>
@@ -62,6 +74,9 @@
             $bodyClass,
         ])>
             {{ $slot }}
+            @isset($danger)
+                <div class="mt-6" data-test="sheet-danger">{{ $danger }}</div>
+            @endisset
         </div>
         @isset($footer)
             <div @class(['shrink-0 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))]', 'border-t border-line pt-3' => $footerDivider])>{{ $footer }}</div>
