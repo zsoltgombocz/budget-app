@@ -433,7 +433,8 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         <div class="mx-4 mt-4 flex gap-2 rounded-[18px] bg-surface px-4 py-3 text-[13px] leading-snug text-ink-2" data-test="bank-note">
             <x-ui.icon name="account_balance" :size="18" class="mt-px shrink-0 text-muted" />{{ __('The app only keeps records: you make the real transfers in your bank.') }}
         </div>
-        <x-ui.amount :value="$preview->leftover()" size="xl" :tone="$preview->leftover() >= 0 ? 'accent' : 'danger'" class="px-6 pt-6" />
+        {{-- Seven-digit amounts get the smaller size so they fit a 320 px screen. --}}
+        <x-ui.amount :value="$preview->leftover()" :size="abs($preview->leftover()) >= 1_000_000 ? 'lg' : 'xl'" :tone="$preview->leftover() >= 0 ? 'accent' : 'danger'" class="max-w-full px-6 pt-6" />
 
         @if ($preview->leftover() >= 0)
             @php

@@ -58,7 +58,7 @@
                 <flux:button
                     variant="outline"
                     icon="finger-print"
-                    class="w-full"
+                    class="w-full !h-auto min-h-11 !whitespace-normal py-2 text-left leading-snug"
                     x-on:click="verify()"
                     x-bind:disabled="loading"
                     data-test="passkey-sign-in"
