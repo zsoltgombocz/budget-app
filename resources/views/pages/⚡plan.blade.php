@@ -1041,6 +1041,8 @@ new #[Title('Plan')] class extends Component {
                 this.errors = result.errors ?? {}
                 // An error in a setting behind "More" opens it, so the message is seen.
                 if (['form.type', 'form.amountAvg', 'form.amountMax', 'form.activeFrom', 'form.activeTo', 'form.icon'].some((key) => this.errors[key])) this.more = true
+                // Focus goes to the first field with an error, which tells what is wrong (aria-describedby).
+                if (! result.ok) this.$nextTick(() => document.querySelector('[data-test=line-sheet] [aria-invalid=true]')?.focus())
                 if (result.ok) this.sheet = null
             } finally {
                 this.saving = false

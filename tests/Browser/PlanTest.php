@@ -229,3 +229,18 @@ it('reorders with the arrow buttons and keeps the focus on the moved line', func
 
     $page->assertSeeIn('[data-test="reorder-status"]', 'Fuel is now in place 2 of 2.')->assertNoJavaScriptErrors();
 });
+
+it('moves the focus to the name a new item is missing and ties the message to it', function (): void {
+    $this->actingAs(onboardedUser());
+
+    $page = visit(route('plan'))->on()->mobile()->resize(390, 844)
+        ->click('[data-test="toggle-edit"]')
+        ->click('[data-test="add-variable"]')
+        ->waitForText('New item')
+        ->click('[data-test="save-line"]')
+        ->wait(0.5);
+
+    expect($page->script("() => document.activeElement?.getAttribute('data-test')"))->toBe('line-name')
+        ->and($page->script("() => document.activeElement?.getAttribute('aria-invalid')"))->toBe('true')
+        ->and($page->script("() => document.getElementById(document.activeElement?.getAttribute('aria-describedby'))?.textContent.trim()"))->not->toBe('');
+});
