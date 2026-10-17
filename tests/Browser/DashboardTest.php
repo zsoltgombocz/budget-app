@@ -8,6 +8,7 @@ use App\Models\PeriodClose;
 use App\Models\PeriodLineStatus;
 use App\Models\Transaction;
 use App\Services\PeriodService;
+use Illuminate\Support\Sleep;
 
 it('shows the expected leftover, the daily budget and the first budget without scrolling at 375 px', function (): void {
     $this->actingAs(onboardedUser());
@@ -29,29 +30,139 @@ it('shows the expected leftover, the daily budget and the first budget without s
     expect($fits)->toBeTrue();
 });
 
-it('walks through the intro after onboarding and explains the daily figure', function (): void {
+/**
+ * Measures the tour step on screen once it has settled (the card faded in, the spotlight
+ * standing still): the spotlight against the lit element (a tall one is lit as far as the card
+ * leaves it free), the card on screen and holding focus. Polls instead of relying on timing.
+ */
+function measureTourStep(string $theme): string
+{
+    return <<<JS
+        async () => {
+            const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
+            const until = async (check, tries = 80) => { for (let i = 0; i < tries && ! check(); i++) await wait(40); return check() }
+            document.documentElement.classList.toggle('dark', '{$theme}' === 'dark')
+            const tip = () => document.querySelector('[data-test="tour-tooltip"]')
+            const tour = () => { const root = document.querySelector('[x-data^="appTour"]'); return root && window.Alpine?.\$data(root) }
+            const box = selector => document.querySelector(selector).getBoundingClientRect()
+            await until(() => tour()?.tourActive && tour().tourPlaced && tour().tourStep.id !== window.tourPrevious && getComputedStyle(tip()).opacity === '1')
+            let last = ''
+            await until(() => { const now = JSON.stringify(box('[data-test="tour-spotlight"]')); const still = now === last; last = now; return still })
+
+            const id = tour().tourStep.id
+            const rects = [...document.querySelectorAll('[data-tour~="' + id + '"]')].map(element => element.getBoundingClientRect()).filter(r => r.height > 0)
+            const want = {
+                top: Math.max(0, Math.min(...rects.map(r => r.top)) - 6),
+                bottom: Math.min(window.innerHeight, Math.max(...rects.map(r => r.bottom)) + 6),
+                left: Math.max(4, Math.min(...rects.map(r => r.left)) - 6),
+                right: Math.min(window.innerWidth - 4, Math.max(...rects.map(r => r.right)) + 6),
+            }
+            const spot = box('[data-test="tour-spotlight"]')
+            const card = tip().getBoundingClientRect()
+            const near = (a, b) => Math.abs(a - b) <= 2.5
+            const whole = near(spot.top, want.top) && near(spot.bottom, want.bottom)
+
+            return {
+                id,
+                last: tour().tourIsLast,
+                spotMatches: near(spot.left, want.left) && near(spot.right, want.right) && (whole || (spot.top >= want.top - 2.5 && spot.bottom <= want.bottom + 2.5 && spot.height >= 20)),
+                whole,
+                cardOnScreen: card.top >= -0.5 && card.left >= -0.5 && card.bottom <= window.innerHeight + 0.5 && card.right <= window.innerWidth + 0.5,
+                cardClearOfSpot: card.bottom <= spot.top + 0.5 || card.top >= spot.bottom - 0.5,
+                focusInCard: tip().contains(document.activeElement),
+            }
+        }
+    JS;
+}
+
+/** Presses a button of the tour card, remembering the step it was on. */
+function pressTour(string $button): string
+{
+    return <<<JS
+        () => {
+            window.tourPrevious = window.Alpine.\$data(document.querySelector('[x-data^="appTour"]')).tourStep.id
+            document.querySelector('[data-test="tour-{$button}"]').click()
+        }
+    JS;
+}
+
+it('walks the Today tour after onboarding: the spotlight sits on each element, the card stays on screen, Escape ends it', function (string $theme, int $width, int $height): void {
     $user = onboardedUser(['intro_seen_at' => null]);
+    BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail()->update(['due_day' => 1]);
     $this->actingAs($user);
 
-    $page = visit(route('dashboard'))->on()->mobile();
+    $page = visit(route('dashboard'))->on()->mobile()->resize($width, $height);
 
-    $page->assertVisible('[data-test="how-it-works"]')
-        ->assertSee('1. The plan')
-        ->click('[data-test="intro-next"]')
-        ->assertSee('2. Recording spending')
-        ->click('[data-test="intro-next"]')
-        ->assertSee('3. The two numbers')
-        ->assertSee('The big number: what would be left if the month ended today.')
-        ->click('[data-test="intro-next"]')
-        ->assertSee('4. Closing the month')
-        ->click('[data-test="intro-done"]')
-        ->assertMissing('[data-test="how-it-works"]:visible')
+    $steps = [];
+    do {
+        $step = $page->script(measureTourStep($theme));
+        $steps[] = $step;
+        if (! $step['last']) {
+            $page->script(pressTour('next'));
+        }
+    } while (! $step['last'] && count($steps) < 12);
+
+    expect(array_column($steps, 'id'))->toBe(['leftover', 'if-spent', 'daily', 'record', 'no-spend', 'due', 'categories', 'fixed', 'tabs']);
+    foreach ($steps as $step) {
+        expect($step)->toMatchArray(['spotMatches' => true, 'cardOnScreen' => true, 'cardClearOfSpot' => true, 'focusInCard' => true]);
+    }
+    // At 393 px every element is lit whole; on a 320×568 phone only the tall cards may be cropped.
+    $cropped = array_column(array_filter($steps, fn (array $step): bool => ! $step['whole']), 'id');
+    expect($width >= 393 ? $cropped : array_diff($cropped, ['leftover', 'categories', 'fixed']))->toBe([]);
+
+    $page->script(pressTour('back'));
+    expect($page->script(measureTourStep($theme))['id'])->toBe('fixed');
+
+    $closed = $page->script(<<<'JS'
+        async () => {
+            document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+            for (let i = 0; i < 50 && getComputedStyle(document.querySelector('[data-test="tour"]')).display !== 'none'; i++) await new Promise(resolve => setTimeout(resolve, 40))
+            return getComputedStyle(document.querySelector('[data-test="tour"]')).display === 'none'
+        }
+    JS);
+    expect($closed)->toBeTrue();
+
+    $seen = null;
+    for ($try = 0; $try < 20 && $seen === null; $try++) {
+        Sleep::usleep(100_000);
+        $seen = $user->settings()->refresh()->intro_seen_at;
+    }
+    expect($seen)->not->toBeNull();
+    $page->assertNoJavaScriptErrors();
+})->with([
+    'dark 320×568' => ['dark', 320, 568],
+    'light 393×852' => ['light', 393, 852],
+]);
+
+it('continues the tour on the plan after Today', function (): void {
+    $this->actingAs(onboardedUser());
+
+    $page = visit(route('dashboard', ['bemutato' => 1]))->on()->mobile()->resize(393, 852);
+
+    $pressed = 0;
+    do {
+        $step = $page->script(measureTourStep('dark'));
+        $page->script(pressTour('next'));
+    } while (! $step['last'] && ++$pressed < 12);
+
+    $plan = $page->script(<<<'JS'
+        async () => {
+            for (let i = 0; i < 100 && ! (location.pathname === '/terv' && document.querySelector('[data-test="tour-tooltip"]')?.className.includes('opacity-100')); i++) await new Promise(resolve => setTimeout(resolve, 40))
+            return { path: location.pathname, counter: document.querySelector('[data-test="tour-counter"]').textContent.replace(/\s+/g, ' ').trim(), bemutato: location.search.includes('bemutato') }
+        }
+    JS);
+
+    expect($plan)->toBe(['path' => '/terv', 'counter' => 'Plan · 1 / 6', 'bemutato' => false]);
+});
+
+it('explains the daily figure', function (): void {
+    $this->actingAs(onboardedUser());
+
+    visit(route('dashboard'))->on()->mobile()
         ->click('[data-test="explain-daily"]')
         ->assertVisible('[data-test="explainer-daily"]')
         ->assertSee('Days left, today included')
         ->assertNoJavaScriptErrors();
-
-    expect($user->settings()->refresh()->intro_seen_at)->not->toBeNull();
 });
 
 it('ticks a fixed item on Today, keeps it in place and undoes it from the toast', function (): void {

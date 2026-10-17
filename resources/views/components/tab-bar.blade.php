@@ -90,7 +90,7 @@
 </button>
 
 <nav class="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg pb-[env(safe-area-inset-bottom)]" aria-label="{{ __('Main navigation') }}">
-    <div class="mx-auto grid h-(--tabbar-h) max-w-lg grid-cols-5 items-start pt-2">
+    <div data-tour="tabs" class="mx-auto grid h-(--tabbar-h) max-w-lg grid-cols-5 items-start pt-2">
         @foreach ($tabs as $tab)
             <a href="{{ route($tab['route']) }}" wire:navigate
                x-data="{

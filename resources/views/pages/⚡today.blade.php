@@ -20,23 +20,16 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 new #[Title('Today')] class extends Component {
-    /** The "how it works" intro: once after onboarding, or reopened from Settings (?bemutato=1). */
+    /**
+     * The "how it works" tour (components/tour): once after onboarding, or replayed from Settings (?bemutato=1).
+     * Finishing or skipping it marks it seen (IntroSeenController).
+     */
+    #[Locked]
     public bool $showIntro = false;
 
     public function mount(): void
     {
         $this->showIntro = $this->user()->settings()->needsIntro() || request()->boolean('bemutato');
-    }
-
-    public function dismissIntro(): void
-    {
-        $settings = $this->user()->settings();
-
-        if ($settings->intro_seen_at === null) {
-            $settings->update(['intro_seen_at' => now()]);
-        }
-
-        $this->showIntro = false;
     }
 
     /** How many open fixed items the checklist shows before "+N more"; done ones always show. */
@@ -329,7 +322,7 @@ new #[Title('Today')] class extends Component {
     </div>
 
     <section class="px-6 pb-[22px] pt-[30px]" data-test="expected-leftover">
-        <div class="flex items-center gap-1 text-sm text-muted">
+        <div class="flex items-center gap-1 text-sm text-muted" data-tour="leftover">
             <span>{{ __('Leftover as things stand') }}</span>
             <x-explainer topic="leftover" :rows="$leftoverRows" />
             @if ($negative)
@@ -338,11 +331,11 @@ new #[Title('Today')] class extends Component {
                 </span>
             @endif
         </div>
-        <x-ui.amount :value="$current" size="hero" :tone="$negative ? 'danger' : 'accent'" class="mt-1.5" />
+        <x-ui.amount :value="$current" size="hero" :tone="$negative ? 'danger' : 'accent'" class="mt-1.5" data-tour="leftover" />
         @if ($unspentBudget > 0)
-            <p class="num mt-2 text-xs text-pretty text-muted" data-test="unspent-budget">{{ __('This includes your budget not spent yet: :amount', ['amount' => money($unspentBudget)]) }}</p>
+            <p class="num mt-2 text-xs text-pretty text-muted" data-tour="leftover" data-test="unspent-budget">{{ __('This includes your budget not spent yet: :amount', ['amount' => money($unspentBudget)]) }}</p>
         @endif
-        <div class="num mt-3 text-[15px] font-medium" data-test="leftover-if-spent">
+        <div class="num mt-3 text-[15px] font-medium" data-tour="if-spent" data-test="leftover-if-spent">
             {{-- The amount and the "i" stay together, so the icon never drops to a line of its own. --}}
             @php [$ifSpentLabel] = explode('@@', __('If you spend every budget in full: :amount', ['amount' => '@@']), 2); @endphp
             <span @class(['text-danger' => $forecastNegative, 'text-ink' => ! $forecastNegative])>{{ $ifSpentLabel }}<span class="whitespace-nowrap">{{ money($forecast->expectedLeftover) }}<x-explainer topic="if-spent" :rows="$ifSpentRows" /></span></span>
@@ -356,21 +349,21 @@ new #[Title('Today')] class extends Component {
     --}}
     <x-ui.card @class(['mx-4 mb-3 px-5 pt-[18px]', 'pb-[18px]' => $overview->spentToday > 0, 'pb-1' => $overview->spentToday === 0]) data-test="daily-allowance">
         <div class="flex items-center justify-between gap-3">
-            <div class="min-w-0">
+            <div class="min-w-0" data-tour="daily">
                 <div class="flex items-center gap-1 text-[13px] text-muted">
                     <span>{{ __('You can still spend today') }}</span>
                     <x-explainer topic="daily" :rows="$dailyRows" />
                 </div>
                 <x-ui.amount :value="$dailyShown" size="lg" :tone="$forecastNegative ? 'muted' : null" class="mt-1" />
             </div>
-            <x-ui.button variant="tonal" size="md" icon="add" x-data x-on:click="$dispatch('open-entry')" class="shrink-0 max-[360px]:px-3" :aria-label="__('Record')" data-record-button-twin data-test="daily-record"><span class="max-[360px]:sr-only">{{ __('Record') }}</span></x-ui.button>
+            <x-ui.button variant="tonal" size="md" icon="add" x-data x-on:click="$dispatch('open-entry')" class="shrink-0 max-[360px]:px-3" :aria-label="__('Record')" data-record-button-twin data-tour="record" data-test="daily-record"><span class="max-[360px]:sr-only">{{ __('Record') }}</span></x-ui.button>
         </div>
         @if ($forecastNegative)
             <p class="mt-1.5 text-[13px] leading-snug text-muted">{{ $this->isPaydayPeriod ? __('Every further spending lowers the leftover at payday.') : __('Every further spending lowers the month-end leftover.') }}</p>
         @endif
         @if ($overview->spentToday === 0)
             <div class="mt-3.5 border-t border-line py-1 [&>[data-test=no-spend]]:-ml-3">
-                <x-no-spend-button :marked="$overview->noSpendMarked" />
+                <x-no-spend-button :marked="$overview->noSpendMarked" data-tour="no-spend" />
             </div>
         @endif
     </x-ui.card>
@@ -410,7 +403,7 @@ new #[Title('Today')] class extends Component {
         While it is open the + steps aside (data-hides-record-button), so it never covers a row's buttons.
     --}}
     @if ($dueItems !== [])
-        <x-ui.card class="mx-4 mb-3 px-[18px] py-1" x-data="{ showDue: false }" x-bind:data-hides-record-button="showDue ? 'true' : null" data-test="due-items">
+        <x-ui.card class="mx-4 mb-3 px-[18px] py-1" x-data="{ showDue: false }" x-bind:data-hides-record-button="showDue ? 'true' : null" data-tour="due" data-test="due-items">
             <button type="button" x-on:click="showDue = ! showDue" :aria-expanded="showDue ? 'true' : 'false'" aria-expanded="false" aria-controls="today-due-list"
                     class="focus-ring -mx-1 flex min-h-[60px] w-[calc(100%+0.5rem)] items-center gap-3 rounded-xl px-1 text-left" data-test="due-summary">
                 <x-ui.icon-tile icon="schedule" tone="warn" />
@@ -468,7 +461,7 @@ new #[Title('Today')] class extends Component {
             $unbudgeted = array_values(array_filter($categories, fn ($category): bool => $category->planned <= 0));
             $budgetLineIds = $unbudgeted !== [] ? auth()->user()?->budgetLines()->pluck('id', 'category_id') ?? collect() : collect();
         @endphp
-        <x-ui.card class="mx-4 mb-3 px-[18px] pb-1.5 pt-[18px]" data-test="categories">
+        <x-ui.card class="mx-4 mb-3 px-[18px] pb-1.5 pt-[18px]" data-tour="categories" data-test="categories">
             <div class="flex flex-wrap items-baseline justify-between gap-x-3">
                 <h2 class="text-[15px] font-semibold">{{ __('Variable spending') }}</h2>
                 <span @class(['num ml-auto shrink-0 text-[13px]', 'text-danger' => $forecast->variableSpent > $forecast->variablePlanned, 'text-muted' => $forecast->variableSpent <= $forecast->variablePlanned])>
@@ -534,7 +527,7 @@ new #[Title('Today')] class extends Component {
 
     {{-- The fixed items to tick off, in a stable order while the page is open. --}}
     @if ($fixed !== [])
-        <x-ui.card class="mx-4 mb-3 px-[18px] pb-1.5 pt-[18px]" data-test="fixed-items">
+        <x-ui.card class="mx-4 mb-3 px-[18px] pb-1.5 pt-[18px]" data-tour="fixed" data-test="fixed-items">
             <div class="mb-1">
                 <h2 class="text-[15px] font-semibold">{{ __('Fixed items') }}</h2>
                 <p class="mt-0.5 text-[13px] text-muted">{{ __('already in the plan, no need to record them') }}</p>
@@ -574,5 +567,7 @@ new #[Title('Today')] class extends Component {
 
     <x-fixed-item-sheet />
 
-    <x-how-it-works :open="$showIntro" />
+    <x-tour section="today" :label="__('Today')" :open="$showIntro"
+            :steps="\App\Support\Tour::today(leftover: $current, unspentBudget: $unspentBudget, ifSpent: $forecast->expectedLeftover, daily: $dailyShown, remainingDays: $forecast->remainingDays, variableSpent: $forecast->variableSpent, variablePlanned: $forecast->variablePlanned)"
+            :next="['label' => __('On to the Plan'), 'url' => route('plan'), 'section' => 'plan']" />
 </div>
