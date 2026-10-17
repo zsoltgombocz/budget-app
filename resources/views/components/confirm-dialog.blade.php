@@ -55,8 +55,9 @@
             <div class="num mt-2 text-[15px] font-medium leading-snug text-ink" x-show="highlight" x-text="highlight" data-test="confirm-highlight"></div>
             <div class="num mt-0.5 text-[13px] leading-snug text-muted" x-show="note" x-text="note" data-test="confirm-note"></div>
             <p class="max-h-[55vh] overflow-y-auto overscroll-contain whitespace-pre-line text-[14px] leading-relaxed text-muted" :class="highlight || note ? 'mt-3' : 'mt-1.5'" x-show="body" x-text="body"></p>
-            <div class="mt-5 grid grid-cols-2 gap-2.5">
-                <x-ui.button variant="secondary" size="md" x-on:click="answer(false)" data-autofocus data-test="confirm-cancel">{{ __('Cancel') }}</x-ui.button>
+            {{-- Below 360px the buttons stack, the confirming one on top, so a long label ("Undo closing") never runs out of its button. --}}
+            <div class="mt-5 grid grid-cols-1 gap-2.5 min-[360px]:grid-cols-2">
+                <x-ui.button variant="secondary" size="md" x-on:click="answer(false)" class="max-[359.98px]:order-last" data-autofocus data-test="confirm-cancel">{{ __('Cancel') }}</x-ui.button>
                 <template x-if="danger">
                     <x-ui.button variant="danger-solid" size="md" x-on:click="answer(true)" data-test="confirm-ok"><span x-text="confirmLabel"></span></x-ui.button>
                 </template>
