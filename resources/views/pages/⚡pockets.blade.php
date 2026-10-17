@@ -784,7 +784,8 @@ new #[Title('Pockets and loans')] class extends Component {
     {{-- Prepayment --}}
     <x-ui.sheet show="sheet === 'prepay'" close="sheet = null" title="title()" :full="false" data-test="prepay-sheet">
         <x-slot:intro><span class="block font-medium text-ink-2" x-text="form.loanName"></span>{{ __('If you paid it from a pocket, its balance goes down too.') }}</x-slot:intro>
-        <div class="py-2 text-center" :class="! positive('prepay') && 'text-muted'"><x-ui.amount bind="display('prepay')" size="xl" /></div>
+        {{-- On a very short phone (320×568) the amount is smaller, so the whole numpad stays above the button. --}}
+        <div class="py-2 text-center [@media(max-height:600px)]:py-0" :class="! positive('prepay') && 'text-muted'"><x-ui.amount bind="display('prepay')" size="xl" class="[@media(max-height:600px)]:[&>span:first-child]:text-[40px]" /></div>
         <div class="mb-2 text-center text-xs text-danger" x-show="errors.prepay" x-text="errors.prepay" role="alert"></div>
         <x-ui.form-group>
             {{-- The option is the pocket's name only, so it is not truncated; its balance is the row's hint. --}}
