@@ -171,13 +171,14 @@ it('opens the loan itself from its repayment line', function (): void {
     $this->get(route('pockets', ['hitel' => 999_999]))->assertOk()->assertSee('openLoan: null', false);
 });
 
-it('shows each line with its coloured category tile, in edit mode next to the drag handle', function (): void {
+it('shows each line with its category tile, and in edit mode the handle and arrows in its place', function (): void {
     $html = $this->get(route('plan'))->assertOk()->getContent();
     expect(substr_count($html, 'data-test="line-icon"'))->toBe(3)
         ->and($html)->toMatch('/class="[^"]*bg-surface-2[^"]*" data-test="line-icon" style="width: 36px; height: 36px/');
 
     Livewire::test('pages::plan')->set('editing', true)
-        ->assertSeeHtmlInOrder(['data-test="line-handle"', 'data-test="line-icon"', 'Rent']);
+        ->assertSeeHtmlInOrder(['data-test="line-handle"', 'data-test="move-up"', 'data-test="move-down"', 'Rent'])
+        ->assertDontSeeHtml('data-test="line-icon"');
 });
 
 it('saves the average or maximum toggle without a toast and with a 44 px target', function (): void {
@@ -312,7 +313,7 @@ it('sums up the leftover rule in one sentence on the plan', function (): void {
     expect($rule())->toBe('All of it stays on the account');
 
     $this->get(route('plan'))->assertOk()
-        ->assertSeeInOrder(['data-test="month-end"', __('Reserve and leftover'), 'data-test="leftover-rule"', 'All of it stays on the account', __('What you choose here is saved right away.'), 'data-test="reserve-card"'], false);
+        ->assertSeeInOrder(['data-test="month-end"', __('Reserve and leftover'), __('What you choose here is saved right away.'), 'data-test="leftover-rule"', 'All of it stays on the account', 'data-test="reserve-card"'], false);
 });
 
 it('shows the leftover rules inline on the plan, as on the onboarding, without a sheet', function (): void {
@@ -423,7 +424,7 @@ it('offers the icons with a name in words and marks the reorder handle and the m
         ->assertSee('data-test="icon-shopping_basket"', false)
         ->getContent();
 
-    expect($html)->toMatch('/<button[^>]*:aria-pressed="line\.icon ===[^>]*min-h-11/');
+    expect($html)->toMatch('/<button[^>]*:aria-pressed="line\.icon ===[^>]*\sh-12\s/');
 });
 
 it('puts no minus sign before a zero in the month preview', function (): void {

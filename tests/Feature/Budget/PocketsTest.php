@@ -280,9 +280,9 @@ it('names the three money moves and says what each does', function (): void {
 
     $this->get(route('pockets'))
         ->assertSeeInOrder(['Deposit', 'Withdraw to the monthly budget', 'Pay a spending'])
-        ->assertSee('From this month’s money: the month’s leftover goes down by the same amount.')
-        ->assertSee('Leaves the pocket and counts as extra income this month.')
-        ->assertSee('The pocket pays it: the monthly budget is not used up.');
+        ->assertSee('The month’s leftover goes down by the same amount.')
+        ->assertSee('Counts as extra income this month.')
+        ->assertSee('The pocket pays it, the budget stays untouched.');
 });
 
 it('keeps the primary buttons off until an amount is typed', function (): void {
@@ -315,7 +315,7 @@ it('says what the prepayment pocket saves for instead of a step chip', function 
     Pocket::factory()->for($this->user)->create(['name' => 'Prepayment fund', 'balance' => 450_000, 'prepay_step' => 500_000, 'loan_id' => $loan->id]);
 
     $this->get(route('pockets'))
-        ->assertSee('Saving to prepay Car loan')
+        ->assertSee('Prepayment · Car loan')
         ->assertSee(money_number(450_000))
         ->assertSee('/ '.money_number(500_000))
         ->assertDontSee('step:');
@@ -332,7 +332,7 @@ it('deletes a pocket from the bottom of its settings, not from the sheet header'
     $html = (string) $this->get(route('pockets'))->assertOk()->getContent();
 
     expect(substr_count($html, 'x-on:click="removePocket()"'))->toBe(1)
-        ->and($html)->toMatch('/data-test="pocket-name".*data-test="delete-pocket"[^>]*>Delete pocket<.*data-test="sheet-save"/s');
+        ->and($html)->toMatch('/data-test="pocket-name".*data-test="sheet-danger".*data-variant="danger"[^>]*>(?:(?!<\/button>).)*Delete pocket.*data-test="sheet-save"/s');
 });
 
 it('has Hungarian copy for the money moves', function (): void {
@@ -409,5 +409,27 @@ it('says when the monthly saving reaches the pocket', function (): void {
     $category = Category::factory()->for($this->user)->create(['type' => 'sinking']);
     BudgetLine::factory()->for($this->user)->for($category)->create(['amount' => 20_000, 'pocket_id' => $pocket->id]);
 
-    $this->get(route('pockets'))->assertSee('+'.money(20_000).' a month, added at closing');
+    $this->get(route('pockets'))->assertSee('+'.money(20_000).'/month at closing');
+});
+
+it('signs the recent movements with a plus or a real minus and flags the money going out', function (): void {
+    $pocket = Pocket::factory()->for($this->user)->create(['balance' => 22_461]);
+    $this->user->pocketMovements()->create(['pocket_id' => $pocket->id, 'amount' => 50_000, 'type' => 'deposit', 'occurred_on' => now()->subDay()->toDateString()]);
+    $this->user->pocketMovements()->create(['pocket_id' => $pocket->id, 'amount' => -27_539, 'type' => 'withdraw', 'occurred_on' => now()->toDateString()]);
+
+    $movements = Livewire::test('pages::pockets')->instance()->pocketData($pocket->id)['movements'];
+
+    expect(array_column($movements, 'amount'))->toBe(["\u{2212}".money(27_539), '+'.money(50_000)])
+        ->and(array_column($movements, 'negative'))->toBe([true, false]);
+});
+
+it('makes recording the prepayment the main action of the loan card once the pocket reached its step', function (): void {
+    $loan = Loan::factory()->for($this->user)->create(['name' => 'Car loan']);
+    $pocket = Pocket::factory()->for($this->user)->create(['balance' => 450_000, 'prepay_step' => 500_000, 'loan_id' => $loan->id]);
+
+    expect($this->get(route('pockets'))->getContent())->toMatch('/data-variant="secondary"[^>]*>(?:(?!<\/button>).)*Record prepayment/s');
+
+    $pocket->update(['balance' => 520_000]);
+
+    expect($this->get(route('pockets'))->getContent())->toMatch('/<button(?=[^>]*data-test="prepay-loan-'.$loan->id.'")[^>]*data-variant="tonal"/');
 });

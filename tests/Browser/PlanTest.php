@@ -244,3 +244,25 @@ it('moves the focus to the name a new item is missing and ties the message to it
         ->and($page->script("() => document.activeElement?.getAttribute('aria-invalid')"))->toBe('true')
         ->and($page->script("() => document.getElementById(document.activeElement?.getAttribute('aria-describedby'))?.textContent.trim()"))->not->toBe('');
 });
+
+it('keeps whole names in edit mode on a 320 px screen, moving the amount under a long one', function (): void {
+    $user = onboardedUser();
+    Category::query()->where('name', 'Rent')->update(['name' => 'Phone and internet']);
+    BudgetLine::query()->whereRelation('category', 'name', 'Phone and internet')->update(['due_day' => 12]);
+    $this->actingAs($user);
+
+    $page = visit(route('plan'))->on()->mobile()->resize(320, 568)
+        ->click('[data-test="toggle-edit"]')
+        ->waitForText('Drag an item by its handle or use the arrows to reorder, tap it to edit.');
+
+    $names = $page->script(<<<'JS'
+        () => [...document.querySelectorAll('[data-test="plan-line"] [data-test="line-name"]')].map(name => ({
+            text: name.textContent.trim(),
+            cut: name.scrollWidth > name.clientWidth,
+        }))
+    JS);
+
+    expect($names)->toHaveCount(3)
+        ->and(collect($names)->where('cut', true)->all())->toBe([])
+        ->and($page->script('() => document.documentElement.scrollWidth <= window.innerWidth'))->toBeTrue();
+});

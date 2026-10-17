@@ -630,27 +630,33 @@ new #[Title('Plan')] class extends Component {
         </x-slot>
     </x-ui.page-header>
 
-    <div class="sticky top-[var(--safe-top)] z-10 bg-bg px-4 pb-1 pt-3.5">
+    {{-- Bevétel / Kiadás / Marad stays on top while scrolling: a translucent band over the page, not a floating card. --}}
+    <div class="sticky top-[var(--safe-top)] z-10 bg-bg/80 px-6 pb-3 pt-4 backdrop-blur-xl max-[359px]:px-5">
         {{-- Three figures side by side; on a very narrow screen with long amounts they wrap instead of overflowing. --}}
-        <div class="flex flex-wrap justify-between gap-x-3 gap-y-2 rounded-[22px] border border-ink/7 bg-surface-2 px-[18px] py-3.5 max-[359px]:px-3.5" data-test="plan-summary">
+        <div class="flex flex-wrap justify-between gap-x-3 gap-y-2" data-test="plan-summary">
             <div class="min-w-0"><div class="text-xs text-muted">{{ __('Income') }}</div><x-ui.amount size="sm" :value="$summary->income" class="mt-[3px] text-base font-semibold max-[359px]:text-[15px]" /></div>
             <div class="min-w-0"><div class="text-xs text-muted">{{ __('Expenses') }}</div><x-ui.amount size="sm" :value="$summary->totalExpenses" class="mt-[3px] text-base font-semibold max-[359px]:text-[15px]" /></div>
             {{-- Green only when something is really left; zero stays neutral. --}}
-            <div class="ml-auto min-w-0 text-right"><div class="text-xs text-muted">{{ __('Left') }}</div><x-ui.amount size="sm" :value="$summary->leftover" :tone="match (true) { $summary->leftover > 0 => 'accent', $summary->leftover < 0 => 'danger', default => null }" class="mt-[3px] text-base font-bold max-[359px]:text-[15px]" data-test="plan-left" /></div>
+            <div class="ml-auto min-w-0 text-right"><div class="text-xs text-muted">{{ __('Left') }}</div><x-ui.amount size="sm" :value="$summary->leftover" :tone="match (true) { $summary->leftover > 0 => 'accent', $summary->leftover < 0 => 'danger', default => null }" class="mt-[3px] text-base font-semibold max-[359px]:text-[15px]" data-test="plan-left" /></div>
         </div>
     </div>
 
-    <button type="button" x-on:click="openIncome(@js(Money::toInput($settings->income, $this->currency)))" class="mx-4 mt-3.5 flex w-[calc(100%-2rem)] items-center justify-between rounded-[22px] bg-surface px-[18px] py-4 text-left" data-test="income">
-        <span class="flex items-center gap-3">
+    <button type="button" x-on:click="openIncome(@js(Money::toInput($settings->income, $this->currency)))" class="focus-ring mx-4 mt-1 flex w-[calc(100%-2rem)] items-center justify-between gap-3 rounded-card bg-surface px-[18px] py-4 text-left" data-test="income">
+        <span class="flex min-w-0 items-center gap-3">
             <x-ui.icon-tile icon="payments" tone="accent" />
-            <span>
+            <span class="min-w-0">
                 <span class="block text-[15px] font-medium">{{ __('Salary') }}</span>
-                <span class="block text-xs text-muted">
-                    {{ $settings->period_mode === PeriodMode::Payday ? __('payday: day :day of every month', ['day' => $settings->payday_day]) : __('calendar month') }}
+                {{-- One line also at 320 px: the short form drops "of every month" there. --}}
+                <span class="block truncate text-[13px] text-muted" data-test="income-detail">
+                    @if ($settings->period_mode === PeriodMode::Payday)
+                        <span class="max-[359px]:hidden">{{ __('payday: day :day of every month', ['day' => $settings->payday_day]) }}</span><span class="min-[360px]:hidden">{{ __('payday: day :day', ['day' => $settings->payday_day]) }}</span>
+                    @else
+                        {{ __('calendar month') }}
+                    @endif
                 </span>
             </span>
         </span>
-        <x-ui.amount size="sm" :value="$summary->income" tone="accent" class="text-[17px] font-semibold" />
+        <x-ui.amount size="sm" :value="$summary->income" tone="accent" class="shrink-0 text-[17px] font-semibold max-[359px]:text-[15px]" />
     </button>
 
     @foreach ($types as $type)
@@ -659,7 +665,7 @@ new #[Title('Plan')] class extends Component {
         @continue($lines->isEmpty() && ! $editing && $type !== LineType::Loan)
         <section wire:key="group-{{ $type->value }}" class="mt-[22px] px-4" data-test="group-{{ $type->value }}">
             <x-ui.section-label group :label="$this->sectionTitle($type)" :aside="trans_choice('{0} no items|{1} :count item|[2,*] :count items', $lines->count(), ['count' => $lines->count()])" />
-            <div class="divide-y divide-line rounded-[22px] bg-surface px-[18px] py-0.5">
+            <div class="divide-y divide-line rounded-card bg-surface px-[18px] py-0.5">
                 @if ($lines->isNotEmpty())
                     <div class="divide-y divide-line" @if ($editing) wire:sort="reorder" @endif>
                         @foreach ($lines as $line)
@@ -677,15 +683,15 @@ new #[Title('Plan')] class extends Component {
                                 $opensLoan = $type === LineType::Loan && $line->loan_id !== null && ! $editing;
                             @endphp
                             <div wire:key="line-{{ $line->id }}" @if ($editing) wire:sort:item="{{ $line->category_id }}" @endif data-test="plan-line">
-                                <div class="flex items-center gap-2">
+                                <div class="flex items-center">
                                     @if ($editing)
-                                        <span wire:sort:handle class="-ml-2.5 flex size-11 shrink-0 cursor-grab touch-none items-center justify-center text-muted" role="img" aria-label="{{ __('Drag to reorder') }}" data-test="line-handle"><x-ui.icon name="drag_indicator" :size="20" /></span>
-                                        {{-- Reordering without dragging: one place up or down, for keyboards and screen readers. --}}
-                                        <span class="flex shrink-0 flex-col">
+                                        <span wire:sort:handle class="-ml-3 flex size-11 shrink-0 cursor-grab touch-none items-center justify-center text-muted" role="img" aria-label="{{ __('Drag to reorder') }}" data-test="line-handle"><x-ui.icon name="drag_indicator" :size="20" /></span>
+                                        {{-- Reordering without dragging: one place up or down, for keyboards and screen readers. Stacked in one 32 px column. --}}
+                                        <span class="mr-2 flex w-8 shrink-0 flex-col">
                                             @foreach ([[-1, 'keyboard_arrow_up', __('Move up: :name', ['name' => $name])], [1, 'keyboard_arrow_down', __('Move down: :name', ['name' => $name])]] as [$direction, $arrow, $moveLabel])
                                                 <button type="button" x-on:click="moveLine({{ $line->category_id }}, {{ $direction }})" aria-label="{{ $moveLabel }}"
                                                         @disabled(($direction < 0 && $loop->parent->first) || ($direction > 0 && $loop->parent->last))
-                                                        class="focus-ring flex h-6 w-9 items-center justify-center rounded-md text-ink-2 disabled:text-ink/15" data-move="{{ $line->category_id }}:{{ $direction }}" data-test="move-{{ $direction < 0 ? 'up' : 'down' }}"><x-ui.icon :name="$arrow" :size="20" /></button>
+                                                        class="focus-ring flex h-6 w-8 items-center justify-center rounded-small text-ink-2 disabled:text-ink/15" data-move="{{ $line->category_id }}:{{ $direction }}" data-test="move-{{ $direction < 0 ? 'up' : 'down' }}"><x-ui.icon :name="$arrow" :size="20" /></button>
                                             @endforeach
                                         </span>
                                     @endif
@@ -693,24 +699,28 @@ new #[Title('Plan')] class extends Component {
                                         @if ($opensLoan) href="{{ route('pockets', ['hitel' => $line->loan_id, 'vissza' => 'terv']) }}" wire:navigate data-test="open-loan-{{ $line->loan_id }}"
                                         @else type="button" x-on:click="openLine({{ $line->id }})" data-test="open-line" @endif
                                         class="block min-w-0 flex-1 py-2.5 text-left">
-                                        <span class="flex items-center gap-3">
-                                            {{-- The category's coloured tile, also in edit mode: the drag handle sits next to it. --}}
-                                            <x-ui.icon-tile :icon="Icons::forCategory($line->category?->icon)" :size="36" data-test="line-icon" />
-                                            <span class="min-w-0 flex-1 truncate text-[15px]">{{ $name }}</span>
-                                            @if ($line->due_day !== null)
-                                                <span class="num shrink-0 rounded-md bg-surface-3 px-1.5 py-px text-[11px] font-medium text-muted" data-test="due-day">
-                                                    <span aria-hidden="true">{{ $line->due_day }}.</span><span class="sr-only">{{ __('due on day :day', ['day' => $line->due_day]) }}</span>
-                                                </span>
-                                            @endif
-                                            <x-ui.amount size="sm" :value="$this->plannedAmount($line)" class="shrink-0 text-[15px] font-medium" />
+                                        {{-- In edit mode the tile steps aside for the handle and arrows, and the amount drops under a long name instead of cutting it short. --}}
+                                        <span @class(['flex items-center gap-x-3', 'flex-wrap gap-y-0.5' => $editing])>
+                                            @unless ($editing)
+                                                <x-ui.icon-tile :icon="Icons::forCategory($line->category?->icon)" :size="36" data-test="line-icon" />
+                                            @endunless
+                                            <span @class(['min-w-0 truncate text-[15px]', 'flex-1' => ! $editing, 'grow' => $editing]) data-test="line-name">{{ $name }}</span>
+                                            <span class="ml-auto flex shrink-0 items-center gap-3">
+                                                @if ($line->due_day !== null)
+                                                    <span class="num inline-flex h-[22px] items-center rounded-full bg-surface-3 px-2 text-xs font-semibold text-muted" data-test="due-day">
+                                                        <span aria-hidden="true">{{ $line->due_day }}.</span><span class="sr-only">{{ __('due on day :day', ['day' => $line->due_day]) }}</span>
+                                                    </span>
+                                                @endif
+                                                <x-ui.amount size="sm" :value="$this->plannedAmount($line)" class="text-[15px] font-medium" />
+                                            </span>
                                         </span>
-                                        @if ($detail)<span class="num -mt-1 block pl-12 text-xs leading-snug text-muted" data-test="line-detail">{{ $detail }}</span>@endif
+                                        @if ($detail)<span @class(['num mt-0.5 block text-xs leading-snug text-muted', 'pl-12' => ! $editing]) data-test="line-detail">{{ $detail }}</span>@endif
                                     </{{ $opensLoan ? 'a' : 'button' }}>
                                 </div>
                                 @if ($hasToggle)
-                                    <div class="mb-2.5 grid grid-cols-2 gap-[3px] rounded-xl bg-bg p-[3px]">
-                                        <button type="button" wire:click="setCalcMode({{ $line->id }}, 'avg')" aria-pressed="{{ $line->calc_mode === CalcMode::Avg ? 'true' : 'false' }}" @class(['focus-ring num h-11 rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $line->calc_mode === CalcMode::Avg, 'text-muted' => $line->calc_mode !== CalcMode::Avg])>{{ __('Average') }} {{ money_number($line->amount_avg) }}</button>
-                                        <button type="button" wire:click="setCalcMode({{ $line->id }}, 'max')" aria-pressed="{{ $line->calc_mode === CalcMode::Max ? 'true' : 'false' }}" @class(['focus-ring num h-11 rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $line->calc_mode === CalcMode::Max, 'text-muted' => $line->calc_mode !== CalcMode::Max])>{{ __('Max') }} {{ money_number($line->amount_max) }}</button>
+                                    <div class="mb-2.5 grid grid-cols-2 gap-[3px] rounded-control bg-bg p-[3px]">
+                                        <button type="button" wire:click="setCalcMode({{ $line->id }}, 'avg')" aria-pressed="{{ $line->calc_mode === CalcMode::Avg ? 'true' : 'false' }}" @class(['focus-ring num h-11 rounded-[10px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $line->calc_mode === CalcMode::Avg, 'text-muted' => $line->calc_mode !== CalcMode::Avg])>{{ __('Average') }} {{ money_number($line->amount_avg) }}</button>
+                                        <button type="button" wire:click="setCalcMode({{ $line->id }}, 'max')" aria-pressed="{{ $line->calc_mode === CalcMode::Max ? 'true' : 'false' }}" @class(['focus-ring num h-11 rounded-[10px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $line->calc_mode === CalcMode::Max, 'text-muted' => $line->calc_mode !== CalcMode::Max])>{{ __('Max') }} {{ money_number($line->amount_max) }}</button>
                                     </div>
                                 @endif
                             </div>
@@ -741,62 +751,67 @@ new #[Title('Plan')] class extends Component {
         $reservePocket = $this->reservePocket;
         $fixedMode = $settings->reserve_fixed !== null;
     @endphp
-    {{-- The leftover rules, inline as on the onboarding: the sentence sums them up, every choice below saves at once. --}}
+    {{--
+        The leftover rules, inline as on the onboarding: the sentence sums them up, every choice
+        below saves at once. Two levels only: the cards hold their fields as rows, no boxes inside.
+    --}}
     <section class="mt-[22px] px-4" data-test="month-end">
-        <x-ui.section-label group :label="__('Reserve and leftover')" />
-        <div class="px-1.5 pb-3">
-            <p class="num text-[15px] font-medium leading-snug" data-test="leftover-rule">{{ $this->leftoverRule() }}</p>
+        <x-ui.section-label group :label="__('Reserve and leftover')" class="!pb-0.5" />
+        <p class="px-1.5 text-xs text-muted">{{ __('What you choose here is saved right away.') }}</p>
+        <div class="px-1.5 pb-2 pt-3">
+            <p class="num text-[15px] font-medium leading-snug text-pretty" data-test="leftover-rule">{{ $this->leftoverRule() }}</p>
             <p class="min-h-5 text-[13px] font-medium text-accent-strong" role="status" aria-live="polite">
                 @if ($ruleSavedTick > 0)
                     <span wire:key="rule-saved-{{ $ruleSavedTick }}" x-data x-init="setTimeout(() => $el.remove(), 3000)" class="inline-flex items-center gap-1" data-test="rule-saved"><x-ui.icon name="check" :size="16" />{{ __('Leftover rule saved.') }}</span>
                 @endif
             </p>
-            <p class="mt-1 text-[13px] leading-snug text-muted">{{ __('What you choose here is saved right away.') }}</p>
         </div>
 
-        <div class="rounded-[22px] bg-surface px-4 py-4" data-test="reserve-card">
-            <div class="flex items-start gap-3">
-                <x-ui.icon-tile icon="shield" :size="40" />
-                <div class="min-w-0 flex-1 pt-0.5">
+        <div class="rounded-card bg-surface px-[18px]" data-test="reserve-card">
+            <div class="flex items-center gap-3 py-4">
+                <x-ui.icon-tile icon="shield" />
+                <div class="min-w-0 flex-1">
                     <div class="text-[15px] font-medium leading-snug">{{ __('Reserve pocket') }}</div>
-                    <div class="num mt-0.5 text-xs text-muted">{{ $reservePocket ? __('Balance: :amount', ['amount' => money($reservePocket->balance)]) : __('A pocket for the unexpected') }}</div>
+                    <div class="num mt-0.5 text-[13px] text-muted">{{ $reservePocket ? __('Balance: :amount', ['amount' => money($reservePocket->balance)]) : __('A pocket for the unexpected') }}</div>
                 </div>
             </div>
             @if ($reservePocket)
-                <p class="mt-3 text-[13px] leading-relaxed text-muted">{{ __('Money you put aside for the unexpected. If a month ends in the red, at closing you choose whether to take the gap from here.') }}</p>
-                <div class="mt-3 divide-y divide-line overflow-hidden rounded-2xl bg-surface-2">
+                <p class="-mt-1 pb-3 text-[13px] leading-snug text-pretty text-muted">{{ __('Money you put aside for the unexpected. If a month ends in the red, at closing you choose whether to take the gap from here.') }}</p>
+                <div class="divide-y divide-line border-t border-line">
                     @foreach ([
                         ['label' => __('Put aside every month'), 'value' => $monthEnd->reserveMonthly, 'hint' => __('Planned like a fixed cost and moved into the pocket at closing. 0 is fine too.')],
                         ['label' => __('Target'), 'value' => $reservePocket->target_amount, 'hint' => __('Until the pocket reaches it, the month-end leftover also tops it up. Empty means no limit.')],
                     ] as $row)
-                        <button type="button" x-on:click="openReserve()" class="focus-ring flex min-h-[52px] w-full items-center justify-between gap-3 px-4 py-2.5 text-left" data-test="reserve-row">
+                        <button type="button" x-on:click="openReserve()" class="focus-ring flex min-h-14 w-full items-center justify-between gap-3 py-3 text-left" data-test="reserve-row">
                             <span class="min-w-0">
                                 <span class="block text-[15px]">{{ $row['label'] }}</span>
-                                <span class="mt-0.5 block text-xs leading-snug text-muted">{{ $row['hint'] }}</span>
+                                <span class="mt-0.5 block text-xs leading-snug text-pretty text-muted">{{ $row['hint'] }}</span>
                             </span>
                             <span class="flex shrink-0 items-center gap-1">
-                                @if ($row['value'] === null)<span class="num text-[17px] font-semibold text-muted">–</span>@else<x-ui.amount size="sm" :value="$row['value']" class="text-[17px] font-semibold" />@endif
+                                @if ($row['value'] === null)<span class="text-[15px] text-muted">{{ __('Not set') }}</span>@else<x-ui.amount size="sm" :value="$row['value']" class="text-[17px] font-semibold" />@endif
                                 <x-ui.icon name="edit" :size="16" class="text-faint" />
                             </span>
                         </button>
                     @endforeach
                 </div>
             @else
-                <p class="mt-3 text-[13px] leading-relaxed text-muted">{{ __('No reserve pocket: the whole month-end leftover goes to the target below. You can add one later under Pockets.') }}</p>
-                <x-ui.button variant="secondary" size="md" icon="add" x-on:click="openReserve()" class="mt-3 w-full" data-test="create-reserve">{{ __('Create a reserve pocket') }}</x-ui.button>
+                <p class="-mt-1 text-[13px] leading-snug text-pretty text-muted">{{ __('No reserve pocket: the whole month-end leftover goes to the target below. You can add one later under Pockets.') }}</p>
+                <x-ui.button variant="secondary" size="md" icon="add" x-on:click="openReserve()" class="mb-4 mt-3 w-full" data-test="create-reserve">{{ __('Create a reserve pocket') }}</x-ui.button>
             @endif
         </div>
 
         <x-ui.section-label :label="__('If money is left at month end')" class="mt-5" />
-        <div class="rounded-[22px] bg-surface px-4 py-4">
+        <div class="rounded-card bg-surface px-[18px] py-4">
             @if ($monthEnd->hasReserve)
-                <p class="text-[13px] leading-snug text-muted">{{ __('On top of the monthly amount, this much of the leftover also goes to the reserve until it reaches the target:') }}</p>
-                <div class="mt-2 grid grid-cols-2 gap-[3px] rounded-xl bg-bg p-[3px]">
-                    <button type="button" wire:click="setReserveMode('pct')" aria-pressed="{{ $fixedMode ? 'false' : 'true' }}" @class(['focus-ring h-11 rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => ! $fixedMode, 'text-muted' => $fixedMode]) data-test="reserve-mode-pct">{{ __('A share') }}</button>
-                    <button type="button" wire:click="setReserveMode('fixed')" aria-pressed="{{ $fixedMode ? 'true' : 'false' }}" @class(['focus-ring h-11 rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $fixedMode, 'text-muted' => ! $fixedMode]) data-test="reserve-mode-fixed">{{ __('A fixed amount') }}</button>
+                <p class="text-[13px] leading-snug text-pretty text-muted">{{ __('On top of the monthly amount, this much of the leftover also goes to the reserve until it reaches the target:') }}</p>
+                <div class="mt-3 grid grid-cols-2 gap-[3px] rounded-control bg-bg p-[3px]">
+                    @foreach (['pct' => __('A share'), 'fixed' => __('A fixed amount')] as $mode => $modeLabel)
+                        @php $isSelected = ($mode === 'fixed') === $fixedMode; @endphp
+                        <button type="button" wire:click="setReserveMode('{{ $mode }}')" aria-pressed="{{ $isSelected ? 'true' : 'false' }}" @class(['focus-ring h-11 rounded-[10px] text-[13px] font-medium transition-colors', 'bg-surface-3 text-ink' => $isSelected, 'text-muted' => ! $isSelected]) data-test="reserve-mode-{{ $mode }}">{{ $modeLabel }}</button>
+                    @endforeach
                 </div>
                 @if ($fixedMode)
-                    <button type="button" x-on:click="openReserve('fixed')" class="focus-ring mt-2 flex min-h-[52px] w-full items-center justify-between gap-3 rounded-2xl bg-surface-2 px-4 py-2.5 text-left" data-test="reserve-fixed">
+                    <button type="button" x-on:click="openReserve('fixed')" class="focus-ring mt-3 flex min-h-14 w-full items-center justify-between gap-3 border-y border-line py-3 text-left" data-test="reserve-fixed">
                         <span class="text-[15px]">{{ __('Amount from the leftover') }}</span>
                         <span class="flex shrink-0 items-center gap-1">
                             <x-ui.amount size="sm" :value="$settings->reserve_fixed" class="text-[17px] font-semibold" />
@@ -806,63 +821,63 @@ new #[Title('Plan')] class extends Component {
                 @else
                     <div class="mt-2 grid grid-cols-4 gap-2">
                         @foreach ([0, 25, 50, 100] as $pct)
-                            <x-ui.choice :selected="$settings->reserve_pct === $pct" wire:click="setReservePct({{ $pct }})" class="num h-11 rounded-xl text-[15px]" data-test="reserve-pct-{{ $pct }}">{{ $pct }}%</x-ui.choice>
+                            <x-ui.choice :selected="$settings->reserve_pct === $pct" wire:click="setReservePct({{ $pct }})" class="num h-11 rounded-control text-[15px]" data-test="reserve-pct-{{ $pct }}">{{ $pct }}%</x-ui.choice>
                         @endforeach
                     </div>
                 @endif
             @endif
-            <div @class(['text-[13px] font-semibold text-muted', 'mt-4' => $monthEnd->hasReserve])>{{ $monthEnd->hasReserve ? __('The rest goes to:') : __('All of it goes to:') }}</div>
+            <div @class(['text-[13px] font-semibold text-muted', 'mt-5' => $monthEnd->hasReserve])>{{ $monthEnd->hasReserve ? __('The rest goes to:') : __('All of it goes to:') }}</div>
             <div class="mt-2 grid gap-2" data-test="surplus-target">
                 @foreach ($this->surplusTargets as $value => $name)
-                    <x-ui.choice :selected="$value === $currentTarget" wire:click="setSurplusTarget('{{ $value }}')" class="rounded-2xl px-4 py-3 text-left" wire:key="target-{{ $value ?: 'none' }}">
-                        <span class="block text-[15px] font-semibold">{{ $name }}</span>
-                        <span class="mt-0.5 block text-[13px] font-normal leading-snug text-muted">{{ match (true) {
-                            str_starts_with($value, 'account:') => __('At closing it is listed as a manual transfer and we remind you to move it there.'),
-                            str_starts_with($value, 'pocket:') => __('At closing it is added to this pocket in the app.'),
-                            default => __('Nothing is moved: the money simply stays on your account.'),
+                    <x-ui.choice :selected="$value === $currentTarget" wire:click="setSurplusTarget('{{ $value }}')" class="rounded-control px-4 py-2.5 text-left" wire:key="target-{{ $value ?: 'none' }}">
+                        <span class="block truncate text-[15px] font-semibold">{{ $name }}</span>
+                        <span class="mt-0.5 block truncate text-[13px] font-normal text-muted">{{ match (true) {
+                            str_starts_with($value, 'account:') => __('A manual transfer; we remind you'),
+                            str_starts_with($value, 'pocket:') => __('Added here in the app at closing'),
+                            default => __('Nothing is moved'),
                         } }}</span>
                     </x-ui.choice>
                 @endforeach
             </div>
         </div>
 
-        <div class="mt-3 rounded-[22px] border border-accent/30 bg-accent/8 px-4 py-4" data-test="leftover-preview">
-            <div class="flex items-center gap-2 text-[13px] font-semibold text-accent"><x-ui.icon name="info" :size="18" />{{ __('A month with your numbers') }}</div>
-            <div class="num mt-2 text-[13px]">
-                <div class="flex justify-between py-1"><span class="text-muted">{{ __('Income') }}</span><span>{{ money($monthEnd->income) }}</span></div>
-                <div class="flex justify-between py-1"><span class="text-muted">{{ __('Planned costs and budgets') }}</span><span>{{ $monthEnd->planned > 0 ? '−' : '' }}{{ money($monthEnd->planned) }}</span></div>
+        {{-- Information, not an action: a neutral callout. --}}
+        <x-ui.callout :title="__('A month with your numbers')" class="mt-3" data-test="leftover-preview">
+            <div class="num mt-2">
+                <div class="flex justify-between gap-3 py-1"><span>{{ __('Income') }}</span><span class="text-ink">{{ money($monthEnd->income) }}</span></div>
+                <div class="flex justify-between gap-3 py-1"><span>{{ __('Planned costs and budgets') }}</span><span class="text-ink">{{ $monthEnd->planned > 0 ? '−' : '' }}{{ money($monthEnd->planned) }}</span></div>
                 @if ($monthEnd->hasReserve)
-                    <div class="flex justify-between py-1"><span class="text-muted">{{ __('Put aside in the reserve') }}</span><span>{{ $monthEnd->reserveMonthly > 0 ? '−' : '' }}{{ money($monthEnd->reserveMonthly) }}</span></div>
+                    <div class="flex justify-between gap-3 py-1"><span>{{ __('Put aside in the reserve') }}</span><span class="text-ink">{{ $monthEnd->reserveMonthly > 0 ? '−' : '' }}{{ money($monthEnd->reserveMonthly) }}</span></div>
                 @endif
-                <div @class(['mt-1 flex justify-between border-t border-accent/20 pt-1.5 font-semibold', 'text-danger' => $monthEnd->leftover < 0])><span>{{ __('Expected leftover') }}</span><span>{{ money($monthEnd->leftover) }}</span></div>
+                <div @class(['mt-1 flex justify-between gap-3 border-t border-line pt-2 font-semibold', 'text-danger' => $monthEnd->leftover < 0, 'text-ink' => $monthEnd->leftover >= 0])><span>{{ __('Expected leftover') }}</span><span>{{ money($monthEnd->leftover) }}</span></div>
             </div>
             @if ($monthEnd->leftover > 0)
-                <div class="mt-3 text-[13px] font-semibold">{{ __('Splitting the leftover') }}</div>
-                <div class="num mt-1 text-[13px]">
+                <div class="mt-3 font-semibold text-ink">{{ __('Splitting the leftover') }}</div>
+                <div class="num mt-1">
                     @if ($monthEnd->hasReserve)
-                        <div class="flex justify-between gap-3 py-1"><span class="text-muted">{{ __('Reserve: :fixed fixed + :share from the leftover', ['fixed' => money($monthEnd->reserveMonthly), 'share' => money($monthEnd->allocation->toReserve)]) }}</span><span class="shrink-0 font-semibold">{{ money($monthEnd->toReserveTotal()) }}</span></div>
+                        <div class="flex justify-between gap-3 py-1"><span>{{ __('Reserve: :fixed fixed + :share from the leftover', ['fixed' => money($monthEnd->reserveMonthly), 'share' => money($monthEnd->allocation->toReserve)]) }}</span><span class="shrink-0 font-semibold text-ink">{{ money($monthEnd->toReserveTotal()) }}</span></div>
                     @endif
-                    <div class="flex justify-between gap-3 py-1"><span class="text-muted">{{ $targetName }}</span><span class="shrink-0 font-semibold">{{ money($monthEnd->allocation->toSurplus) }}</span></div>
+                    <div class="flex justify-between gap-3 py-1"><span>{{ $targetName }}</span><span class="shrink-0 font-semibold text-ink">{{ money($monthEnd->allocation->toSurplus) }}</span></div>
                 </div>
             @elseif ($monthEnd->leftover === 0)
-                <p class="mt-2 text-[13px] leading-relaxed text-ink-2">{{ __('Your plan uses up the whole income, so nothing is left to share out.') }}</p>
+                <p class="mt-2 text-ink-2">{{ __('Your plan uses up the whole income, so nothing is left to share out.') }}</p>
             @else
-                <p class="mt-2 text-[13px] leading-relaxed text-ink-2">{{ __('Your plan is :gap over the income a month.', ['gap' => money(-$monthEnd->leftover)]) }} {{ __('It is worth lowering a budget.') }}</p>
+                <p class="mt-2 text-ink-2">{{ __('Your plan is :gap over the income a month.', ['gap' => money(-$monthEnd->leftover)]) }} {{ __('It is worth lowering a budget.') }}</p>
             @endif
-            <p class="mt-2 text-xs leading-snug text-muted">{{ __('Planned figures. At closing the real leftover is shared out the same way, and you can adjust it there.') }}</p>
-        </div>
+            <p class="mt-2 text-xs">{{ __('Planned figures. At closing the real leftover is shared out the same way, and you can adjust it there.') }}</p>
+        </x-ui.callout>
     </section>
 
     <div class="px-4 pt-5">
         @if ($editing)
-            <x-ui.button size="md" icon="check" class="w-full" wire:click="$set('editing', false)" data-test="done-editing">{{ __('Done') }}</x-ui.button>
+            <x-ui.button variant="tonal" size="md" icon="check" class="w-full" wire:click="$set('editing', false)" data-test="done-editing">{{ __('Done') }}</x-ui.button>
         @else
             <x-ui.button variant="secondary" size="md" icon="add" class="w-full" wire:click="$set('editing', true)" data-test="start-editing">{{ __('Add or reorder items') }}</x-ui.button>
         @endif
     </div>
 
     {{-- Line editor: the amount first (the usual change), the rarely needed settings behind "More". --}}
-    <x-ui.sheet show="sheet === 'line'" close="sheet = null" title="lineTitle()" data-test="line-sheet">
+    <x-ui.sheet show="sheet === 'line'" close="sheet = null" title="lineTitle()" :full="false" data-test="line-sheet">
         <x-ui.form-group>
             <template x-if="line.type !== 'variable'">
                 <x-ui.amount-row name="amount" :label="__('Monthly amount')" fallback="0" error="form.amount" data-test="field-amount" />
@@ -944,9 +959,10 @@ new #[Title('Plan')] class extends Component {
             </template>
 
             <x-ui.form-group :title="__('Icon')">
-                <div class="grid grid-cols-6 gap-1.5 p-2.5" role="group" aria-label="{{ __('Icon') }}">
+                {{-- 48 px tiles, seven to a row (six on a 320 px phone, so each stays a fair target). --}}
+                <div class="grid grid-cols-6 gap-1.5 p-2.5 min-[360px]:grid-cols-7" role="group" aria-label="{{ __('Icon') }}">
                     @foreach (Icons::CATEGORY as $icon)
-                        <button type="button" x-on:click="line.icon = @js($icon)" :aria-pressed="line.icon === @js($icon) ? 'true' : 'false'" class="focus-ring flex aspect-square min-h-11 items-center justify-center rounded-xl" :class="line.icon === @js($icon) ? 'bg-accent/14 text-accent ring-1 ring-accent' : 'bg-surface-3 text-ink-2'" aria-label="{{ Icons::label($icon) }}" data-test="icon-{{ $icon }}">
+                        <button type="button" x-on:click="line.icon = @js($icon)" :aria-pressed="line.icon === @js($icon) ? 'true' : 'false'" class="focus-ring flex h-12 items-center justify-center rounded-small" :class="line.icon === @js($icon) ? 'bg-accent/14 text-accent ring-1 ring-accent' : 'bg-surface-3 text-ink-2'" aria-label="{{ Icons::label($icon) }}" data-test="icon-{{ $icon }}">
                             <x-ui.icon :name="$icon" :size="22" />
                         </button>
                     @endforeach
@@ -960,10 +976,10 @@ new #[Title('Plan')] class extends Component {
             <p class="px-1.5 pt-2 text-xs text-danger" x-show="errors['form.activeTo']" x-text="errors['form.activeTo']"></p>
         </div>
 
-        {{-- Deleting is rare and destructive: a quiet text button at the very bottom, not in the header. --}}
-        <div class="mt-7 flex justify-center" x-show="line.lineId">
-            <button type="button" x-on:click="removeLine()" class="focus-ring h-11 rounded-xl px-4 text-[15px] font-medium text-danger" data-test="delete-line">{{ __('Delete item') }}</button>
-        </div>
+        {{-- Deleting is rare and destructive: at the very end of the sheet, not in the header. --}}
+        <x-slot:danger>
+            <x-ui.button variant="danger" size="md" icon="delete" x-show="line.lineId" x-on:click="removeLine()" class="w-full" data-test="delete-line">{{ __('Delete item') }}</x-ui.button>
+        </x-slot:danger>
 
         <x-slot:footer>
             <x-ui.button x-on:click="saveLine()" ::disabled="saving" class="w-full" data-test="save-line">{{ __('Save') }}</x-ui.button>
@@ -978,7 +994,7 @@ new #[Title('Plan')] class extends Component {
     <x-ui.sheet show="sheet === 'reserve'" close="sheet = null" :label="__('Reserve pocket')" data-test="reserve-sheet">
         <x-ui.form-group>
             <x-ui.amount-row name="monthly" :label="__('Put aside every month')" fallback="0" error="monthly" data-test="reserve-monthly" />
-            <x-ui.amount-row name="target" :label="__('Target')" :hint="__('Empty means no limit')" error="target" data-test="reserve-target" />
+            <x-ui.amount-row name="target" :label="__('Target')" :hint="__('Empty means no limit')" fallback="" error="target" data-test="reserve-target" />
             <template x-if="reserveFixedMode">
                 <x-ui.amount-row name="fixed" :label="__('Amount from the leftover')" fallback="0" error="fixed" data-test="reserve-fixed-amount" />
             </template>

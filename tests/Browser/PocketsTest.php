@@ -53,7 +53,7 @@ it('edits the target on the settings tab and asks before deleting from its botto
 
     visit(route('pockets'))->on()->mobile()->resize(390, 844)
         ->click('[data-test="pocket-'.$pocket->id.'"]')
-        ->click('[data-test="pocket-sheet"] [data-test="segment-settings"]')
+        ->click('[data-test="pocket-sheet"] [data-test="tabs-settings"]')
         ->assertMissing('[data-test="money-pad"]')
         ->click('[data-test="field-target"]')
         ->click('[data-test="pocket-sheet"] [data-test="amount-pad"] [data-key="9"]')
@@ -62,7 +62,7 @@ it('edits the target on the settings tab and asks before deleting from its botto
         ->click('[data-test="pocket-sheet"] [data-test="sheet-save"]')
         ->waitForText('Pocket saved.')
         ->click('[data-test="pocket-'.$pocket->id.'"]')
-        ->click('[data-test="pocket-sheet"] [data-test="segment-settings"]')
+        ->click('[data-test="pocket-sheet"] [data-test="tabs-settings"]')
         ->click('[data-test="delete-pocket"]')
         ->waitForText('Delete this pocket?')
         ->assertNoJavaScriptErrors();
@@ -96,9 +96,10 @@ it('offers only a deposit on an empty pocket and says why', function (): void {
         ->assertNoJavaScriptErrors();
 });
 
-it('fits all three money moves, the amount and the button over the numpad on an iPhone 15', function (int $width, int $height): void {
+it('fits the chosen money move, the amount, the numpad and the button on a short phone, the movements behind their title', function (int $width, int $height): void {
     $user = onboardedUser();
     $pocket = Pocket::factory()->for($user)->create(['name' => 'Holiday', 'balance' => 20_000]);
+    $user->pocketMovements()->create(['pocket_id' => $pocket->id, 'amount' => -5_000, 'type' => 'withdraw', 'occurred_on' => now()->toDateString()]);
     $this->actingAs($user);
 
     $page = visit(route('pockets'))->on()->mobile()->resize($width, $height)
@@ -106,11 +107,31 @@ it('fits all three money moves, the amount and the button over the numpad on an 
         ->assertVisible('[data-test="pocket-sheet"]')
         ->wait(0.5);
 
-    $inView = fn (string $selector): bool => (bool) $page->script("() => { const r = document.querySelector('{$selector}').getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight }");
+    $inView = fn (string $selector): bool => (bool) $page->script("() => { const r = document.querySelector('{$selector}').getBoundingClientRect(); return r.height > 0 && r.top >= 0 && r.bottom <= window.innerHeight }");
 
-    expect($inView('[data-test="mode-spend"]'))->toBeTrue()
+    expect($inView('[data-test="mode-deposit"]'))->toBeTrue()
         ->and($inView('[data-test="move-amount"]'))->toBeTrue()
-        ->and($inView('[data-test="pocket-move"]'))->toBeTrue();
+        ->and($inView('[data-test="money-pad"] [data-key="0"]'))->toBeTrue()
+        ->and($inView('[data-test="pocket-move"]'))->toBeTrue()
+        ->and($inView('[data-test="movements-toggle"]'))->toBeTrue()
+        ->and($inView('[data-test="mode-spend"]'))->toBeFalse();
 
-    $page->click('[data-test="mode-spend"]')->assertSeeIn('[data-test="mode-hint"]', 'The pocket pays it')->assertNoJavaScriptErrors();
-})->with([[393, 852], [375, 667]]);
+    // Short phones keep the movements folded, tall ones show them.
+    expect($inView('[data-test="movements"]'))->toBe($height > 700);
+
+    $page->click('[data-test="mode-deposit"]')
+        ->click('[data-test="mode-spend"]')
+        ->assertAttribute('[data-test="mode-spend"]', 'aria-checked', 'true')
+        ->assertSeeIn('[data-test="mode-spend"]', 'The pocket pays it')
+        ->assertMissing('[data-test="mode-deposit"]')
+        ->assertNoJavaScriptErrors();
+
+    if ($height <= 700) {
+        $page->click('[data-test="movements-toggle"]');
+    }
+
+    $page->script("() => document.querySelector('[data-test=movement-amount]').scrollIntoView()");
+    $page->assertSeeIn('[data-test="movement-amount"]', "\u{2212}".money(5_000));
+
+    expect($page->script("() => document.querySelector('[data-test=movement-amount]').className"))->toContain('text-danger');
+})->with([[393, 852], [393, 659], [375, 667]]);
