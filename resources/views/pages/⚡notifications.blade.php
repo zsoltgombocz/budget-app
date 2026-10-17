@@ -52,7 +52,7 @@ new #[Title('Notifications')] #[Layout('layouts::app', ['tabs' => false])] class
     }
 }; ?>
 
-<div class="flex min-h-[calc(100dvh-var(--safe-top)-env(safe-area-inset-bottom))] flex-col"
+<div class="flex min-h-[calc(100dvh-var(--safe-top)-env(safe-area-inset-bottom))] flex-col pb-[calc(10rem+env(safe-area-inset-bottom))]"
      x-data="{
         busy: false,
         supported: window.budgetPush.supported(),
@@ -83,7 +83,7 @@ new #[Title('Notifications')] #[Layout('layouts::app', ['tabs' => false])] class
         </div>
     </div>
 
-    <x-ui.card class="mx-4 mt-3 rounded-[22px] px-[18px] py-4">
+    <x-ui.card class="mx-4 mt-3 px-[18px] py-4">
         <div class="flex items-center justify-between">
             <span class="text-[15px] font-medium">{{ __('Daily reminder') }}</span>
             <span class="num text-[28px] font-semibold tracking-[-0.02em]" x-text="$wire.time">{{ $time }}</span>
@@ -102,10 +102,21 @@ new #[Title('Notifications')] #[Layout('layouts::app', ['tabs' => false])] class
         </div>
     </x-ui.card>
 
-    <p class="mx-6 mt-4 text-[13px] text-muted" x-show="! supported" x-cloak>{{ __('This browser does not support push notifications. On iPhone add the app to your Home Screen first.') }}</p>
+    {{-- Without push support the enable button would only look broken: it goes, Next takes its place and this says why. --}}
+    <template x-if="! supported">
+        <x-ui.callout class="mx-4 mt-3" data-test="push-unsupported">{{ __('This browser does not support push notifications. On iPhone add the app to your Home Screen first.') }}</x-ui.callout>
+    </template>
 
-    <div class="mt-auto flex flex-col gap-1.5 px-4 pb-[42px] pt-6">
-        <x-ui.button x-on:click="enable()" ::disabled="busy || ! supported" data-test="enable-notifications">{{ __('Enable notifications') }}</x-ui.button>
-        <button type="button" x-on:click="notNow()" class="h-11 text-[15px] text-muted" data-test="not-now">{{ __('Not now') }}</button>
-    </div>
+    {{-- The choice stays in reach on a short screen: the same fixed bar as the setup wizard before it. --}}
+    <x-ui.action-bar>
+        <template x-if="supported">
+            <div class="flex flex-1 flex-col gap-1.5">
+                <x-ui.button variant="text" size="md" x-on:click="notNow()" class="w-full" data-test="not-now">{{ __('Not now') }}</x-ui.button>
+                <x-ui.button x-on:click="enable()" ::disabled="busy" class="w-full" data-test="enable-notifications">{{ __('Enable notifications') }}</x-ui.button>
+            </div>
+        </template>
+        <template x-if="! supported">
+            <x-ui.button x-on:click="$wire.finish(false)" class="flex-1" data-test="notifications-next">{{ __('Next') }}</x-ui.button>
+        </template>
+    </x-ui.action-bar>
 </div>
