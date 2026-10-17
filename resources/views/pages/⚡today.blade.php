@@ -343,83 +343,89 @@ new #[Title('Today')] class extends Component {
             <p class="num mt-2 text-xs text-pretty text-muted" data-test="unspent-budget">{{ __('This includes your budget not spent yet: :amount', ['amount' => money($unspentBudget)]) }}</p>
         @endif
         <div class="num mt-3 text-[15px] font-medium" data-test="leftover-if-spent">
-            <span @class(['text-danger' => $forecastNegative, 'text-ink' => ! $forecastNegative])>{{ __('If you spend every budget in full: :amount', ['amount' => money($forecast->expectedLeftover)]) }}</span><x-explainer topic="if-spent" :rows="$ifSpentRows" />
+            {{-- The amount and the "i" stay together, so the icon never drops to a line of its own. --}}
+            @php [$ifSpentLabel] = explode('@@', __('If you spend every budget in full: :amount', ['amount' => '@@']), 2); @endphp
+            <span @class(['text-danger' => $forecastNegative, 'text-ink' => ! $forecastNegative])>{{ $ifSpentLabel }}<span class="whitespace-nowrap">{{ money($forecast->expectedLeftover) }}<x-explainer topic="if-spent" :rows="$ifSpentRows" /></span></span>
         </div>
         <div class="num mt-0.5 text-sm text-muted">{{ trans_choice('{1} :count day left|[2,*] :count days left', $forecast->remainingDays, ['count' => $forecast->remainingDays]) }}</div>
     </section>
 
-    <div class="mx-4 mb-3 flex items-center justify-between gap-3 rounded-card bg-surface px-5 py-[18px]" data-test="daily-allowance">
-        <div class="min-w-0">
-            <div class="flex items-center gap-1 text-[13px] text-muted">
-                <span>{{ __('You can still spend today') }}</span>
-                <x-explainer topic="daily" :rows="$dailyRows" />
+    {{-- "I didn't spend today" sits at the bottom of this card while nothing is recorded for today: always visible, undoable in place. --}}
+    <x-ui.card @class(['mx-4 mb-3 px-5 pt-[18px]', 'pb-[18px]' => $overview->spentToday > 0, 'pb-1' => $overview->spentToday === 0]) data-test="daily-allowance">
+        <div class="flex items-center justify-between gap-3">
+            <div class="min-w-0">
+                <div class="flex items-center gap-1 text-[13px] text-muted">
+                    <span>{{ __('You can still spend today') }}</span>
+                    <x-explainer topic="daily" :rows="$dailyRows" />
+                </div>
+                <x-ui.amount :value="$dailyShown" size="lg" :tone="$forecastNegative ? 'muted' : null" class="mt-1" />
             </div>
-            <x-ui.amount :value="$dailyShown" size="lg" :tone="$forecastNegative ? 'muted' : null" class="mt-1" />
-            @if ($forecastNegative)
-                <span class="mt-1.5 block text-xs text-muted">{{ $this->isPaydayPeriod ? __('Every further spending lowers the leftover at payday.') : __('Every further spending lowers the month-end leftover.') }}</span>
-            @endif
+            <x-ui.button variant="tonal" size="md" icon="add" x-data x-on:click="$dispatch('open-entry')" class="shrink-0 max-[360px]:px-3" :aria-label="__('Record')" data-test="daily-record"><span class="max-[360px]:sr-only">{{ __('Record') }}</span></x-ui.button>
         </div>
-        <button type="button" x-data x-on:click="$dispatch('open-entry')"
-                class="focus-ring inline-flex h-11 shrink-0 items-center gap-1 rounded-full bg-accent/14 pl-3 pr-4 text-sm font-semibold text-accent transition active:scale-[0.98]"
-                data-test="daily-record">
-            <x-ui.icon name="add" :size="20" />{{ __('Record') }}
-        </button>
-    </div>
+        @if ($forecastNegative)
+            <p class="mt-1.5 text-[13px] leading-snug text-muted">{{ $this->isPaydayPeriod ? __('Every further spending lowers the leftover at payday.') : __('Every further spending lowers the month-end leftover.') }}</p>
+        @endif
+        @if ($overview->spentToday === 0)
+            <div class="mt-3.5 border-t border-line py-1 [&>[data-test=no-spend]]:-ml-3">
+                <x-no-spend-button :marked="$overview->noSpendMarked" />
+            </div>
+        @endif
+    </x-ui.card>
 
     @if ($forecastNegative)
-        <div class="mx-4 mb-3 flex flex-col gap-3 rounded-[22px] border border-danger/28 bg-danger/10 px-4 pb-3.5 pt-4" data-test="negative-alert">
-            <div class="flex items-start gap-3">
-                <x-ui.icon name="error" :size="22" class="text-danger" />
-                <div class="text-sm leading-[1.45] text-pretty text-ink-2">
-                    <b class="font-semibold text-ink">{{ __(':amount over the plan.', ['amount' => money($forecast->plannedLeftover - $forecast->expectedLeftover)]) }}</b>
-                    @if ($over !== [])
-                        {{ trans_choice('{1} :names went over its budget – cut back elsewhere or cover it from the reserve.|[2,*] :names went over their budgets – cut back elsewhere or cover it from the reserve.', count($over), ['names' => implode(', ', array_map(fn ($c) => $c->categoryName, $over))]) }}
-                    @else
-                        {{ __('Cut back on spending or cover it from the reserve.') }}
-                    @endif
-                </div>
-            </div>
-            <div class="flex flex-wrap gap-2 pl-[34px]">
+        <x-ui.callout tone="danger" :title="__(':amount over the plan.', ['amount' => money($forecast->plannedLeftover - $forecast->expectedLeftover)])" class="mx-4 mb-3" data-test="negative-alert">
+            @if ($over !== [])
+                {{ trans_choice('{1} :names went over its budget – cut back elsewhere or cover it from the reserve.|[2,*] :names went over their budgets – cut back elsewhere or cover it from the reserve.', count($over), ['names' => implode(', ', array_map(fn ($c) => $c->categoryName, $over))]) }}
+            @else
+                {{ __('Cut back on spending or cover it from the reserve.') }}
+            @endif
+            <x-slot:actions>
                 <x-ui.button variant="secondary" size="sm" :href="route('pockets', ['fedezes' => max(0, -$forecast->expectedLeftover)])" wire:navigate data-test="cover-from-reserve">{{ __('Cover from the reserve') }}</x-ui.button>
                 <x-ui.button variant="text" size="sm" :href="route('month')" wire:navigate>{{ __('Details') }}</x-ui.button>
-            </div>
-        </div>
+            </x-slot:actions>
+        </x-ui.callout>
     @endif
 
     @foreach ($this->pendingTransfers as $close)
-        <div class="mx-4 mb-3 flex items-center gap-3 rounded-[22px] border border-accent/22 bg-accent/10 px-4 py-3.5" wire:key="transfer-{{ $close->id }}" data-test="pending-transfer">
-            <x-ui.icon-tile icon="show_chart" tone="accent" />
-            <div class="min-w-0 flex-1">
-                <div class="num text-[15px] font-semibold">{{ __('Transfer :amount', ['amount' => money($close->to_invest)]) }}</div>
-                <div class="truncate text-xs text-muted">{{ __('to :account, from the month-end leftover', ['account' => $close->surplusAccount->name ?? '']) }}</div>
+        <x-ui.card class="mx-4 mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 px-[18px] py-3.5" wire:key="transfer-{{ $close->id }}" data-test="pending-transfer">
+            <div class="flex min-w-[min(100%,11rem)] flex-1 items-center gap-3">
+                <x-ui.icon-tile icon="show_chart" tone="accent" />
+                <div class="min-w-0 flex-1">
+                    <div class="num text-[15px] font-semibold">{{ __('Transfer :amount', ['amount' => money($close->to_invest)]) }}</div>
+                    <div class="truncate text-[13px] text-muted">{{ __('to :account, from the month-end leftover', ['account' => $close->surplusAccount->name ?? '']) }}</div>
+                </div>
             </div>
-            <x-ui.button size="sm" variant="tonal" wire:click="markTransferred({{ $close->id }})" class="shrink-0" data-test="mark-transferred">{{ __('Transferred') }}</x-ui.button>
-        </div>
+            <x-ui.button size="sm" variant="tonal" icon="check" wire:click="markTransferred({{ $close->id }})" class="ml-auto shrink-0" data-test="mark-transferred">{{ __('Transferred') }}</x-ui.button>
+        </x-ui.card>
     @endforeach
 
-    {{-- Fixed items due today or overdue: one folded row, the cards with their actions open from it. --}}
+    {{-- Fixed items due today or overdue: one folded row, the items with their actions open from it. --}}
     @if ($dueItems !== [])
-        <div class="mx-4 mb-3 rounded-[22px] border border-warn/28 bg-warn/10 px-4 py-2" x-data="{ showDue: false }" data-test="due-items">
+        <x-ui.card class="mx-4 mb-3 px-[18px] py-1" x-data="{ showDue: false }" data-test="due-items">
             <button type="button" x-on:click="showDue = ! showDue" :aria-expanded="showDue ? 'true' : 'false'" aria-expanded="false" aria-controls="today-due-list"
-                    class="focus-ring flex min-h-12 w-full items-center gap-3 rounded-xl text-left" data-test="due-summary">
-                <x-ui.icon name="schedule" :size="22" class="text-warn" />
+                    class="focus-ring -mx-1 flex min-h-[60px] w-[calc(100%+0.5rem)] items-center gap-3 rounded-xl px-1 text-left" data-test="due-summary">
+                <x-ui.icon-tile icon="schedule" tone="warn" />
                 <span class="num min-w-0 flex-1 text-[15px] font-semibold">{{ trans_choice('{1} :count fixed item due|[2,*] :count fixed items due', count($dueItems), ['count' => count($dueItems)]) }}</span>
-                <span class="shrink-0 text-sm font-semibold text-accent-strong" x-text="showDue ? @js(__('Hide')) : @js(__('Show me'))">{{ __('Show me') }}</span>
+                <span class="flex shrink-0 items-center gap-0.5 text-sm font-medium text-ink-2">
+                    <span class="max-[360px]:sr-only" x-text="showDue ? @js(__('Hide')) : @js(__('Show me'))">{{ __('Show me') }}</span>
+                    <x-ui.icon name="expand_more" :size="20" class="text-muted transition-transform" x-bind:class="showDue && 'rotate-180'" />
+                </span>
             </button>
-            <div id="today-due-list" x-show="showDue" x-cloak class="pb-1">
+            <div id="today-due-list" x-show="showDue" x-cloak class="pb-2">
                 @foreach ($dueItems as $item)
                     @php
                         $isTransfer = in_array($item->line->type, [\App\Enums\LineType::Transfer, \App\Enums\LineType::Sinking], true);
                         $late = $item->dueOn->lessThan($overview->today);
                     @endphp
-                    <div class="border-t border-warn/20 py-3" wire:key="due-{{ $item->line->lineId }}" data-test="due-item">
-                        {{-- Only the name gives way on a narrow screen, never the amount. --}}
-                        <div class="flex min-w-0 items-baseline gap-1 text-[15px] font-semibold">
-                            <span class="truncate">{{ $item->line->categoryName }}</span>
-                            <span class="num shrink-0 whitespace-nowrap" data-test="due-amount">· {{ money($item->line->planned()) }}</span>
+                    <div class="border-t border-line py-3" wire:key="due-{{ $item->line->lineId }}" data-test="due-item">
+                        {{-- The list row anatomy: status ring, name over the due date, the amount right. Only the name gives way on a narrow screen. --}}
+                        <div class="grid grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-x-3">
+                            <span class="row-span-2 size-6 rounded-full border-[1.5px] border-warn" aria-hidden="true"></span>
+                            <span class="truncate text-[15px] font-medium">{{ $item->line->categoryName }}</span>
+                            <x-ui.amount size="sm" :value="$item->line->planned()" class="row-span-2 text-[15px] font-semibold" data-test="due-amount" />
+                            <span class="mt-0.5 truncate text-xs text-warn">{{ $late ? __('was due :date', ['date' => \App\Support\Dates::short($item->dueOn)]) : ($isTransfer ? __('Transfer due today') : __('Due today')) }}</span>
                         </div>
-                        <div class="truncate text-xs text-warn">{{ $late ? __('was due :date', ['date' => \App\Support\Dates::short($item->dueOn)]) : ($isTransfer ? __('Transfer due today') : __('Due today')) }}</div>
-                        <div class="mt-2.5 flex flex-wrap gap-2">
+                        <div class="mt-2.5 flex flex-wrap gap-1 pl-9">
                             <x-ui.button size="sm" variant="tonal" icon="check" wire:click="togglePaid({{ (int) $item->line->lineId }})" data-test="mark-due-done">{{ $isTransfer ? __('Transferred') : __('Done') }}</x-ui.button>
                             @if ($item->line->isSkippable())
                                 <x-ui.button size="sm" variant="text" wire:click="skipLine({{ (int) $item->line->lineId }})" data-test="skip-due">{{ __('Skipped this month') }}</x-ui.button>
@@ -428,45 +434,43 @@ new #[Title('Today')] class extends Component {
                     </div>
                 @endforeach
             </div>
-        </div>
+        </x-ui.card>
     @endif
 
     @if (! $this->hasSpending && ! $this->hasPlan)
         <x-ui.empty-state icon="edit_note" :title="__('Start with your plan')" class="mx-4 mb-3" data-test="empty-state-no-plan">
             {{ __('Your plan is still empty. Add your monthly income and your fixed items on the Plan screen; then you only need to write down the variable spending here.') }}
             <x-slot name="actions">
-                <x-ui.button size="md" variant="secondary" :href="route('plan')" wire:navigate>{{ __('Open the plan') }}</x-ui.button>
+                <x-ui.button size="md" variant="tonal" :href="route('plan')" wire:navigate>{{ __('Open the plan') }}</x-ui.button>
             </x-slot>
         </x-ui.empty-state>
     @elseif (! $this->hasSpending)
         <x-ui.empty-state icon="receipt_long" :title="__('No spending recorded yet')" class="mx-4 mb-3" data-test="empty-state">
-            {{ __('Your income and fixed items are already in. You only need to write down the variable spending – or tap once if you did not spend today.') }}
-            <x-slot name="actions">
-                <x-no-spend-button :marked="$overview->noSpendMarked" />
-            </x-slot>
+            {{ __('Your income and fixed items are already in. Record the variable spending with the + button – or mark the day above if you did not spend.') }}
         </x-ui.empty-state>
     @endif
 
-    @if ($this->hasSpending && $overview->spentToday === 0)
-        <div class="mx-4 mb-3 flex justify-center">
-            <x-no-spend-button :marked="$overview->noSpendMarked" />
-        </div>
-    @endif
-
     @if ($categories !== [])
+        @php
+            $unbudgeted = array_values(array_filter($categories, fn ($category): bool => $category->planned <= 0));
+            $budgetLineIds = $unbudgeted !== [] ? auth()->user()?->budgetLines()->pluck('id', 'category_id') ?? collect() : collect();
+        @endphp
         <x-ui.card class="mx-4 mb-3 px-[18px] pb-1.5 pt-[18px]" data-test="categories">
-            <div class="flex items-baseline justify-between">
+            <div class="flex flex-wrap items-baseline justify-between gap-x-3">
                 <h2 class="text-[15px] font-semibold">{{ __('Variable spending') }}</h2>
-                <span @class(['num text-[13px]', 'text-danger' => $forecast->variableSpent > $forecast->variablePlanned, 'text-muted' => $forecast->variableSpent <= $forecast->variablePlanned])>
+                <span @class(['num ml-auto shrink-0 text-[13px]', 'text-danger' => $forecast->variableSpent > $forecast->variablePlanned, 'text-muted' => $forecast->variableSpent <= $forecast->variablePlanned])>
                     {{ money_number($forecast->variableSpent) }} / {{ money($forecast->variablePlanned) }}
                 </span>
             </div>
 
-            @php
-                $budgetLineIds = collect($categories)->contains(fn ($category): bool => $category->planned <= 0)
-                    ? auth()->user()?->budgetLines()->pluck('id', 'category_id') ?? collect()
-                    : collect();
-            @endphp
+            {{-- One quiet note for every category without a budget, instead of a link under each of them. --}}
+            @if ($unbudgeted !== [])
+                <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-group bg-surface-2 py-2 pl-3.5 pr-2" data-test="no-budget-note">
+                    <span class="min-w-[10rem] flex-1 text-[13px] leading-snug text-muted">{{ trans_choice('{1} :names has no budget yet.|[2,*] :count categories have no budget yet.', count($unbudgeted), ['count' => count($unbudgeted), 'names' => $unbudgeted[0]->categoryName]) }}</span>
+                    <x-ui.button variant="tonal" size="sm" :href="route('plan', array_filter(['tetel' => count($unbudgeted) === 1 ? $budgetLineIds->get($unbudgeted[0]->categoryId) : null]))" wire:navigate class="ml-auto shrink-0" data-test="set-budget">{{ __('Set a budget') }}</x-ui.button>
+                </div>
+            @endif
+
             @foreach ($categories as $category)
                 @php
                     $noBudget = $category->planned <= 0;
@@ -481,19 +485,20 @@ new #[Title('Today')] class extends Component {
                 @endphp
                 <div wire:key="category-{{ $category->categoryId }}" @class(['border-b border-line' => ! $loop->last]) data-test="category-row">
                     <a href="{{ route('month', ['kategoria' => $category->categoryId]) }}" wire:navigate
-                       class="grid grid-cols-[40px_minmax(0,1fr)_18px] items-center gap-3 py-3">
-                        <x-ui.icon-tile :icon="$this->icons[$category->categoryId] ?? 'more_horiz'" />
-                        <div>
-                            <div class="flex items-baseline justify-between gap-2">
-                                <span class="truncate text-[15px] font-medium">{{ $category->categoryName }}</span>
+                       class="focus-ring grid grid-cols-[40px_minmax(0,1fr)_18px] items-center gap-3 rounded-xl py-3">
+                        <x-ui.icon-tile :icon="$this->icons[$category->categoryId] ?? \App\Support\Icons::FALLBACK" />
+                        <div class="min-w-0">
+                            {{-- The amount wraps under the name rather than squeezing it on a narrow phone. --}}
+                            <div class="flex flex-wrap items-baseline justify-between gap-x-2">
+                                <span class="min-w-0 truncate text-[15px] font-medium">{{ $category->categoryName }}</span>
                                 @if ($noBudget)
-                                    <x-ui.amount size="sm" :value="$category->spent" class="shrink-0 text-sm [&>span:first-child]:font-semibold" />
+                                    <x-ui.amount size="sm" :value="$category->spent" class="ml-auto shrink-0 text-sm [&>span:first-child]:font-semibold" />
                                 @else
-                                    <x-ui.amount size="sm" :value="$category->spent" :of="$category->planned" class="shrink-0 text-sm [&>span:first-child]:font-semibold" />
+                                    <x-ui.amount size="sm" :value="$category->spent" :of="$category->planned" class="ml-auto shrink-0 text-sm [&>span:first-child]:font-semibold" />
                                 @endif
                             </div>
                             @if ($noBudget)
-                                <div class="mt-1 text-xs text-muted" data-test="no-budget">{{ __('no budget') }}</div>
+                                <div class="mt-0.5 text-xs text-muted" data-test="no-budget">{{ __('no budget') }}</div>
                             @elseif ($this->hasSpending)
                                 <x-ui.bar :label="$category->categoryName" :value="$ratio" :tone="$tone" class="mt-2" />
                                 <div @class(['num mt-1.5 text-xs', 'text-danger' => $tone === 'danger', 'text-warn' => $tone === 'warn', 'text-muted' => $tone === 'accent'])>
@@ -509,11 +514,6 @@ new #[Title('Today')] class extends Component {
                         </div>
                         <x-ui.icon name="chevron_right" :size="18" class="text-faint" />
                     </a>
-                    @if ($noBudget)
-                        <div class="-mt-2 pb-2 pl-[52px]">
-                            <x-ui.link :href="route('plan', array_filter(['tetel' => $budgetLineIds->get($category->categoryId)]))" wire:navigate class="min-h-11 text-[13px]" data-test="set-budget">{{ __('Set a budget') }}</x-ui.link>
-                        </div>
-                    @endif
                 </div>
             @endforeach
         </x-ui.card>
@@ -530,10 +530,7 @@ new #[Title('Today')] class extends Component {
                 <x-fixed-item-row :item="$item" :today="$overview->today" :open="$period->isOpen()" @class(['border-b border-line' => ! $loop->last || $hiddenFixed !== []]) wire:key="fixed-{{ $item->line->lineId }}" />
             @endforeach
             @if ($hiddenFixed !== [])
-                <button type="button" wire:click="$set('showAllFixed', true)" class="focus-ring num flex min-h-11 w-full items-center justify-between gap-3 rounded-xl text-left text-[13px] text-muted" data-test="fixed-more">
-                    <span>{{ trans_choice('{1} +:count more item to tick off: :names|[2,*] +:count more items to tick off: :names', count($hiddenFixed), ['count' => count($hiddenFixed), 'names' => implode(', ', array_map(fn ($item) => $item->line->categoryName, $hiddenFixed))]) }}</span>
-                    <x-ui.amount size="sm" :value="array_sum(array_map(fn ($item) => $item->line->planned(), $hiddenFixed))" class="shrink-0" />
-                </button>
+                <x-ui.button variant="text" size="md" icon-trailing="arrow_forward" wire:click="$set('showAllFixed', true)" class="-ml-3 mb-1" data-test="fixed-more">{{ __('All items (:count)', ['count' => count($fixed)]) }}</x-ui.button>
             @endif
         </x-ui.card>
     @endif

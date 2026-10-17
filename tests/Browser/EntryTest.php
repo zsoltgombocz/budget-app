@@ -43,10 +43,12 @@ it('marks and unmarks a no-spend day from the dashboard', function (): void {
     $this->actingAs(onboardedUser());
 
     visit(route('dashboard'))->on()->mobile()->resize(390, 844)
-        ->click('[data-test="empty-state"] [data-test="no-spend"]')
+        ->click('[data-test="daily-allowance"] [data-test="no-spend"]')
         ->waitForText("You didn't spend today")
+        // It stays in the daily card as a marked row, undoable in place.
+        ->assertVisible('[data-test="daily-allowance"] [data-test="no-spend-marked"]')
         ->click('[data-test="undo-no-spend"]')
-        ->wait(1);
+        ->assertVisible('[data-test="daily-allowance"] [data-test="no-spend"]');
 
     expect(DayMark::query()->count())->toBe(0);
 });

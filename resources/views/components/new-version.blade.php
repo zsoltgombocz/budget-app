@@ -24,7 +24,7 @@
             <x-ui.icon-tile icon="celebration" tone="accent" :size="48" />
             <div>
                 <div class="text-xl font-semibold tracking-[-0.02em]">{{ __('New version is here') }}</div>
-                <div class="font-mono text-xs text-accent">{{ $entry['version'] }}</div>
+                <span class="num mt-1 inline-flex h-[22px] items-center rounded-full bg-accent/16 px-2 text-xs font-semibold text-accent">{{ $entry['version'] }}</span>
             </div>
         </div>
         <ul class="mt-4 flex flex-col gap-2">
@@ -32,8 +32,8 @@
                 <li class="flex gap-2.5 text-sm leading-snug text-ink-2"><x-ui.icon name="check" :size="16" :weight="600" class="mt-0.5 text-accent" />{{ $change }}</li>
             @endforeach
         </ul>
-        <div class="mt-5 flex gap-2">
-            <x-ui.button variant="secondary" class="w-[110px]" x-on:click="close()" data-test="new-version-close">{{ __('Close') }}</x-ui.button>
+        <div class="mt-5 flex items-center gap-2">
+            <x-ui.button variant="text" class="shrink-0" x-on:click="close()" data-test="new-version-close">{{ __('Close') }}</x-ui.button>
             <x-ui.button class="flex-1" :href="route('changelog')" x-on:click="remember()" wire:navigate data-test="new-version-open">{{ __('See what’s new') }}</x-ui.button>
         </div>
     </x-ui.sheet>

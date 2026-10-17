@@ -37,10 +37,10 @@
             <div class="text-[15px] font-semibold">{{ __('Install the app') }}</div>
             <div class="mt-0.5 text-[13px] leading-snug text-muted">{{ __('One tap on the home screen, full screen, and it can send reminders.') }}</div>
         </div>
-        <button type="button" x-on:click="dismiss()" class="focus-ring -mr-3 -mt-3 flex size-11 shrink-0 items-center justify-center rounded-full text-muted" aria-label="{{ __('Close') }}" data-test="install-dismiss"><x-ui.icon name="close" :size="20" /></button>
+        <x-ui.icon-button icon="close" :label="__('Close')" x-on:click="dismiss()" class="-mr-1.5 -mt-1" data-test="install-dismiss" />
     </div>
 
-    <x-ui.button x-show="p.route === 'prompt'" x-on:click="installApp()" ::disabled="busy" size="md" icon="add_box" class="mt-3 w-full" data-test="install-button">{{ __('Install') }}</x-ui.button>
+    <x-ui.button x-show="p.route === 'prompt'" x-on:click="installApp()" ::disabled="busy" variant="tonal" size="md" icon="add_box" class="mt-3 w-full" data-test="install-button">{{ __('Install') }}</x-ui.button>
 
     <template x-if="p.route !== 'prompt'">
         <div class="mt-3">
