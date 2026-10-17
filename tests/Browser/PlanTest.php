@@ -66,6 +66,7 @@ it('asks before a type change that recounts spending, and saves only on confirm'
     $page->script("() => [...document.querySelectorAll('[data-test=plan-line] button')].find(b => b.textContent.includes('Fuel')).click()");
 
     $page->waitForText('Edit item')
+        ->click('[data-test="line-more"]')
         ->click('[data-test="type-fixed"]')
         ->click('[data-test="save-line"]')
         ->waitForText('Change the kind of this item?')
@@ -110,11 +111,11 @@ it('shows edit mode as a state and leaves it with Done', function (): void {
     visit(route('plan'))->on()->mobile()->resize(390, 844)
         ->assertMissing('[data-test="line-handle"]')
         ->click('[data-test="toggle-edit"]')
-        ->waitForText('Drag an item by its handle to reorder, tap it to edit.')
+        ->waitForText('Drag an item by its handle or use the arrows to reorder, tap it to edit.')
         ->assertVisible('[data-test="group-fixed"] [data-test="line-handle"]')
         ->assertVisible('[data-test="add-fixed"]')
         ->click('[data-test="toggle-edit"]')
-        ->waitForText('Monthly plan')
+        ->waitForText('Every month starts with this plan.')
         ->assertMissing('[data-test="line-handle"]')
         ->assertNoJavaScriptErrors();
 });
@@ -176,4 +177,55 @@ it('keeps the plan summary inside a 320 px screen with long euro amounts', funct
     JS);
 
     expect($fits)->toBeTrue();
+});
+
+it('changes a budget in four taps: line, amount, numpad, save', function (): void {
+    $this->actingAs(onboardedUser());
+
+    $page = visit(route('plan'))->on()->mobile()->resize(390, 844);
+    $page->script("() => [...document.querySelectorAll('[data-test=plan-line] button')].find(b => b.textContent.includes('Groceries')).click()");
+
+    $page->waitForText('Edit item')
+        ->assertMissing('[data-test="type-fixed"]')
+        ->click('[data-test="line-sheet"] [data-test="field-amount"]')
+        ->click('[data-test="line-sheet"] [data-test="amount-pad"] [data-key="9"]')
+        ->click('[data-test="line-sheet"] [data-test="amount-pad"] [data-key="5"]')
+        ->click('[data-test="line-sheet"] [data-test="amount-pad"] [data-key="000"]')
+        ->click('[data-test="pad-done"]:visible')
+        ->click('[data-test="save-line"]')
+        ->waitForText('Plan updated.')
+        ->assertNoJavaScriptErrors();
+
+    expect(BudgetLine::query()->whereRelation('category', 'name', 'Groceries')->value('amount'))->toBe(95_000);
+});
+
+it('picks a due day from a day grid', function (): void {
+    $this->actingAs(onboardedUser());
+
+    $page = visit(route('plan'))->on()->mobile()->resize(390, 844);
+    $page->script("() => [...document.querySelectorAll('[data-test=plan-line] button')].find(b => b.textContent.includes('Rent')).click()");
+
+    $page->waitForText('Edit item')
+        ->click('[data-test="field-due-day"] [data-test="day-field"]')
+        ->click('[data-test="field-due-day"] [data-day="12"]')
+        ->assertSeeIn('[data-test="field-due-day"] [data-test="day-value"]', '12.')
+        ->click('[data-test="save-line"]')
+        ->waitForText('Plan updated.')
+        ->assertNoJavaScriptErrors();
+
+    expect(BudgetLine::query()->whereRelation('category', 'name', 'Rent')->value('due_day'))->toBe(12);
+});
+
+it('reorders with the arrow buttons and keeps the focus on the moved line', function (): void {
+    $this->actingAs(onboardedUser());
+
+    $page = visit(route('plan'))->on()->mobile()->resize(390, 844)
+        ->click('[data-test="toggle-edit"]')
+        ->click('[aria-label="Move down: Fuel"]')
+        ->waitForText('Order saved.');
+
+    expect($page->script("() => document.activeElement?.getAttribute('aria-label')"))->toBe('Move up: Fuel')
+        ->and(Category::query()->where('type', 'variable')->orderBy('sort')->pluck('name')->all())->toBe(['Groceries', 'Fuel']);
+
+    $page->assertSeeIn('[data-test="reorder-status"]', 'Fuel is now in place 2 of 2.')->assertNoJavaScriptErrors();
 });

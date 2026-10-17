@@ -345,3 +345,14 @@ it('has Hungarian copy for the money moves', function (): void {
         ->and(__('The money leaves the pocket and counts as extra income in this period.'))->toBe('A pénz kikerül a perselyből, és ebben a periódusban plusz bevételnek számít.')
         ->and(__('Delete pocket'))->toBe('Persely törlése');
 });
+
+it('names the repayment line after its loan when the loan is saved', function (): void {
+    $user = onboardedUser();
+    $loan = Loan::factory()->for($user)->create(['name' => 'Személyi kölcsön']);
+    $category = Category::factory()->for($user)->create(['name' => 'Hitel', 'type' => 'loan']);
+    BudgetLine::factory()->for($user)->for($category)->create(['loan_id' => $loan->id]);
+
+    resolve(SaveLoan::class)->handle($user, [...$loan->only(['name', 'lender', 'principal_balance', 'installment', 'insurance', 'thm', 'remaining_months']), 'prepay_mode' => $loan->prepay_mode], $loan);
+
+    expect($category->refresh()->name)->toBe('Személyi kölcsön');
+});
