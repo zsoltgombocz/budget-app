@@ -53,13 +53,13 @@
          ]) }}>
         <div class="mx-auto mt-2 h-[5px] w-9 shrink-0 rounded-full bg-ink/18" aria-hidden="true"></div>
         @if ($header)
-            <div class="mt-1 grid min-h-11 shrink-0 grid-cols-[72px_minmax(0,1fr)_72px] items-center px-4">
+            <div class="mt-1 grid min-h-11 shrink-0 grid-cols-[64px_minmax(0,1fr)_64px] items-center px-3">
                 <button type="button" class="-ml-2 h-11 rounded-xl px-2 text-left text-[15px] text-muted focus-ring" x-on:click="{{ $close }}">{{ $closeLabel ?? __('Cancel') }}</button>
                 @if ($label)
-                    <h2 class="truncate text-center text-base font-semibold leading-tight" data-test="sheet-title">{{ $label }}</h2>
+                    <h2 class="truncate text-center text-base font-semibold leading-tight max-[360px]:text-[15px]" data-test="sheet-title">{{ $label }}</h2>
                 @else
                     {{-- Only in the DOM while open, so a closed sheet leaves no empty heading behind. --}}
-                    <div class="min-w-0"><template x-if="{{ $show }}"><h2 class="truncate text-center text-base font-semibold leading-tight" x-text="{{ $title }}" :title="{{ $title }}" data-test="sheet-title"></h2></template></div>
+                    <div class="min-w-0"><template x-if="{{ $show }}"><h2 class="truncate text-center text-base font-semibold leading-tight max-[360px]:text-[15px]" x-text="{{ $title }}" :title="{{ $title }}" data-test="sheet-title"></h2></template></div>
                 @endif
                 <div class="flex justify-end">{{ $action ?? '' }}</div>
             </div>

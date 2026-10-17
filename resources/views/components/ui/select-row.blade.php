@@ -6,7 +6,7 @@
         <span class="block text-[15px]">{{ $label }}</span>
         @if ($hint)<span class="mt-0.5 block text-xs leading-snug text-muted">{{ $hint }}</span>@endif
     </span>
-    <span class="relative flex max-w-[55%] items-center">
+    <span class="relative flex max-w-[68%] items-center">
         <select {{ $attributes->class(['w-full appearance-none truncate bg-transparent pr-6 text-right text-[15px] text-ink-2 outline-none']) }}>{{ $slot }}</select>
         <x-ui.icon name="expand_more" :size="18" class="pointer-events-none absolute right-0 text-muted" />
     </span>
