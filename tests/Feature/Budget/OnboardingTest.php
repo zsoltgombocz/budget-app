@@ -279,6 +279,17 @@ it('works out where the leftover of the entered plan would go', function (): voi
     expect($wizard->instance()->leftoverPreview)->toBe(['income' => 500_000, 'planned' => 300_000, 'reserveMonthly' => 0, 'leftover' => 200_000, 'toReserve' => 0, 'toSurplus' => 200_000, 'reserveOn' => false]);
 });
 
+it('leaves the reserve row out of the leftover split while nothing goes to the reserve', function (): void {
+    $this->actingAs(User::factory()->create());
+
+    $wizard = Livewire::test('pages::onboarding')
+        ->set('step', 9)->set('income', '500000')->set('shared', false)->set('hasLoan', false)
+        ->set('amounts.0', '200000')->set('amounts.14', '')->set('reservePct', 0)
+        ->assertDontSeeHtml('data-test="preview-reserve-split"');
+
+    $wizard->set('reservePct', 25)->assertSeeHtml('data-test="preview-reserve-split"');
+});
+
 it('skips the wizard once onboarded', function (): void {
     $this->actingAs(onboardedUser());
 

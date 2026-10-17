@@ -681,15 +681,16 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                     'investment' => [__('If you have an investment account'), __('At closing we remind you to move it to your investment account.')],
                 ];
             @endphp
-            <div class="rounded-card bg-surface px-4 py-4">
+            {{-- Flat on the page, two levels at most: the question, then its segmented control, chips or option cards. --}}
+            <div data-test="leftover-rule">
                 @if ($reserveOn)
-                    <div class="text-[13px] text-muted">{{ __('On top of the monthly amount, this much of the leftover also goes to the reserve until it reaches the target:') }}</div>
-                    <div class="mt-2 grid grid-cols-2 gap-[3px] rounded-xl bg-bg p-[3px]">
+                    <div class="px-1.5 text-[13px] leading-snug text-pretty text-muted">{{ __('On top of the monthly amount, this much of the leftover also goes to the reserve until it reaches the target:') }}</div>
+                    <div class="mt-2 grid grid-cols-2 gap-[3px] rounded-xl bg-surface p-[3px]">
                         <button type="button" wire:click="$set('reserveMode', 'pct')" aria-pressed="{{ $reserveMode === 'pct' ? 'true' : 'false' }}" @class(['focus-ring h-11 rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $reserveMode === 'pct', 'text-muted' => $reserveMode !== 'pct']) data-test="reserve-mode-pct">{{ __('A share') }}</button>
                         <button type="button" wire:click="$set('reserveMode', 'fixed')" aria-pressed="{{ $reserveMode === 'fixed' ? 'true' : 'false' }}" @class(['focus-ring h-11 rounded-[9px] text-[13px] font-medium', 'bg-surface-3 text-ink' => $reserveMode === 'fixed', 'text-muted' => $reserveMode !== 'fixed']) data-test="reserve-mode-fixed">{{ __('A fixed amount') }}</button>
                     </div>
                     @if ($reserveMode === 'fixed')
-                        <button type="button" x-on:click="open('reserveFixed', $wire.reserveFixed, @js(__('Amount from the leftover')))" class="focus-ring mt-2 flex h-12 w-full items-center justify-between rounded-[14px] bg-surface-2 px-4 text-left" data-test="reserve-fixed">
+                        <button type="button" x-on:click="open('reserveFixed', $wire.reserveFixed, @js(__('Amount from the leftover')))" class="focus-ring mt-2 flex h-12 w-full items-center justify-between rounded-[14px] bg-surface px-4 text-left" data-test="reserve-fixed">
                             <span class="text-[13px] text-muted">{{ __('Amount from the leftover') }}</span>
                             <span :class="! $wire.reserveFixed && 'text-muted'"><x-ui.amount size="sm" bind="show($wire.reserveFixed, '0')" :currency="$currency" class="text-[17px] font-semibold" /></span>
                         </button>
@@ -701,9 +702,9 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                             @endforeach
                         </div>
                     @endif
-                    <div class="mt-4 text-[13px] text-muted">{{ __('The rest goes to:') }}</div>
+                    <div class="mt-5 px-1.5 text-[13px] text-muted">{{ __('The rest goes to:') }}</div>
                 @else
-                    <div class="text-[13px] text-muted">{{ __('All of it goes to:') }}</div>
+                    <div class="px-1.5 text-[13px] text-muted">{{ __('All of it goes to:') }}</div>
                 @endif
                 <div class="mt-2 grid gap-2" data-test="surplus-options">
                     @foreach ($surplusOptions as $value => [$optionLabel, $optionHint])
@@ -728,8 +729,9 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                 @if ($preview['leftover'] > 0)
                     <div class="mt-3 font-semibold text-ink">{{ __('Splitting the leftover') }}</div>
                     <div class="num mt-0.5">
-                        @if ($preview['reserveOn'])
-                            <div class="flex justify-between gap-3 py-0.5"><span>{{ __('Reserve: :fixed fixed + :share from the leftover', ['fixed' => money($preview['reserveMonthly'], $currency), 'share' => money($preview['toReserve'], $currency)]) }}</span><span class="shrink-0 font-semibold text-ink">{{ money($preview['reserveMonthly'] + $preview['toReserve'], $currency) }}</span></div>
+                        {{-- Nothing to the reserve: no "0 fixed + 0 from the leftover" row. --}}
+                        @if ($preview['reserveOn'] && $preview['reserveMonthly'] + $preview['toReserve'] > 0)
+                            <div class="flex justify-between gap-3 py-0.5" data-test="preview-reserve-split"><span>{{ __('Reserve: :fixed fixed + :share from the leftover', ['fixed' => money($preview['reserveMonthly'], $currency), 'share' => money($preview['toReserve'], $currency)]) }}</span><span class="shrink-0 font-semibold text-ink">{{ money($preview['reserveMonthly'] + $preview['toReserve'], $currency) }}</span></div>
                         @endif
                         <div class="flex justify-between gap-3 py-0.5"><span>{{ $surplusOptions[$surplusTarget][0] ?? __('Stays on the account') }}</span><span class="shrink-0 font-semibold text-ink">{{ money($preview['toSurplus'], $currency) }}</span></div>
                     </div>
