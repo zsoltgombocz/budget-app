@@ -785,12 +785,15 @@ new #[Title('Pockets and loans')] class extends Component {
         <div class="py-2 text-center" :class="! positive('prepay') && 'text-muted'"><x-ui.amount bind="display('prepay')" size="xl" /></div>
         <div class="mb-2 text-center text-xs text-danger" x-show="errors.prepay" x-text="errors.prepay" role="alert"></div>
         <x-ui.form-group>
-            <x-ui.select-row :label="__('From pocket')" x-model.number="form.pocketId">
+            {{-- The option is the pocket's name only, so it is not truncated; its balance is the row's hint. --}}
+            @php $balances = $pockets->mapWithKeys(fn ($pocket): array => [$pocket->id => __('Balance: :amount', ['amount' => money($pocket->balance)])]); @endphp
+            <x-ui.select-row :label="__('From pocket')" x-model.number="form.pocketId" :bind-hint="'('.Js::from($balances).')[form.pocketId] ?? \'\''" data-test="prepay-pocket">
                 <option value="">{{ __('Not from a pocket') }}</option>
-                @foreach ($pockets as $pocket)<option value="{{ $pocket->id }}">{{ $pocket->name }} ({{ money($pocket->balance) }})</option>@endforeach
+                @foreach ($pockets as $pocket)<option value="{{ $pocket->id }}">{{ $pocket->name }}</option>@endforeach
             </x-ui.select-row>
         </x-ui.form-group>
-        <x-ui.numpad :decimal="$decimals > 0" class="mt-3" />
+        {{-- Lower keys on a very short phone (320×568), so the bottom row stays above the footer. --}}
+        <x-ui.numpad :decimal="$decimals > 0" class="mt-3 [@media(max-height:600px)]:[&_button]:min-h-9" />
         <x-slot:footer>
             <x-ui.button x-on:click="submit()" ::disabled="saving || ! positive('prepay')" class="w-full" data-test="sheet-save">{{ __('Record prepayment') }}</x-ui.button>
         </x-slot:footer>

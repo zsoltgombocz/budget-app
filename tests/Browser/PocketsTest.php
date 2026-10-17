@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Loan;
 use App\Models\Pocket;
 use App\Services\PeriodService;
 
@@ -135,3 +136,34 @@ it('fits the chosen money move, the amount, the numpad and the button on a short
 
     expect($page->script("() => document.querySelector('[data-test=movement-amount]').className"))->toContain('text-danger');
 })->with([[393, 852], [393, 659], [375, 667]]);
+
+it('fits the prepayment sheet on a 320 px phone: the whole numpad above the button, the pocket name in full', function (): void {
+    $user = onboardedUser();
+    $loan = Loan::factory()->for($user)->create(['name' => 'Home loan']);
+    Pocket::factory()->for($user)->create(['name' => 'Prepayment pocket', 'balance' => 450_000, 'prepay_step' => 500_000, 'loan_id' => $loan->id]);
+    $this->actingAs($user);
+
+    $page = visit(route('pockets'))->on()->mobile()->resize(320, 568)
+        ->click('[data-test="prepay-loan-'.$loan->id.'"]')
+        ->assertVisible('[data-test="prepay-sheet"]')
+        ->assertSeeIn('[data-test="prepay-sheet"]', 'Balance: '.money(450_000));
+
+    // Polls while the sheet slides up; the keys must end above the sticky footer (with half a pixel of slack).
+    $layout = $page->script(<<<'JS'
+        async () => {
+            const sheet = document.querySelector('[data-test="prepay-sheet"]')
+            const measure = () => {
+                const lastKey = sheet.querySelector('[data-numpad] [data-key="0"]').getBoundingClientRect()
+                const save = sheet.querySelector('[data-test="sheet-save"]').getBoundingClientRect()
+                const select = sheet.querySelector('select[data-test="prepay-pocket"]')
+                return { keysAboveButton: lastKey.bottom <= save.top + 0.5 && save.bottom <= window.innerHeight + 0.5, nameFits: select.scrollWidth <= select.clientWidth + 0.5 }
+            }
+            let result = measure()
+            for (let i = 0; i < 20 && ! result.keysAboveButton; i++) { await new Promise(r => setTimeout(r, 100)); result = measure() }
+            return result
+        }
+    JS);
+
+    expect($layout)->toBe(['keysAboveButton' => true, 'nameFits' => true]);
+    $page->assertNoJavaScriptErrors();
+});
