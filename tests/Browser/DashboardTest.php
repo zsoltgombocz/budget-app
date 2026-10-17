@@ -198,30 +198,74 @@ it('opens the due items as list rows with one tonal and one text action, and lea
     $page->assertNoJavaScriptErrors();
 });
 
-it('moves the record button out of the way while the due items are open and brings it back when they fold', function (): void {
-    $user = onboardedUser();
-    BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail()->update(['due_day' => 1]);
-    $this->actingAs($user);
-
-    // Polls for up to two seconds: the button reacts to the open list through a MutationObserver.
-    $buttonShows = fn (bool $expected): string => sprintf(<<<'JS'
+/**
+ * Polls for up to two seconds whether the floating + shows: it reacts through observers and slides.
+ */
+function recordButtonShows(bool $expected): string
+{
+    return sprintf(<<<'JS'
         async () => {
             const shows = () => document.querySelector('[data-test=tab-entry]').className.includes('translate-y-0')
             for (let i = 0; i < 20 && shows() !== %s; i++) await new Promise(r => setTimeout(r, 100))
             return shows()
         }
     JS, $expected ? 'true' : 'false');
+}
 
-    $page = visit(route('dashboard'))->on()->mobile()->resize(393, 852);
+/**
+ * Scrolls Today's own Record button off the top of the screen, then a little back up, the way that
+ * brings the + back: far enough down that the card's button is gone, then up past the threshold.
+ */
+function scrollPastTodaysRecordButton(): string
+{
+    return <<<'JS'
+        async () => {
+            const wait = ms => new Promise(r => setTimeout(r, ms))
+            const below = document.querySelector('[data-test=daily-record]').getBoundingClientRect().bottom + window.scrollY
+            window.scrollTo(0, below + 80)
+            await wait(150)
+            window.scrollTo(0, below + 40)
+            await wait(150)
+            return document.querySelector('[data-test=daily-record]').getBoundingClientRect().bottom < 0
+        }
+    JS;
+}
 
-    expect($page->script($buttonShows(true)))->toBeTrue();
+it('keeps the + away while Today’s own Record button is on screen, so two never sit side by side', function (int $width, int $height): void {
+    $this->actingAs(onboardedUser());
+
+    $page = visit(route('dashboard'))->on()->mobile()->resize($width, $height)
+        ->assertVisible('[data-test="daily-record"]');
+
+    expect($page->script(recordButtonShows(false)))->toBeFalse()
+        ->and($page->script("() => document.querySelector('[data-test=tab-entry]').getAttribute('aria-hidden')"))->toBe('true');
+
+    expect($page->script(scrollPastTodaysRecordButton()))->toBeTrue()
+        ->and($page->script(recordButtonShows(true)))->toBeTrue();
+
+    $page->script('() => window.scrollTo(0, 0)');
+    expect($page->script(recordButtonShows(false)))->toBeFalse();
+    $page->assertNoJavaScriptErrors();
+})->with([
+    'small phone' => [320, 568],
+    'short iPhone' => [393, 659],
+]);
+
+it('moves the record button out of the way while the due items are open and brings it back when they fold', function (): void {
+    $user = onboardedUser();
+    BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail()->update(['due_day' => 1]);
+    $this->actingAs($user);
+
+    $page = visit(route('dashboard'))->on()->mobile()->resize(393, 659);
+
+    expect($page->script(scrollPastTodaysRecordButton()))->toBeTrue()
+        ->and($page->script(recordButtonShows(true)))->toBeTrue();
 
     $page->click('[data-test="due-summary"]')->assertVisible('[data-test="mark-due-done"]');
-    expect($page->script('() => window.scrollY'))->toBe(0)
-        ->and($page->script($buttonShows(false)))->toBeFalse();
+    expect($page->script(recordButtonShows(false)))->toBeFalse();
 
     $page->click('[data-test="due-summary"]')->assertMissing('[data-test="mark-due-done"]:visible');
-    expect($page->script($buttonShows(true)))->toBeTrue();
+    expect($page->script(recordButtonShows(true)))->toBeTrue();
     $page->assertNoJavaScriptErrors();
 });
 

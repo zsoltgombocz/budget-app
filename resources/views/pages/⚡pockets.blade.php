@@ -535,7 +535,8 @@ new #[Title('Pockets and loans')] class extends Component {
                         </span>
                     @endif
                 </button>
-                <div class="grid grid-cols-2 gap-2 px-[18px] pb-[18px]">
+                {{-- The pair hugs its labels from the left: the right edge is where the + floats at rest. --}}
+                <div class="flex flex-wrap gap-2 px-[18px] pb-[18px]">
                     <x-ui.button variant="secondary" size="md" icon="add" x-on:click="openPocket({{ $pocket->id }}, 'deposit')" data-test="pocket-deposit-{{ $pocket->id }}">{{ __('Deposit') }}</x-ui.button>
                     <x-ui.button variant="secondary" size="md" icon="remove" x-on:click="openPocket({{ $pocket->id }}, 'budget')" :disabled="$pocket->balance <= 0" class="disabled:text-muted" data-test="pocket-withdraw-{{ $pocket->id }}">{{ __('Withdraw') }}</x-ui.button>
                 </div>

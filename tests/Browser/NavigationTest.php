@@ -1,7 +1,11 @@
 <?php
 
 use App\Enums\PeriodStatus;
+use App\Models\BudgetLine;
+use App\Models\Category;
+use App\Models\Loan;
 use App\Models\PeriodClose;
+use App\Models\Pocket;
 use App\Services\PeriodService;
 
 it('marks the tab and shows the loader as soon as it is tapped', function (): void {
@@ -118,3 +122,38 @@ it('hides the record button on a closed month and shows it again on the open one
     $page->click('[data-test="previous-period"]')->assertSee('To the reserve');
     expect($page->script($visible))->toBeFalse();
 });
+
+it('keeps every action control out from under the record button at rest', function (string $route, int $width, int $height): void {
+    $user = onboardedUser();
+    BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail()->update(['due_day' => 1]);
+    foreach (['Utilities' => 35_000, 'Phone and internet' => 12_000, 'Insurance' => 9_000] as $name => $amount) {
+        BudgetLine::factory()->for($user)->for(Category::factory()->for($user)->create(['name' => $name, 'type' => 'fixed']))->create(['amount' => $amount, 'due_day' => 12]);
+    }
+    $loan = Loan::factory()->for($user)->create(['name' => 'Personal loan', 'lender' => 'Demo Bank']);
+    Pocket::factory()->for($user)->create(['name' => 'Prepayment pocket', 'balance' => 450_000, 'prepay_step' => 500_000, 'loan_id' => $loan->id]);
+    Pocket::factory()->for($user)->create(['name' => 'Reserve', 'is_reserve' => true, 'balance' => 204_522, 'target_amount' => 300_000]);
+    $this->actingAs($user);
+
+    $page = visit(route($route))->on()->mobile()->resize($width, $height);
+
+    // The buttons, switches and chips (not whole list rows, whose amount may run under the +), with half a pixel of slack.
+    $covered = $page->script(<<<'JS'
+        async () => {
+            await new Promise(resolve => setTimeout(resolve, 500))
+            const fabButton = document.querySelector('[data-test="tab-entry"]')
+            if (! fabButton.className.includes('translate-y-0')) return []
+            const fab = fabButton.getBoundingClientRect()
+            const overlaps = box => box.width > 0 && box.right > fab.left + 0.5 && box.left < fab.right - 0.5 && box.bottom > fab.top + 0.5 && box.top < fab.bottom - 0.5
+            return [...document.querySelectorAll('main [data-variant], main [role=switch], main [aria-pressed]')]
+                .filter(control => control.offsetParent !== null && overlaps(control.getBoundingClientRect()))
+                .map(control => control.dataset.test ?? control.textContent.trim())
+        }
+    JS);
+
+    expect($covered)->toBe([]);
+})->with([
+    'Today' => ['dashboard', 393, 659],
+    'Plan' => ['plan', 393, 659],
+    'Pockets' => ['pockets', 393, 659],
+    'Pockets, small phone' => ['pockets', 320, 568],
+]);

@@ -350,7 +350,10 @@ new #[Title('Today')] class extends Component {
         <div class="num mt-0.5 text-sm text-muted">{{ trans_choice('{1} :count day left|[2,*] :count days left', $forecast->remainingDays, ['count' => $forecast->remainingDays]) }}</div>
     </section>
 
-    {{-- "I didn't spend today" sits at the bottom of this card while nothing is recorded for today: always visible, undoable in place. --}}
+    {{--
+        "I didn't spend today" sits at the bottom of this card while nothing is recorded for today: always visible, undoable in place.
+        Its Record button does what the floating + does, so the + stays away while it is on screen (data-record-button-twin).
+    --}}
     <x-ui.card @class(['mx-4 mb-3 px-5 pt-[18px]', 'pb-[18px]' => $overview->spentToday > 0, 'pb-1' => $overview->spentToday === 0]) data-test="daily-allowance">
         <div class="flex items-center justify-between gap-3">
             <div class="min-w-0">
@@ -360,7 +363,7 @@ new #[Title('Today')] class extends Component {
                 </div>
                 <x-ui.amount :value="$dailyShown" size="lg" :tone="$forecastNegative ? 'muted' : null" class="mt-1" />
             </div>
-            <x-ui.button variant="tonal" size="md" icon="add" x-data x-on:click="$dispatch('open-entry')" class="shrink-0 max-[360px]:px-3" :aria-label="__('Record')" data-test="daily-record"><span class="max-[360px]:sr-only">{{ __('Record') }}</span></x-ui.button>
+            <x-ui.button variant="tonal" size="md" icon="add" x-data x-on:click="$dispatch('open-entry')" class="shrink-0 max-[360px]:px-3" :aria-label="__('Record')" data-record-button-twin data-test="daily-record"><span class="max-[360px]:sr-only">{{ __('Record') }}</span></x-ui.button>
         </div>
         @if ($forecastNegative)
             <p class="mt-1.5 text-[13px] leading-snug text-muted">{{ $this->isPaydayPeriod ? __('Every further spending lowers the leftover at payday.') : __('Every further spending lowers the month-end leftover.') }}</p>

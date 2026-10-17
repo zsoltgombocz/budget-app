@@ -45,7 +45,8 @@ function measureUndoToast(string $theme): string
 it('shows a toast with undo on one row right above the tab bar, with the record button out of the way', function (string $theme, int $width, int $height): void {
     $this->actingAs(onboardedUser());
 
-    $page = visit(route('dashboard'))->on()->mobile()->resize($width, $height);
+    // On the plan: on Today the + already stays away while the card's own Record button is on screen.
+    $page = visit(route('plan'))->on()->mobile()->resize($width, $height);
 
     expect($page->script(measureUndoToast($theme)))->toBe([
         'oneRow' => true,
