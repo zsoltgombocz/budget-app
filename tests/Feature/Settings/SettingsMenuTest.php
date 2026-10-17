@@ -31,3 +31,25 @@ it('saves notification settings right away', function (): void {
     expect($settings->reminder_time)->toStartWith('21:30')
         ->and($settings->due_reminder_enabled)->toBeFalse();
 });
+
+it('has no back arrow on the settings tab itself', function (): void {
+    $this->actingAs(onboardedUser());
+
+    $this->get(route('settings'))->assertOk()->assertDontSee('data-test="settings-back"', false)->assertSee(route('changelog', ['honnan' => 'beallitasok']));
+});
+
+it('goes back to settings from What’s new opened there, and closes to Today otherwise', function (): void {
+    $this->actingAs(onboardedUser());
+
+    $this->get(route('changelog', ['honnan' => 'beallitasok']))->assertSee('data-test="settings-back"', false);
+    $this->get(route('changelog'))->assertDontSee('data-test="settings-back"', false)->assertSee(route('dashboard'));
+});
+
+it('lists the time zones in words with Budapest first', function (): void {
+    $this->actingAs(onboardedUser(['locale' => 'hu']));
+    app()->setLocale('hu');
+
+    $this->get(route('appearance.edit'))
+        ->assertSeeInOrder(['Budapest (közép-európai idő)', 'Minden időzóna', 'Europe / Vienna'])
+        ->assertDontSee('>Europe/Vienna<', false);
+});

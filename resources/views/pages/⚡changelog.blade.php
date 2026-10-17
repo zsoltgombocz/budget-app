@@ -8,12 +8,20 @@ new #[Title('What’s new')] class extends Component {
     //
 }; ?>
 
+@php
+    // Opened from Settings it is one of its pages (← back there); from the new-version prompt it closes to Today.
+    $fromSettings = request()->query('honnan') === 'beallitasok';
+@endphp
 <div x-data="{ init() { try { localStorage.setItem('seen-version', @js(Changelog::version())) } catch (e) {} } }">
-    <x-ui.page-header :title="__('What’s new')" :subtitle="__('Version :version', ['version' => Changelog::version()])">
-        <x-slot name="actions">
-            <x-ui.icon-button icon="close" :href="route('dashboard')" wire:navigate :label="__('Close')" />
-        </x-slot>
-    </x-ui.page-header>
+    @if ($fromSettings)
+        <x-pages::settings.layout :heading="__('What’s new')" :subheading="__('Version :version', ['version' => Changelog::version()])" />
+    @else
+        <x-ui.page-header :title="__('What’s new')" :subtitle="__('Version :version', ['version' => Changelog::version()])">
+            <x-slot name="actions">
+                <x-ui.icon-button icon="close" :href="route('dashboard')" wire:navigate :label="__('Close')" />
+            </x-slot>
+        </x-ui.page-header>
+    @endif
 
     <div class="flex flex-col gap-3 px-4 pt-5" data-motion="stagger">
         @foreach (Changelog::all() as $entry)

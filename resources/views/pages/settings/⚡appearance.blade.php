@@ -39,6 +39,42 @@ new #[Title('Appearance settings')] class extends Component {
         }
     }
 
+    /**
+     * The time zones people here pick most, in words, Budapest first.
+     *
+     * @return array<string, string> identifier => label
+     */
+    public function commonTimezones(): array
+    {
+        return [
+            'Europe/Budapest' => __('Budapest (Central European Time)'),
+            'Europe/Bucharest' => __('Bucharest, Helsinki (Eastern European Time)'),
+            'Europe/London' => __('London, Dublin, Lisbon'),
+            'America/New_York' => __('New York (US Eastern Time)'),
+            'America/Los_Angeles' => __('Los Angeles (US Pacific Time)'),
+            'Asia/Dubai' => __('Dubai'),
+            'Australia/Sydney' => __('Sydney'),
+        ];
+    }
+
+    /**
+     * Every other time zone, readable: "Europe / Vienna".
+     *
+     * @return array<string, string>
+     */
+    public function otherTimezones(): array
+    {
+        $zones = [];
+
+        foreach (DateTimeZone::listIdentifiers() as $zone) {
+            if (! array_key_exists($zone, $this->commonTimezones())) {
+                $zones[$zone] = str_replace(['/', '_'], [' / ', ' '], $zone);
+            }
+        }
+
+        return $zones;
+    }
+
     private function user(): User
     {
         $user = Auth::user();
@@ -72,9 +108,16 @@ new #[Title('Appearance settings')] class extends Component {
             </div>
             <div class="mt-4">
                 <x-ui.select wire:model.live="timezone" :label="__('Timezone')" data-test="timezone">
-                    @foreach (DateTimeZone::listIdentifiers() as $zone)
-                        <option value="{{ $zone }}">{{ $zone }}</option>
-                    @endforeach
+                    <optgroup label="{{ __('Common') }}">
+                        @foreach ($this->commonTimezones() as $zone => $zoneLabel)
+                            <option value="{{ $zone }}">{{ $zoneLabel }}</option>
+                        @endforeach
+                    </optgroup>
+                    <optgroup label="{{ __('All time zones') }}">
+                        @foreach ($this->otherTimezones() as $zone => $zoneLabel)
+                            <option value="{{ $zone }}">{{ $zoneLabel }}</option>
+                        @endforeach
+                    </optgroup>
                 </x-ui.select>
                 <p class="mt-1.5 text-xs text-muted">{{ __('Reminders and the day boundary follow this time zone.') }}</p>
             </div>

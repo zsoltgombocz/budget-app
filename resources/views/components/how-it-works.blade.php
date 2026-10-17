@@ -28,7 +28,7 @@
             }
         },
      }">
-    <x-ui.sheet show="intro" close="closeIntro()" :label="__('How it works')" :full="false" data-test="how-it-works">
+    <x-ui.sheet show="intro" close="closeIntro()" :label="__('How it works')" :close-label="__('Got it')" :full="false" data-test="how-it-works">
         @foreach ($cards as $index => $card)
             <div x-show="page === {{ $index }}" class="flex flex-col items-center px-4 pb-2 pt-6 text-center" data-test="intro-card">
                 <x-ui.icon-tile :icon="$card['icon']" tone="accent" :size="56" />
