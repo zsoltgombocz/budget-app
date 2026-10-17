@@ -112,17 +112,28 @@ new class extends Component {
                 <x-ui.button type="submit" class="w-full" data-test="login-code-submit">{{ __('Sign in') }}</x-ui.button>
             </form>
 
-            <p class="text-[13px] leading-snug text-pretty text-muted" data-test="magic-link-note">{{ __('If :email has an account, we sent a 6-digit code. It works for :minutes minutes. Look in the spam folder too.', ['email' => app()->getLocale() === 'hu' ? Hungarian::withArticle($sentTo) : $sentTo, 'minutes' => SendMagicLink::MINUTES]) }}</p>
-
-            <x-ui.button variant="text" size="md" wire:click="again">{{ __('Use another email') }}</x-ui.button>
+            {{-- Two lines up front; the rest only for whoever is still waiting for the email. --}}
+            <div x-data="{ help: false, resent: false }" x-on:magic-link-step.window="resent = help && $event.detail.sent" class="flex flex-col">
+                <p class="text-[13px] leading-snug text-pretty text-muted" data-test="magic-link-note">{{ __('If :email has an account, we sent a 6-digit code to it.', ['email' => app()->getLocale() === 'hu' ? Hungarian::withArticle($sentTo) : $sentTo]) }}</p>
+                <div x-show="help" x-cloak class="mt-2 text-[13px] leading-snug text-pretty text-muted" data-test="magic-link-help">
+                    {{ __('Look in the spam folder too. The code works for :minutes minutes; if it has expired, ask for a new one.', ['minutes' => SendMagicLink::MINUTES]) }}
+                    <span x-show="resent" x-cloak class="mt-1 block text-ink-2" role="status" data-test="magic-link-resent">{{ __('We sent a new code.') }}</span>
+                    @error('email')<span class="mt-1 block text-danger" role="alert">{{ $message }}</span>@enderror
+                </div>
+                <div class="-mx-2 mt-2 flex flex-wrap items-center justify-between gap-x-2">
+                    <x-ui.button variant="text" size="sm" x-show="! help" x-on:click="help = true" data-test="magic-link-not-received">{{ __('Didn’t get it?') }}</x-ui.button>
+                    <x-ui.button variant="text" size="sm" x-show="help" x-cloak x-on:click="resent = false; $wire.send()" wire:loading.attr="disabled" wire:target="send" data-test="magic-link-resend">{{ __('Send a new code') }}</x-ui.button>
+                    <x-ui.button variant="text" size="sm" wire:click="again" data-test="magic-link-again">{{ __('Use another email') }}</x-ui.button>
+                </div>
+            </div>
         </div>
     @else
         {{-- novalidate: our Hungarian message instead of the browser's English bubble. --}}
         <form wire:submit="send" class="flex flex-col gap-4" novalidate>
             @if ($register)
-                <flux:input wire:model="name" :label="__('Name')" type="text" required autocomplete="name" />
+                <x-ui.input wire:model="name" :label="__('Name')" type="text" required autocomplete="name" :error="$errors->first('name')" />
             @endif
-            <flux:input wire:model="email" :label="__('Email address')" type="email" required autocomplete="email" inputmode="email" placeholder="{{ __('name@example.com') }}" data-test="magic-link-email" />
+            <x-ui.input wire:model="email" :label="__('Email address')" type="email" required autocomplete="email" inputmode="email" :placeholder="__('name@example.com')" :error="$errors->first('email')" data-test="magic-link-email" />
             <x-ui.button type="submit" wire:loading.attr="disabled" class="w-full" data-test="magic-link-send">
                 {{ $register ? __('Create account') : __('Email me a sign-in code') }}
             </x-ui.button>

@@ -177,7 +177,7 @@ it('names the address with the right Hungarian article and hides the invite note
     Livewire::test('auth.magic-link-form')
         ->set('email', 'anna@example.com')
         ->call('send')
-        ->assertSee('Ha az anna@example.com címhez tartozik fiók, elküldtük rá a 6 jegyű kódot.');
+        ->assertSee('Ha az anna@example.com címhez tartozik fiók, küldtünk rá egy 6 jegyű kódot.');
 
     config(['budget.registration_open' => false]);
     $this->get(route('login'))->assertSee('x-show="! codeSent" data-test="invite-only"', false);
@@ -190,7 +190,24 @@ test('the email comes first, the passkey below it as the quick way back in', fun
         ->assertSeeInOrder(['data-test="magic-link-email"', 'data-test="login-passkey"'], false)
         ->assertSee('placeholder="nev@pelda.hu"', false)
         ->assertSee('novalidate', false)
-        ->assertSee('Gyors belépés Face ID-val vagy ujjlenyomattal');
+        ->assertSee('Belépés passkey-vel')
+        ->assertSee('Face ID, ujjlenyomat vagy a telefonod képernyőzára.')
+        ->assertDontSee('data-test="install-card"', false)
+        ->assertSee('data-test="install-link"', false);
+});
+
+test('a code that did not arrive can be sent again from the code step', function (): void {
+    Notification::fake();
+    $user = User::factory()->create();
+
+    Livewire::test('auth.magic-link-form')
+        ->set('email', $user->email)
+        ->call('send')
+        ->assertSeeHtmlInOrder(['data-test="magic-link-not-received"', 'data-test="magic-link-resend"', 'data-test="magic-link-again"'])
+        ->call('send')
+        ->assertHasNoErrors()
+        ->assertDispatched('magic-link-step', sent: true)
+        ->assertSet('sentTo', $user->email);
 });
 
 test('a mistyped address gets our own message', function (): void {

@@ -1173,5 +1173,11 @@
     "Into pockets": "Perselyekbe",
     "monthly saving": "havi gyűjtés",
     "from the leftover": "a maradékból",
-    "deficit covered": "hiány fedezése"
+    "deficit covered": "hiány fedezése",
+    "Face ID, fingerprint or your phone’s screen lock.": "Face ID, ujjlenyomat vagy a telefonod képernyőzára.",
+    "If :email has an account, we sent a 6-digit code to it.": "Ha :email címhez tartozik fiók, küldtünk rá egy 6 jegyű kódot.",
+    "Look in the spam folder too. The code works for :minutes minutes; if it has expired, ask for a new one.": "Nézd meg a spam mappát is. A kód :minutes percig érvényes; ha lejárt, kérj újat.",
+    "We sent a new code.": "Küldtünk egy új kódot.",
+    "Didn’t get it?": "Nem jött meg?",
+    "Send a new code": "Új kód küldése"
 }
