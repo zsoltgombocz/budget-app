@@ -32,3 +32,28 @@ it('keeps the code step on a 320 px screen, its two quiet actions on one row', f
 
     expect($result)->toBe(['noSideScroll' => true, 'oneRow' => true]);
 });
+
+it('keeps the code step title on one line at 320 px and the card where it was', function (): void {
+    config(['app.locale' => 'hu']);
+    User::factory()->create(['email' => 'anna@example.com']);
+
+    $page = visit(route('login'))->on()->mobile()->resize(320, 568)
+        ->assertSee('Belépés');
+
+    $result = $page->script('async () => {
+        const card = () => document.querySelector("[data-test=login-intro]").closest(".rounded-card").getBoundingClientRect().top
+        const before = card()
+        const form = Livewire.all().find(component => component.name === "auth.magic-link-form").$wire
+        form.email = "anna@example.com"
+        await form.send()
+        await new Promise(resolve => setTimeout(resolve, 300))
+        const title = document.querySelector("[data-test=magic-link-sent] label > span")
+        return {
+            oneLine: title.getBoundingClientRect().height < parseFloat(getComputedStyle(title).lineHeight) * 1.5,
+            noJump: Math.abs(card() - before) <= 0.5,
+        }
+    }');
+
+    expect($result)->toBe(['oneLine' => true, 'noJump' => true]);
+    $page->assertSee('Nézd meg a postafiókod');
+});

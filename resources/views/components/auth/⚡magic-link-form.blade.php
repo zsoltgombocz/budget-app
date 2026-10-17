@@ -101,7 +101,7 @@ new class extends Component {
         <div class="flex flex-col gap-4" data-test="magic-link-sent">
             <form wire:submit="verify" class="flex flex-col gap-3">
                 <label class="block">
-                    <span class="mb-3 flex items-center gap-2.5 text-[22px] font-semibold leading-tight tracking-[-0.02em]"><x-ui.icon name="mark_email_read" :size="26" class="text-accent" />{{ __('Check your inbox') }}</span>
+                    <span class="mb-3 flex items-center gap-2.5 text-[22px] font-semibold leading-tight tracking-[-0.02em] max-[359.98px]:text-[19px] max-[359.98px]:tracking-[-0.03em]"><x-ui.icon name="mark_email_read" :size="26" class="shrink-0 text-accent max-[359.98px]:hidden" />{{ __('Check your inbox') }}</span>
                     <span class="mb-1.5 block text-[13px] text-muted">{{ __('Code from the email') }}</span>
                     <input type="text" wire:model="code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" pattern="[0-9 ]*" autofocus
                            x-on:input="if ($event.target.value.replace(/\D/g, '').length === 6) $wire.verify()"

@@ -6,7 +6,8 @@
     <body class="min-h-dvh bg-bg font-sans text-ink antialiased">
         <x-splash />
         <div id="status-shield" aria-hidden="true"></div>
-        <div class="flex min-h-dvh flex-col items-center justify-center gap-6 px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-[calc(1.5rem+var(--safe-top))]">
+        {{-- Centred, except on a 320 px phone: there the card starts at the top, so it does not jump when the code step makes it shorter. --}}
+        <div class="flex min-h-dvh flex-col items-center justify-center gap-6 max-[359.98px]:justify-start px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-[calc(1.5rem+var(--safe-top))]">
             <div class="flex w-full max-w-sm flex-col gap-6">
                 <a href="{{ route('home') }}" class="flex items-center gap-3" wire:navigate>
                     <span class="flex size-12 items-center justify-center rounded-2xl bg-accent text-accent-ink">
@@ -14,7 +15,7 @@
                     </span>
                     <span class="text-xl font-semibold tracking-[-0.02em]">{{ config('app.name', 'Laravel') }}</span>
                 </a>
-                <div class="flex flex-col gap-6 rounded-card bg-surface p-6">
+                <div class="flex flex-col gap-6 rounded-card bg-surface p-6 max-[359.98px]:p-5">
                     {{ $slot }}
                 </div>
                 {{-- Before signing in only a quiet link to the install guide: the card would pull focus from the form. Hidden once the app runs installed. --}}

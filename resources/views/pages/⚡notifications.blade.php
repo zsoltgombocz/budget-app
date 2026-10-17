@@ -69,7 +69,7 @@ new #[Title('Notifications')] #[Layout('layouts::app', ['tabs' => false])] class
      }">
     <div class="px-6 pt-10">
         <x-ui.icon-tile icon="notifications" tone="accent" :size="60" :fill="true" />
-        <h1 class="mt-5 text-[30px] font-semibold leading-[1.12] tracking-[-0.03em] text-pretty">{{ __('Ten seconds a day and the month stays in order') }}</h1>
+        <h1 class="mt-5 text-[30px] font-semibold leading-[1.12] tracking-[-0.03em] text-balance">{{ __('Ten seconds a day and the month stays in order') }}</h1>
         <p class="mt-3 text-[15px] leading-normal text-pretty text-muted">{{ __('We nudge you once in the evening if you have not recorded anything that day. One tap: write down the spending or say you did not spend.') }}</p>
     </div>
 
