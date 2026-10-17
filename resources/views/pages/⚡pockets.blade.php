@@ -543,7 +543,7 @@ new #[Title('Pockets and loans')] class extends Component {
         @endforeach
     </section>
 
-    {{-- Loans: their own section, outlined cards (a debt, not a saving) --}}
+    {{-- Loans: their own section, surface cards like the pockets above --}}
     <section class="mt-3" data-test="loans-section">
         <x-ui.section-header :title="__('Loans')" :subtitle="__('What you owe and what you pay every month.')">
             <x-slot:actions>
@@ -564,7 +564,7 @@ new #[Title('Pockets and loans')] class extends Component {
                 // Once the prepayment pocket reached its step, recording the prepayment is the card's main action.
                 $prepayReady = $fund !== null && $fund->hasReachedPrepayStep();
             @endphp
-            <div class="mx-4 mb-3 rounded-card border border-line p-[18px]" wire:key="loan-{{ $loan->id }}" data-test="loan-{{ $loan->id }}">
+            <div class="mx-4 mb-3 rounded-card bg-surface p-[18px]" wire:key="loan-{{ $loan->id }}" data-test="loan-{{ $loan->id }}">
                 <button type="button" x-on:click="openLoan({{ $loan->id }})" class="focus-ring flex w-full items-center gap-3 rounded-control text-left" data-test="edit-loan-{{ $loan->id }}">
                     <x-ui.icon-tile icon="account_balance" />
                     <span class="min-w-0 flex-1">
