@@ -319,10 +319,10 @@ new class extends Component {
                     <div class="no-scrollbar -mx-4 mt-[clamp(8px,1.6dvh,14px)] flex shrink-0 gap-2 overflow-x-auto px-4" data-test="category-grid">
                         <template x-for="category in categories" :key="category.id">
                             <button type="button" x-on:click="pick(category.id)" :disabled="busy" :aria-pressed="category.id === categoryId ? 'true' : 'false'"
-                                    class="focus-ring flex h-[clamp(52px,8.2dvh,70px)] min-w-[calc((100%-32px)/5)] flex-1 flex-col items-center justify-center gap-[clamp(2px,0.7dvh,6px)] rounded-btn border-[1.5px] px-1 transition active:scale-95"
+                                    class="focus-ring flex min-h-[clamp(56px,8.2dvh,70px)] min-w-[max(78px,calc((100%-32px)/5))] flex-1 flex-col items-center justify-center gap-[clamp(2px,0.6dvh,5px)] rounded-btn border-[1.5px] px-1 py-1.5 transition active:scale-95"
                                     :class="category.id === categoryId ? 'border-accent bg-accent/14 text-accent' : 'border-transparent bg-surface-2 text-ink-2'">
                                 <span class="ms" style="font-size:24px;width:24px;height:24px" x-text="category.icon" aria-hidden="true"></span>
-                                <span class="max-w-full truncate text-xs font-medium" x-text="category.name"></span>
+                                <span class="line-clamp-2 max-w-full text-center text-xs font-medium leading-tight break-words hyphens-auto" x-text="category.name"></span>
                             </button>
                         </template>
                     </div>
@@ -356,10 +356,11 @@ new class extends Component {
 
                 <div class="mt-[clamp(6px,1.4dvh,12px)] flex shrink-0 items-center gap-3">
                     @unless ($spentToday)
+                        {{-- A text button (x-ui.button text) sized with the sheet's height-scaled footer. --}}
                         <button type="button" x-on:click="noSpend()" :disabled="busy"
-                                class="focus-ring flex h-[clamp(46px,7dvh,56px)] items-center gap-1 rounded-lg px-1.5 text-sm font-medium underline decoration-ink/25 underline-offset-[3px]"
+                                class="focus-ring -ml-2 flex h-[clamp(46px,7dvh,56px)] shrink-0 items-center gap-1.5 rounded-control px-2 text-[15px] font-medium transition hover:bg-ink/6 active:bg-ink/6"
                                 :class="$wire.noSpendMarked ? 'text-accent' : 'text-ink-2'" data-test="no-spend">
-                            <span x-show="$wire.noSpendMarked" class="ms" style="font-size:18px;width:18px;height:18px" aria-hidden="true">check</span>
+                            <span class="ms" style="font-size:20px;width:20px;height:20px" x-text="$wire.noSpendMarked ? 'check_circle' : 'do_not_disturb_on'" aria-hidden="true">do_not_disturb_on</span>
                             <span x-text="$wire.noSpendMarked ? @js(__('Marked · undo')) : @js(__("I didn't spend today"))"></span>
                         </button>
                     @endunless

@@ -2,6 +2,7 @@
 
 use App\Models\Category;
 use App\Models\Transaction;
+use App\Services\PeriodCloser;
 use App\Services\PeriodService;
 
 beforeEach(function (): void {
@@ -89,4 +90,23 @@ it('titles the edit sheet with the category picked before saving', function (): 
         ->select('[data-test="edit-category"]', 'Groceries')
         ->assertSeeIn('[data-test="transaction-sheet"] [data-test="sheet-title"]', 'Groceries')
         ->assertNoJavaScriptErrors();
+});
+
+it('fits an open and a closed month with seven-digit amounts on a 320 px phone, names never squeezed', function (): void {
+    $previous = resolve(PeriodService::class)->forDate($this->user, now()->subMonth());
+    $groceries = Category::query()->where('name', 'Groceries')->firstOrFail();
+    $groceries->update(['name' => 'Groceries and household shopping']);
+    Transaction::factory()->for($this->user)->for($previous)->for($groceries)->create(['amount' => 1_234_567, 'occurred_on' => $previous->starts_on]);
+    Transaction::factory()->for($this->user)->for(resolve(PeriodService::class)->current($this->user))->for($groceries)->create(['amount' => 2_345_678]);
+    resolve(PeriodCloser::class)->close($this->user, $previous, $previous->income());
+
+    $noSideScroll = '() => document.documentElement.scrollWidth <= window.innerWidth';
+
+    $page = visit(route('month'))->on()->mobile()->resize(320, 568)->assertSee('2,345,678');
+    expect($page->script($noSideScroll))->toBeTrue();
+
+    $page = visit(route('month', ['periodus' => $previous->id]))->on()->mobile()->resize(320, 568)->assertSee('Groceries and household shopping');
+    expect($page->script($noSideScroll))->toBeTrue()
+        ->and($page->script("() => document.querySelector('[data-test=closed-breakdown] [role=rowheader]').getBoundingClientRect().width > 200"))->toBeTrue();
+    $page->assertNoJavaScriptErrors();
 });

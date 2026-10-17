@@ -30,22 +30,21 @@
     ];
 @endphp
 
-<div {{ $attributes->class(['flex items-center gap-1', 'opacity-60' => $item->paid]) }} data-test="fixed-item-row" data-status="{{ $status->value }}">
+<div {{ $attributes->class(['@container flex items-center gap-1', 'opacity-60' => $item->paid]) }} data-test="fixed-item-row" data-status="{{ $status->value }}">
     <button type="button"
             @if ($skipped && $options) x-on:click="$dispatch('open-fixed-item', @js($detail))" aria-haspopup="dialog"
             @else role="checkbox" aria-checked="{{ $item->paid ? 'true' : 'false' }}" wire:click="togglePaid({{ $lineId }})" @endif
             @disabled(! $open)
-            class="focus-ring grid min-h-14 min-w-0 flex-1 grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-3 rounded-xl py-[11px] text-left" data-test="fixed-item">
+            class="focus-ring grid min-h-14 min-w-0 flex-1 grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-x-3 rounded-xl py-[11px] text-left @max-[300px]:gap-x-2.5" data-test="fixed-item">
         @if ($item->paid)
-            <span class="flex size-6 items-center justify-center rounded-full bg-accent/16 text-accent" aria-hidden="true"><x-ui.icon name="check" :size="16" :weight="600" /></span>
+            <span class="row-span-2 flex size-6 items-center justify-center rounded-full bg-accent/16 text-accent" aria-hidden="true"><x-ui.icon name="check" :size="16" :weight="600" /></span>
         @elseif ($skipped)
-            <span class="flex size-6 items-center justify-center rounded-full bg-surface-3 text-muted" aria-hidden="true"><x-ui.icon name="remove" :size="16" :weight="600" /></span>
+            <span class="row-span-2 flex size-6 items-center justify-center rounded-full bg-surface-3 text-muted" aria-hidden="true"><x-ui.icon name="remove" :size="16" :weight="600" /></span>
         @else
-            <span @class(['size-6 rounded-full border-[1.5px]', 'border-warn' => $overdue, 'border-faint' => ! $overdue]) aria-hidden="true" data-test="fixed-item-ring"></span>
+            <span @class(['row-span-2 size-6 rounded-full border-[1.5px]', 'border-warn' => $overdue, 'border-faint' => ! $overdue]) aria-hidden="true" data-test="fixed-item-ring"></span>
         @endif
-        <span class="min-w-0">
-            <span @class(['block truncate text-[15px] font-medium', 'text-ink-2' => $item->paid, 'text-muted' => $skipped])>{{ $item->line->categoryName }}</span>
-            <span @class(['mt-0.5 line-clamp-2 text-xs leading-snug', 'text-warn' => $overdue, 'text-muted' => ! $overdue]) data-test="fixed-item-state">
+        <span @class(['col-start-2 row-start-1 min-w-0 truncate text-[15px] font-medium @max-[300px]:col-end-4', 'text-ink-2' => $item->paid, 'text-muted' => $skipped])>{{ $item->line->categoryName }}</span>
+            <span @class(['col-start-2 row-start-2 mt-0.5 line-clamp-2 min-w-0 text-xs leading-snug', 'text-warn' => $overdue, 'text-muted' => ! $overdue]) data-test="fixed-item-state">
                 @if ($item->paid)
                     {{ $isTransfer ? __('Transferred this month') : __('Paid this month') }}
                 @elseif ($skipped)
@@ -54,7 +53,8 @@
                     @if ($item->dueOn->isSameDay($today))
                         {{ __('Due today') }}
                     @else
-                        {{ $overdue ? __('was due :date', ['date' => \App\Support\Dates::short($item->dueOn)]) : __('due :date', ['date' => \App\Support\Dates::short($item->dueOn)]) }}
+                        {{-- The date never breaks in two when the line wraps on a narrow phone. --}}
+                        {!! str_replace('@@', '<span class="whitespace-nowrap">'.e(\App\Support\Dates::short($item->dueOn)).'</span>', e($overdue ? __('was due :date', ['date' => '@@']) : __('due :date', ['date' => '@@']))) !!}
                     @endif
                 @elseif ($isSaving)
                     {{ __('Monthly saving, goes into the pocket at closing') }}
@@ -64,8 +64,7 @@
                     {{ __('Tap once you have paid it') }}
                 @endif
             </span>
-        </span>
-        <span>
+        <span class="col-start-3 row-span-2 row-start-1 self-center @max-[300px]:row-span-1 @max-[300px]:row-start-2 @max-[300px]:self-start">
             <x-ui.amount size="sm" :value="$item->line->planned()" @class(['text-[15px] font-semibold', 'text-muted line-through' => $skipped]) />
             @if ($skipped)<span class="sr-only">{{ __('counts as 0') }}</span>@endif
         </span>

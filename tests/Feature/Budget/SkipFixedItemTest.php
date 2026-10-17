@@ -134,13 +134,13 @@ it('closes with the skipped item as planned against 0 and a bigger leftover', fu
     expect($row)->toMatchArray(['planned' => 4_990, 'actual' => 0, 'diff' => -4_990, 'skipped' => true])
         ->and($preview->leftover())->toBe($before + 4_990);
 
-    $this->get(route('close', $this->period))->assertOk()->assertSeeInOrder(['PS Plus', 'data-test="skipped-row"', __('skipped')], false);
+    $this->get(route('close', $this->period))->assertOk()->assertSeeInOrder(['PS Plus', 'data-test="plan-actual-note"', __('skipped')], false);
 
     $close = $closer->close($this->user, $this->period);
     expect($close->breakdown['categories'])->toContain([...$row]);
 
     Livewire::test('pages::month', ['periodId' => $this->period->id])
-        ->assertSeeHtmlInOrder(['data-test="closed-breakdown"', 'PS Plus', 'data-test="skipped-row"']);
+        ->assertSeeHtmlInOrder(['data-test="closed-breakdown"', 'data-test="skipped-row"', 'PS Plus', 'not paid']);
 });
 
 it('does not remind about a skipped item that is due today', function (): void {

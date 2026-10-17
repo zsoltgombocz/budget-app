@@ -63,8 +63,9 @@ it('shows what the month would leave if it ended today, and how far it is from t
 
     $this->get(route('month'))
         ->assertOk()
-        ->assertSeeInOrder(['data-test="close-now"', 'If the month ended today', money_number($preview->leftover()),
-            'data-test="plan-deviation-verdict"', money(15_000).' over the plan', 'Fuel over budget', '−'.money(15_000), 'Variable spending so far'], false);
+        // The reasons sit in the "i" sheet next to the label, the verdict is a badge next to the figure.
+        ->assertSeeInOrder(['data-test="close-now"', 'If the month ended today', 'data-test="explainer-month-leftover"', 'Fuel over budget', '−'.money(15_000), 'Against the plan',
+            money_number($preview->leftover()), 'data-test="plan-deviation-verdict"', money(15_000).' over the plan', 'Variable spending so far'], false);
 });
 
 it('says the month is on plan while every budget holds, also early in the month', function (): void {
@@ -88,7 +89,7 @@ it('counts a skipped fixed item and pocket moves as the reasons the month is bet
     expect($deviation->amount())->toBe(200_000 - 10_000 + 5_000);
 
     Livewire::test('pages::month')
-        ->assertSeeInOrder([money(195_000).' better than the plan', 'Rent skipped', '+'.money(200_000), 'Put into pockets', '−'.money(10_000), 'From pockets into the budget', '+'.money(5_000)])
+        ->assertSeeInOrder(['Rent skipped', '+'.money(200_000), 'Put into pockets', '−'.money(10_000), 'From pockets into the budget', '+'.money(5_000), 'Against the plan', '+'.money(195_000), money(195_000).' better than the plan'])
         // Both moves are rows of the day list too.
         ->assertSeeHtmlInOrder(['data-test="pocket-move"', 'From pockets into the budget', 'Holiday', 'Concert', '+'.money(5_000), 'data-test="pocket-move"', 'Put into pockets', 'Holiday', '−'.money(10_000)]);
 });
@@ -224,7 +225,8 @@ it('shows plan against actual per category on a closed month, with the overspend
         ->test('pages::month')
         ->assertSee('Variable spending total')
         ->assertSee(money(20_000).' over the budget')
-        ->assertSeeInOrder(['data-test="closed-breakdown"', '<table', 'scope="col"', 'data-test="over-budget-row"', 'scope="row"', 'Fuel', 'over the budget by '.money(50_000), money_number(60_000), money_number(110_000), '+'.money_number(50_000), 'Groceries', 'under the budget by '.money(30_000), money_number(-30_000)], false)
+        // Neutral rows; only the deviation is coloured, with one sign everywhere: − overspent, + left.
+        ->assertSeeInOrder(['data-test="closed-breakdown"', 'role="table"', 'role="columnheader"', 'data-test="over-budget-row"', 'role="rowheader"', 'Fuel', 'over the budget by '.money(50_000), money_number(60_000), money_number(110_000), '−'.money_number(50_000), 'Groceries', 'under the budget by '.money(30_000), '+'.money_number(30_000)], false)
         ->assertSee('over the budget by '.money(50_000))
         ->assertDontSee('data-test="fixed-items"', false);
 });

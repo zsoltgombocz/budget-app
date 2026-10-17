@@ -145,8 +145,8 @@ it('rings an open fixed item with a solid line, in the warn colour once it is ov
 
     expect($rings[1])->not->toBeEmpty()
         ->and(implode(' ', $rings[1]))->not->toContain('border-dashed')
-        ->and($rings[1])->toContain('size-6 rounded-full border-[1.5px] border-warn')
-        ->and($rings[1])->toContain('size-6 rounded-full border-[1.5px] border-faint');
+        ->and($rings[1])->toContain('row-span-2 size-6 rounded-full border-[1.5px] border-warn')
+        ->and($rings[1])->toContain('row-span-2 size-6 rounded-full border-[1.5px] border-faint');
 });
 
 it('points to the plan instead of claiming income and fixed items are in when the plan is empty', function (): void {
@@ -169,7 +169,7 @@ it('leads with the leftover as things stand, the same figure as closing today', 
 
     $this->get(route('dashboard'))
         ->assertOk()
-        ->assertSeeInOrder(['Leftover as things stand', money_number($current), 'If you spend every budget in full: '.money($expected)], false);
+        ->assertSeeInOrder(['Leftover as things stand', money_number($current), 'If you spend every budget in full: ', money($expected)], false);
 });
 
 it('labels the leftover the same way in payday mode', function (): void {
@@ -210,7 +210,7 @@ it('shows the first four fixed items and the rest behind a more row', function (
 
     $component = Livewire::test('pages::today');
     expect(substr_count($component->html(), 'data-test="fixed-item"'))->toBe(4);
-    $component->assertSee('+2 more items')->assertSee('data-test="fixed-more"', false)
+    $component->assertSee('All items (6)')->assertSee('data-test="fixed-more"', false)
         ->set('showAllFixed', true);
     expect(substr_count($component->html(), 'data-test="fixed-item"'))->toBe(6);
 });
@@ -242,7 +242,8 @@ it('says a transfer due today was transferred, and the due card keeps its amount
     $line = BudgetLine::factory()->for($this->user)->for($category)->create(['amount' => 12_990, 'due_day' => 11]);
 
     $component = Livewire::test('pages::today');
-    expect($component->html())->toMatch('/<span class="truncate">Telefon és internet előfizetés<\/span>\s*<span class="num shrink-0 whitespace-nowrap" data-test="due-amount">/');
+    // Only the name truncates; the amount is its own nowrap column.
+    expect($component->html())->toMatch('/<span class="truncate text-\[15px\] font-medium">Telefon és internet előfizetés<\/span>\s*<span class="num inline-flex items-baseline whitespace-nowrap[^"]*" data-test="due-amount">/');
 
     $component->call('togglePaid', $line->id)
         ->assertDispatched('app-toast', title: __('Marked as transferred.'), undo: 'fixed-item-undo');
@@ -297,7 +298,7 @@ it('says how much of the leftover is budget not spent yet', function (): void {
 
 it('shows a category without a budget neutrally with a way to set one, not as overspending', function (): void {
     $other = Category::factory()->for($this->user)->create(['name' => 'Other', 'type' => 'variable']);
-    BudgetLine::factory()->for($this->user)->for($other)->create(['amount' => 0]);
+    $line = BudgetLine::factory()->for($this->user)->for($other)->create(['amount' => 0]);
     Transaction::factory()->for($this->user)->for($this->period)->for($other)->create(['amount' => 3_990, 'occurred_on' => '2026-10-05']);
 
     $html = Livewire::test('pages::today')->html();
@@ -305,10 +306,12 @@ it('shows a category without a budget neutrally with a way to set one, not as ov
 
     expect($row)->toContain('data-test="no-budget"')
         ->toContain('no budget')
-        ->toContain('data-test="set-budget"')
-        ->toContain(route('plan'))
         ->not->toContain('over')
         ->not->toContain('text-danger');
+
+    // One note above the rows names it and opens its plan line.
+    Livewire::test('pages::today')
+        ->assertSeeHtmlInOrder(['data-test="no-budget-note"', 'Other has no budget yet.', e(route('plan', ['tetel' => $line->id])), 'data-test="set-budget"', 'data-test="category-row"']);
 });
 
 it('keeps fixed items already paid visible and dimmed at the bottom, and says what is behind the more row', function (): void {
@@ -323,7 +326,7 @@ it('keeps fixed items already paid visible and dimmed at the bottom, and says wh
 
     // Four open items, then the paid Rent; the fifth open item folds away and is named.
     expect(substr_count($component->html(), 'data-test="fixed-item"'))->toBe(5);
-    $component->assertSeeHtmlInOrder(['data-test="fixed-items"', 'data-status="open"', 'data-status="paid"', 'Rent', 'Paid this month', 'data-test="fixed-more"', '+1 more item to tick off: Streaming'])
+    $component->assertSeeHtmlInOrder(['data-test="fixed-items"', 'data-status="open"', 'data-status="paid"', 'Rent', 'Paid this month', 'data-test="fixed-more"', 'All items (6)'])
         ->assertSeeHtml('opacity-60');
 });
 

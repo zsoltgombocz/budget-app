@@ -19,10 +19,10 @@ final class Icons
         'local_pharmacy', 'spa', 'content_cut', 'checkroom', 'local_laundry_service', 'cleaning_services',
         'handyman', 'card_giftcard', 'redeem', 'celebration', 'flight', 'beach_access', 'park', 'subscriptions',
         'cloud', 'receipt', 'credit_card', 'account_balance', 'payments', 'savings', 'shield', 'trending_down',
-        'show_chart', 'work', 'group', 'favorite', 'volunteer_activism', 'more_horiz',
+        'show_chart', 'work', 'group', 'favorite', 'volunteer_activism', 'category',
     ];
 
-    public const string FALLBACK = 'more_horiz';
+    public const string FALLBACK = 'category';
 
     /**
      * What each category icon shows, in words (translation keys), for screen readers.
@@ -86,11 +86,11 @@ final class Icons
         'group' => 'People',
         'favorite' => 'Heart',
         'volunteer_activism' => 'Donation',
-        'more_horiz' => 'Three dots',
+        'category' => 'Shapes',
     ];
 
     /**
-     * Heroicons names used before the redesign → Material Symbols.
+     * Icon names used before (Heroicons, retired Material Symbols) → the current Material Symbols.
      *
      * @var array<string, string>
      */
@@ -101,13 +101,15 @@ final class Icons
         'shopping-cart' => 'shopping_basket',
         'truck' => 'directions_car',
         'film' => 'movie',
-        'ellipsis-horizontal' => 'more_horiz',
+        'ellipsis-horizontal' => 'category',
         'shield-check' => 'shield',
         'banknotes' => 'account_balance',
         'arrow-trending-down' => 'trending_down',
         'users' => 'group',
         'heart' => 'favorite',
-        'tag' => 'more_horiz',
+        'tag' => 'category',
+        // The "Other" icon until 2026-10: three dots looked like an options button.
+        'more_horiz' => 'category',
     ];
 
     /**

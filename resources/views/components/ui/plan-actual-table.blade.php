@@ -11,7 +11,8 @@
     Plan against actual, one row per category (the closed Month, Close step 1). Neutral rows
     divided by lines; only the deviation number is coloured. An ARIA table on a CSS grid with
     subgrid rows, so every column is as wide as its widest number in all rows (right-aligned,
-    tabular). In a narrow container (under ~340px) the name takes its own line above the numbers.
+    tabular). In a narrow container (under ~340px) the name takes its own line above the numbers;
+    with a seven-digit amount anywhere that happens under ~480px, so names are never squeezed.
 
     rows: list of [
         'name' => string,
@@ -55,14 +56,21 @@
         default => $positiveTone === 'ink' ? 'text-ink' : 'text-accent',
     };
     $noteTones = ['danger' => 'text-danger', 'warn' => 'text-warn', 'muted' => 'text-muted'];
+    // Three seven-digit columns leave a name no room on a phone: stack earlier when any number is that long.
+    $amounts = collect([...$rows, ...($total ? [$total] : [])])
+        ->flatMap(fn (array $row): array => [$row['planned'], $row['actual'], $row['deviation'] ?? ($row['planned'] - $row['actual'])]);
+    $long = $amounts->contains(fn ($amount): bool => mb_strlen(money_number(abs((int) $amount))) >= 9);
+    $layout = $long
+        ? ['table' => '@min-[480px]:grid-cols-[minmax(0,1fr)_repeat(3,minmax(3.5rem,max-content))]', 'name' => '@min-[480px]:col-span-1', 'header' => '@min-[480px]:not-sr-only @min-[480px]:text-left']
+        : ['table' => '@min-[340px]:grid-cols-[minmax(0,1fr)_repeat(3,minmax(3.5rem,max-content))]', 'name' => '@min-[340px]:col-span-1', 'header' => '@min-[340px]:not-sr-only @min-[340px]:text-left'];
     $rowClass = 'col-span-full grid grid-cols-subgrid items-baseline gap-y-0.5 px-2.5';
-    $nameClass = 'col-span-full min-w-0 @min-[340px]:col-span-1';
+    $nameClass = 'col-span-full min-w-0 '.$layout['name'];
 @endphp
 
 <div {{ $attributes->class(['@container', 'rounded-card bg-surface px-2 py-1.5' => $card]) }}>
-    <div role="table" aria-label="{{ $caption }}" class="num grid grid-cols-3 gap-x-3 text-sm @min-[340px]:grid-cols-[minmax(0,1fr)_repeat(3,minmax(3.5rem,max-content))]">
+    <div role="table" aria-label="{{ $caption }}" class="num grid grid-cols-3 gap-x-3 text-sm {{ $layout['table'] }}">
         <div role="row" class="{{ $rowClass }} pb-1.5 pt-2.5 text-xs font-semibold text-muted">
-            <span role="columnheader" class="sr-only @min-[340px]:not-sr-only @min-[340px]:text-left">{{ $labels['name'] }}</span>
+            <span role="columnheader" class="sr-only {{ $layout['header'] }}">{{ $labels['name'] }}</span>
             <span role="columnheader" class="text-right">{{ $labels['planned'] }}</span>
             <span role="columnheader" class="text-right">{{ $labels['actual'] }}</span>
             <span role="columnheader" class="text-right">{{ $labels['deviation'] }}</span>

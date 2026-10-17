@@ -162,3 +162,33 @@ it('leaves room under the last row so the record button covers nothing at the en
     'Plan 320' => ['plan', 320, 568],
     'Pockets 320' => ['pockets', 320, 568],
 ]);
+
+it('opens the due items as list rows with one tonal and one text action, and leaves the fixed item names room on a 320 px phone', function (): void {
+    $user = onboardedUser();
+    BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail()->update(['due_day' => 1]);
+    $phone = Category::factory()->for($user)->create(['name' => 'Telephone and internet service', 'type' => 'fixed']);
+    BudgetLine::factory()->for($user)->for($phone)->create(['amount' => 1_234_567, 'due_day' => 28]);
+    $this->actingAs($user);
+
+    $page = visit(route('dashboard'))->on()->mobile()->resize(320, 568);
+    $page->click('[data-test="due-summary"]')->assertVisible('[data-test="mark-due-done"]');
+
+    $layout = $page->script(<<<'JS'
+        () => {
+            const item = document.querySelector('[data-test="due-item"]')
+            const done = item.querySelector('[data-test="mark-due-done"]')
+            const skip = item.querySelector('[data-test="skip-due"]')
+            const name = [...document.querySelectorAll('[data-test="fixed-item"] > span')].find(span => span.textContent.includes('Telephone'))
+            return {
+                done: done.dataset.variant,
+                skip: skip.dataset.variant,
+                doneFirst: done.getBoundingClientRect().top <= skip.getBoundingClientRect().top,
+                nameRoom: name.getBoundingClientRect().width >= 150,
+                noSideScroll: document.documentElement.scrollWidth <= window.innerWidth,
+            }
+        }
+    JS);
+
+    expect($layout)->toBe(['done' => 'tonal', 'skip' => 'text', 'doneFirst' => true, 'nameRoom' => true, 'noSideScroll' => true]);
+    $page->assertNoJavaScriptErrors();
+});

@@ -18,6 +18,10 @@ new class extends Component {
     #[Locked]
     public int $periodId;
 
+    /** How the button looks: 'secondary' on the Month page, 'text' under the closing summary (one primary there already). */
+    #[Locked]
+    public string $variant = 'secondary';
+
     /**
      * The confirmation for window.appConfirm, or null with the reason in the "reopen" error.
      *
@@ -72,14 +76,20 @@ new class extends Component {
             this.busy = true
             try {
                 const dialog = await $wire.dialog()
-                if (dialog && await window.appConfirm(dialog)) await $wire.reopen()
+                if (dialog && await window.appConfirm({ ...dialog, icon: 'undo' })) await $wire.reopen()
             } finally {
                 this.busy = false
             }
         },
      }">
     @if ($this->offered)
-        <x-ui.button variant="secondary" size="md" icon="undo" class="mt-3 w-full" x-on:click="undoClosing()" x-bind:disabled="busy" data-test="reopen-closing">{{ __('Undo the closing') }}</x-ui.button>
+        @if ($variant === 'text')
+            <div class="mt-3 flex justify-center">
+                <x-ui.button variant="text" size="md" icon="undo" x-on:click="undoClosing()" x-bind:disabled="busy" data-test="reopen-closing">{{ __('Undo the closing') }}</x-ui.button>
+            </div>
+        @else
+            <x-ui.button variant="secondary" size="md" icon="undo" class="mt-3 w-full" x-on:click="undoClosing()" x-bind:disabled="busy" data-test="reopen-closing">{{ __('Undo the closing') }}</x-ui.button>
+        @endif
         @error('reopen')
             <div class="mt-2 px-1 text-xs text-pretty text-danger" role="alert" data-test="reopen-error">{{ $message }}</div>
         @enderror

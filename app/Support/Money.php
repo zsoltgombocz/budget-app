@@ -101,7 +101,8 @@ final readonly class Money implements JsonSerializable, Stringable
         $formatted = $formatter->formatCurrency($this->amount / $this->currency->minorPerMajor(), $this->currency->value);
 
         // ICU uses narrow no-break spaces as group separators; normalise to a plain no-break space.
-        return str_replace("\u{202F}", "\u{00A0}", (string) $formatted);
+        // A negative amount gets a real minus sign (U+2212), not ICU's hyphen.
+        return str_replace(["\u{202F}", '-'], ["\u{00A0}", "\u{2212}"], (string) $formatted);
     }
 
     /**
