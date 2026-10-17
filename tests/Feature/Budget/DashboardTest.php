@@ -351,3 +351,13 @@ it('explains pocket moves as two rows and counts them in the daily allowance', f
         ->assertSeeInOrder(['Income', money(500_000), 'From pockets into the budget', '+'.money(42_000), 'Put into pockets', '−'.money(21_000), 'Fixed items, transfers, installments, savings'], false)
         ->assertSeeInOrder(['Variable budgets', money(150_000), 'From pockets into the budget', '+'.money(42_000), 'Put into pockets', '−'.money(21_000), 'Spent so far', 'Per day', money(intdiv(171_000, 21))], false);
 });
+
+it('keeps an empty options slot on a fixed item row without options, so the amounts stay in one column', function (): void {
+    $rent = BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail();
+    $phone = Category::factory()->for($this->user)->create(['name' => 'Phone', 'type' => 'fixed']);
+    BudgetLine::factory()->for($this->user)->for($phone)->create(['amount' => 9_000]);
+
+    Livewire::test('pages::today')
+        ->call('togglePaid', $rent->id)
+        ->assertSeeHtmlInOrder(['data-test="fixed-item-row"', 'data-test="fixed-item-options"', 'data-test="fixed-item-row"', 'data-test="fixed-item-options-placeholder"']);
+});

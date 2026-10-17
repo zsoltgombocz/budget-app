@@ -7,7 +7,8 @@
     skipped. Needs <x-fixed-item-sheet /> on the page and the fixed item methods on the component.
     Anatomy (the shared list row): a 24px status ring on the left (solid 1.5px faint, warn once
     overdue; a filled tick when done, a dash when skipped), name 15/500 on one line, a 12px status
-    line (warn when overdue), the amount on the right, then the options button (more_horiz).
+    line (warn when overdue), the amount on the right, then the options button (more_horiz), or an
+    empty slot of its width in an open period, so the amounts line up.
 --}}
 @php
     $status = $item->status();
@@ -75,5 +76,8 @@
                 aria-label="{{ __('More for :name', ['name' => $item->line->categoryName]) }}" data-test="fixed-item-options">
             <x-ui.icon name="more_horiz" :size="20" />
         </button>
+    @elseif ($open)
+        {{-- Same width as the options button, so the amounts of an open period stay in one column. --}}
+        <span class="-mr-2 size-11 shrink-0" aria-hidden="true" data-test="fixed-item-options-placeholder"></span>
     @endif
 </div>
