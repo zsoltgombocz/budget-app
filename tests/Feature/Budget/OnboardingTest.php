@@ -309,8 +309,8 @@ it('explains what the leftover targets mean', function (): void {
         ->set('step', 9)
         ->assertSee('Nothing is moved: the money simply stays on your account.')
         ->assertSee('If you have an investment account')
-        ->assertSee('listed as a manual transfer')
-        ->assertSee('added to a “Savings” pocket');
+        ->assertSee('remind you to move it to your investment account')
+        ->assertSee('goes into a “Savings” pocket');
 });
 
 it('has Hungarian text for every line it offers', function (): void {
@@ -426,12 +426,14 @@ it('keeps Next disabled until a yes or no question is answered', function (): vo
     expect($nextIsDisabled($wizard->html()))->toBeFalse();
 });
 
-it('tells what an amount left at 0 means', function (): void {
+it('tells once at the top of the step what an amount left at 0 means', function (): void {
     $this->actingAs(User::factory()->create());
 
-    Livewire::test('pages::onboarding')
-        ->set('step', 4)->assertSee('– stays out of the plan.')
-        ->set('step', 7)->assertSee('– no budget for it. Spending here lowers the month-end leftover.');
+    $wizard = Livewire::test('pages::onboarding')
+        ->set('step', 4)->assertSee('A line left at 0 stays out of the plan')
+        ->set('step', 7)->assertSee('A budget left at 0 means no budget for it')
+        ->assertSeeHtmlInOrder(['data-test="zero-hint"', 'data-test="template-item"']);
+    expect(substr_count($wizard->html(), 'data-test="zero-hint"'))->toBe(1);
 });
 
 it('leaves fixed lines at 0 out of the plan but keeps budgets and the reserve at 0', function (): void {

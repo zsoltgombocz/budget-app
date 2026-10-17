@@ -1179,5 +1179,11 @@
     "Look in the spam folder too. The code works for :minutes minutes; if it has expired, ask for a new one.": "Nézd meg a spam mappát is. A kód :minutes percig érvényes; ha lejárt, kérj újat.",
     "We sent a new code.": "Küldtünk egy új kódot.",
     "Didn’t get it?": "Nem jött meg?",
-    "Send a new code": "Új kód küldése"
+    "Send a new code": "Új kód küldése",
+    "What you pay from your own account every month. Switch off what you do not have.": "Amit havonta a saját számládról fizetsz. Kapcsold ki, ami nincs.",
+    "A budget left at 0 means no budget for it: spending there lowers the month-end leftover.": "Ami 0-n marad, arra nincs keret: ha oda költesz, az a hó végi maradékot csökkenti.",
+    "A line left at 0 stays out of the plan; you can add it later on the Plan screen.": "Ami 0-n marad, nem kerül a tervbe – később a Terv oldalon felveheted.",
+    "Loan details: principal, APR, months left (optional)": "Hiteladatok: tőke, THM, hátralévő hónapok (nem kötelező)",
+    "At closing it goes into a “Savings” pocket in the app; you can take money out of it.": "Záráskor egy „Megtakarítás” perselybe kerül az appban; ki is veheted belőle.",
+    "At closing we remind you to move it to your investment account.": "Záráskor emlékeztetünk, hogy utald át a befektetési számládra."
 }

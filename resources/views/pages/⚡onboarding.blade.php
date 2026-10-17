@@ -433,7 +433,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
         1 => [__('How much do you earn?'), __('Your monthly net income. The plan starts from this.')],
         2 => [__('When does your month start?'), __('Plan from payday to payday, or by calendar month.')],
         3 => [__('Which currency?'), __('Every amount in the plan is in this currency.')],
-        4 => [__('Housing and monthly fees'), __('What you pay from your own account every month. Switch off what you do not have; a line left at 0 stays out of the plan, you can add it later on the Plan screen.')],
+        4 => [__('Housing and monthly fees'), __('What you pay from your own account every month. Switch off what you do not have.')],
         5 => [__('Do you share costs with someone?'), __('For example a joint account with your partner that you both transfer to every month.')],
         6 => [__('Do you have a loan?'), __('Its monthly installment is a fixed line in the plan, you do not record it as spending. The principal and the APR can come later.')],
         7 => [__('How much do you spend in a month on everyday things?'), __('A monthly budget for each, for what you record day by day. Rough numbers are fine, you can change them any time.')],
@@ -479,12 +479,15 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
     <x-ui.steps :current="$step" :total="$this::STEPS" />
 
     @if ($resumed)
-        <div class="mx-4 mt-4 flex items-center gap-3 rounded-[18px] bg-accent/10 px-4 py-3" data-test="onboarding-resumed">
-            <x-ui.icon name="history" :size="20" class="shrink-0 text-accent" />
-            <span class="min-w-0 flex-1 text-[13px] leading-snug text-ink-2">{{ __('Picking up where you left off.') }}</span>
-            <button type="button" class="focus-ring h-11 shrink-0 rounded-full bg-ink/8 px-3.5 text-[13px] font-medium"
-                    x-on:click="if (await window.appConfirm({ title: @js(__('Start over?')), body: @js(__('Your answers so far are cleared and the wizard starts from the first step.')), confirm: @js(__('Start over')), danger: true })) $wire.restart()"
-                    data-test="onboarding-restart">{{ __('Start over') }}</button>
+        {{-- The confirm call lives on a plain element: inside a component attribute Livewire's morph compiler chokes on it. --}}
+        <div class="mx-4 mt-4" x-data="{ async startOver() { if (await window.appConfirm({ title: @js(__('Start over?')), body: @js(__('Your answers so far are cleared and the wizard starts from the first step.')), confirm: @js(__('Start over')), danger: true })) $wire.restart() } }">
+            {{-- One row: the note and its quiet action on the right. --}}
+            <x-ui.callout icon="history" class="py-2 [&>:first-child]:mt-0 [&>:first-child]:self-center" data-test="onboarding-resumed">
+                <div class="flex min-h-9 items-center justify-between gap-2">
+                    <span class="min-w-0">{{ __('Picking up where you left off.') }}</span>
+                    <x-ui.button variant="text" size="sm" class="-mr-2 shrink-0" x-on:click="startOver()" data-test="onboarding-restart">{{ __('Start over') }}</x-ui.button>
+                </div>
+            </x-ui.callout>
         </div>
     @endif
 
@@ -496,21 +499,14 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
 
     <div class="px-4 pt-6">
         @if ($step === 1)
-            <button type="button" x-on:click="open('income', $wire.income, @js(__('Monthly net income')))" class="w-full rounded-card bg-surface px-5 py-6 text-left" data-test="onboarding-income">
-                <span class="flex items-center justify-between gap-3">
-                    <span class="text-[13px] text-muted">{{ __('Monthly net income') }}</span>
-                    <x-ui.icon name="edit" :size="18" class="text-accent" />
-                </span>
+            {{-- One signal that this is the field to fill: the number itself, muted while empty, and one line under it. --}}
+            <button type="button" x-on:click="open('income', $wire.income, @js(__('Monthly net income')))" class="focus-ring w-full rounded-card bg-surface px-5 py-5 text-left" data-test="onboarding-income">
+                <span class="block text-[13px] text-muted">{{ __('Monthly net income') }}</span>
                 <span class="mt-1 block" :class="$wire.income === '' && 'text-muted'"><x-ui.amount bind="show($wire.income)" :currency="$currency" size="xl" /></span>
-                <span x-show="$wire.income === ''" class="mt-1 block text-[13px] font-medium text-accent" data-test="income-hint">{{ __('Tap and type it in') }}</span>
+                <span x-show="$wire.income === ''" class="mt-2 block text-[13px] font-medium text-accent-strong" data-test="income-hint">{{ __('Tap and type it in') }}</span>
             </button>
             @error('income')<p class="mt-2 px-2 text-xs text-danger" role="alert">{{ $message }}</p>@enderror
             <p class="mt-2 px-2 text-[13px] text-muted" data-test="income-later">{{ __('You can change it any time.') }}</p>
-            {{-- The way out stays quiet: the question above is what the step is about. --}}
-            <div class="mt-10 px-2 text-center">
-                <p class="text-[13px] leading-snug text-muted">{{ __('Rather build the plan yourself? Skip the questions and start with an empty plan.') }}</p>
-                <button type="button" wire:click="skip" class="focus-ring mt-1 min-h-11 rounded-xl px-3 text-[14px] font-medium text-accent-strong underline-offset-4 hover:underline" data-test="onboarding-skip">{{ __('Skip, I set it up myself') }}</button>
-            </div>
         @elseif ($step === 2)
             <div class="grid gap-2">
                 @foreach (PeriodMode::cases() as $mode)
@@ -548,59 +544,78 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
         @endif
 
         @if ($showItems)
-            <div class="flex flex-col gap-2.5">
+            {{-- What a 0 means is said once for the whole step; a 0 amount is muted in its row. --}}
+            <p @class(['px-1.5 pb-3 text-[13px] leading-snug text-pretty text-muted', '-mt-1' => $question !== null]) data-test="zero-hint">
+                {{ $group === 'daily'
+                    ? __('A budget left at 0 means no budget for it: spending there lowers the month-end leftover.')
+                    : __('A line left at 0 stays out of the plan; you can add it later on the Plan screen.') }}
+            </p>
+            <div class="flex flex-col gap-3">
                 @foreach ($this->indexesFor($group) as $index)
                     @php
                         $item = $this->items[$index]['item'];
                         $on = $included[$index] ?? true;
+                        $isLoan = $item['loan'] ?? false;
+                        $loanFields = [
+                            ['field' => 'loanPrincipal', 'label' => __('Outstanding principal'), 'decimals' => null, 'suffix' => null],
+                            ['field' => 'loanThm', 'label' => __('APR (%)'), 'decimals' => 3, 'suffix' => '%'],
+                            ['field' => 'loanMonths', 'label' => __('Months left'), 'decimals' => 0, 'suffix' => __('months')],
+                        ];
                     @endphp
-                    <div wire:key="item-{{ $index }}" class="rounded-[22px] bg-surface px-4 py-4" data-test="template-item">
-                        <div class="flex items-start gap-3">
-                            <x-ui.icon-tile :icon="Icons::forCategory($item['icon'] ?? null)" :size="40" class="{{ $on ? '' : 'opacity-40' }}" />
-                            <div class="min-w-0 flex-1 pt-0.5 {{ $on ? '' : 'opacity-60' }}">
-                                <div class="text-[15px] font-medium leading-snug">{{ __($item['name']) }}</div>
+                    {{-- One card per line: a header row (icon, name, switch), then its fields as rows on the card itself. --}}
+                    <div wire:key="item-{{ $index }}" class="overflow-hidden rounded-card bg-surface" data-test="template-item">
+                        <div class="flex items-start gap-3 px-4 py-3.5">
+                            <x-ui.icon-tile :icon="Icons::forCategory($item['icon'] ?? null)" :tone="$on ? 'default' : 'muted'" />
+                            <div class="min-w-0 flex-1 self-center">
+                                <div @class(['text-[15px] font-medium leading-snug', 'text-muted' => ! $on])>{{ __($item['name']) }}</div>
+                                @if ($on && ! empty($item['hint']))
+                                    <p class="mt-0.5 text-[13px] leading-snug text-pretty text-muted">{{ __($item['hint']) }}</p>
+                                @endif
                             </div>
                             <x-ui.toggle :on="$on" wire:click="$set('included.{{ $index }}', {{ $on ? 'false' : 'true' }})" :aria-label="__($item['name'])" class="mt-2" />
                         </div>
 
                         @if ($on)
-                            @if (! empty($item['hint']))
-                                <p class="mt-3 text-[13px] leading-relaxed text-muted">{{ __($item['hint']) }}</p>
-                            @endif
-                            <button type="button" x-on:click="open('amounts.{{ $index }}', $wire.amounts[{{ $index }}], @js(__($item['name'])))"
-                                    class="mt-3 flex h-12 w-full items-center justify-between rounded-[14px] bg-surface-2 px-4 text-left" data-test="amount-{{ $index }}">
-                                <span class="text-[13px] text-muted">{{ $group === 'daily' ? __('About, a month') : __('Monthly amount') }}</span>
-                                <span :class="! $wire.amounts[{{ $index }}] && 'text-muted'"><x-ui.amount size="sm" bind="show($wire.amounts[{{ $index }}], '0')" :currency="$currency" class="text-[17px] font-semibold" /></span>
-                            </button>
-                            <p x-show="! (parseFloat(String($wire.amounts[{{ $index }}] ?? '').replace(/\s/g, '').replace(',', '.')) > 0)" class="mt-1.5 px-1 text-xs text-muted" data-test="zero-hint-{{ $index }}">
-                                {{ $item['type'] === LineType::Variable->value
-                                    ? __(':zero – no budget for it. Spending here lowers the month-end leftover.', ['zero' => money(0, $currency)])
-                                    : __(':zero – stays out of the plan.', ['zero' => money(0, $currency)]) }}
-                            </p>
-                            @error('amounts.'.$index)<p class="mt-1.5 px-1 text-xs text-danger">{{ $message }}</p>@enderror
-                            @if ($group === 'fixed')
-                                <div class="mt-2 overflow-hidden rounded-[14px] bg-surface-2" data-test="due-day-{{ $index }}">
-                                    <x-ui.day-field :label="__('Which day do you pay it?')" value="$wire.dueDays[{{ $index }}]" pick="$wire.set('dueDays.{{ $index }}', day)" :hint="__('Optional. With notifications on, the app reminds you that morning.')" />
+                            <div class="divide-y divide-line border-t border-line">
+                                <div>
+                                    <button type="button" x-on:click="open('amounts.{{ $index }}', $wire.amounts[{{ $index }}], @js(__($item['name'])))"
+                                            class="focus-ring flex min-h-[52px] w-full items-center justify-between gap-3 px-4 py-2.5 text-left" data-test="amount-{{ $index }}">
+                                        <span class="text-[15px]">{{ $group === 'daily' ? __('About, a month') : __('Monthly amount') }}</span>
+                                        <span class="flex shrink-0 items-center gap-1" :class="! $wire.amounts[{{ $index }}] ? 'text-muted' : 'text-ink'"><x-ui.amount size="sm" bind="show($wire.amounts[{{ $index }}], '0')" :currency="$currency" class="text-[17px] font-semibold" /></span>
+                                    </button>
+                                    @error('amounts.'.$index)<p class="-mt-1 px-4 pb-2.5 text-xs text-danger" role="alert">{{ $message }}</p>@enderror
                                 </div>
-                            @endif
-                            @if ($item['loan'] ?? false)
-                                <div class="mt-4 border-t border-line pt-3" data-test="loan-details">
-                                    <div class="text-[13px] font-medium">{{ __('Loan details (optional)') }}</div>
-                                    <p class="mt-0.5 text-xs leading-snug text-muted">{{ __('With these the app shows the payoff and what a prepayment saves. You find them on your loan statement; you can add them later too: Plan, Loan repayments.') }}</p>
-                                    @foreach ([
-                                        ['field' => 'loanPrincipal', 'label' => __('Outstanding principal'), 'decimals' => null, 'suffix' => null],
-                                        ['field' => 'loanThm', 'label' => __('APR (%)'), 'decimals' => 3, 'suffix' => '%'],
-                                        ['field' => 'loanMonths', 'label' => __('Months left'), 'decimals' => 0, 'suffix' => __('months')],
-                                    ] as $detail)
-                                        <button type="button" x-on:click="open(@js($detail['field']), $wire.{{ $detail['field'] }}, @js($detail['label']), @js($detail['decimals']), @js($detail['suffix']))"
-                                                class="mt-2 flex h-12 w-full items-center justify-between rounded-[14px] bg-surface-2 px-4 text-left" data-test="{{ $detail['field'] }}">
-                                            <span class="text-[13px] text-muted">{{ $detail['label'] }}</span>
-                                            <span :class="! $wire.{{ $detail['field'] }} && 'text-muted'"><x-ui.amount size="sm" bind="show($wire.{{ $detail['field'] }}, '–')" :currency="$currency" :symbol="$detail['suffix']" class="text-[17px] font-semibold" /></span>
+                                @if ($group === 'fixed')
+                                    <x-ui.day-field :label="__('Which day do you pay it?')" value="$wire.dueDays[{{ $index }}]" pick="$wire.set('dueDays.{{ $index }}', day)" :hint="__('Optional. With notifications on, the app reminds you that morning.')" data-test="due-day-{{ $index }}" />
+                                @endif
+                                @if ($isLoan)
+                                    @php
+                                        $loanOpen = collect($loanFields)->contains(fn (array $detail): bool => $this->{$detail['field']} !== '' || $errors->has($detail['field']));
+                                    @endphp
+                                    <div x-data="{ more: @js($loanOpen) }" data-test="loan-details">
+                                        <button type="button" x-on:click="more = ! more" :aria-expanded="more ? 'true' : 'false'" class="focus-ring flex min-h-[52px] w-full items-center justify-between gap-3 px-4 py-2.5 text-left" data-test="loan-more">
+                                            <span class="min-w-0">
+                                                <span class="block text-[15px]">{{ __('More') }}</span>
+                                                <span class="mt-0.5 block text-xs leading-snug text-muted">{{ __('Loan details: principal, APR, months left (optional)') }}</span>
+                                            </span>
+                                            <x-ui.icon name="expand_more" :size="20" class="shrink-0 text-faint transition" ::class="more && 'rotate-180'" />
                                         </button>
-                                        @error($detail['field'])<p class="mt-1.5 px-1 text-xs text-danger">{{ $message }}</p>@enderror
-                                    @endforeach
-                                </div>
-                            @endif
+                                        <div x-show="more" x-cloak class="divide-y divide-line border-t border-line">
+                                            <p class="px-4 py-3 text-xs leading-snug text-pretty text-muted">{{ __('With these the app shows the payoff and what a prepayment saves. You find them on your loan statement; you can add them later too: Plan, Loan repayments.') }}</p>
+                                            @foreach ($loanFields as $detail)
+                                                <div>
+                                                    <button type="button" x-on:click="open(@js($detail['field']), $wire.{{ $detail['field'] }}, @js($detail['label']), @js($detail['decimals']), @js($detail['suffix']))"
+                                                            class="focus-ring flex min-h-[52px] w-full items-center justify-between gap-3 px-4 py-2.5 text-left" data-test="{{ $detail['field'] }}">
+                                                        <span class="text-[15px]">{{ $detail['label'] }}</span>
+                                                        <span class="shrink-0" :class="! $wire.{{ $detail['field'] }} ? 'text-muted' : 'text-ink'"><x-ui.amount size="sm" bind="show($wire.{{ $detail['field'] }}, '–')" :currency="$currency" :symbol="$detail['suffix']" class="text-[17px] font-semibold" /></span>
+                                                    </button>
+                                                    @error($detail['field'])<p class="-mt-1 px-4 pb-2.5 text-xs text-danger" role="alert">{{ $message }}</p>@enderror
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endif
+                            </div>
                         @endif
                     </div>
                 @endforeach
@@ -625,25 +640,31 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                 <x-ui.choice :selected="! $reserveOn" wire:click="$set('included.{{ $reserveIndex }}', false)" class="rounded-btn px-4 py-4 text-left text-[15px]" data-test="reserve-no">{{ __('Not now') }}</x-ui.choice>
             </div>
             @if ($reserveOn)
-                <div class="mt-5 rounded-[22px] bg-surface px-4 py-4" data-test="reserve-card">
-                    <div class="flex items-center gap-3">
-                        <x-ui.icon-tile icon="shield" :size="40" />
+                <div class="mt-5 overflow-hidden rounded-card bg-surface" data-test="reserve-card">
+                    <div class="flex items-center gap-3 px-4 py-3.5">
+                        <x-ui.icon-tile icon="shield" />
                         <div class="min-w-0 flex-1 text-[15px] font-medium leading-snug">{{ __('Reserve pocket') }}</div>
                     </div>
-                    @foreach ([
-                        ['field' => 'amounts.'.$reserveIndex, 'value' => $amounts[$reserveIndex] ?? '', 'label' => __('Put aside every month'), 'hint' => __('Planned like a fixed cost and moved into the pocket at closing. 0 is fine too.'), 'empty' => money(0, $currency), 'test' => 'reserve-monthly'],
-                        ['field' => 'reserveTarget', 'value' => $reserveTarget, 'label' => __('Target'), 'hint' => __('Until the pocket reaches it, the month-end leftover also tops it up. Empty means no limit.'), 'empty' => '–', 'test' => 'reserve-target'],
-                    ] as $row)
-                        <button type="button" x-on:click="open(@js($row['field']), @js($row['value']), @js($row['label']))" class="focus-ring mt-3 w-full rounded-[14px] bg-surface-2 px-4 py-3 text-left" data-test="{{ $row['test'] }}">
-                            <span class="flex items-center justify-between gap-3">
-                                <span class="text-[13px] text-muted">{{ $row['label'] }}</span>
-                                @if ($row['value'] === '')<span class="num text-[17px] font-semibold text-muted">{{ $row['empty'] }}</span>@else<x-ui.amount size="sm" :value="Money::parse($row['value'], $currency) ?? 0" :currency="$currency" class="text-[17px] font-semibold" />@endif
-                            </span>
-                            <span class="mt-1 block text-xs leading-snug text-muted">{{ $row['hint'] }}</span>
-                        </button>
-                    @endforeach
-                    @error('amounts.'.$reserveIndex)<p class="mt-1.5 px-1 text-xs text-danger" role="alert">{{ $message }}</p>@enderror
-                    @error('reserveTarget')<p class="mt-1.5 px-1 text-xs text-danger" role="alert">{{ $message }}</p>@enderror
+                    <div class="divide-y divide-line border-t border-line">
+                        @foreach ([
+                            ['field' => 'amounts.'.$reserveIndex, 'value' => $amounts[$reserveIndex] ?? '', 'label' => __('Put aside every month'), 'hint' => __('Planned like a fixed cost and moved into the pocket at closing. 0 is fine too.'), 'empty' => money_number(0, $currency), 'symbol' => true, 'test' => 'reserve-monthly'],
+                            ['field' => 'reserveTarget', 'value' => $reserveTarget, 'label' => __('Target'), 'hint' => __('Until the pocket reaches it, the month-end leftover also tops it up. Empty means no limit.'), 'empty' => '–', 'symbol' => false, 'test' => 'reserve-target'],
+                        ] as $row)
+                            <button type="button" x-on:click="open(@js($row['field']), @js($row['value']), @js($row['label']))" class="focus-ring flex min-h-[52px] w-full items-center justify-between gap-3 px-4 py-3 text-left" data-test="{{ $row['test'] }}">
+                                <span class="min-w-0">
+                                    <span class="block text-[15px]">{{ $row['label'] }}</span>
+                                    <span class="mt-0.5 block text-xs leading-snug text-pretty text-muted">{{ $row['hint'] }}</span>
+                                </span>
+                                @if ($row['value'] === '')
+                                    <span class="num inline-flex shrink-0 items-baseline gap-1 text-[17px] font-semibold text-muted">{{ $row['empty'] }}@if ($row['symbol'])<span class="text-[0.8em] font-normal">{{ $currency->symbol() }}</span>@endif</span>
+                                @else
+                                    <x-ui.amount size="sm" :value="Money::parse($row['value'], $currency) ?? 0" :currency="$currency" class="shrink-0 text-[17px] font-semibold" />
+                                @endif
+                            </button>
+                        @endforeach
+                    </div>
+                    @error('amounts.'.$reserveIndex)<p class="px-4 pb-3 text-xs text-danger" role="alert">{{ $message }}</p>@enderror
+                    @error('reserveTarget')<p class="px-4 pb-3 text-xs text-danger" role="alert">{{ $message }}</p>@enderror
                 </div>
             @else
                 <p class="mt-4 px-1.5 text-[13px] leading-relaxed text-muted">{{ __('No reserve pocket: the whole month-end leftover goes where you choose on the next step. You can add one later under Pockets.') }}</p>
@@ -656,11 +677,11 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                 $preview = $this->leftoverPreview;
                 $surplusOptions = [
                     'none' => [__('Stays on the account'), __('Nothing is moved: the money simply stays on your account.')],
-                    'pocket' => [__('Savings pocket'), __('At closing the rest is added to a “Savings” pocket in the app: you see its balance under Pockets and can take money out of it.')],
-                    'investment' => [__('If you have an investment account'), __('At closing the rest is listed as a manual transfer and we remind you to move it to your broker or investment account. The app does not track its balance (yet).')],
+                    'pocket' => [__('Savings pocket'), __('At closing it goes into a “Savings” pocket in the app; you can take money out of it.')],
+                    'investment' => [__('If you have an investment account'), __('At closing we remind you to move it to your investment account.')],
                 ];
             @endphp
-            <div class="rounded-[22px] bg-surface px-4 py-4">
+            <div class="rounded-card bg-surface px-4 py-4">
                 @if ($reserveOn)
                     <div class="text-[13px] text-muted">{{ __('On top of the monthly amount, this much of the leftover also goes to the reserve until it reaches the target:') }}</div>
                     <div class="mt-2 grid grid-cols-2 gap-[3px] rounded-xl bg-bg p-[3px]">
@@ -688,43 +709,49 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                     @foreach ($surplusOptions as $value => [$optionLabel, $optionHint])
                         <x-ui.choice :selected="$surplusTarget === $value" wire:click="$set('surplusTarget', '{{ $value }}')" class="rounded-btn px-4 py-3 text-left" data-test="surplus-{{ $value }}">
                             <span class="block text-[15px] font-semibold">{{ $optionLabel }}</span>
-                            <span class="mt-1 block text-[13px] font-normal leading-snug text-muted">{{ $optionHint }}</span>
+                            <span class="mt-0.5 block text-[13px] font-normal leading-snug text-pretty text-muted">{{ $optionHint }}</span>
                         </x-ui.choice>
                     @endforeach
                 </div>
             </div>
 
-            <div class="mt-3 rounded-[22px] border border-accent/30 bg-accent/8 px-4 py-4" data-test="leftover-preview">
-                <div class="flex items-center gap-2 text-[13px] font-semibold text-accent"><x-ui.icon name="info" :size="18" />{{ __('Where the leftover goes') }}</div>
-                <div class="num mt-2 text-[13px]">
-                    <div class="flex justify-between gap-3 py-1"><span class="text-muted">{{ __('Income') }}</span><span>{{ money($preview['income'], $currency) }}</span></div>
-                    <div class="flex justify-between gap-3 py-1"><span class="text-muted">{{ __('Planned costs and budgets') }}</span><span>{{ $preview['planned'] > 0 ? '−' : '' }}{{ money($preview['planned'], $currency) }}</span></div>
+            {{-- A preview, not a warning: neutral, the numbers in ink. --}}
+            <x-ui.callout class="mt-3" :title="__('Where the leftover goes')" data-test="leftover-preview">
+                <div class="num mt-1.5">
+                    <div class="flex justify-between gap-3 py-0.5"><span>{{ __('Income') }}</span><span class="shrink-0 text-ink">{{ money($preview['income'], $currency) }}</span></div>
+                    <div class="flex justify-between gap-3 py-0.5"><span>{{ __('Planned costs and budgets') }}</span><span class="shrink-0 text-ink">{{ $preview['planned'] > 0 ? '−' : '' }}{{ money($preview['planned'], $currency) }}</span></div>
                     @if ($preview['reserveOn'])
-                        <div class="flex justify-between gap-3 py-1"><span class="text-muted">{{ __('Put aside in the reserve') }}</span><span data-test="preview-reserve-monthly">{{ $preview['reserveMonthly'] > 0 ? '−' : '' }}{{ money($preview['reserveMonthly'], $currency) }}</span></div>
+                        <div class="flex justify-between gap-3 py-0.5"><span>{{ __('Put aside in the reserve') }}</span><span class="shrink-0 text-ink" data-test="preview-reserve-monthly">{{ $preview['reserveMonthly'] > 0 ? '−' : '' }}{{ money($preview['reserveMonthly'], $currency) }}</span></div>
                     @endif
-                    <div @class(['flex justify-between gap-3 border-t border-accent/20 pt-1.5 mt-1 font-semibold', 'text-danger' => $preview['leftover'] < 0])><span>{{ __('Expected leftover') }}</span><span>{{ money($preview['leftover'], $currency) }}</span></div>
+                    <div @class(['mt-1 flex justify-between gap-3 border-t border-line pt-1.5 font-semibold', 'text-danger' => $preview['leftover'] < 0, 'text-ink' => $preview['leftover'] >= 0])><span>{{ __('Expected leftover') }}</span><span class="shrink-0">{{ $preview['leftover'] < 0 ? '−' : '' }}{{ money(abs($preview['leftover']), $currency) }}</span></div>
                 </div>
                 @if ($preview['leftover'] > 0)
-                    <div class="mt-3 text-[13px] font-semibold">{{ __('Splitting the leftover') }}</div>
-                    <div class="num mt-1 text-[13px]">
+                    <div class="mt-3 font-semibold text-ink">{{ __('Splitting the leftover') }}</div>
+                    <div class="num mt-0.5">
                         @if ($preview['reserveOn'])
-                            <div class="flex justify-between gap-3 py-1"><span class="text-muted">{{ __('Reserve: :fixed fixed + :share from the leftover', ['fixed' => money($preview['reserveMonthly'], $currency), 'share' => money($preview['toReserve'], $currency)]) }}</span><span class="shrink-0 font-semibold">{{ money($preview['reserveMonthly'] + $preview['toReserve'], $currency) }}</span></div>
+                            <div class="flex justify-between gap-3 py-0.5"><span>{{ __('Reserve: :fixed fixed + :share from the leftover', ['fixed' => money($preview['reserveMonthly'], $currency), 'share' => money($preview['toReserve'], $currency)]) }}</span><span class="shrink-0 font-semibold text-ink">{{ money($preview['reserveMonthly'] + $preview['toReserve'], $currency) }}</span></div>
                         @endif
-                        <div class="flex justify-between gap-3 py-1"><span class="text-muted">{{ $surplusOptions[$surplusTarget][0] ?? __('Stays on the account') }}</span><span class="shrink-0 font-semibold">{{ money($preview['toSurplus'], $currency) }}</span></div>
+                        <div class="flex justify-between gap-3 py-0.5"><span>{{ $surplusOptions[$surplusTarget][0] ?? __('Stays on the account') }}</span><span class="shrink-0 font-semibold text-ink">{{ money($preview['toSurplus'], $currency) }}</span></div>
                     </div>
                 @elseif ($preview['leftover'] === 0)
-                    <p class="mt-2 text-[13px] leading-relaxed text-ink-2">{{ __('Your plan uses up the whole income, so nothing is left to share out.') }}</p>
+                    <p class="mt-2 text-ink-2">{{ __('Your plan uses up the whole income, so nothing is left to share out.') }}</p>
                 @else
-                    <p class="mt-2 text-[13px] leading-relaxed text-ink-2">{{ __('Your plan is :gap over the income a month.', ['gap' => money(-$preview['leftover'], $currency)]) }} {{ __('It is worth lowering a budget before you start.') }}</p>
+                    <p class="mt-2 text-ink-2">{{ __('Your plan is :gap over the income a month.', ['gap' => money(-$preview['leftover'], $currency)]) }} {{ __('It is worth lowering a budget before you start.') }}</p>
                 @endif
-                <p class="mt-2 text-xs leading-snug text-muted">{{ __('The real numbers come at closing, from what you actually spent. You can change all of this later on the Plan screen.') }}</p>
-            </div>
+                <p class="mt-2 text-xs">{{ __('The real numbers come at closing, from what you actually spent. You can change all of this later on the Plan screen.') }}</p>
+            </x-ui.callout>
         @endif
     </div>
     </div>
 
     <x-ui.action-bar>
-        @if ($step < $this::STEPS)
+        @if ($step === 1)
+            {{-- The way out stays quiet: a text button right above Next. --}}
+            <div class="flex flex-1 flex-col gap-1.5">
+                <x-ui.button variant="text" size="md" wire:click="skip" class="w-full" data-test="onboarding-skip">{{ __('Skip, I set it up myself') }}</x-ui.button>
+                <x-ui.button class="w-full" wire:click="next" data-test="onboarding-next">{{ __('Next') }}</x-ui.button>
+            </div>
+        @elseif ($step < $this::STEPS)
             @if ($question !== null && $question['value'] === null)
                 <div class="flex flex-1 flex-col gap-2">
                     <p id="onboarding-next-hint" class="text-center text-xs text-muted" data-test="onboarding-next-hint">{{ __('Choose one to continue.') }}</p>
