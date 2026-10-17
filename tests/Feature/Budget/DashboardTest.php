@@ -134,6 +134,21 @@ it('marks a fixed item that was due earlier as late', function (): void {
     Livewire::test('pages::today')->assertSee('data-test="due-item"', false)->assertSee('was due');
 });
 
+it('rings an open fixed item with a solid line, in the warn colour once it is overdue', function (): void {
+    BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail()->update(['due_day' => 5]);
+    $phone = Category::factory()->for($this->user)->create(['name' => 'Phone', 'type' => 'fixed']);
+    BudgetLine::factory()->for($this->user)->for($phone)->create(['amount' => 9_000, 'due_day' => 25]);
+
+    $html = Livewire::test('pages::today')->html();
+
+    preg_match_all('/<span class="([^"]*)" aria-hidden="true" data-test="fixed-item-ring">/', $html, $rings);
+
+    expect($rings[1])->not->toBeEmpty()
+        ->and(implode(' ', $rings[1]))->not->toContain('border-dashed')
+        ->and($rings[1])->toContain('size-6 rounded-full border-[1.5px] border-warn')
+        ->and($rings[1])->toContain('size-6 rounded-full border-[1.5px] border-faint');
+});
+
 it('points to the plan instead of claiming income and fixed items are in when the plan is empty', function (): void {
     $user = User::factory()->create();
     BudgetSetting::factory()->for($user)->create(['income' => 0, 'locale' => 'en']);

@@ -5,6 +5,9 @@
     not ticked off also has an options button for skipping it this month; a skipped row opens the
     same options on tap (it comes up after all) instead of ticking. A ticked-off item cannot be
     skipped. Needs <x-fixed-item-sheet /> on the page and the fixed item methods on the component.
+    Anatomy (the shared list row): a 24px status ring on the left (solid 1.5px faint, warn once
+    overdue; a filled tick when done, a dash when skipped), name 15/500 on one line, a 12px status
+    line (warn when overdue), the amount on the right, then the options button (more_horiz).
 --}}
 @php
     $status = $item->status();
@@ -20,6 +23,7 @@
         'name' => $item->line->categoryName,
         'amount' => money($item->line->planned()),
         'status' => $status->value,
+        'doneLabel' => $isTransfer ? __('Transferred') : __('Done'),
         'note' => $skipped
             ? __('Skipped this month: it counts as 0, so :amount more is left.', ['amount' => money($item->line->planned())])
             : __('Does it not come up this month? Then it counts as 0, so :amount more is left. You can set it back any time.', ['amount' => money($item->line->planned())]),
@@ -31,17 +35,17 @@
             @if ($skipped && $options) x-on:click="$dispatch('open-fixed-item', @js($detail))" aria-haspopup="dialog"
             @else role="checkbox" aria-checked="{{ $item->paid ? 'true' : 'false' }}" wire:click="togglePaid({{ $lineId }})" @endif
             @disabled(! $open)
-            class="focus-ring grid min-h-11 min-w-0 flex-1 grid-cols-[26px_minmax(0,1fr)_auto] items-center gap-3 rounded-xl py-[11px] text-left" data-test="fixed-item">
+            class="focus-ring grid min-h-14 min-w-0 flex-1 grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-3 rounded-xl py-[11px] text-left" data-test="fixed-item">
         @if ($item->paid)
             <span class="flex size-6 items-center justify-center rounded-full bg-accent/16 text-accent" aria-hidden="true"><x-ui.icon name="check" :size="16" :weight="600" /></span>
         @elseif ($skipped)
             <span class="flex size-6 items-center justify-center rounded-full bg-surface-3 text-muted" aria-hidden="true"><x-ui.icon name="remove" :size="16" :weight="600" /></span>
         @else
-            <span @class(['size-6 rounded-full border-[1.5px] border-dashed', 'border-warn' => $overdue, 'border-faint' => ! $overdue]) aria-hidden="true"></span>
+            <span @class(['size-6 rounded-full border-[1.5px]', 'border-warn' => $overdue, 'border-faint' => ! $overdue]) aria-hidden="true" data-test="fixed-item-ring"></span>
         @endif
         <span class="min-w-0">
-            <span @class(['block truncate text-[15px]', 'text-ink-2' => $item->paid, 'text-muted' => $skipped])>{{ $item->line->categoryName }}</span>
-            <span @class(['mt-0.5 block text-xs', 'text-warn' => $overdue, 'text-muted' => ! $overdue]) data-test="fixed-item-state">
+            <span @class(['block truncate text-[15px] font-medium', 'text-ink-2' => $item->paid, 'text-muted' => $skipped])>{{ $item->line->categoryName }}</span>
+            <span @class(['mt-0.5 line-clamp-2 text-xs leading-snug', 'text-warn' => $overdue, 'text-muted' => ! $overdue]) data-test="fixed-item-state">
                 @if ($item->paid)
                     {{ $isTransfer ? __('Transferred this month') : __('Paid this month') }}
                 @elseif ($skipped)
@@ -62,7 +66,7 @@
             </span>
         </span>
         <span>
-            <x-ui.amount size="sm" :value="$item->line->planned()" @class(['text-[15px] font-medium', 'text-muted line-through' => $skipped]) />
+            <x-ui.amount size="sm" :value="$item->line->planned()" @class(['text-[15px] font-semibold', 'text-muted line-through' => $skipped]) />
             @if ($skipped)<span class="sr-only">{{ __('counts as 0') }}</span>@endif
         </span>
     </button>

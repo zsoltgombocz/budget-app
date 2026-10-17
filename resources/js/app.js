@@ -16,7 +16,7 @@ window.formatAmount = formatAmount
 window.numpadKeydown = numpadKeydown
 
 // The app's confirmation dialog (components/confirm-dialog): resolves true on confirm.
-// Options: title, body, confirm (button label), danger; optionally highlight (one emphasised
+// Options: title, body, confirm (button label), danger, icon (tile glyph); optionally highlight (one emphasised
 // line, e.g. the exchange rate) and note (smaller muted text under it).
 window.appConfirm = (options) => new Promise((resolve) => {
     window.dispatchEvent(new CustomEvent('app-confirm', { detail: { ...options, resolve } }))

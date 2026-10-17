@@ -1,6 +1,10 @@
 {{--
     The app's own confirmation dialog (instead of the browser's confirm()). Open it from JS:
-    if (await window.appConfirm({ title, body, confirm, danger: true })) { ... }
+    if (await window.appConfirm({ title, body, confirm, danger: true, icon: 'delete' })) { ... }
+    danger: the final button is danger-solid (red fill) and the icon tile red; otherwise primary
+    and an accent tile. icon: a Material Symbols name for the tile (default: delete when danger,
+    otherwise info; e.g. undo for reverting a closing, currency_exchange …; it must be in
+    resources/fonts/material-icons.txt).
     Optional: highlight (one emphasised line, e.g. an exchange rate) and note (smaller muted
     text right under it), both shown above the body. The page behind it does not scroll.
 --}}
@@ -12,6 +16,7 @@
         note: '',
         confirmLabel: '',
         danger: false,
+        icon: 'info',
         resolve: null,
         show(detail) {
             this.title = detail.title ?? ''
@@ -20,6 +25,7 @@
             this.note = detail.note ?? ''
             this.confirmLabel = detail.confirm ?? @js(__('OK'));
             this.danger = detail.danger ?? false
+            this.icon = detail.icon ?? (this.danger ? 'delete' : 'info')
             this.resolve?.(false)
             this.resolve = detail.resolve
             this.open = true
@@ -42,9 +48,8 @@
              x-transition:leave="transition duration-150 ease-in" x-transition:leave-start="translate-y-0 opacity-100" x-transition:leave-end="translate-y-full opacity-0 sm:translate-y-4"
              x-ref="dialogPanel" tabindex="-1"
              class="relative mx-auto w-full max-w-lg rounded-t-[30px] bg-surface outline-none px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-5 sm:mb-0 sm:max-w-sm sm:rounded-[26px] sm:pb-5">
-            <div class="flex size-12 items-center justify-center rounded-2xl" :class="danger ? 'bg-danger/14 text-danger' : 'bg-accent/12 text-accent'">
-                <x-ui.icon name="delete" :size="24" x-show="danger" />
-                <x-ui.icon name="info" :size="24" x-show="! danger" />
+            <div class="flex size-12 items-center justify-center rounded-group" :class="danger ? 'bg-danger/14 text-danger' : 'bg-accent/12 text-accent'">
+                <span class="ms" style="font-size:24px;width:24px;height:24px" aria-hidden="true" x-text="icon" data-test="confirm-icon"></span>
             </div>
             <div class="mt-4 text-lg font-semibold leading-snug" x-text="title"></div>
             <div class="num mt-2 text-[15px] font-medium leading-snug text-ink" x-show="highlight" x-text="highlight" data-test="confirm-highlight"></div>
@@ -52,7 +57,12 @@
             <p class="max-h-[55vh] overflow-y-auto overscroll-contain whitespace-pre-line text-[14px] leading-relaxed text-muted" :class="highlight || note ? 'mt-3' : 'mt-1.5'" x-show="body" x-text="body"></p>
             <div class="mt-5 grid grid-cols-2 gap-2.5">
                 <x-ui.button variant="secondary" size="md" x-on:click="answer(false)" data-autofocus data-test="confirm-cancel">{{ __('Cancel') }}</x-ui.button>
-                <x-ui.button size="md" x-on:click="answer(true)" ::class="danger && '!bg-danger !text-white'" data-test="confirm-ok"><span x-text="confirmLabel"></span></x-ui.button>
+                <template x-if="danger">
+                    <x-ui.button variant="danger-solid" size="md" x-on:click="answer(true)" data-test="confirm-ok"><span x-text="confirmLabel"></span></x-ui.button>
+                </template>
+                <template x-if="! danger">
+                    <x-ui.button size="md" x-on:click="answer(true)" data-test="confirm-ok"><span x-text="confirmLabel"></span></x-ui.button>
+                </template>
             </div>
         </div>
     </div>
