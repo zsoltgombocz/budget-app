@@ -156,7 +156,15 @@ it('fits the prepayment sheet on a 320 px phone: the whole numpad above the butt
                 const lastKey = sheet.querySelector('[data-numpad] [data-key="0"]').getBoundingClientRect()
                 const save = sheet.querySelector('[data-test="sheet-save"]').getBoundingClientRect()
                 const select = sheet.querySelector('select[data-test="prepay-pocket"]')
-                return { keysAboveButton: lastKey.bottom <= save.top + 0.5 && save.bottom <= window.innerHeight + 0.5, nameFits: select.scrollWidth <= select.clientWidth + 0.5 }
+                // A select does not report its overflow: measure the chosen name in the select's font against its text room (pr-6 for the chevron).
+                const probe = document.createElement('span')
+                probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap'
+                probe.style.font = getComputedStyle(select).font
+                probe.textContent = select.selectedOptions[0].textContent
+                document.body.append(probe)
+                const nameWidth = probe.getBoundingClientRect().width
+                probe.remove()
+                return { keysAboveButton: lastKey.bottom <= save.top + 0.5 && save.bottom <= window.innerHeight + 0.5, nameFits: nameWidth <= select.clientWidth - 24 + 0.5 }
             }
             let result = measure()
             for (let i = 0; i < 20 && ! result.keysAboveButton; i++) { await new Promise(r => setTimeout(r, 100)); result = measure() }
