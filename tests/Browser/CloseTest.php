@@ -29,3 +29,34 @@ it('fits the closing wizard on a 320 px screen: names above numbers, the split b
     expect($page->script($noScroll))->toBeTrue();
     $page->assertNoJavaScriptErrors();
 });
+
+it('splits the leftover when a quick split chip is tapped', function (): void {
+    $user = onboardedUser();
+    Pocket::factory()->for($user)->create(['name' => 'Reserve', 'is_reserve' => true, 'balance' => 10_000]);
+    $period = Period::factory()->for($user)->create(['starts_on' => '2026-09-01', 'ends_on' => '2026-09-30', 'income_planned' => 500_000]);
+    $this->actingAs($user);
+
+    // Polls for up to three seconds: the chip round-trips to the server before the boxes change.
+    $pressed = fn (int $pct): string => sprintf(<<<'JS'
+        async () => {
+            const pressed = () => document.querySelector('[data-test=preset-%d]')?.getAttribute('aria-pressed') === 'true'
+            for (let i = 0; i < 30 && ! pressed(); i++) await new Promise(r => setTimeout(r, 100))
+            return pressed()
+        }
+    JS, $pct);
+    $reserve = "() => document.querySelector('[data-test=edit-reserve] .num').textContent.replace(/\\s/g, '')";
+
+    $page = visit(route('close', $period))->on()->mobile()->resize(393, 852)
+        ->click('[data-test="close-next"]')
+        ->assertVisible('[data-test="split-presets"]');
+
+    $page->click('[data-test="preset-0"]');
+    expect($page->script($pressed(0)))->toBeTrue()
+        ->and($page->script($reserve))->toStartWith('0');
+
+    $page->click('[data-test="preset-100"]');
+    expect($page->script($pressed(100)))->toBeTrue()
+        ->and($page->script($reserve))->not->toStartWith('0');
+
+    $page->assertNoJavaScriptErrors();
+});

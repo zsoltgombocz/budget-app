@@ -439,7 +439,7 @@ it('explains the suggested reserve amount and a split above the target', functio
         ->assertSee('Your rule: 100% of the leftover goes to the reserve. It stops at the target ('.money(300_000).'): '.money(220_000).' is still missing.')
         ->assertDontSee('data-test="over-target-note"', false);
 
-    $component->call('splitPreset', 100)
+    $component->call('applySplitPreset', 100)
         ->assertSet('toReserve', 300_000)
         ->assertSee('data-test="over-target-note"', false)
         ->assertDontSee('data-test="reserve-rule-note"', false);
@@ -450,7 +450,7 @@ it('keeps a quick split as the leftover rule when asked', function (): void {
 
     Livewire::test('pages::close', ['period' => $this->period->id])
         ->call('goTo', 2)
-        ->call('splitPreset', 50)
+        ->call('applySplitPreset', 50)
         ->assertSet('toReserve', 150_000)
         ->assertSee('data-test="save-split"', false)
         ->set('saveSplitAsRule', true)
@@ -461,10 +461,31 @@ it('keeps a quick split as the leftover rule when asked', function (): void {
         ->and($this->user->settings()->reserve_fixed)->toBeNull();
 });
 
+it('splits the leftover by each quick split chip', function (int $pct, int $toReserve, int $toSurplus): void {
+    $this->reserve->update(['target_amount' => null]);
+
+    $component = Livewire::test('pages::close', ['period' => $this->period->id])
+        ->call('goTo', 2)
+        ->assertSeeHtml('wire:click="applySplitPreset('.$pct.')"')
+        ->call('applySplitPreset', $pct)
+        ->assertSet('toReserve', $toReserve)
+        ->assertSet('splitPreset', $pct)
+        ->assertSeeHtml('aria-pressed="true" class="focus-ring min-h-11 border font-medium transition active:scale-[0.97] border-accent');
+
+    $allocation = $component->instance()->preview->allocation;
+
+    expect($allocation->toReserve)->toBe($toReserve)
+        ->and($allocation->toSurplus)->toBe($toSurplus);
+})->with([
+    'all to the reserve' => [100, 300_000, 0],
+    'half and half' => [50, 150_000, 150_000],
+    'all to the target' => [0, 0, 300_000],
+]);
+
 it('does not keep a split typed by hand as the rule', function (): void {
     Livewire::test('pages::close', ['period' => $this->period->id])
         ->call('goTo', 2)
-        ->call('splitPreset', 50)
+        ->call('applySplitPreset', 50)
         ->set('saveSplitAsRule', true)
         ->call('setSplit', 'reserve', '1000')
         ->assertSet('splitPreset', null)

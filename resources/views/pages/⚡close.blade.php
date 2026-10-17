@@ -93,7 +93,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
     /**
      * One of the quick splits: the share of the leftover that goes to the reserve.
      */
-    public function splitPreset(int $pct): void
+    public function applySplitPreset(int $pct): void
     {
         if (! in_array($pct, [0, 50, 100], true)) {
             return;
@@ -457,7 +457,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
                 {{-- Three quick splits as one row of chips; the "keep it as my rule" switch sits under the row. --}}
                 <div class="mx-4 mt-3 grid grid-cols-3 gap-2" role="group" aria-label="{{ __('Quick split') }}" data-test="split-presets">
                     @foreach ($presets as [$label, $pct])
-                        <x-ui.choice :selected="$allocation->toReserve === (int) ceil($leftover * $pct / 100)" wire:click="splitPreset({{ $pct }})" class="rounded-control px-2 py-1.5 text-[13px] leading-tight text-balance" wire:key="preset-{{ $pct }}" data-test="preset-{{ $pct }}">{{ $label }}</x-ui.choice>
+                        <x-ui.choice :selected="$allocation->toReserve === (int) ceil($leftover * $pct / 100)" wire:click="applySplitPreset({{ $pct }})" class="rounded-control px-2 py-1.5 text-[13px] leading-tight text-balance" wire:key="preset-{{ $pct }}" data-test="preset-{{ $pct }}">{{ $label }}</x-ui.choice>
                     @endforeach
                 </div>
                 @if ($ruleDiffers)
