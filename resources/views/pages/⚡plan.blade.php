@@ -620,7 +620,7 @@ new #[Title('Plan')] class extends Component {
 <div x-data="planPage({ decimals: {{ $this->currency->decimals() }}, locale: @js(str_replace('_', '-', app()->getLocale())), openLineId: @js($openLineId) })" @if ($editing) data-hides-record-button @endif>
     <p class="sr-only" role="status" aria-live="polite" data-test="reorder-status">{{ $reorderStatus }}</p>
     {{-- Edit mode is a visible state: the title changes and a Done button leaves it. --}}
-    <x-ui.page-header :title="$editing ? __('Edit') : __('Plan')" :subtitle="$editing ? __('Drag an item by its handle or use the arrows to reorder, tap it to edit.') : __('Every month starts with this plan.')" data-test="plan-header">
+    <x-ui.page-header :title="$editing ? __('Edit') : __('Plan')" :subtitle="$editing ? __('Drag by the handle or use the arrows.') : __('Every month starts with this plan.')" data-test="plan-header">
         <x-slot name="actions">
             @if ($editing)
                 <x-ui.button variant="tonal" size="sm" wire:click="$set('editing', false)" data-test="toggle-edit">{{ __('Done') }}</x-ui.button>

@@ -111,7 +111,7 @@ it('shows edit mode as a state and leaves it with Done', function (): void {
     visit(route('plan'))->on()->mobile()->resize(390, 844)
         ->assertMissing('[data-test="line-handle"]')
         ->click('[data-test="toggle-edit"]')
-        ->waitForText('Drag an item by its handle or use the arrows to reorder, tap it to edit.')
+        ->waitForText('Drag by the handle or use the arrows.')
         ->assertVisible('[data-test="group-fixed"] [data-test="line-handle"]')
         ->assertVisible('[data-test="add-fixed"]')
         ->click('[data-test="toggle-edit"]')
@@ -287,7 +287,7 @@ it('keeps whole names in edit mode on a 320 px screen, moving the amount under a
 
     $page = visit(route('plan'))->on()->mobile()->resize(320, 568)
         ->click('[data-test="toggle-edit"]')
-        ->waitForText('Drag an item by its handle or use the arrows to reorder, tap it to edit.');
+        ->waitForText('Drag by the handle or use the arrows.');
 
     $names = $page->script(<<<'JS'
         () => [...document.querySelectorAll('[data-test="plan-line"] [data-test="line-name"]')].map(name => ({
