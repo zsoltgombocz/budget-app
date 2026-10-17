@@ -14,7 +14,9 @@
     there is no touch, e.g. a mouse): the iOS rubber-band bounce after a hard fling down scrolls
     up on its own and must not count. Hidden on the settings pages (and their sub-pages), and
     while the page has an element marked data-hides-record-button (a closed month, the plan's
-    edit mode): there is nothing to record into there.
+    edit mode): there is nothing to record into there. It also steps aside while a toast shows
+    (app-toast-visibility from x-toast-host): the toast sits right above the tab bar, where the
+    button would cover it. Sizes come from --tabbar-h, --fab-size and --fab-gap (app.css).
 --}}
 <button type="button"
         x-data="{
@@ -26,6 +28,7 @@
             hiddenOn: @js(array_map(fn (string $name): string => (string) parse_url(route($name), PHP_URL_PATH), ['settings', 'install', 'changelog'])),
             pageAllows: true,
             marked: false,
+            toastOpen: false,
             get allowed() { return this.pageAllows && ! this.marked },
             syncPage() {
                 const path = location.pathname.replace(/\/+$/, '') || '/'
@@ -58,17 +61,18 @@
         x-on:touchstart.window.passive="touchY = $event.touches[0]?.clientY ?? null"
         x-on:touchmove.window.passive="onTouchMove($event.touches[0]?.clientY ?? 0)"
         x-on:scroll.window.passive="onScroll()"
+        x-on:app-toast-visibility.window="toastOpen = $event.detail"
         x-init="syncPage(); document.addEventListener('livewire:navigated', () => syncPage()); new MutationObserver(() => syncMarker()).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-hides-record-button'] })"
         x-on:click="$dispatch('open-entry')"
-        class="fixed right-5 bottom-[calc(82px+env(safe-area-inset-bottom)+16px)] z-20 flex size-[58px] items-center justify-center rounded-[20px] bg-accent text-accent-ink shadow-[0_10px_24px_color-mix(in_srgb,var(--app-accent)_32%,transparent)] transition-transform active:scale-95"
-        :class="visible && allowed ? 'translate-y-0 duration-300 ease-out' : 'pointer-events-none translate-y-[calc(100%_+_160px)] duration-[400ms] ease-in'"
+        class="fixed right-5 bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+var(--fab-gap))] z-20 flex size-(--fab-size) items-center justify-center rounded-[20px] bg-accent text-accent-ink shadow-[0_10px_24px_color-mix(in_srgb,var(--app-accent)_32%,transparent)] transition-transform active:scale-95"
+        :class="visible && allowed && ! toastOpen ? 'translate-y-0 duration-300 ease-out' : 'pointer-events-none translate-y-[calc(100%_+_160px)] duration-[400ms] ease-in'"
         :aria-hidden="allowed ? null : 'true'" :tabindex="allowed ? null : '-1'"
         aria-label="{{ __('Record spending') }}" data-test="tab-entry">
     <x-ui.icon name="add" :size="32" :weight="500" />
 </button>
 
 <nav class="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg pb-[env(safe-area-inset-bottom)]" aria-label="{{ __('Main navigation') }}">
-    <div class="mx-auto grid h-[82px] max-w-lg grid-cols-5 items-start pt-2">
+    <div class="mx-auto grid h-(--tabbar-h) max-w-lg grid-cols-5 items-start pt-2">
         @foreach ($tabs as $tab)
             <a href="{{ route($tab['route']) }}" wire:navigate
                x-data="{

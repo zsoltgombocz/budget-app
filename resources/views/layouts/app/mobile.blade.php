@@ -11,9 +11,10 @@
         <div id="nav-progress" aria-hidden="true"></div>
 
         <div class="mx-auto min-h-dvh w-full max-w-lg">
+            {{-- With tabs: tab bar + record button + its gap + 24px, so the last row's amount is never under the button. --}}
             <main @class([
                 'pt-[var(--safe-top)]',
-                'pb-[calc(196px+env(safe-area-inset-bottom))]' => $tabs,
+                'pb-[calc(var(--tabbar-h)+var(--fab-gap)+var(--fab-size)+24px+env(safe-area-inset-bottom))]' => $tabs,
                 'pb-[env(safe-area-inset-bottom)]' => ! $tabs,
             ])>
                 <div class="page-enter">

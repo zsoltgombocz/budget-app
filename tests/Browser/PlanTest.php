@@ -46,7 +46,7 @@ it('fits the Hungarian scope note into the toast on a small iPhone', function ()
 
     $subtitle = $page->script(<<<'JS'
         () => {
-            const line = [...document.querySelectorAll('[data-test="toast"] .line-clamp-3')].at(-1)
+            const line = [...document.querySelectorAll('[data-test="toast-subtitle"]')].at(-1)
             return { text: line.textContent, cut: line.scrollWidth > line.clientWidth || line.scrollHeight > line.clientHeight }
         }
     JS);
