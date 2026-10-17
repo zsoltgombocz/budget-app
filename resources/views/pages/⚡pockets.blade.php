@@ -45,7 +45,9 @@ new #[Title('Pockets and loans')] class extends Component {
             'movements' => $pocket === null ? [] : $pocket->movements()->latest('occurred_on')->latest('id')->limit(5)->get()
                 ->map(fn ($movement): array => [
                     'date' => \App\Support\Dates::short($movement->occurred_on),
-                    'amount' => ($movement->amount > 0 ? '+' : '').money($movement->amount),
+                    // A direction sign on every movement, with a real minus (U+2212) for money going out.
+                    'amount' => ($movement->amount < 0 ? "\u{2212}" : '+').money(abs($movement->amount)),
+                    'negative' => $movement->amount < 0,
                     'label' => $movement->note ?? $movement->type->label(),
                 ])->all(),
             'amounts' => [
@@ -478,7 +480,7 @@ new #[Title('Pockets and loans')] class extends Component {
 <div x-data="pocketsPage({ decimals: {{ $decimals }}, locale: @js(str_replace('_', '-', app()->getLocale())), cover: @js($cover), openLoan: @js($openLoan), returnTo: @js($returnTo), lastSpendCategory: @js($this->lastSpendCategoryId) })">
     <x-ui.page-header :title="__('Pockets')" :subtitle="__('Saved in total: :amount', ['amount' => money((int) $pockets->sum('balance'))])">
         <x-slot name="actions">
-            <x-ui.button variant="secondary" size="sm" icon="add" x-on:click="sheet = 'new'" data-test="add">{{ __('Add') }}</x-ui.button>
+            <x-ui.button variant="secondary" size="sm" icon="add" x-on:click="sheet = 'new'" data-test="add"><span class="max-[360px]:sr-only">{{ __('Add') }}</span></x-ui.button>
         </x-slot>
     </x-ui.page-header>
 
@@ -500,11 +502,12 @@ new #[Title('Pockets and loans')] class extends Component {
                 $deposit = $this->monthlyDeposit($pocket);
                 $missing = $isFeatured ? max(0, $pocket->prepay_step - $pocket->balance) : 0;
                 $icon = $isFeatured ? 'trending_down' : ($isReserve ? 'shield' : ($pocket->is_shared ? 'group' : 'savings'));
+                // At most two short muted lines under the name: what it is for, and what comes in every month.
                 $notes = array_filter([
-                    $isFeatured ? ($pocket->loan ? __('Saving to prepay :loan', ['loan' => $pocket->loan->name]) : __('Saving for a prepayment')) : null,
+                    $isFeatured ? ($pocket->loan ? __('Prepayment · :loan', ['loan' => $pocket->loan->name]) : __('Saving for a prepayment')) : null,
                     $isReserve ? __('filled from the month-end leftover') : null,
                     // The plan's monthly saving moves into the pocket at closing (PeriodCloser), not on payday.
-                    $deposit > 0 ? __('+:amount a month, added at closing', ['amount' => money($deposit)]) : null,
+                    $deposit > 0 ? __('+:amount/month at closing', ['amount' => money($deposit)]) : null,
                 ]);
             @endphp
             <div class="mx-4 mb-3 rounded-card bg-surface" wire:key="pocket-{{ $pocket->id }}" data-test="pocket-card-{{ $pocket->id }}">
@@ -512,12 +515,12 @@ new #[Title('Pockets and loans')] class extends Component {
                     <span class="flex items-center gap-3">
                         <x-ui.icon-tile :icon="$icon" tone="accent" />
                         <span class="min-w-0 flex-1">
-                            <span class="line-clamp-2 text-[15px] font-semibold leading-snug text-pretty">{{ $pocket->name }}</span>
-                            @foreach ($notes as $note)<span class="num mt-0.5 block text-xs leading-snug text-pretty text-muted" data-test="pocket-note">{{ $note }}</span>@endforeach
+                            <span class="block truncate text-[15px] font-semibold leading-snug">{{ $pocket->name }}</span>
+                            @foreach ($notes as $note)<span class="num mt-0.5 block truncate text-[13px] leading-snug text-muted" data-test="pocket-note">{{ $note }}</span>@endforeach
                         </span>
-                        <x-ui.icon name="chevron_right" :size="22" class="text-faint" />
+                        <x-ui.icon name="chevron_right" :size="18" class="text-faint" />
                     </span>
-                    <x-ui.amount :value="$pocket->balance" :of="$goal ?: null" :size="$isFeatured || $isReserve ? 'lg' : 'md'" class="mt-3.5" />
+                    <x-ui.amount :value="$pocket->balance" :of="$goal ?: null" :size="$isFeatured || $isReserve ? 'lg' : 'md'" class="mt-3" data-test="pocket-card-balance" />
                     @if ($goal)
                         <x-ui.bar :label="$pocket->name" :value="$pocket->balance / max(1, $goal)" :height="8" :tone="$isFeatured && $pocket->hasReachedPrepayStep() ? 'warn' : 'accent'" class="mt-2.5" />
                     @endif
@@ -541,41 +544,43 @@ new #[Title('Pockets and loans')] class extends Component {
     </section>
 
     {{-- Loans: their own section, outlined cards (a debt, not a saving) --}}
-    <section class="mt-6" data-test="loans-section">
-        <div class="flex items-end justify-between gap-3 px-6 pb-3">
-            <div class="min-w-0">
-                <h2 class="text-xl font-semibold tracking-[-0.02em]">{{ __('Loans') }}</h2>
-                <p class="mt-0.5 text-[13px] leading-snug text-muted">{{ __('What you owe and what you pay every month.') }}</p>
-            </div>
-            <x-ui.button variant="secondary" size="sm" icon="add" x-on:click="openLoan(null)" class="shrink-0" data-test="add-loan">{{ __('New loan') }}</x-ui.button>
-        </div>
+    <section class="mt-3" data-test="loans-section">
+        <x-ui.section-header :title="__('Loans')" :subtitle="__('What you owe and what you pay every month.')">
+            <x-slot:actions>
+                <x-ui.button variant="secondary" size="sm" icon="add" x-on:click="openLoan(null)" data-test="add-loan"><span class="max-[360px]:sr-only">{{ __('New loan') }}</span></x-ui.button>
+            </x-slot:actions>
+        </x-ui.section-header>
 
         @if ($loans->isEmpty())
-            <p class="mx-4 mb-3 rounded-card border border-dashed border-ink/14 px-[18px] py-4 text-sm leading-snug text-muted" data-test="loans-empty">{{ __('No loans yet. A loan you add gets a repayment line in the plan.') }}</p>
+            <div class="mx-4 mb-3 rounded-card bg-surface px-[18px] py-1" data-test="loans-empty">
+                <x-ui.empty-state compact icon="account_balance" :title="__('No loans yet')">{{ __('A loan you add gets a repayment line in the plan.') }}</x-ui.empty-state>
+            </div>
         @endif
 
         @foreach ($loans as $loan)
             @php
                 $fund = $loan->pockets->first(fn ($p) => $p->prepay_step !== null);
                 $next = $fund ? $this->nextInstallment($loan, $fund) : null;
+                // Once the prepayment pocket reached its step, recording the prepayment is the card's main action.
+                $prepayReady = $fund !== null && $fund->hasReachedPrepayStep();
             @endphp
             <div class="mx-4 mb-3 rounded-card border border-line p-[18px]" wire:key="loan-{{ $loan->id }}" data-test="loan-{{ $loan->id }}">
-                <button type="button" x-on:click="openLoan({{ $loan->id }})" class="focus-ring flex w-full items-center gap-3 rounded-xl text-left" data-test="edit-loan-{{ $loan->id }}">
+                <button type="button" x-on:click="openLoan({{ $loan->id }})" class="focus-ring flex w-full items-center gap-3 rounded-control text-left" data-test="edit-loan-{{ $loan->id }}">
                     <x-ui.icon-tile icon="account_balance" />
                     <span class="min-w-0 flex-1">
-                        <span class="line-clamp-2 text-[15px] font-semibold leading-snug text-pretty">{{ $loan->name }}</span>
-                        @if ($loan->lender)<span class="mt-0.5 block text-xs leading-snug text-pretty text-muted" data-test="loan-lender">{{ $loan->lender }}</span>@endif
+                        <span class="block truncate text-[15px] font-semibold leading-snug">{{ $loan->name }}</span>
+                        @if ($loan->lender)<span class="mt-0.5 block truncate text-[13px] leading-snug text-muted" data-test="loan-lender">{{ $loan->lender }}</span>@endif
                     </span>
-                    <x-ui.icon name="chevron_right" :size="22" class="text-faint" />
+                    <x-ui.icon name="chevron_right" :size="18" class="text-faint" />
                 </button>
                 <div class="mt-4 grid grid-cols-2 gap-3">
-                    <div><div class="text-xs text-muted">{{ __('Remaining principal') }}</div><x-ui.amount :value="$loan->principal_balance" class="mt-1" /></div>
-                    <div><div class="text-xs text-muted">{{ __('Monthly installment') }}</div><x-ui.amount :value="$loan->monthlyPayment()" class="mt-1" /></div>
+                    <div class="min-w-0"><div class="text-xs text-muted">{{ __('Remaining principal') }}</div><x-ui.amount :value="$loan->principal_balance" class="mt-1" /></div>
+                    <div class="min-w-0"><div class="text-xs text-muted">{{ __('Monthly installment') }}</div><x-ui.amount :value="$loan->monthlyPayment()" class="mt-1" /></div>
                 </div>
                 @if ($next !== null && $next < $loan->monthlyPayment())
-                    <div class="mt-4 rounded-btn border border-accent/22 bg-accent/10 px-4 py-3.5">
+                    <div class="mt-4 rounded-group border border-accent/22 bg-accent/10 px-4 py-3.5">
                         <div class="text-[13px] leading-snug text-ink-2">{{ __('Expected installment after the next prepayment:') }}</div>
-                        <div class="mt-2 flex items-center gap-2.5">
+                        <div class="mt-2 flex flex-wrap items-center gap-x-2.5">
                             <x-ui.amount :value="$loan->monthlyPayment()" size="sm" class="text-[15px] text-muted line-through" />
                             <x-ui.icon name="arrow_forward" :size="18" class="text-accent" />
                             <span class="num text-2xl font-semibold text-accent">~{{ money($next) }}</span>
@@ -583,7 +588,7 @@ new #[Title('Pockets and loans')] class extends Component {
                         <div class="mt-1.5 text-xs text-muted">{{ __('when :pocket reaches :step', ['pocket' => $fund->name, 'step' => money($fund->prepay_step)]) }}</div>
                     </div>
                 @endif
-                <x-ui.button variant="secondary" size="md" icon="trending_down" x-on:click="openPrepay({{ $loan->id }})" class="mt-3 w-full" data-test="prepay-loan-{{ $loan->id }}">{{ __('Record prepayment') }}</x-ui.button>
+                <x-ui.button :variant="$prepayReady ? 'tonal' : 'secondary'" size="md" icon="trending_down" x-on:click="openPrepay({{ $loan->id }})" class="mt-3 w-full" data-test="prepay-loan-{{ $loan->id }}">{{ __('Record prepayment') }}</x-ui.button>
             </div>
         @endforeach
     </section>
@@ -610,9 +615,20 @@ new #[Title('Pockets and loans')] class extends Component {
 
     {{-- Add: choose a pocket or a loan --}}
     <x-ui.sheet show="sheet === 'new'" close="sheet = null" :label="__('Add')" :full="false">
-        <div class="grid gap-2">
-            <button type="button" x-on:click="openPocket(null)" class="focus-ring flex items-center gap-3 rounded-btn bg-surface-2 p-4 text-left" data-test="new-pocket"><x-ui.icon-tile icon="savings" tone="accent" /><span><span class="block font-semibold">{{ __('New pocket') }}</span><span class="block text-xs text-muted">{{ __('Reserve, prepayment or any goal') }}</span></span></button>
-            <button type="button" x-on:click="openLoan(null)" class="focus-ring flex items-center gap-3 rounded-btn bg-surface-2 p-4 text-left" data-test="new-loan"><x-ui.icon-tile icon="account_balance" /><span><span class="block font-semibold">{{ __('New loan') }}</span><span class="block text-xs text-muted">{{ __('Principal, installment and APR') }}</span></span></button>
+        <div class="divide-y divide-line overflow-hidden rounded-group bg-surface-2">
+            @foreach ([
+                ['new-pocket', 'openPocket(null)', 'savings', 'accent', __('New pocket'), __('Reserve, prepayment or any goal')],
+                ['new-loan', 'openLoan(null)', 'account_balance', 'default', __('New loan'), __('Principal, installment and APR')],
+            ] as [$test, $action, $tileIcon, $tone, $label, $description])
+                <button type="button" x-on:click="{{ $action }}" class="focus-ring flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left" data-test="{{ $test }}">
+                    <x-ui.icon-tile :icon="$tileIcon" :tone="$tone" />
+                    <span class="min-w-0 flex-1">
+                        <span class="block text-[15px] font-medium">{{ $label }}</span>
+                        <span class="mt-0.5 block truncate text-[13px] text-muted">{{ $description }}</span>
+                    </span>
+                    <x-ui.icon name="chevron_right" :size="18" class="text-faint" />
+                </button>
+            @endforeach
         </div>
     </x-ui.sheet>
 
@@ -620,18 +636,18 @@ new #[Title('Pockets and loans')] class extends Component {
     <x-ui.sheet show="sheet === 'pocket'" close="sheet = null" title="title()" data-test="pocket-sheet">
         <template x-if="form.id">
             <div>
-                <div class="flex items-baseline justify-between gap-3 px-1.5 pb-3 pt-1">
+                <div class="flex items-baseline justify-between gap-3 px-1.5 pb-2 pt-1">
                     <span class="text-sm text-muted">{{ __('Balance') }}</span>
-                    <span class="flex items-baseline gap-1.5">
+                    <span class="flex min-w-0 items-baseline gap-1.5">
                         <x-ui.amount bind="money(form.balance)" size="md" data-test="pocket-balance" />
-                        <span class="num text-sm text-muted" x-show="form.target" x-text="'/ ' + money(form.target) + ' ' + @js(user_currency()->symbol())"></span>
+                        <span class="num truncate text-sm text-muted" x-show="form.target" x-text="'/ ' + money(form.target) + ' ' + @js(user_currency()->symbol())"></span>
                     </span>
                 </div>
-                <x-ui.segmented model="pocketTab" :options="['money' => __('Move money'), 'settings' => __('Settings')]" />
+                <x-ui.tabs id="pocket" model="pocketTab" :options="['money' => __('Move money'), 'settings' => __('Settings')]" />
             </div>
         </template>
 
-        <div x-show="form.id && pocketTab === 'money'" class="pt-3">
+        <div id="pocket-panel-money" role="tabpanel" aria-labelledby="pocket-tab-money" x-show="form.id && pocketTab === 'money'" class="pt-3">
             <template x-if="moveMode === 'spend'">
                 <div x-init="$nextTick(() => $el.scrollIntoView({ block: 'nearest' }))">
                     <x-ui.form-group>
@@ -645,64 +661,87 @@ new #[Title('Pockets and loans')] class extends Component {
                 </div>
             </template>
 
+            {{-- Under the numpad on a short phone there is no room for the list: it waits behind its title. --}}
             <template x-if="form.movements?.length">
-                <section class="mt-5">
-                    <h3 class="px-1.5 pb-2 text-[13px] font-semibold text-muted">{{ __('Recent movements') }}</h3>
-                    <div class="divide-y divide-line overflow-hidden rounded-2xl bg-surface-2">
+                <section :class="moveMode === 'spend' ? 'mt-4' : 'mt-1'">
+                    <button type="button" x-on:click="showMovements = ! showMovements" :aria-expanded="showMovements ? 'true' : 'false'" aria-controls="pocket-movements"
+                            class="focus-ring flex min-h-11 w-full items-center justify-between gap-3 rounded-control px-1.5 text-left text-[13px] font-semibold text-muted" data-test="movements-toggle">
+                        <span>{{ __('Recent movements') }} <span class="num font-normal" x-text="'· ' + form.movements.length"></span></span>
+                        <x-ui.icon name="expand_more" :size="20" class="text-faint transition" ::class="showMovements && 'rotate-180'" />
+                    </button>
+                    <div id="pocket-movements" x-show="showMovements" class="divide-y divide-line overflow-hidden rounded-group bg-surface-2" data-test="movements">
                         <template x-for="(movement, index) in form.movements" :key="index">
-                            <div class="num flex justify-between gap-2 px-4 py-2.5 text-[13px]"><span class="truncate text-muted" x-text="movement.date + ' · ' + movement.label"></span><span class="shrink-0 font-medium" x-text="movement.amount"></span></div>
+                            <div class="num flex min-h-11 items-center justify-between gap-3 px-4 py-2.5 text-[13px]">
+                                <span class="truncate text-muted" x-text="movement.date + ' · ' + movement.label"></span>
+                                <span class="shrink-0 font-semibold" :class="movement.negative ? 'text-danger' : 'text-ink'" x-text="movement.amount" data-test="movement-amount"></span>
+                            </div>
                         </template>
                     </div>
                 </section>
             </template>
         </div>
 
-        <div x-show="! form.id || pocketTab === 'settings'" :class="form.id && 'pt-3'">
+        <div id="pocket-panel-settings" :role="form.id && 'tabpanel'" :aria-labelledby="form.id && 'pocket-tab-settings'" x-show="! form.id || pocketTab === 'settings'" :class="form.id && 'pt-3'">
             <x-ui.form-group :title="__('Basics')">
                 <x-ui.text-row :label="__('Name')" x-model="form.name" maxlength="80" :placeholder="__('e.g. Holiday')" error="name" data-test="pocket-name" />
-                <x-ui.amount-row name="target" :label="__('Target')" error="target" data-test="field-target" />
+                <x-ui.amount-row name="target" :label="__('Target')" fallback="" error="target" data-test="field-target" />
             </x-ui.form-group>
             <x-ui.form-group :title="__('Loan prepayment')" :hint="__('When the pocket reaches the step, the loan card shows how much the installment drops.')">
                 <x-ui.select-row :label="__('Prepays loan')" x-model.number="form.loanId">
                     <option value="">{{ __('None') }}</option>
                     @foreach ($loans as $loan)<option value="{{ $loan->id }}">{{ $loan->name }}</option>@endforeach
                 </x-ui.select-row>
-                <x-ui.amount-row name="step" :label="__('Prepayment step')" error="step" x-show="form.loanId" />
+                <x-ui.amount-row name="step" :label="__('Prepayment step')" fallback="" error="step" x-show="form.loanId" />
             </x-ui.form-group>
             <x-ui.form-group :title="__('Role')">
                 <x-ui.switch-row model="form.isReserve" :label="__('This is the reserve')" :hint="__('At closing the leftover goes here first, a deficit comes from here.')" />
                 <x-ui.switch-row model="form.isShared" :label="__('Shared pocket')" :hint="__('Only a marker.')" />
             </x-ui.form-group>
-            <div class="mt-6 text-center" x-show="form.id">
-                <button type="button" x-on:click="removePocket()" class="focus-ring h-11 rounded-xl px-4 text-[15px] font-medium text-danger" data-test="delete-pocket">{{ __('Delete pocket') }}</button>
-            </div>
         </div>
+
+        <x-slot:danger>
+            <x-ui.button variant="danger" size="md" icon="delete" x-show="form.id && pocketTab === 'settings'" x-on:click="removePocket()" class="w-full" data-test="delete-pocket">{{ __('Delete pocket') }}</x-ui.button>
+        </x-slot:danger>
 
         <x-slot:footer>
             <div x-show="form.id && pocketTab === 'money'" data-test="money-pad">
-                {{-- The three ways to move money: a compact control above the amount, so all of it fits over the numpad. --}}
+                {{--
+                    The three ways to move money as a radio list: icon, title and one line on what it does.
+                    It folds to the chosen one, so the amount, the numpad and the button fit a short phone;
+                    tapping the chosen one opens the others.
+                --}}
                 @php
                     $modes = [
-                        'deposit' => [__('Deposit'), __('From this month’s money: the month’s leftover goes down by the same amount.')],
-                        'budget' => [__('Withdraw to the monthly budget'), __('Leaves the pocket and counts as extra income this month.')],
-                        'spend' => [__('Pay a spending'), __('The pocket pays it: the monthly budget is not used up.')],
+                        'deposit' => ['add', __('Deposit'), __('The month’s leftover goes down by the same amount.')],
+                        'budget' => ['remove', __('Withdraw to the monthly budget'), __('Counts as extra income this month.')],
+                        'spend' => ['receipt_long', __('Pay a spending'), __('The pocket pays it, the budget stays untouched.')],
                     ];
                 @endphp
-                <div role="radiogroup" aria-label="{{ __('What do you want to do?') }}" class="grid grid-cols-3 gap-[3px] rounded-xl bg-bg p-[3px]" data-test="move-modes">
-                    @foreach ($modes as $mode => [$modeLabel])
-                        <button type="button" role="radio" x-on:click="moveMode = @js($mode)" :aria-checked="moveMode === @js($mode) ? 'true' : 'false'" :tabindex="moveMode === @js($mode) ? 0 : -1"
-                                x-on:keydown.right.prevent="$el.nextElementSibling?.click(); $el.nextElementSibling?.focus()" x-on:keydown.left.prevent="$el.previousElementSibling?.click(); $el.previousElementSibling?.focus()"
+                <div role="radiogroup" aria-label="{{ __('What do you want to do?') }}" class="divide-y divide-line overflow-hidden rounded-group bg-surface-2" data-test="move-modes">
+                    @foreach ($modes as $mode => [$modeIcon, $modeLabel, $modeHint])
+                        <button type="button" role="radio" x-show="modesOpen || moveMode === @js($mode)"
+                                x-on:click="pickMode(@js($mode))" :aria-checked="moveMode === @js($mode) ? 'true' : 'false'" :tabindex="moveMode === @js($mode) ? 0 : -1"
+                                x-on:keydown.down.prevent="stepMode(1)" x-on:keydown.right.prevent="stepMode(1)" x-on:keydown.up.prevent="stepMode(-1)" x-on:keydown.left.prevent="stepMode(-1)"
                                 @if ($mode !== 'deposit') :disabled="form.balance <= 0" @endif
-                                class="focus-ring min-h-11 rounded-[9px] px-1 text-[13px] font-medium leading-tight transition-colors disabled:opacity-40"
-                                :class="moveMode === @js($mode) ? 'bg-surface-3 text-ink' : 'text-muted'" data-test="mode-{{ $mode }}">{{ $modeLabel }}</button>
+                                class="focus-ring flex min-h-14 w-full items-center gap-3 px-3 py-2 text-left transition-colors disabled:opacity-40" data-test="mode-{{ $mode }}">
+                            <x-ui.icon-tile :icon="$modeIcon" :size="36" ::class="moveMode === '{{ $mode }}' && '!bg-accent/12 !text-accent'" />
+                            <span class="min-w-0 flex-1">
+                                <span class="block truncate text-[15px] font-medium">{{ $modeLabel }}</span>
+                                <span class="mt-px block text-xs leading-snug text-pretty text-muted" data-test="mode-hint">{{ $modeHint }}</span>
+                            </span>
+                            <span class="flex size-5 shrink-0 items-center justify-center" aria-hidden="true">
+                                <template x-if="! modesOpen"><x-ui.icon name="expand_more" :size="20" class="text-muted" /></template>
+                                <template x-if="modesOpen && moveMode === @js($mode)"><x-ui.icon name="check_circle" :size="20" fill class="text-accent" /></template>
+                                <template x-if="modesOpen && moveMode !== @js($mode)"><span class="size-[18px] rounded-full border-[1.5px] border-faint"></span></template>
+                            </span>
+                        </button>
                     @endforeach
                 </div>
-                <p class="mt-1.5 min-h-8 text-center text-xs leading-snug text-muted" data-test="mode-hint"
-                   x-text="{{ \Illuminate\Support\Js::from(collect($modes)->map(fn ($mode) => $mode[1])->all()) }}[moveMode]"></p>
-                <p class="-mt-1 mb-1 text-center text-xs text-muted" x-show="form.balance <= 0" data-test="empty-note">{{ __('The pocket is empty, there is nothing to take out.') }}</p>
-                <div class="text-center" :class="! positive('move') && 'text-muted'"><x-ui.amount bind="display('move')" size="lg" data-test="move-amount" /></div>
+                <p class="mt-2 text-center text-xs text-muted" x-show="form.balance <= 0" data-test="empty-note">{{ __('The pocket is empty, there is nothing to take out.') }}</p>
+                <div class="mt-2 text-center" :class="! positive('move') && 'text-muted'"><x-ui.amount bind="display('move')" size="lg" data-test="move-amount" /></div>
                 <p class="mt-1 text-center text-xs text-danger" x-show="errors.move" x-text="errors.move" role="alert"></p>
-                <x-ui.numpad :decimal="$decimals > 0" enter="move()" class="mt-2" />
+                {{-- Lower keys on a very short phone (320×568), so the balance and the tabs stay on screen above. --}}
+                <x-ui.numpad :decimal="$decimals > 0" enter="move()" class="mt-2 [@media(max-height:600px)]:[&_button]:min-h-9" />
                 <x-ui.button x-on:click="move()" ::disabled="saving || ! positive('move')" class="mt-3 w-full" data-test="pocket-move">
                     <span x-text="{ deposit: @js(__('Deposit')), budget: @js(__('Withdraw to the monthly budget')), spend: @js(__('Pay from the pocket')) }[moveMode]"></span>
                 </x-ui.button>
@@ -720,14 +759,14 @@ new #[Title('Pockets and loans')] class extends Component {
             <x-ui.text-row :label="__('Lender')" x-model="form.lender" maxlength="80" :placeholder="__('Optional')" />
         </x-ui.form-group>
         <x-ui.form-group :title="__('Monthly payment')">
-            <x-ui.amount-row name="installment" :label="__('Installment')" error="installment" data-test="loan-installment" />
-            <x-ui.amount-row name="insurance" :label="__('Insurance')" error="insurance" data-test="loan-insurance" />
+            <x-ui.amount-row name="installment" fallback="" :label="__('Installment')" error="installment" data-test="loan-installment" />
+            <x-ui.amount-row name="insurance" fallback="" :label="__('Insurance')" error="insurance" data-test="loan-insurance" />
             <x-ui.day-field :label="__('Due day')" value="fields.dueDay" pick="fields.dueDay = day === null ? '' : String(day)" :hint="__('Day of the month; you get a reminder that morning')" error="dueDay" data-test="loan-due-day" />
         </x-ui.form-group>
         <x-ui.form-group :title="__('Balance')">
-            <x-ui.amount-row name="principal" :label="__('Outstanding principal')" :hint="__('Without interest')" error="principal" data-test="loan-principal" />
-            <x-ui.amount-row name="thm" :label="__('APR (%)')" error="thm" data-test="loan-thm" />
-            <x-ui.amount-row name="months" :label="__('Months left')" error="months" data-test="loan-months" />
+            <x-ui.amount-row name="principal" fallback="" :label="__('Outstanding principal')" :hint="__('Without interest')" error="principal" data-test="loan-principal" />
+            <x-ui.amount-row name="thm" fallback="" :label="__('APR (%)')" error="thm" data-test="loan-thm" />
+            <x-ui.amount-row name="months" fallback="" :label="__('Months left')" error="months" data-test="loan-months" />
         </x-ui.form-group>
         <x-ui.form-group :title="__('After a prepayment')">
             <div class="p-3">
@@ -742,7 +781,7 @@ new #[Title('Pockets and loans')] class extends Component {
 
     {{-- Prepayment --}}
     <x-ui.sheet show="sheet === 'prepay'" close="sheet = null" title="title()" :full="false" data-test="prepay-sheet">
-        <x-slot:intro>{{ __('If you paid it from a pocket, its balance goes down too.') }}</x-slot:intro>
+        <x-slot:intro><span class="block font-medium text-ink-2" x-text="form.loanName"></span>{{ __('If you paid it from a pocket, its balance goes down too.') }}</x-slot:intro>
         <div class="py-2 text-center" :class="! positive('prepay') && 'text-muted'"><x-ui.amount bind="display('prepay')" size="xl" /></div>
         <div class="mb-2 text-center text-xs text-danger" x-show="errors.prepay" x-text="errors.prepay" role="alert"></div>
         <x-ui.form-group>
@@ -763,6 +802,10 @@ new #[Title('Pockets and loans')] class extends Component {
     Alpine.data('pocketsPage', ({ decimals, locale, cover, openLoan, returnTo, lastSpendCategory }) => ({
         sheet: null,
         moveMode: 'deposit',
+        /** The money modes fold to the chosen one; tapping it opens the others. */
+        modesOpen: false,
+        /** Recent movements: open where the screen is tall enough next to the numpad. */
+        showMovements: false,
         pocketTab: 'money',
         spendCategory: '',
         spendNote: '',
@@ -798,7 +841,7 @@ new #[Title('Pockets and loans')] class extends Component {
                 new: @js(__('Add')),
                 pocket: this.form.id ? this.form.name : @js(__('New pocket')),
                 loan: this.form.id ? this.form.name : @js(__('New loan')),
-                prepay: @js(__('Prepayment')) + (this.form.loanName ? ' · ' + this.form.loanName : ''),
+                prepay: @js(__('Prepayment')),
             }[this.sheet] ?? ''
         },
 
@@ -823,10 +866,25 @@ new #[Title('Pockets and loans')] class extends Component {
         async openPocket(id, mode = 'deposit') {
             const data = await $wire.pocketData(id)
             this.moveMode = data.balance > 0 ? mode : 'deposit'
+            this.modesOpen = false
+            this.showMovements = window.innerHeight > 700
             this.pocketTab = 'money'
             this.spendCategory = lastSpendCategory ?? ''
             this.spendNote = ''
             this.open('pocket', data, data.id ? 'move' : null)
+        },
+        /** A tap on the chosen mode opens the list; a tap on another picks it and folds the list. */
+        pickMode(mode) {
+            if (! this.modesOpen && mode === this.moveMode) { this.modesOpen = true; return }
+            this.moveMode = mode
+            this.modesOpen = false
+        },
+        /** Arrow keys move through the modes that are allowed (only Deposit on an empty pocket). */
+        stepMode(step) {
+            const modes = this.form.balance > 0 ? ['deposit', 'budget', 'spend'] : ['deposit']
+            const next = modes[(modes.indexOf(this.moveMode) + step + modes.length) % modes.length]
+            this.moveMode = next
+            this.$nextTick(() => document.querySelector(`[data-test="mode-${next}"]`)?.focus())
         },
         async openLoan(id) { const data = await $wire.loanData(id); this.open('loan', data, null) },
         async openPrepay(id) { const data = await $wire.prepayData(id); this.open('prepay', data, 'prepay') },
