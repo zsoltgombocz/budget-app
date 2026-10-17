@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DevGateController;
+use App\Http\Controllers\IntroSeenController;
 use App\Http\Controllers\MagicLinkController;
 use App\Http\Controllers\NoSpendFromNotificationController;
 use App\Http\Controllers\PushSubscriptionController;
@@ -34,6 +35,8 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         Route::livewire('honap/zaras/{period}', 'pages::close')->name('close');
         Route::livewire('perselyek', 'pages::pockets')->name('pockets');
         Route::livewire('ujdonsagok', 'pages::changelog')->name('changelog');
+        // The "How it works" tour was finished or skipped (components/tour).
+        Route::post('bemutato', IntroSeenController::class)->name('intro.seen');
     });
 });
 
