@@ -250,29 +250,62 @@ it('says a transfer due today was transferred, and the due card keeps its amount
         ->assertDispatched('app-toast', title: __('Marked as transferred.'), undo: 'fixed-item-undo');
 });
 
-it('shows the how-it-works intro once after onboarding', function (): void {
+it('shows the how-it-works tour once after onboarding, until it is finished or skipped', function (): void {
     $this->user->settings()->update(['intro_seen_at' => null]);
 
     Livewire::test('pages::today')
         ->assertSet('showIntro', true)
-        ->call('dismissIntro')
-        ->assertSet('showIntro', false);
+        ->assertSeeHtml('data-test="tour"')
+        ->assertSeeHtml('data-tour="leftover"');
+
+    $this->post(route('intro.seen'))->assertNoContent();
 
     expect($this->user->settings()->refresh()->intro_seen_at)->not->toBeNull();
 
     Livewire::test('pages::today')->assertSet('showIntro', false);
 });
 
-it('reopens the intro from settings without touching when it was first seen', function (): void {
+it('replays the tour from settings without touching when it was first seen', function (): void {
     $seen = $this->user->settings()->intro_seen_at;
 
     $this->get(route('settings'))->assertSee(route('dashboard', ['bemutato' => 1]), false);
 
-    Livewire::withQueryParams(['bemutato' => 1])->test('pages::today')
-        ->assertSet('showIntro', true)
-        ->call('dismissIntro');
+    Livewire::withQueryParams(['bemutato' => 1])->test('pages::today')->assertSet('showIntro', true);
+
+    $this->post(route('intro.seen'))->assertNoContent();
 
     expect($this->user->settings()->refresh()->intro_seen_at?->toDateTimeString())->toBe($seen?->toDateTimeString());
+});
+
+it('marks every step of the tour on Today and continues on the plan, the pockets and the month', function (): void {
+    BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail()->update(['due_day' => 5]);
+    Pocket::factory()->for($this->user)->create(['name' => 'Reserve', 'is_reserve' => true, 'balance' => 100_000]);
+
+    $today = $this->get(route('dashboard'))->assertOk();
+    foreach (['leftover', 'if-spent', 'daily', 'record', 'no-spend', 'due', 'categories', 'fixed', 'tabs'] as $target) {
+        $today->assertSee('data-tour="'.$target.'"', false);
+    }
+
+    $this->get(route('plan'))->assertOk()
+        ->assertSee('data-tour="plan-summary"', false)
+        ->assertSee('data-tour="plan-variable"', false)
+        ->assertSee('data-tour="plan-month-end"', false)
+        ->assertSee('data-test="tour"', false);
+
+    $this->get(route('pockets'))->assertOk()
+        ->assertSee('data-tour="pocket-deposit"', false)
+        ->assertSee('data-tour="pocket-withdraw"', false)
+        ->assertSee('data-tour="loans"', false);
+
+    $this->get(route('month'))->assertOk()
+        ->assertSee('data-tour="month-now"', false)
+        ->assertSee('data-tour="month-close"', false);
+});
+
+it('lets only a signed-in user mark the tour as seen', function (): void {
+    auth()->logout();
+
+    $this->post(route('intro.seen'))->assertRedirect(route('login'));
 });
 
 it('puts the daily allowance right under the leftover, then the due items folded into one row, the budgets and the checklist', function (): void {

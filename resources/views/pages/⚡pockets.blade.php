@@ -478,7 +478,7 @@ new #[Title('Pockets and loans')] class extends Component {
     $returnTo = $openLoan !== null && request()->query('vissza') === 'terv' ? route('plan') : null;
 @endphp
 <div x-data="pocketsPage({ decimals: {{ $decimals }}, locale: @js(str_replace('_', '-', app()->getLocale())), cover: @js($cover), openLoan: @js($openLoan), returnTo: @js($returnTo), lastSpendCategory: @js($this->lastSpendCategoryId) })">
-    <x-ui.page-header :title="__('Pockets')" :subtitle="__('Saved in total: :amount', ['amount' => money((int) $pockets->sum('balance'))])">
+    <x-ui.page-header :title="__('Pockets')" :subtitle="__('Saved in total: :amount', ['amount' => money((int) $pockets->sum('balance'))])" data-tour="pockets-header">
         <x-slot name="actions">
             <x-ui.button variant="secondary" size="sm" icon="add" x-on:click="sheet = 'new'" data-test="add"><span class="max-[360px]:sr-only">{{ __('Add') }}</span></x-ui.button>
         </x-slot>
@@ -510,7 +510,7 @@ new #[Title('Pockets and loans')] class extends Component {
                     $deposit > 0 ? __('+:amount/month at closing', ['amount' => money($deposit)]) : null,
                 ]);
             @endphp
-            <div class="mx-4 mb-3 rounded-card bg-surface" wire:key="pocket-{{ $pocket->id }}" data-test="pocket-card-{{ $pocket->id }}">
+            <div class="mx-4 mb-3 rounded-card bg-surface" wire:key="pocket-{{ $pocket->id }}" @if ($loop->first) data-tour="pocket-card" @endif data-test="pocket-card-{{ $pocket->id }}">
                 <button type="button" x-on:click="openPocket({{ $pocket->id }})" class="focus-ring block w-full rounded-card px-[18px] pb-3.5 pt-[18px] text-left" data-test="pocket-{{ $pocket->id }}">
                     <span class="flex items-center gap-3">
                         <x-ui.icon-tile :icon="$icon" tone="accent" />
@@ -537,15 +537,15 @@ new #[Title('Pockets and loans')] class extends Component {
                 </button>
                 {{-- The pair hugs its labels from the left: the right edge is where the + floats at rest. --}}
                 <div class="flex flex-wrap gap-2 px-[18px] pb-[18px]">
-                    <x-ui.button variant="secondary" size="md" icon="add" x-on:click="openPocket({{ $pocket->id }}, 'deposit')" data-test="pocket-deposit-{{ $pocket->id }}">{{ __('Deposit') }}</x-ui.button>
-                    <x-ui.button variant="secondary" size="md" icon="remove" x-on:click="openPocket({{ $pocket->id }}, 'budget')" :disabled="$pocket->balance <= 0" class="disabled:text-muted" data-test="pocket-withdraw-{{ $pocket->id }}">{{ __('Withdraw') }}</x-ui.button>
+                    <x-ui.button variant="secondary" size="md" icon="add" x-on:click="openPocket({{ $pocket->id }}, 'deposit')" :data-tour="$loop->first ? 'pocket-deposit' : null" data-test="pocket-deposit-{{ $pocket->id }}">{{ __('Deposit') }}</x-ui.button>
+                    <x-ui.button variant="secondary" size="md" icon="remove" x-on:click="openPocket({{ $pocket->id }}, 'budget')" :disabled="$pocket->balance <= 0" class="disabled:text-muted" :data-tour="$loop->first ? 'pocket-withdraw' : null" data-test="pocket-withdraw-{{ $pocket->id }}">{{ __('Withdraw') }}</x-ui.button>
                 </div>
             </div>
         @endforeach
     </section>
 
     {{-- Loans: their own section, surface cards like the pockets above --}}
-    <section class="mt-3" data-test="loans-section">
+    <section class="mt-3" data-tour="loans" data-test="loans-section">
         <x-ui.section-header :title="__('Loans')" :subtitle="__('What you owe and what you pay every month.')">
             <x-slot:actions>
                 <x-ui.button variant="secondary" size="sm" icon="add" x-on:click="openLoan(null)" data-test="add-loan"><span class="max-[360px]:sr-only">{{ __('New loan') }}</span></x-ui.button>
@@ -801,6 +801,9 @@ new #[Title('Pockets and loans')] class extends Component {
             <x-ui.button x-on:click="submit()" ::disabled="saving || ! positive('prepay')" class="w-full" data-test="sheet-save">{{ __('Record prepayment') }}</x-ui.button>
         </x-slot:footer>
     </x-ui.sheet>
+
+    <x-tour section="pockets" :label="__('Pockets')" :steps="\App\Support\Tour::pockets(saved: (int) $pockets->sum('balance'))"
+            :next="['label' => __('On to the Month'), 'url' => route('month'), 'section' => 'month']" />
 </div>
 
 @script

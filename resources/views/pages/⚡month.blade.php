@@ -617,7 +617,7 @@ new #[Title('Month')] class extends Component {
                     [__('Against the plan'), $signedMoney($deviationAmount)],
                 ];
             @endphp
-            <div class="mb-4 border-b border-line pb-4" data-test="close-now">
+            <div class="mb-4 border-b border-line pb-4" data-tour="month-now" data-test="close-now">
                 <div class="flex items-center gap-1 text-[13px] text-muted">
                     <span>{{ __('If the month ended today') }}</span>
                     <x-explainer topic="month-leftover" :rows="$deviationRows" />
@@ -661,11 +661,11 @@ new #[Title('Month')] class extends Component {
         @endif
 
         @if ($period->isOpen() && ! app(\App\Services\PeriodCloser::class)->canClose(auth()->user(), $period))
-            <div class="mt-3 flex items-center gap-1.5 text-[13px] text-muted" data-test="close-not-yet">
+            <div class="mt-3 flex items-center gap-1.5 text-[13px] text-muted" data-tour="month-close" data-test="close-not-yet">
                 <x-ui.icon name="schedule" :size="16" />{{ __('You can close the month from :date.', ['date' => Dates::short(app(\App\Services\PeriodCloser::class)->closableFrom($period))]) }}
             </div>
         @elseif ($period->isOpen())
-            <x-ui.button variant="tonal" size="md" icon="task_alt" :href="route('close', $period)" wire:navigate class="mt-4 w-full" data-test="start-close">{{ __('Close the month') }}</x-ui.button>
+            <x-ui.button variant="tonal" size="md" icon="task_alt" :href="route('close', $period)" wire:navigate class="mt-4 w-full" data-tour="month-close" data-test="start-close">{{ __('Close the month') }}</x-ui.button>
         @elseif ($closeRecord)
             <a href="{{ route('close', $period) }}" wire:navigate class="focus-ring mt-4 flex flex-wrap gap-x-6 gap-y-2 rounded-[16px] bg-surface-2 px-3.5 py-3" data-test="close-summary">
                 @foreach ([[__('Leftover'), $closeRecord->leftover], [__('To the reserve'), $closeRecord->to_reserve], [__('Rest'), $closeRecord->to_invest]] as [$statLabel, $statAmount])
@@ -742,7 +742,7 @@ new #[Title('Month')] class extends Component {
         Search and category filter. The placeholder stays 15px on touch screens too, where the typed
         text grows to 16px (app.css) so iOS does not zoom into the field on focus.
     --}}
-    <div class="mx-4 mt-4" data-test="month-filters">
+    <div class="mx-4 mt-4" data-tour="month-list" data-test="month-filters">
         <label class="flex h-11 items-center gap-2 rounded-[14px] bg-surface px-3.5 focus-within:ring-2 focus-within:ring-accent">
             <x-ui.icon name="search" :size="20" class="text-muted" />
             <input type="search" wire:model.live.debounce.400ms="search" maxlength="100" enterkeyhint="search" autocomplete="off"
@@ -889,6 +889,12 @@ new #[Title('Month')] class extends Component {
     </x-ui.sheet>
 
     <x-fixed-item-sheet />
+
+    @php
+        $closer = app(\App\Services\PeriodCloser::class);
+        $tourClosableFrom = $period->isOpen() && ! $closer->canClose(auth()->user(), $period) ? $closer->closableFrom($period) : null;
+    @endphp
+    <x-tour section="month" :label="__('Month')" :steps="\App\Support\Tour::month(leftover: $period->isOpen() ? $this->closePreview->leftover() : 0, closableFrom: $tourClosableFrom)" />
 </div>
 
 @script
