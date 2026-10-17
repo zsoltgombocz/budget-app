@@ -291,7 +291,7 @@ new class extends Component {
              class="absolute inset-x-0 bottom-0 top-[max(clamp(1rem,calc(100dvh-37rem),5rem),calc(var(--safe-top)+clamp(0.5rem,calc(100dvh-37rem),4rem)))] mx-auto flex max-w-lg flex-col rounded-t-[30px] bg-surface px-4 outline-none pb-[calc(clamp(0.5rem,1.5dvh,1.25rem)+env(safe-area-inset-bottom))] pt-2"
              :aria-busy="busy">
             <div class="mx-auto h-[5px] w-9 shrink-0 rounded-full bg-ink/18"></div>
-            <div class="mt-1 grid h-[clamp(36px,5.2dvh,44px)] shrink-0 grid-cols-[72px_1fr_72px] items-center">
+            <div class="mt-1 grid h-[clamp(36px,5.2dvh,44px)] shrink-0 grid-cols-[72px_1fr_72px] items-center px-2 max-[360px]:px-1" data-test="sheet-header">
                 <button type="button" class="focus-ring relative -ml-2 h-full rounded-xl px-2 text-left text-[15px] text-muted before:absolute before:inset-x-0 before:-inset-y-1" x-on:click="close()" data-test="entry-cancel">{{ __('Cancel') }}</button>
                 <h2 class="text-center text-base font-semibold">{{ __('New spending') }}</h2>
                 <span></span>

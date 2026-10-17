@@ -48,3 +48,25 @@ it('closes only the topmost dialog on Escape and gives focus back to the opener'
 
     expect($page->script($state))->toMatchArray(['sheet' => false, 'locked' => false, 'focusOnOpener' => true]);
 });
+
+it('insets the sheet header symmetrically, in line with the intro, and keeps the title centred', function (int $width, float $inset): void {
+    $this->actingAs(onboardedUser());
+
+    $page = visit(route('plan'))->on()->mobile()->resize($width, 700)->wait(0.5)
+        ->click('[data-test="income"]')->wait(0.6);
+
+    $box = $page->script(<<<'JS'
+        () => {
+            const header = document.querySelector('[data-test="income-sheet"] [data-test="sheet-header"]')
+            const panel = header.parentElement.getBoundingClientRect()
+            const range = document.createRange()
+            range.selectNodeContents(header.querySelector('button'))
+            const cancel = range.getBoundingClientRect()
+            const title = header.querySelector('[data-test="sheet-title"]').getBoundingClientRect()
+            return { cancelLeft: cancel.left - panel.left, titleCentre: title.left + title.width / 2 - panel.left, panelCentre: panel.width / 2 }
+        }
+    JS);
+
+    expect($box['cancelLeft'])->toBeGreaterThanOrEqual($inset - 0.5)->toBeLessThanOrEqual($inset + 0.5)
+        ->and(abs($box['titleCentre'] - $box['panelCentre']))->toBeLessThanOrEqual(0.5);
+})->with([[393, 24.0], [320, 20.0]]);
