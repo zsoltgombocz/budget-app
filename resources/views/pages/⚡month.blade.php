@@ -738,13 +738,16 @@ new #[Title('Month')] class extends Component {
         </x-ui.card>
     @endif
 
-    {{-- Search and category filter --}}
+    {{--
+        Search and category filter. The placeholder stays 15px on touch screens too, where the typed
+        text grows to 16px (app.css) so iOS does not zoom into the field on focus.
+    --}}
     <div class="mx-4 mt-4" data-test="month-filters">
         <label class="flex h-11 items-center gap-2 rounded-[14px] bg-surface px-3.5 focus-within:ring-2 focus-within:ring-accent">
             <x-ui.icon name="search" :size="20" class="text-muted" />
             <input type="search" wire:model.live.debounce.400ms="search" maxlength="100" enterkeyhint="search" autocomplete="off"
                    placeholder="{{ __('Search notes or amounts') }}" aria-label="{{ __('Search notes or amounts') }}"
-                   class="min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-muted" data-test="month-search">
+                   class="min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-[15px] placeholder:text-muted" data-test="month-search">
         </label>
         {{-- "Every month" (while searching) and the category filter in one scrolling row, faded at the right edge. --}}
         @if (trim($search) !== '' || ($this->filterCategories->isNotEmpty() && ! $this->searchesAllMonths()))
