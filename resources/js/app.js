@@ -1,10 +1,12 @@
 import { registerBusyLock } from './busy.js'
 import { registerDialog } from './dialog.js'
+import { listenForMotion, motionEnabled, registerMotion, setMotion } from './motion.js'
 import { amountFields, formatAmount, numpadKeydown, registerNumpad } from './numpad.js'
 import { install, markStandalone, push, registerServiceWorker } from './pwa.js'
 import { lockScroll, unlockScroll } from './scroll-lock.js'
 
 markStandalone()
+listenForMotion()
 registerServiceWorker()
 install.listen()
 
@@ -14,6 +16,7 @@ window.appScrollLock = { lock: lockScroll, unlock: unlockScroll }
 window.amountFields = amountFields
 window.formatAmount = formatAmount
 window.numpadKeydown = numpadKeydown
+window.appMotion = { enabled: motionEnabled, set: setMotion }
 
 // The app's confirmation dialog (components/confirm-dialog): resolves true on confirm.
 // Options: title, body, confirm (button label), danger, icon (tile glyph); optionally highlight (one emphasised
@@ -25,6 +28,7 @@ window.appConfirm = (options) => new Promise((resolve) => {
 document.addEventListener('alpine:init', () => {
     registerNumpad(window.Alpine)
     registerDialog(window.Alpine)
+    registerMotion(window.Alpine)
 })
 // Livewire may already be running when this module executes (modules are deferred).
 if (window.Livewire) {

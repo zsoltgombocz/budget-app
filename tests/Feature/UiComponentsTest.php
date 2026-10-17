@@ -141,7 +141,9 @@ it('renders underline tabs wired to their panels', function (): void {
     expect($html)->toContain('role="tablist"')
         ->and(substr_count($html, 'role="tab"'))->toBe(2)
         ->and($html)->toContain('id="pocket-tab-money"')->toContain('aria-controls="pocket-panel-settings"')
-        ->toContain(':aria-selected="tab === \'money\' ? \'true\' : \'false\'"')->toContain('after:bg-accent');
+        ->toContain(':aria-selected="tab === \'money\' ? \'true\' : \'false\'"')->toContain('after:bg-accent')
+        // One bar slides between the tabs once measured.
+        ->toContain('data-test="tabs-indicator"');
 });
 
 it('shows plan against actual as a table with neutral rows and only the deviation coloured', function (): void {

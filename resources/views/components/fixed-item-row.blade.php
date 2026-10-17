@@ -31,20 +31,20 @@
     ];
 @endphp
 
-<div {{ $attributes->class(['@container flex items-center gap-1', 'opacity-60' => $item->paid]) }} data-test="fixed-item-row" data-status="{{ $status->value }}">
+<div {{ $attributes->class(['@container flex items-center gap-1 transition-opacity duration-200 ease-out', 'opacity-60' => $item->paid]) }} data-test="fixed-item-row" data-status="{{ $status->value }}">
     <button type="button"
             @if ($skipped && $options) x-on:click="$dispatch('open-fixed-item', @js($detail))" aria-haspopup="dialog"
             @else role="checkbox" aria-checked="{{ $item->paid ? 'true' : 'false' }}" wire:click="togglePaid({{ $lineId }})" @endif
             @disabled(! $open)
             class="focus-ring grid min-h-14 min-w-0 flex-1 grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-x-3 rounded-xl py-[11px] text-left @max-[300px]:gap-x-2.5" data-test="fixed-item">
         @if ($item->paid)
-            <span class="row-span-2 flex size-6 items-center justify-center rounded-full bg-accent/16 text-accent" aria-hidden="true"><x-ui.icon name="check" :size="16" :weight="600" /></span>
+            <span class="row-span-2 flex size-6 items-center justify-center rounded-full bg-accent/16 text-accent" aria-hidden="true" x-data x-appear><x-ui.icon name="check" :size="16" :weight="600" /></span>
         @elseif ($skipped)
-            <span class="row-span-2 flex size-6 items-center justify-center rounded-full bg-surface-3 text-muted" aria-hidden="true"><x-ui.icon name="remove" :size="16" :weight="600" /></span>
+            <span class="row-span-2 flex size-6 items-center justify-center rounded-full bg-surface-3 text-muted" aria-hidden="true" x-data x-appear><x-ui.icon name="remove" :size="16" :weight="600" /></span>
         @else
             <span @class(['row-span-2 size-6 rounded-full border-[1.5px]', 'border-warn' => $overdue, 'border-faint' => ! $overdue]) aria-hidden="true" data-test="fixed-item-ring"></span>
         @endif
-        <span @class(['col-start-2 row-start-1 min-w-0 truncate text-[15px] font-medium @max-[300px]:col-end-4', 'text-ink-2' => $item->paid, 'text-muted' => $skipped])>{{ $item->line->categoryName }}</span>
+        <span @class(['col-start-2 row-start-1 min-w-0 truncate text-[15px] font-medium transition-colors duration-200 @max-[300px]:col-end-4', 'text-ink-2' => $item->paid, 'text-muted' => $skipped])>{{ $item->line->categoryName }}</span>
             <span @class(['col-start-2 row-start-2 mt-0.5 line-clamp-2 min-w-0 text-xs leading-snug', 'text-warn' => $overdue, 'text-muted' => ! $overdue]) data-test="fixed-item-state">
                 @if ($item->paid)
                     {{ $isTransfer ? __('Transferred this month') : __('Paid this month') }}

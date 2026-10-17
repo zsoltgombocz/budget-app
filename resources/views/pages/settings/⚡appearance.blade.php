@@ -100,6 +100,11 @@ new #[Title('Appearance settings')] class extends Component {
             </div>
         </x-ui.card>
 
+        {{-- Kept in this browser like the theme (resources/js/motion.js); without a choice the system's reduced motion decides. --}}
+        <div x-data="{ motion: window.appMotion?.enabled() ?? true }" x-init="$watch('motion', (value) => window.appMotion?.set(value))" class="overflow-hidden rounded-card bg-surface">
+            <x-ui.switch-row model="motion" :label="__('Animations')" :hint="__('Short transitions when something opens or changes. Until you choose, it follows your device.')" data-test="motion-toggle" />
+        </div>
+
         <x-ui.card class="p-[18px]">
             <div class="text-[15px] font-semibold">{{ __('Language') }}</div>
             <div class="mt-3 grid grid-cols-2 gap-1.5">

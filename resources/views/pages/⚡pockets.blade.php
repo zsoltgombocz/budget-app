@@ -669,9 +669,9 @@ new #[Title('Pockets and loans')] class extends Component {
                     <button type="button" x-on:click="showMovements = ! showMovements" :aria-expanded="showMovements ? 'true' : 'false'" aria-controls="pocket-movements"
                             class="focus-ring flex min-h-11 w-full items-center justify-between gap-3 rounded-control px-1.5 text-left text-[13px] font-semibold text-muted" data-test="movements-toggle">
                         <span>{{ __('Recent movements') }} <span class="num font-normal" x-text="'· ' + form.movements.length"></span></span>
-                        <x-ui.icon name="expand_more" :size="20" class="text-faint transition" ::class="showMovements && 'rotate-180'" />
+                        <x-ui.icon name="expand_more" :size="20" class="text-faint transition duration-200 ease-out" ::class="showMovements && 'rotate-180'" />
                     </button>
-                    <div id="pocket-movements" x-show="showMovements" class="divide-y divide-line overflow-hidden rounded-group bg-surface-2" data-test="movements">
+                    <div id="pocket-movements" x-show="showMovements" x-collapse.duration.220ms class="divide-y divide-line overflow-hidden rounded-group bg-surface-2" data-test="movements">
                         <template x-for="(movement, index) in form.movements" :key="index">
                             <div class="num flex min-h-11 items-center justify-between gap-3 px-4 py-2.5 text-[13px]">
                                 <span class="truncate text-muted" x-text="movement.date + ' · ' + movement.label"></span>

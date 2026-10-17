@@ -277,7 +277,7 @@ new class extends Component {
          x-on:keydown.escape.window="dialogEscape($event) && close()"
          x-on:keydown.tab="dialogTrap($event)"
          x-show="open" x-cloak class="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="{{ __('New spending') }}">
-        <div x-show="open" x-transition.opacity class="absolute inset-0 bg-black/55" x-on:click="close()" aria-hidden="true"></div>
+        <div x-show="open" x-transition.opacity.duration.200ms class="absolute inset-0 bg-black/55" x-on:click="close()" aria-hidden="true"></div>
 
         {{--
             Sizes scale with the viewport height (clamp + dvh) so the whole sheet fits from 568px (iPhone SE,
@@ -285,8 +285,8 @@ new class extends Component {
             shrink on short screens. The middle scrolls as a last resort; the Save row never moves off screen.
         --}}
         <div x-show="open"
-             x-transition:enter="transition duration-300 ease-out" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
-             x-transition:leave="transition duration-200 ease-in" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full"
+             x-transition:enter="transition duration-250 ease-[cubic-bezier(0.2,0.8,0.2,1)]" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
+             x-transition:leave="transition duration-180 ease-in" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full"
              x-ref="dialogPanel" tabindex="-1"
              class="absolute inset-x-0 bottom-0 top-[max(clamp(1rem,calc(100dvh-37rem),5rem),calc(var(--safe-top)+clamp(0.5rem,calc(100dvh-37rem),4rem)))] mx-auto flex max-w-lg flex-col rounded-t-[30px] bg-surface px-4 outline-none pb-[calc(clamp(0.5rem,1.5dvh,1.25rem)+env(safe-area-inset-bottom))] pt-2"
              :aria-busy="busy">

@@ -643,10 +643,10 @@ new #[Title('Plan')] class extends Component {
          :data-stuck="stuck ? 'true' : null" data-test="plan-summary-band">
         {{-- Three figures side by side; on a very narrow screen with long amounts they wrap instead of overflowing. --}}
         <div class="flex flex-wrap justify-between gap-x-3 gap-y-2" data-test="plan-summary">
-            <div class="min-w-0"><div class="text-xs text-muted">{{ __('Income') }}</div><x-ui.amount size="sm" :value="$summary->income" class="mt-[3px] text-base font-semibold max-[359px]:text-[15px]" /></div>
-            <div class="min-w-0"><div class="text-xs text-muted">{{ __('Expenses') }}</div><x-ui.amount size="sm" :value="$summary->totalExpenses" class="mt-[3px] text-base font-semibold max-[359px]:text-[15px]" /></div>
+            <div class="min-w-0"><div class="text-xs text-muted">{{ __('Income') }}</div><x-ui.amount size="sm" :value="$summary->income" class="mt-[3px] text-base font-semibold max-[359px]:text-[15px]" x-data x-number-change /></div>
+            <div class="min-w-0"><div class="text-xs text-muted">{{ __('Expenses') }}</div><x-ui.amount size="sm" :value="$summary->totalExpenses" class="mt-[3px] text-base font-semibold max-[359px]:text-[15px]" x-data x-number-change /></div>
             {{-- Green only when something is really left; zero stays neutral. --}}
-            <div class="ml-auto min-w-0 text-right"><div class="text-xs text-muted">{{ __('Left') }}</div><x-ui.amount size="sm" :value="$summary->leftover" :tone="match (true) { $summary->leftover > 0 => 'accent', $summary->leftover < 0 => 'danger', default => null }" class="mt-[3px] text-base font-semibold max-[359px]:text-[15px]" data-test="plan-left" /></div>
+            <div class="ml-auto min-w-0 text-right"><div class="text-xs text-muted">{{ __('Left') }}</div><x-ui.amount size="sm" :value="$summary->leftover" :tone="match (true) { $summary->leftover > 0 => 'accent', $summary->leftover < 0 => 'danger', default => null }" class="mt-[3px] text-base font-semibold max-[359px]:text-[15px]" x-data x-number-change data-test="plan-left" /></div>
         </div>
     </div>
 
@@ -931,11 +931,11 @@ new #[Title('Plan')] class extends Component {
         <div class="mt-5">
             <button type="button" x-on:click="more = ! more" :aria-expanded="more ? 'true' : 'false'" class="focus-ring flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-1.5 text-left text-[15px] font-medium text-ink-2" data-test="line-more">
                 <span>{{ __('More') }}<span class="block text-xs font-normal text-muted">{{ __('Kind, typical and expensive month, icon, active period') }}</span></span>
-                <x-ui.icon name="expand_more" :size="22" class="text-faint transition" ::class="more && 'rotate-180'" />
+                <x-ui.icon name="expand_more" :size="22" class="text-faint transition duration-200 ease-out" ::class="more && 'rotate-180'" />
             </button>
         </div>
 
-        <div x-show="more" x-cloak data-test="line-more-panel">
+        <div x-show="more" x-collapse.duration.220ms x-cloak data-test="line-more-panel">
             <x-ui.form-group :title="__('Kind')">
                 <div class="p-3">
                     <div class="flex flex-wrap gap-1.5">

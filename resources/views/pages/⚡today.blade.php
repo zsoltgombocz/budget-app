@@ -338,14 +338,14 @@ new #[Title('Today')] class extends Component {
                 </span>
             @endif
         </div>
-        <x-ui.amount :value="$current" size="hero" :tone="$negative ? 'danger' : 'accent'" class="mt-1.5" />
+        <x-ui.amount :value="$current" size="hero" :tone="$negative ? 'danger' : 'accent'" class="mt-1.5" x-data x-number-change />
         @if ($unspentBudget > 0)
             <p class="num mt-2 text-xs text-pretty text-muted" data-test="unspent-budget">{{ __('This includes your budget not spent yet: :amount', ['amount' => money($unspentBudget)]) }}</p>
         @endif
         <div class="num mt-3 text-[15px] font-medium" data-test="leftover-if-spent">
             {{-- The amount and the "i" stay together, so the icon never drops to a line of its own. --}}
             @php [$ifSpentLabel] = explode('@@', __('If you spend every budget in full: :amount', ['amount' => '@@']), 2); @endphp
-            <span @class(['text-danger' => $forecastNegative, 'text-ink' => ! $forecastNegative])>{{ $ifSpentLabel }}<span class="whitespace-nowrap">{{ money($forecast->expectedLeftover) }}<x-explainer topic="if-spent" :rows="$ifSpentRows" /></span></span>
+            <span @class(['text-danger' => $forecastNegative, 'text-ink' => ! $forecastNegative])>{{ $ifSpentLabel }}<span class="whitespace-nowrap"><span class="inline-block" x-data x-number-change>{{ money($forecast->expectedLeftover) }}</span><x-explainer topic="if-spent" :rows="$ifSpentRows" /></span></span>
         </div>
         <div class="num mt-0.5 text-sm text-muted">{{ trans_choice('{1} :count day left|[2,*] :count days left', $forecast->remainingDays, ['count' => $forecast->remainingDays]) }}</div>
     </section>
@@ -361,7 +361,7 @@ new #[Title('Today')] class extends Component {
                     <span>{{ __('You can still spend today') }}</span>
                     <x-explainer topic="daily" :rows="$dailyRows" />
                 </div>
-                <x-ui.amount :value="$dailyShown" size="lg" :tone="$forecastNegative ? 'muted' : null" class="mt-1" />
+                <x-ui.amount :value="$dailyShown" size="lg" :tone="$forecastNegative ? 'muted' : null" class="mt-1" x-data x-number-change />
             </div>
             <x-ui.button variant="tonal" size="md" icon="add" x-data x-on:click="$dispatch('open-entry')" class="shrink-0 max-[360px]:px-3" :aria-label="__('Record')" data-record-button-twin data-test="daily-record"><span class="max-[360px]:sr-only">{{ __('Record') }}</span></x-ui.button>
         </div>
@@ -419,11 +419,11 @@ new #[Title('Today')] class extends Component {
                     <span class="num block truncate text-[15px] font-semibold">{{ trans_choice('{1} :count fixed item due|[2,*] :count fixed items due', count($dueItems), ['count' => count($dueItems)]) }}</span>
                     <span class="mt-0.5 flex items-center gap-0.5 text-[13px] font-medium text-ink-2">
                         <span x-text="showDue ? @js(__('Hide')) : @js(__('Show me'))">{{ __('Show me') }}</span>
-                        <x-ui.icon name="expand_more" :size="18" class="text-muted transition-transform" x-bind:class="showDue && 'rotate-180'" />
+                        <x-ui.icon name="expand_more" :size="18" class="text-muted transition-transform duration-200 ease-out" x-bind:class="showDue && 'rotate-180'" />
                     </span>
                 </span>
             </button>
-            <div id="today-due-list" x-show="showDue" x-cloak class="pb-2">
+            <div id="today-due-list" x-show="showDue" x-collapse.duration.220ms x-cloak class="pb-2">
                 @foreach ($dueItems as $item)
                     @php
                         $isTransfer = in_array($item->line->type, [\App\Enums\LineType::Transfer, \App\Enums\LineType::Sinking], true);
@@ -472,7 +472,7 @@ new #[Title('Today')] class extends Component {
         <x-ui.card class="mx-4 mb-3 px-[18px] pb-1.5 pt-[18px]" data-test="categories">
             <div class="flex flex-wrap items-baseline justify-between gap-x-3">
                 <h2 class="text-[15px] font-semibold">{{ __('Variable spending') }}</h2>
-                <span @class(['num ml-auto shrink-0 text-[13px]', 'text-danger' => $forecast->variableSpent > $forecast->variablePlanned, 'text-muted' => $forecast->variableSpent <= $forecast->variablePlanned])>
+                <span @class(['num ml-auto shrink-0 text-[13px]', 'text-danger' => $forecast->variableSpent > $forecast->variablePlanned, 'text-muted' => $forecast->variableSpent <= $forecast->variablePlanned]) x-data x-number-change>
                     {{ money_number($forecast->variableSpent) }} / {{ money($forecast->variablePlanned) }}
                 </span>
             </div>

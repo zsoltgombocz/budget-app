@@ -28,5 +28,7 @@
 <script>try { if ((/iPad|iPhone|iPod/.test(navigator.userAgent)) && (window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches)) document.documentElement.classList.add('ios-standalone') } catch (e) {}</script>
 {{-- Launch splash: only in the installed app and once per session. --}}
 <script>try { if ((navigator.standalone === true || matchMedia('(display-mode: standalone)').matches) && ! sessionStorage.getItem('splashed')) { document.documentElement.classList.add('splash'); sessionStorage.setItem('splashed', '1') } } catch (e) {}</script>
+{{-- Animations (Settings → Appearance), kept in this browser like the theme; without a choice the system's reduced motion decides. resources/js/motion.js keeps it on navigation. --}}
+<script>(function () { var d = document.documentElement, m = null; try { m = localStorage.getItem('motion') } catch (e) {} try { d.dataset.motion = m === 'on' || (m !== 'off' && ! matchMedia('(prefers-reduced-motion: reduce)').matches) ? 'on' : 'off' } catch (e) { d.dataset.motion = m === 'off' ? 'off' : 'on' } })()</script>
 <script>try { if (! localStorage.getItem('flux.appearance')) localStorage.setItem('flux.appearance', 'dark') } catch (e) {}</script>
 @fluxAppearance

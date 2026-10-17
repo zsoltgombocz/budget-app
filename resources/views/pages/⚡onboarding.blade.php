@@ -598,9 +598,9 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                                                 <span class="block text-[15px]">{{ __('More') }}</span>
                                                 <span class="mt-0.5 block text-xs leading-snug text-muted">{{ __('Loan details: principal, APR, months left (optional)') }}</span>
                                             </span>
-                                            <x-ui.icon name="expand_more" :size="20" class="shrink-0 text-faint transition" ::class="more && 'rotate-180'" />
+                                            <x-ui.icon name="expand_more" :size="20" class="shrink-0 text-faint transition duration-200 ease-out" ::class="more && 'rotate-180'" />
                                         </button>
-                                        <div x-show="more" x-cloak class="divide-y divide-line border-t border-line">
+                                        <div x-show="more" x-collapse.duration.220ms x-cloak class="divide-y divide-line border-t border-line">
                                             <p class="px-4 py-3 text-xs leading-snug text-pretty text-muted">{{ __('With these the app shows the payoff and what a prepayment saves. You find them on your loan statement; you can add them later too: Plan, Loan repayments.') }}</p>
                                             @foreach ($loanFields as $detail)
                                                 <div>

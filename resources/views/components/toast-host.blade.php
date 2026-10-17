@@ -60,7 +60,7 @@
     {{-- The live region stays in the DOM so screen readers announce what appears in it. --}}
     <div class="sr-only" role="status" aria-live="polite" x-text="announcement()" data-test="toast-status"></div>
     <template x-if="toast">
-        <div x-transition:enter="transition duration-200" x-transition:enter-start="translate-y-3 opacity-0"
+        <div x-transition:enter="transition duration-200 ease-out" x-transition:enter-start="translate-y-3 scale-[0.98] opacity-0"
              x-on:click="dismiss()"
              class="pointer-events-auto relative flex min-h-[52px] cursor-pointer items-center gap-3 overflow-hidden rounded-group bg-(--toast-bg) py-2.5 pl-4 text-(--toast-ink) shadow-(--toast-shadow)"
              :class="toast.undo ? 'pr-1.5' : 'pr-4'"

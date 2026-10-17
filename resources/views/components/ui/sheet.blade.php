@@ -41,10 +41,10 @@
      @class(['fixed inset-0', $z])
      role="dialog" aria-modal="true"
      @if ($label) aria-label="{{ $label }}" @elseif ($title) :aria-label="{{ $title }}" @endif>
-    <div x-show="{{ $show }}" x-transition.opacity class="absolute inset-0 bg-black/55" x-on:click="{{ $close }}" aria-hidden="true"></div>
+    <div x-show="{{ $show }}" x-transition.opacity.duration.200ms class="absolute inset-0 bg-black/55" x-on:click="{{ $close }}" aria-hidden="true"></div>
     <div x-show="{{ $show }}" x-ref="dialogPanel" tabindex="-1"
-         x-transition:enter="transition duration-300 ease-out" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
-         x-transition:leave="transition duration-200 ease-in" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full"
+         x-transition:enter="transition duration-250 ease-[cubic-bezier(0.2,0.8,0.2,1)]" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
+         x-transition:leave="transition duration-180 ease-in" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full"
          @if (! $full && isset($pad)) :class="active && @js($top ?? 'top-[calc(var(--safe-top)+0.75rem)]')" @endif
          {{ $attributes->class([
              'absolute inset-x-0 bottom-0 mx-auto flex max-w-lg flex-col overflow-hidden rounded-t-[30px] bg-surface text-ink outline-none',

@@ -317,6 +317,15 @@ select:focus[data-flux-control] {
 
 /* ── Motion ─────────────────────────────────────────────────────────── */
 
+/*
+ * One motion language: fast (120–250ms), ease-out on the way in, ease-in on the way out.
+ * Blocks enter once with the page (never on a Livewire update), bars grow once, the main figures
+ * fade up when their number changes (x-number-change), ticks pop when set (x-appear), buttons
+ * give way under the finger, folding lists slide open (x-collapse). Opacity and transform only,
+ * so nothing shifts the layout. html[data-motion="off"] (Settings → Appearance, or the system's
+ * reduced motion when no choice was made) makes all of it instant: see the end of this section.
+ */
+
 @keyframes page-in {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: none; }
@@ -351,7 +360,7 @@ select:focus[data-flux-control] {
 }
 
 .page-enter > * > * {
-    animation: item-in 260ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+    animation: item-in 240ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
 }
 
 .page-enter > * > *:nth-child(2) { animation-delay: 20ms; }
@@ -379,7 +388,28 @@ select:focus[data-flux-control] {
 
 [role='progressbar'] > div {
     transform-origin: left center;
-    animation: bar-grow 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both 120ms;
+    animation: bar-grow 480ms cubic-bezier(0.2, 0.7, 0.2, 1) both 100ms;
+}
+
+/* A tick or a "skipped" dash set by the user (x-appear). */
+@keyframes appear-pop {
+    0% { opacity: 0; transform: scale(0.6); }
+    60% { opacity: 1; transform: scale(1.08); }
+    100% { transform: none; }
+}
+
+.motion-appear {
+    animation: appear-pop 220ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+
+/* A main figure whose number changed (x-number-change). */
+@keyframes number-in {
+    from { opacity: 0.35; transform: translateY(3px); }
+    to { opacity: 1; transform: none; }
+}
+
+.motion-number {
+    animation: number-in 220ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
 }
 
 /* App launch splash (installed app, first load of a session). */
@@ -409,15 +439,6 @@ html.splash.splash-out #app-splash {
     animation: splash-pulse 1.2s ease-in-out infinite;
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .page-enter,
-    .page-enter > * > *,
-    [role='progressbar'] > div,
-    #app-splash .splash-icon {
-        animation: none !important;
-    }
-}
-
 /* Onboarding / wizard step change. */
 @keyframes step-in {
     from { opacity: 0; transform: translateX(16px); }
@@ -425,7 +446,7 @@ html.splash.splash-out #app-splash {
 }
 
 .step-enter {
-    animation: step-in 280ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+    animation: step-in 240ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
 }
 
 /* Navigation feedback: an instant top bar and a dimmed page while the next page loads. */
@@ -457,10 +478,30 @@ html.navigating main {
     transition: opacity 120ms ease;
 }
 
+/*
+ * Animations off: everything is instant. Durations go to 0 instead of "animation: none", so
+ * Alpine transitions (sheets, x-collapse) still run their end state at once and entering
+ * blocks land where they belong. Without the attribute (no script) the system setting decides.
+ */
+html[data-motion='off'] *,
+html[data-motion='off'] *::before,
+html[data-motion='off'] *::after {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
-    .step-enter,
-    html.navigating #nav-progress {
-        animation: none !important;
+    html:not([data-motion]) *,
+    html:not([data-motion]) *::before,
+    html:not([data-motion]) *::after {
+        animation-duration: 0s !important;
+        animation-delay: 0s !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0s !important;
+        transition-delay: 0s !important;
     }
 }
 

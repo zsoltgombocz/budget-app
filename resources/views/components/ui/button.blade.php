@@ -50,7 +50,7 @@
         ? ['lg' => 'px-3', 'md' => 'px-3', 'sm' => 'px-2'][$size]
         : ['lg' => 'px-5', 'md' => 'px-4', 'sm' => 'px-3.5'][$size];
     $iconSize = ['lg' => 22, 'md' => 20, 'sm' => 18][$size];
-    $classes = 'focus-ring inline-flex items-center justify-center whitespace-nowrap transition focus-visible:transition-none active:scale-[0.98] disabled:cursor-default disabled:active:scale-100 '.$variants[$variant].' '.$sizes[$size].' '.$padding;
+    $classes = 'focus-ring inline-flex items-center justify-center whitespace-nowrap transition duration-150 ease-out focus-visible:transition-none active:scale-[0.97] disabled:cursor-default disabled:active:scale-100 '.$variants[$variant].' '.$sizes[$size].' '.$padding;
 @endphp
 
 @if ($href)

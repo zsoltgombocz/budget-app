@@ -9,7 +9,7 @@
 --}}
 @if ($marked)
     <div {{ $attributes->class(['flex min-h-11 items-center gap-2 text-[15px]']) }} data-test="no-spend-marked">
-        <x-ui.icon name="check_circle" :size="20" :fill="true" class="text-accent" />
+        <x-ui.icon name="check_circle" :size="20" :fill="true" class="text-accent" x-data x-appear />
         <span class="min-w-0 font-medium text-ink-2">{{ __("You didn't spend today") }}</span>
         <x-ui.button variant="text" size="md" wire:click="unmarkNoSpend" class="-mr-1 ml-auto" data-test="undo-no-spend">{{ __('Undo') }}</x-ui.button>
     </div>

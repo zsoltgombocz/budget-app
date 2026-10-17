@@ -624,7 +624,7 @@ new #[Title('Month')] class extends Component {
                 </div>
                 {{-- ForecastService::deviation(): "if you spend every budget in full" against the planned leftover, as one badge. --}}
                 <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                    <x-ui.amount :value="$closeLeftover" size="lg" :tone="$closeLeftover >= 0 ? 'accent' : 'danger'" class="[&>span:first-child]:text-[28px]" />
+                    <x-ui.amount :value="$closeLeftover" size="lg" :tone="$closeLeftover >= 0 ? 'accent' : 'danger'" class="[&>span:first-child]:text-[28px]" x-data x-number-change />
                     <span @class([
                         'num inline-flex h-[22px] items-center whitespace-nowrap rounded-full px-2 text-xs font-semibold',
                         'bg-danger/16 text-danger' => $deviationAmount < 0,
@@ -646,7 +646,7 @@ new #[Title('Month')] class extends Component {
             <span>{{ $period->isOpen() ? __('Variable spending so far') : __('Variable spending total') }}</span>
             <span class="shrink-0">{{ __('budget :amount', ['amount' => money($forecast->variablePlanned)]) }}</span>
         </div>
-        <x-ui.amount :value="$forecast->variableSpent" class="mt-1" />
+        <x-ui.amount :value="$forecast->variableSpent" class="mt-1" x-data x-number-change />
         <x-ui.bar :label="$period->isOpen() ? __('Variable spending so far') : __('Variable spending total')" :value="$forecast->variablePlanned > 0 ? $forecast->variableSpent / $forecast->variablePlanned : 0" :tone="$forecast->variableSpent > $forecast->variablePlanned ? 'danger' : ($forecast->variablePlanned > 0 && $forecast->variableSpent / $forecast->variablePlanned >= 0.8 ? 'warn' : 'accent')" class="mt-2.5" />
         @if (! $period->isOpen() && $forecast->variablePlanned > 0)
             <div @class(['num mt-1.5 text-[13px] font-medium', 'text-danger' => $forecast->variableSpent > $forecast->variablePlanned, 'text-muted' => $forecast->variableSpent <= $forecast->variablePlanned]) data-test="variable-verdict">
@@ -728,9 +728,9 @@ new #[Title('Month')] class extends Component {
                         {{ __(':count done', ['count' => $fixedDone]) }}@if ($fixedSkipped > 0)<span data-test="fixed-skipped"> · {{ __(':count skipped', ['count' => $fixedSkipped]) }}</span>@endif@if ($fixedLeft > 0) · {{ __(':count left', ['count' => $fixedLeft]) }}@endif@if ($fixedDue > 0)<span class="font-medium text-warn" data-test="fixed-due"> · {{ __(':count due', ['count' => $fixedDue]) }}</span>@endif
                     </span>
                 </span>
-                <x-ui.icon name="expand_more" :size="22" class="text-muted transition-transform" x-bind:class="open && 'rotate-180'" />
+                <x-ui.icon name="expand_more" :size="22" class="text-muted transition-transform duration-200 ease-out" x-bind:class="open && 'rotate-180'" />
             </button>
-            <div id="month-fixed-list" x-show="open" x-cloak class="border-t border-line pb-2" data-test="fixed-list">
+            <div id="month-fixed-list" x-show="open" x-collapse.duration.220ms x-cloak class="border-t border-line pb-2" data-test="fixed-list">
             @foreach ($this->fixedItems as $item)
                 <x-fixed-item-row :item="$item" :today="$today" @class(['border-b border-line' => ! $loop->last]) wire:key="fixed-{{ $item->line->lineId }}" />
             @endforeach

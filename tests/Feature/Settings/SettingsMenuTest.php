@@ -54,6 +54,20 @@ it('lists the time zones in words with Budapest first', function (): void {
         ->assertDontSee('>Europe/Vienna<', false);
 });
 
+it('offers an Animations switch kept in the browser like the theme, applied before the first paint', function (): void {
+    $this->actingAs(onboardedUser(['locale' => 'hu']));
+    app()->setLocale('hu');
+
+    $this->get(route('appearance.edit'))
+        ->assertSeeInOrder(['Téma', 'Animációk', 'Nyelv'])
+        ->assertSee('role="switch"', false)
+        ->assertSee('data-test="motion-toggle"', false)
+        ->assertSee('window.appMotion?.set(value)', false)
+        // The head script sets the root attribute from the stored choice or the system's reduced motion.
+        ->assertSee("localStorage.getItem('motion')", false)
+        ->assertSee('prefers-reduced-motion: reduce', false);
+});
+
 it('keeps the danger colour to text and buttons, with a solid button only for the final confirmation', function (): void {
     $this->actingAs(onboardedUser());
 
