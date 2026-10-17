@@ -167,3 +167,32 @@ it('fits the prepayment sheet on a 320 px phone: the whole numpad above the butt
     expect($layout)->toBe(['keysAboveButton' => true, 'nameFits' => true]);
     $page->assertNoJavaScriptErrors();
 });
+
+it('keeps the balance and the tabs on screen when paying a spending opens its fields, and after switching back', function (): void {
+    $user = onboardedUser();
+    $pocket = Pocket::factory()->for($user)->create(['name' => 'Holiday', 'balance' => 20_000, 'target_amount' => 300_000]);
+    $user->pocketMovements()->create(['pocket_id' => $pocket->id, 'amount' => -5_000, 'type' => 'withdraw', 'occurred_on' => now()->toDateString()]);
+    $this->actingAs($user);
+
+    $page = visit(route('pockets'))->on()->mobile()->resize(393, 659)
+        ->click('[data-test="pocket-deposit-'.$pocket->id.'"]')
+        ->assertVisible('[data-test="pocket-sheet"]');
+
+    // Polls a little: the spending fields scroll themselves into view after they render.
+    $headShown = <<<'JS'
+        async () => {
+            await new Promise(r => setTimeout(r, 400))
+            const head = document.querySelector('[data-test="pocket-sheet-head"]').getBoundingClientRect()
+            const body = document.querySelector('[data-test="pocket-sheet-head"]').parentElement.getBoundingClientRect()
+            const balance = document.querySelector('[data-test="pocket-balance"]').getBoundingClientRect()
+            return head.top >= body.top - 0.5 && balance.top >= body.top - 0.5 && balance.bottom <= window.innerHeight
+        }
+    JS;
+
+    $page->click('[data-test="mode-deposit"]')->click('[data-test="mode-spend"]')->assertVisible('[data-test="spend-category"]');
+    expect($page->script($headShown))->toBeTrue();
+
+    $page->click('[data-test="mode-spend"]')->click('[data-test="mode-deposit"]');
+    expect($page->script($headShown))->toBeTrue();
+    $page->assertNoJavaScriptErrors();
+});

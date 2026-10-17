@@ -635,8 +635,9 @@ new #[Title('Pockets and loans')] class extends Component {
 
     {{-- Pocket: money movements (numpad always at hand) and settings --}}
     <x-ui.sheet show="sheet === 'pocket'" close="sheet = null" title="title()" data-test="pocket-sheet">
+        {{-- The balance and the tabs stick to the top while the content under them scrolls (e.g. the spending fields of "Pay a spending"). --}}
         <template x-if="form.id">
-            <div>
+            <div class="sticky top-0 z-10 -mx-4 bg-surface px-4" data-test="pocket-sheet-head">
                 <div class="flex items-baseline justify-between gap-3 px-1.5 pb-2 pt-1">
                     <span class="text-sm text-muted">{{ __('Balance') }}</span>
                     <span class="flex min-w-0 items-baseline gap-1.5">
