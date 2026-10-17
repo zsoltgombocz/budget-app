@@ -1185,5 +1185,10 @@
     "A line left at 0 stays out of the plan; you can add it later on the Plan screen.": "Ami 0-n marad, nem kerül a tervbe – később a Terv oldalon felveheted.",
     "Loan details: principal, APR, months left (optional)": "Hiteladatok: tőke, THM, hátralévő hónapok (nem kötelező)",
     "At closing it goes into a “Savings” pocket in the app; you can take money out of it.": "Záráskor egy „Megtakarítás” perselybe kerül az appban; ki is veheted belőle.",
-    "At closing we remind you to move it to your investment account.": "Záráskor emlékeztetünk, hogy utald át a befektetési számládra."
+    "At closing we remind you to move it to your investment account.": "Záráskor emlékeztetünk, hogy utald át a befektetési számládra.",
+    "From payday": "Fizetésnaptól",
+    "The month runs from payday to the day before the next payday.": "A hónap fizetésnaptól a következő fizetésnap előtti napig tart.",
+    "The month runs from the 1st to the last day of the month.": "A hónap 1-jétől az utolsó napjáig tart.",
+    "No notifications yet": "Még nincs értesítés",
+    "The first one shows up here once the app sends or skips a reminder.": "Az első itt jelenik meg, amint az app küld vagy kihagy egy emlékeztetőt."
 }

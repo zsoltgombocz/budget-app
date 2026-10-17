@@ -221,7 +221,7 @@ new #[Title('Notifications')] class extends Component {
                         <span class="num shrink-0 text-xs text-muted">{{ $log->created_at?->setTimezone($timezone)->format('m.d. H:i') }}</span>
                     </div>
                 @empty
-                    <div class="mt-3 text-sm text-muted">{{ __('Nothing yet.') }}</div>
+                    <x-ui.empty-state compact icon="notifications" :title="__('No notifications yet')" class="mt-2 pb-0" data-test="notification-log-empty">{{ __('The first one shows up here once the app sends or skips a reminder.') }}</x-ui.empty-state>
                 @endforelse
             </x-ui.card>
 
