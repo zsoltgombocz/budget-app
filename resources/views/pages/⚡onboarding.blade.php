@@ -569,7 +569,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                             <div class="min-w-0 flex-1 self-center">
                                 <div @class(['text-[15px] font-medium leading-snug', 'text-muted' => ! $on])>{{ __($item['name']) }}</div>
                                 @if ($on && ! empty($item['hint']))
-                                    <p class="mt-0.5 text-[13px] leading-snug text-pretty text-muted">{{ __($item['hint']) }}</p>
+                                    <p class="mt-0.5 text-[13px] leading-snug text-pretty text-muted">{{ __($item['hint'], ['amount' => money($item['pocket']['prepay_step'] ?? 0, $this->currencyEnum)]) }}</p>
                                 @endif
                             </div>
                             <x-ui.toggle :on="$on" wire:click="$set('included.{{ $index }}', {{ $on ? 'false' : 'true' }})" :aria-label="__($item['name'])" class="mt-2" />

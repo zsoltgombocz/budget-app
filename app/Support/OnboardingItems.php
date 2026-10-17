@@ -9,6 +9,7 @@ use App\Enums\LineType;
  * Names and hints are translation keys, translated when the lines are created.
  *
  * Lines with 'off' => true are offered switched off: common, but not for everyone.
+ * A hint may name the pocket's prepay step as :amount, shown in the currency picked in the wizard.
  *
  * @phpstan-type Item array{name: string, type: string, icon: string, color: string, hint: string, off?: bool, is_quick_entry?: bool, loan?: bool, pocket?: array{name: string, is_reserve?: bool, is_shared?: bool, prepay_step?: int}}
  */
@@ -34,7 +35,7 @@ final class OnboardingItems
             ],
             'loan' => [
                 ['name' => 'Loan', 'type' => LineType::Loan->value, 'icon' => 'account_balance', 'color' => 'rose', 'loan' => true, 'hint' => 'The monthly installment including insurance. A fixed line in the plan, you do not record it as spending. The principal and the APR can be added later: Plan, Loan repayments.'],
-                ['name' => 'Prepayment fund', 'type' => LineType::Sinking->value, 'icon' => 'trending_down', 'color' => 'lime', 'pocket' => ['name' => 'Prepayment fund', 'prepay_step' => 500_000], 'hint' => 'Put aside monthly for prepaying the loan. When it reaches 500 000 Ft, the app shows how much the installment would drop.'],
+                ['name' => 'Prepayment fund', 'type' => LineType::Sinking->value, 'icon' => 'trending_down', 'color' => 'lime', 'pocket' => ['name' => 'Prepayment fund', 'prepay_step' => 500_000], 'hint' => 'Put aside monthly for prepaying the loan. When it reaches its step (:amount), the app shows how much the installment would drop.'],
             ],
             'daily' => [
                 ['name' => 'Groceries', 'type' => LineType::Variable->value, 'icon' => 'shopping_basket', 'color' => 'emerald', 'is_quick_entry' => true, 'hint' => 'Budget for food and household shopping you record day by day.'],

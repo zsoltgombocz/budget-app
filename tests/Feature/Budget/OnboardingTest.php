@@ -313,6 +313,20 @@ it('explains what the leftover targets mean', function (): void {
         ->assertSee('goes into a “Savings” pocket');
 });
 
+it('names the prepayment step in the currency picked, kept on one line', function (string $currency, string $step): void {
+    $this->actingAs(User::factory()->create());
+
+    app()->setLocale('hu');
+
+    Livewire::test('pages::onboarding')
+        ->set('currency', $currency)
+        ->set('step', 6)->set('hasLoan', true)
+        ->assertSee('Ha eléri a lépcsőt ('.$step.')');
+})->with([
+    'forint' => ['HUF', "500\u{00A0}000\u{00A0}Ft"],
+    'euro' => ['EUR', "5\u{00A0}000,00\u{00A0}EUR"],
+]);
+
 it('has Hungarian text for every line it offers', function (): void {
     $hungarian = json_decode((string) file_get_contents(lang_path('hu.json')), true);
 

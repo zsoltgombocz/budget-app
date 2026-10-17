@@ -761,7 +761,7 @@
     "Yes, I repay a loan": "Igen, törlesztek hitelt",
     "Yes, we have a joint account": "Igen, van közös számlánk",
     "Rent or other housing costs paid from your own account.": "Albérlet vagy más lakhatási költség, amit a saját számládról fizetsz.",
-    "Put aside monthly for prepaying the loan. When it reaches 500 000 Ft, the app shows how much the installment would drop.": "Havi gyűjtés a hitel előtörlesztésére. Ha eléri az 500 000 Ft-ot, az app megmutatja, mennyivel csökkenne a részlet.",
+    "Put aside monthly for prepaying the loan. When it reaches its step (:amount), the app shows how much the installment would drop.": "Havi gyűjtés a hitel előtörlesztésére. Ha eléri a lépcsőt (:amount), az app megmutatja, mennyivel csökkenne a részlet.",
     "Housing and monthly fees": "Lakhatás és havi díjak",
     "Subscriptions": "Előfizetések",
     "Gym and sport": "Edzőterem és sport",
