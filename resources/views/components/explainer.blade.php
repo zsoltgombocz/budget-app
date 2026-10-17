@@ -28,6 +28,15 @@
                 __('As long as you stay within your budgets, this is the leftover your plan expects. Whatever you spend over a budget lowers it.'),
             ],
         ],
+        // Month page: PeriodCloser::preview()->leftover() and ForecastService::deviation() for the badge next to it.
+        'month-leftover' => [
+            'title' => __('If the month ended today'),
+            'lead' => __('Based on your spending so far: what you have not spent yet counts as leftover.'),
+            'notes' => [
+                __('The badge next to it compares the month with the plan, as if you spent every budget in full.'),
+                __('Only going over a budget, a skipped fixed item or a pocket move changes this.'),
+            ],
+        ],
         // ForecastService::dailyAllowance(): (variable budget + net pocket moves − variable spent) / remaining days incl. today.
         'daily' => [
             'title' => __('You can still spend today'),
