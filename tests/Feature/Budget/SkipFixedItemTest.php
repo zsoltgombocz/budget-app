@@ -37,7 +37,7 @@ it('skips an overdue fixed item on Today: off the due cards, shown in the list, 
     $ifSpent = $before->overview->forecast->expectedLeftover;
 
     Livewire::test('pages::today')
-        ->assertSeeHtmlInOrder(['data-test="due-item"', 'PS Plus', 'data-test="skip-due"', __('Skipped this month')])
+        ->assertSeeHtmlInOrder(['data-test="due-item"', 'PS Plus', 'data-test="skip-due"', __('Skip')])
         ->call('skipLine', $this->psPlus->id)
         ->assertDispatched('budget-updated')
         ->assertDispatched('app-toast',

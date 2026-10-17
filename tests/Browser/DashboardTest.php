@@ -169,7 +169,8 @@ it('leaves room under the last row so the record button covers nothing at the en
 ]);
 
 it('opens the due items as list rows with one tonal and one text action, and leaves the fixed item names room on a 320 px phone', function (): void {
-    $user = onboardedUser();
+    // In Hungarian, where the labels are longest: Kész and Kihagyom still share a row.
+    $user = onboardedUser(['locale' => 'hu']);
     BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail()->update(['due_day' => 1]);
     $phone = Category::factory()->for($user)->create(['name' => 'Telephone and internet service', 'type' => 'fixed']);
     BudgetLine::factory()->for($user)->for($phone)->create(['amount' => 1_234_567, 'due_day' => 28]);
@@ -188,13 +189,14 @@ it('opens the due items as list rows with one tonal and one text action, and lea
                 done: done.dataset.variant,
                 skip: skip.dataset.variant,
                 doneFirst: done.getBoundingClientRect().top <= skip.getBoundingClientRect().top,
+                oneRow: Math.abs(done.getBoundingClientRect().top - skip.getBoundingClientRect().top) <= 0.5,
                 nameRoom: name.getBoundingClientRect().width >= 150,
                 noSideScroll: document.documentElement.scrollWidth <= window.innerWidth,
             }
         }
     JS);
 
-    expect($layout)->toBe(['done' => 'tonal', 'skip' => 'text', 'doneFirst' => true, 'nameRoom' => true, 'noSideScroll' => true]);
+    expect($layout)->toBe(['done' => 'tonal', 'skip' => 'text', 'doneFirst' => true, 'oneRow' => true, 'nameRoom' => true, 'noSideScroll' => true]);
     $page->assertNoJavaScriptErrors();
 });
 

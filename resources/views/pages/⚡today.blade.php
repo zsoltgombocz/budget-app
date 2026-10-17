@@ -396,7 +396,7 @@ new #[Title('Today')] class extends Component {
                 <x-ui.icon-tile icon="show_chart" tone="accent" />
                 <div class="min-w-0 flex-1">
                     <div class="num text-[15px] font-semibold">{{ __('Transfer :amount', ['amount' => money($close->to_invest)]) }}</div>
-                    <div class="truncate text-[13px] text-muted">{{ __('to :account, from the month-end leftover', ['account' => $close->surplusAccount->name ?? '']) }}</div>
+                    <div class="line-clamp-2 text-[13px] leading-snug text-muted">{{ __('to :account, from the month-end leftover', ['account' => $close->surplusAccount->name ?? '']) }}</div>
                 </div>
             </div>
             <div class="mt-2.5 pl-[52px]">
@@ -437,10 +437,11 @@ new #[Title('Today')] class extends Component {
                             <x-ui.amount size="sm" :value="$item->line->planned()" class="row-span-2 text-[15px] font-semibold" data-test="due-amount" />
                             <span class="mt-0.5 truncate text-xs text-warn">{{ $late ? __('was due :date', ['date' => \App\Support\Dates::short($item->dueOn)]) : ($isTransfer ? __('Transfer due today') : __('Due today')) }}</span>
                         </div>
+                        {{-- A short "Skip" fits next to Done at 320px; the row then reads "skipped" in the fixed items list. --}}
                         <div class="mt-2.5 flex flex-wrap gap-1 pl-9">
                             <x-ui.button size="sm" variant="tonal" icon="check" wire:click="togglePaid({{ (int) $item->line->lineId }})" data-test="mark-due-done">{{ $isTransfer ? __('Transferred') : __('Done') }}</x-ui.button>
                             @if ($item->line->isSkippable())
-                                <x-ui.button size="sm" variant="text" wire:click="skipLine({{ (int) $item->line->lineId }})" data-test="skip-due">{{ __('Skipped this month') }}</x-ui.button>
+                                <x-ui.button size="sm" variant="text" wire:click="skipLine({{ (int) $item->line->lineId }})" data-test="skip-due">{{ __('Skip') }}</x-ui.button>
                             @endif
                         </div>
                     </div>
