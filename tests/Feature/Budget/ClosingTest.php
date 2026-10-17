@@ -414,7 +414,7 @@ it('uses one sign for plan vs actual: + left in the budget, − overspent', func
     spend($this->user, $this->period, $this->groceries, 50_000);
 
     Livewire::test('pages::close', ['period' => $this->period->id])
-        ->assertSeeInOrder(['Fuel', money_number(60_000), money_number(70_000), '−'.money_number(10_000), 'overspent'])
+        ->assertSeeInOrder(['Fuel', 'overspent', money_number(60_000), money_number(70_000), '−'.money_number(10_000)])
         ->assertSeeInOrder(['Groceries', money_number(90_000), money_number(50_000), '+'.money_number(40_000)])
         ->assertSee('role="table"', false)
         ->assertSee(money(200_000).', the planned amount')
@@ -484,11 +484,11 @@ it('shows the pocket movements before and after closing and names where the rest
         ->assertSee('Into pockets')
         ->assertSeeInOrder(['Car fund', money_number(50_000), 'monthly saving', 'new balance', money_number(500_000)])
         ->assertSeeInOrder(['Reserve', money_number(20_000), 'from the leftover', 'new balance', money_number(100_000)])
-        ->assertSee('new balance '.money(500_000))
+        ->assertSeeInOrder(['new balance', money_number(500_000)])
         ->call('close')
         ->assertNotDispatched('app-toast')
         ->assertSee('Into pockets')
-        ->assertSee('new balance '.money(500_000))
+        ->assertSeeInOrder(['new balance', money_number(500_000)])
         ->assertSeeInOrder(['Savings', money_number(230_000), 'The app adds it to this pocket'])
         ->assertDontSee('>Rest<', false)
         ->assertSee('To the new month');

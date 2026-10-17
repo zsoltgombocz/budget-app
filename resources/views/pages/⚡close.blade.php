@@ -348,7 +348,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         </div>
 
         @if ($this->isEarly)
-            <div class="mx-4 mt-4 flex gap-2 rounded-[18px] bg-warn/12 px-4 py-3 text-[13px] text-ink-2"><x-ui.icon name="info" :size="18" class="shrink-0 text-warn" />{{ __('The period has not ended yet. If you close it now, today is its last day and the new month starts today: what you record after closing goes there.') }}</div>
+            <x-ui.callout tone="warn" class="mx-4 mt-4" data-test="close-early">{{ __('The period has not ended yet. If you close it now, today is its last day and the new month starts today: what you record after closing goes there.') }}</x-ui.callout>
         @endif
 
         @php
@@ -361,56 +361,34 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
             $actualSum = array_sum(array_column($variableRows, 'actual'));
             // One sign everywhere: + is money left in the budget, − is overspending.
             $remaining = $plannedSum - $actualSum;
-            $rowGrid = 'grid grid-cols-3 gap-x-1.5 min-[400px]:grid-cols-[minmax(0,1fr)_68px_68px_84px]';
+            $tableRows = array_map(fn (array $row): array => [
+                'name' => $row['name'],
+                'planned' => $row['planned'],
+                'actual' => $row['actual'],
+                'note' => $row['skipped'] ? __('skipped') : ($row['actual'] > $row['planned'] ? __('overspent') : null),
+                'noteTone' => $row['skipped'] ? 'muted' : 'danger',
+                'key' => $row['category_id'],
+                'test' => 'close-row',
+            ], $variableRows);
         @endphp
 
-        <div class="mx-4 mb-3 mt-[18px] grid grid-cols-1 gap-3 rounded-[22px] bg-surface px-[18px] py-4 min-[340px]:grid-cols-2">
+        <div class="mx-4 mb-3 mt-[18px] grid grid-cols-1 gap-3 rounded-card bg-surface px-[18px] py-4 min-[340px]:grid-cols-2">
             <div><div class="text-xs text-muted">{{ __('Planned leftover') }}</div><x-ui.amount :value="$preview->plannedLeftover()" class="mt-1 text-ink-2" /></div>
             <div><div class="text-xs text-muted">{{ __('Actual leftover') }}</div><x-ui.amount :value="$preview->leftover()" :tone="$preview->leftover() >= 0 ? 'accent' : 'danger'" class="mt-1" /></div>
         </div>
 
-        <div class="mx-4 rounded-[22px] bg-surface px-2 py-1.5" role="table" aria-label="{{ __('Plan vs. actual') }}" data-test="plan-vs-actual">
-            <div role="rowgroup">
-                <div role="row" class="{{ $rowGrid }} px-2.5 pb-1.5 pt-2.5 text-xs font-semibold text-muted">
-                    <span role="columnheader" class="sr-only min-[400px]:not-sr-only">{{ __('Category') }}</span>
-                    <span role="columnheader" class="text-right max-[399px]:text-left">{{ __('Plan') }}</span>
-                    <span role="columnheader" class="text-right">{{ __('Actual') }}</span>
-                    <span role="columnheader" class="text-right">{{ __('Left') }}</span>
-                </div>
-            </div>
-            <div role="rowgroup">
-                @foreach ($variableRows as $row)
-                    @php $left = $row['planned'] - $row['actual']; @endphp
-                    <div role="row" wire:key="row-{{ $row['category_id'] }}" @class([
-                        $rowGrid, 'num items-center gap-y-0.5 rounded-[14px] px-2.5 py-[11px] text-sm',
-                        'bg-danger/10' => $left < 0,
-                    ]) data-test="close-row">
-                        <span role="rowheader" class="col-span-3 min-w-0 min-[400px]:col-span-1">
-                            <span class="block break-words leading-snug min-[400px]:truncate">{{ $row['name'] }}</span>
-                            @if ($row['skipped'])<span class="block text-xs text-muted" data-test="skipped-row">{{ __('skipped') }}</span>@endif
-                        </span>
-                        <span role="cell" class="text-right text-muted max-[399px]:text-left">{{ money_number($row['planned']) }}</span>
-                        <span role="cell" class="text-right">{{ money_number($row['actual']) }}</span>
-                        <span role="cell" @class(['text-right font-semibold', 'text-danger' => $left < 0, 'text-muted' => $left === 0])>
-                            {{ $left > 0 ? '+' : ($left < 0 ? '−' : '') }}{{ money_number(abs($left)) }}
-                            @if ($left < 0)<span class="block text-[11px] font-medium leading-tight">{{ __('overspent') }}</span>@endif
-                        </span>
+        <x-ui.plan-actual-table :rows="$tableRows" :caption="__('Plan vs. actual')" :labels="['deviation' => __('Left')]"
+                                :total="['name' => __('Budgets in total'), 'planned' => $plannedSum, 'actual' => $actualSum, 'test' => 'close-total']"
+                                class="mx-4" data-test="plan-vs-actual">
+            @if ($fixedCount > 0)
+                <x-slot:after>
+                    <div role="row" class="col-span-full flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 border-t border-line px-2.5 py-3 text-sm" data-test="fixed-summary">
+                        <span role="rowheader" class="flex items-center gap-1.5 text-[15px]">{{ trans_choice('{1} Fixed items · :count|[2,*] Fixed items · :count', $fixedCount, ['count' => $fixedCount]) }}<x-ui.icon name="check" :size="16" :weight="600" class="text-accent" /></span>
+                        <span role="cell" class="num ml-auto text-muted">{{ __(':amount, the planned amount', ['amount' => money($fixedTotal)]) }}</span>
                     </div>
-                @endforeach
-                @if ($fixedCount > 0)
-                    <div role="row" class="grid grid-cols-1 gap-0.5 border-t border-line px-2.5 py-3 text-sm min-[400px]:grid-cols-[minmax(0,1fr)_auto] min-[400px]:gap-3" data-test="fixed-summary">
-                        <span role="rowheader" class="flex items-center gap-1.5">{{ trans_choice('{1} Fixed items · :count|[2,*] Fixed items · :count', $fixedCount, ['count' => $fixedCount]) }}<x-ui.icon name="check" :size="16" :weight="600" class="text-accent" /></span>
-                        <span role="cell" class="num text-muted min-[400px]:text-right">{{ __(':amount, the planned amount', ['amount' => money($fixedTotal)]) }}</span>
-                    </div>
-                @endif
-                <div role="row" class="{{ $rowGrid }} num items-center gap-y-0.5 border-t border-line px-2.5 py-3 text-sm font-semibold" data-test="close-total">
-                    <span role="rowheader" class="col-span-3 min-[400px]:col-span-1">{{ __('Budgets in total') }}</span>
-                    <span role="cell" class="text-right font-normal text-muted max-[399px]:text-left">{{ money_number($plannedSum) }}</span>
-                    <span role="cell" class="text-right font-normal">{{ money_number($actualSum) }}</span>
-                    <span role="cell" @class(['text-right', 'text-danger' => $remaining < 0])>{{ $remaining > 0 ? '+' : ($remaining < 0 ? '−' : '') }}{{ money_number(abs($remaining)) }}</span>
-                </div>
-            </div>
-        </div>
+                </x-slot:after>
+            @endif
+        </x-ui.plan-actual-table>
         <p @class(['mx-4 mt-2 px-2 text-[13px] leading-snug', 'text-danger' => $remaining < 0, 'text-ink-2' => $remaining >= 0]) data-test="close-verdict">
             {{ $remaining < 0 ? __(':amount over the budget', ['amount' => money(-$remaining)]) : __(':amount under the budget', ['amount' => money($remaining)]) }}
         </p>
@@ -430,9 +408,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
             <h1 class="text-[28px] font-semibold tracking-[-0.03em]">{{ $preview->leftover() >= 0 ? __('Split the leftover') : __('Cover the deficit') }}</h1>
             <div class="mt-1 text-sm text-muted">{{ $preview->leftover() >= 0 ? __('Where should the :month leftover go?', ['month' => Dates::monthInSentence($period->nameDate(), true)]) : __('You choose whether the deficit is taken from the reserve.') }}</div>
         </div>
-        <div class="mx-4 mt-4 flex gap-2 rounded-[18px] bg-surface px-4 py-3 text-[13px] leading-snug text-ink-2" data-test="bank-note">
-            <x-ui.icon name="account_balance" :size="18" class="mt-px shrink-0 text-muted" />{{ __('The app only keeps records: you make the real transfers in your bank.') }}
-        </div>
+        <x-ui.callout icon="account_balance" class="mx-4 mt-4" data-test="bank-note">{{ __('The app only keeps records: you make the real transfers in your bank.') }}</x-ui.callout>
         {{-- Seven-digit amounts get the smaller size so they fit a 320 px screen. --}}
         <x-ui.amount :value="$preview->leftover()" :size="abs($preview->leftover()) >= 1_000_000 ? 'lg' : 'xl'" :tone="$preview->leftover() >= 0 ? 'accent' : 'danger'" class="max-w-full px-6 pt-6" />
 
@@ -449,14 +425,14 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
             @endphp
             <div class="mx-4 mt-6 grid grid-cols-1 gap-3 min-[340px]:grid-cols-2" data-test="split">
                 <button type="button" @if ($canSplit) x-on:click="edit('reserve', @js(str_replace('.', ',', Money::toInput($allocation->toReserve, $currency))), @js(__('To the reserve')))" @endif
-                        @class(['focus-ring min-w-0 rounded-[22px] bg-surface p-4 text-left', 'cursor-default' => ! $canSplit]) data-test="edit-reserve" @disabled(! $canSplit)>
-                    <span class="flex items-center gap-2 text-[13px] text-ink-2"><span class="size-2.5 shrink-0 rounded-[3px] bg-accent"></span><span class="min-w-0 flex-1 truncate">{{ __('To the reserve') }}</span>@if ($canSplit)<x-ui.icon name="edit" :size="16" class="shrink-0 text-faint" />@endif</span>
+                        @class(['focus-ring min-w-0 rounded-card bg-surface p-4 text-left', 'cursor-default' => ! $canSplit]) data-test="edit-reserve" @disabled(! $canSplit)>
+                    <span class="flex items-start gap-2 text-[13px] text-ink-2"><span class="mt-[5px] size-2.5 shrink-0 rounded-[3px] bg-accent"></span><span class="min-w-0 flex-1 leading-snug break-words">{{ __('To the reserve') }}</span>@if ($canSplit)<x-ui.icon name="edit" :size="16" class="shrink-0 text-faint" />@endif</span>
                     <x-ui.amount size="sm" :value="$allocation->toReserve" class="mt-2 max-w-full text-2xl font-semibold" />
                     <span class="num mt-0.5 block text-xs text-muted">@if ($hasReserve){{ __('new balance') }} {{ money($preview->reserveBalanceAfter ?? 0) }}@else{{ __('no reserve pocket') }}@endif</span>
                 </button>
                 <button type="button" @if ($canSplit) x-on:click="edit('rest', @js(str_replace('.', ',', Money::toInput($allocation->toSurplus, $currency))), @js($target))" @endif
-                        @class(['focus-ring min-w-0 rounded-[22px] bg-surface p-4 text-left', 'cursor-default' => ! $canSplit]) data-test="edit-rest" @disabled(! $canSplit)>
-                    <span class="flex items-center gap-2 text-[13px] text-ink-2"><span class="size-2.5 shrink-0 rounded-[3px] bg-ink-2"></span><span class="min-w-0 flex-1 truncate">{{ $target }}</span>@if ($canSplit)<x-ui.icon name="edit" :size="16" class="shrink-0 text-faint" />@endif</span>
+                        @class(['focus-ring min-w-0 rounded-card bg-surface p-4 text-left', 'cursor-default' => ! $canSplit]) data-test="edit-rest" @disabled(! $canSplit)>
+                    <span class="flex items-start gap-2 text-[13px] text-ink-2"><span class="mt-[5px] size-2.5 shrink-0 rounded-[3px] bg-ink-2"></span><span class="min-w-0 flex-1 leading-snug break-words">{{ $target }}</span>@if ($canSplit)<x-ui.icon name="edit" :size="16" class="shrink-0 text-faint" />@endif</span>
                     <x-ui.amount size="sm" :value="$allocation->toSurplus" class="mt-2 max-w-full text-2xl font-semibold" />
                     <span class="mt-0.5 block text-xs text-muted" data-test="rest-note">{{ $targetNote }}</span>
                 </button>
@@ -478,17 +454,18 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
                     $settings = auth()->user()->settings();
                     $ruleDiffers = $splitPreset !== null && ($settings->reserve_fixed !== null || $settings->reserve_pct !== $splitPreset);
                 @endphp
-                <div class="mx-4 mt-3 grid gap-2" data-test="split-presets">
+                {{-- Three quick splits as one row of chips; the "keep it as my rule" switch sits under the row. --}}
+                <div class="mx-4 mt-3 grid grid-cols-3 gap-2" role="group" aria-label="{{ __('Quick split') }}" data-test="split-presets">
                     @foreach ($presets as [$label, $pct])
-                        <x-ui.choice :selected="$allocation->toReserve === (int) ceil($leftover * $pct / 100)" wire:click="splitPreset({{ $pct }})" class="rounded-btn px-4 py-3 text-left text-[15px] font-semibold" wire:key="preset-{{ $pct }}" data-test="preset-{{ $pct }}">{{ $label }}</x-ui.choice>
-                        @if ($ruleDiffers && $splitPreset === $pct)
-                            <label class="flex items-center justify-between gap-3 rounded-[14px] bg-surface px-4 py-3 text-sm" data-test="save-split">
-                                <span>{{ __('Next time too: :pct% of the leftover to the reserve (up to its target)', ['pct' => $pct]) }}</span>
-                                <x-ui.toggle :on="$saveSplitAsRule" wire:click="$toggle('saveSplitAsRule')" :aria-label="__('Next time too: :pct% of the leftover to the reserve (up to its target)', ['pct' => $pct])" />
-                            </label>
-                        @endif
+                        <x-ui.choice :selected="$allocation->toReserve === (int) ceil($leftover * $pct / 100)" wire:click="splitPreset({{ $pct }})" class="rounded-control px-2 py-1.5 text-[13px] leading-tight text-balance" wire:key="preset-{{ $pct }}" data-test="preset-{{ $pct }}">{{ $label }}</x-ui.choice>
                     @endforeach
                 </div>
+                @if ($ruleDiffers)
+                    <label class="mx-4 mt-2 flex items-center justify-between gap-3 rounded-control bg-surface px-4 py-3 text-sm" data-test="save-split">
+                        <span>{{ __('Next time too: :pct% of the leftover to the reserve (up to its target)', ['pct' => $splitPreset]) }}</span>
+                        <x-ui.toggle :on="$saveSplitAsRule" wire:click="$toggle('saveSplitAsRule')" :aria-label="__('Next time too: :pct% of the leftover to the reserve (up to its target)', ['pct' => $splitPreset])" />
+                    </label>
+                @endif
             @endif
 
             <div class="mx-4 mt-5">
@@ -522,7 +499,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
                     </div>
                 </div>
             @endif
-            <div class="mx-4 mt-4 rounded-[22px] bg-surface px-[18px] py-1">
+            <div class="mx-4 mt-4 rounded-card bg-surface px-[18px] py-1">
                 <div class="num flex justify-between gap-3 border-b border-line py-[13px] text-[15px]"><span class="text-ink-2">{{ __('Taken from the reserve') }}</span><span>{{ money(-$allocation->fromReserve) }}</span></div>
                 <div @class(['num flex justify-between gap-3 py-[13px] text-[15px]', 'text-danger' => $allocation->uncovered > 0])><span>{{ __('Not covered') }}</span><span>{{ money(-$allocation->uncovered) }}</span></div>
             </div>
@@ -532,7 +509,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
             <div class="mx-4 mt-5">
                 <x-ui.section-label :label="__('Sinking funds')" />
                 <div class="-mt-1 mb-2 px-1.5 text-xs text-pretty text-muted">{{ __('The monthly amounts the Plan puts into pockets. Closing adds them to the pockets’ balances.') }}</div>
-                <div class="rounded-[22px] bg-surface px-[18px]">
+                <div class="rounded-card bg-surface px-[18px]">
                     @foreach ($preview->pocketDeposits as $deposit)
                         <div wire:key="deposit-{{ $deposit['pocket_id'] }}" @class(['num flex justify-between gap-3 py-3 text-sm', 'border-b border-line' => ! $loop->last])><span class="min-w-0 break-words">{{ $deposit['name'] }}</span><span class="shrink-0">+{{ money($deposit['amount']) }}</span></div>
                     @endforeach
@@ -555,7 +532,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
             <div class="mt-1 text-sm text-muted">{{ __('One more look before closing :month.', ['month' => Dates::monthInSentence($period->nameDate())]) }}</div>
         </div>
 
-        <div class="num mx-4 mb-3 mt-[18px] rounded-[22px] bg-surface px-[18px] py-1">
+        <div class="num mx-4 mb-3 mt-[18px] rounded-card bg-surface px-[18px] py-1">
             <button type="button" x-on:click="edit('income', @js(str_replace('.', ',', Money::toInput($incomeActual, $currency))), @js(__('Actual income')), @js(__('Only counts in the :month closing, your plan does not change.', ['month' => Dates::monthInSentence($period->nameDate(), true)])))" class="focus-ring flex w-full items-center justify-between gap-3 border-b border-line py-[13px] text-[15px]" data-test="income-actual">
                 <span class="text-ink-2">{{ __('Income') }}</span>
                 <span class="flex items-center gap-1.5"><x-ui.amount size="sm" :value="$preview->incomeActual" /><x-ui.icon name="edit" :size="16" class="text-faint" /></span>
@@ -564,7 +541,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
             <div class="flex justify-between gap-3 py-[13px] text-[15px] font-semibold"><span>{{ __('Leftover') }}</span><x-ui.amount size="sm" :value="$preview->leftover()" :tone="$preview->leftover() >= 0 ? 'accent' : 'danger'" /></div>
         </div>
 
-        <div class="num mx-4 mb-3 rounded-[22px] bg-surface px-[18px] py-1">
+        <div class="num mx-4 mb-3 rounded-card bg-surface px-[18px] py-1">
             @if ($preview->leftover() >= 0)
                 <div class="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2.5 border-b border-line py-[13px]">
                     <x-ui.icon name="shield" :size="22" class="text-accent" />
@@ -589,10 +566,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
 
         <p class="mx-4 mb-3 flex gap-2 px-2 text-xs leading-snug text-muted"><x-ui.icon name="account_balance" :size="16" class="mt-px shrink-0" />{{ __('The app only keeps records: you make the real transfers in your bank.') }}</p>
 
-        <div class="mx-4 rounded-[22px] border border-dashed border-ink/14 px-[18px] py-4">
-            <div class="text-[15px] font-semibold">{{ Dates::monthName(max($nextStart, $nextEnd->subDays(27))) }} · {{ Dates::range($nextStart, $nextEnd) }}</div>
-            <div class="mt-1.5 text-[13px] leading-normal text-pretty text-muted">{{ $this->nextPeriodNote }}</div>
-        </div>
+        <x-ui.callout icon="event_note" :title="Dates::monthName(max($nextStart, $nextEnd->subDays(27))).' · '.Dates::range($nextStart, $nextEnd)" class="mx-4" data-test="next-period">{{ $this->nextPeriodNote }}</x-ui.callout>
     @else
         @php
             $record = $this->closeRecord;
@@ -604,7 +578,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
             <h1 class="mt-5 text-[30px] font-semibold leading-tight tracking-[-0.03em]">{{ __(':month is closed', ['month' => $month]) }}</h1>
             <p class="mt-1.5 text-sm text-muted">{{ __('A new month has started.') }}</p>
             @if ($record)
-                <div class="num mt-6 rounded-[22px] bg-surface px-[18px] py-1" data-test="closed-summary">
+                <div class="num mt-6 rounded-card bg-surface px-[18px] py-1" data-test="closed-summary">
                     <div class="flex justify-between gap-3 border-b border-line py-[13px] text-[15px]"><span class="text-ink-2">{{ __('Leftover') }}</span><span @class(['font-semibold', 'text-danger' => $record->leftover < 0])>{{ money($record->leftover) }}</span></div>
                     @if ($record->leftover >= 0)
                         <div class="flex justify-between gap-3 border-b border-line py-[13px] text-[15px]"><span class="text-ink-2">{{ __('To the reserve') }}</span><span>{{ $record->to_reserve > 0 ? '+' : '' }}{{ money($record->to_reserve) }}</span></div>
@@ -620,14 +594,15 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
                 @include('partials.close-pocket-moves', ['moves' => $breakdown['pocket_moves'] ?? [], 'class' => 'mt-4'])
                 @foreach (($breakdown['prepay_ready'] ?? []) as $ready)
                     @if ($ready['loan_id'] && ! in_array($ready['pocket_id'], $prepaid, true))
-                        <div wire:key="prepay-{{ $ready['pocket_id'] }}" class="mt-3 rounded-[22px] border border-accent/22 bg-accent/10 px-[18px] py-4">
-                            <div class="text-[15px] font-semibold">{{ __('Prepayment ready') }}</div>
-                            <div class="mt-1 text-[13px] text-ink-2">{{ __(':pocket reached :step. Record the prepayment to lower the next installment.', ['pocket' => $ready['name'], 'step' => money($ready['step'])]) }}</div>
-                            <x-ui.button size="md" class="mt-3 w-full" wire:click="prepay({{ $ready['pocket_id'] }})" data-test="prepay-{{ $ready['pocket_id'] }}">{{ __('Record prepayment') }}</x-ui.button>
-                        </div>
+                        <x-ui.callout tone="success" :title="__('Prepayment ready')" wire:key="prepay-{{ $ready['pocket_id'] }}" class="mt-3">
+                            {{ __(':pocket reached :step. Record the prepayment to lower the next installment.', ['pocket' => $ready['name'], 'step' => money($ready['step'])]) }}
+                            <x-slot:actions>
+                                <x-ui.button variant="tonal" size="md" icon="payments" wire:click="prepay({{ $ready['pocket_id'] }})" data-test="prepay-{{ $ready['pocket_id'] }}">{{ __('Record prepayment') }}</x-ui.button>
+                            </x-slot:actions>
+                        </x-ui.callout>
                     @endif
                 @endforeach
-                <livewire:reopen-closing :period-id="$period->id" :key="'reopen-'.$period->id" />
+                <livewire:reopen-closing :period-id="$period->id" variant="text" :key="'reopen-'.$period->id" />
             @endif
         </div>
     @endif
@@ -638,10 +613,10 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         @if ($step === 1)
             <x-ui.button class="flex-1" wire:click="goTo(2)" data-test="close-next">{{ __('Next') }}</x-ui.button>
         @elseif ($step === 2)
-            <x-ui.button variant="secondary" class="w-[110px] max-[359px]:w-24" wire:click="goTo(1)">{{ __('Back') }}</x-ui.button>
+            <x-ui.button variant="secondary" class="basis-1/3" wire:click="goTo(1)">{{ __('Back') }}</x-ui.button>
             <x-ui.button class="flex-1" wire:click="goTo(3)" data-test="close-next">{{ __('Next') }}</x-ui.button>
         @elseif ($step === 3)
-            <x-ui.button variant="secondary" class="w-[110px] max-[359px]:w-24" wire:click="goTo(2)">{{ __('Back') }}</x-ui.button>
+            <x-ui.button variant="secondary" class="basis-1/3" wire:click="goTo(2)">{{ __('Back') }}</x-ui.button>
             <x-ui.button class="min-w-0 flex-1" wire:click="close" wire:loading.attr="disabled" data-test="close-confirm">{{ __('Open the new month') }}</x-ui.button>
         @else
             <x-ui.button class="flex-1" :href="route('dashboard')" wire:navigate data-test="to-new-month">{{ __('To the new month') }}</x-ui.button>
