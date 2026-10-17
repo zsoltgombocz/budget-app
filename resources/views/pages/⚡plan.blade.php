@@ -708,15 +708,19 @@ new #[Title('Plan')] class extends Component {
                                         @if ($opensLoan) href="{{ route('pockets', ['hitel' => $line->loan_id, 'vissza' => 'terv']) }}" wire:navigate data-test="open-loan-{{ $line->loan_id }}"
                                         @else type="button" x-on:click="openLine({{ $line->id }})" data-test="open-line" @endif
                                         class="block min-w-0 flex-1 py-2.5 text-left">
-                                        {{-- In edit mode the tile steps aside for the handle and arrows, and the amount drops under a long name instead of cutting it short. --}}
+                                        {{--
+                                            In edit mode the tile steps aside for the handle and arrows, and the amount drops under a long name instead of cutting it short.
+                                            In normal mode on a 320 px phone a long name takes a second line.
+                                        --}}
                                         <span @class(['flex items-center gap-x-3', 'flex-wrap gap-y-0.5' => $editing])>
                                             @unless ($editing)
                                                 <x-ui.icon-tile :icon="Icons::forCategory($line->category?->icon)" :size="36" data-test="line-icon" />
                                             @endunless
-                                            <span @class(['min-w-0 truncate text-[15px]', 'flex-1' => ! $editing, 'grow' => $editing]) data-test="line-name">{{ $name }}</span>
+                                            <span @class(['min-w-0 truncate text-[15px]', 'flex-1 max-[359.98px]:line-clamp-2 max-[359.98px]:whitespace-normal' => ! $editing, 'grow' => $editing]) data-test="line-name">{{ $name }}</span>
                                             <span class="ml-auto flex shrink-0 items-center gap-3">
                                                 @if ($line->due_day !== null)
-                                                    <span class="num inline-flex h-[22px] items-center rounded-full bg-surface-3 px-2 text-xs font-semibold text-muted" data-test="due-day">
+                                                    {{-- Below 360px the badge leaves its room to the name: screen readers still hear the day. --}}
+                                                    <span class="num inline-flex h-[22px] items-center rounded-full bg-surface-3 px-2 text-xs font-semibold text-muted max-[359.98px]:sr-only" data-test="due-day">
                                                         <span aria-hidden="true">{{ $line->due_day }}.</span><span class="sr-only">{{ __('due on day :day', ['day' => $line->due_day]) }}</span>
                                                     </span>
                                                 @endif

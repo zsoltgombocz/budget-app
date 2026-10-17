@@ -300,3 +300,29 @@ it('keeps whole names in edit mode on a 320 px screen, moving the amount under a
         ->and(collect($names)->where('cut', true)->all())->toBe([])
         ->and($page->script('() => document.documentElement.scrollWidth <= window.innerWidth'))->toBeTrue();
 });
+
+it('keeps whole names in normal mode on a 320 px screen, the due day badge left out there', function (int $width, bool $badgeShown): void {
+    $user = onboardedUser(['locale' => 'hu']);
+    Category::query()->where('name', 'Rent')->update(['name' => 'Telefon és internet']);
+    BudgetLine::query()->whereRelation('category', 'name', 'Telefon és internet')->update(['due_day' => 12]);
+    $savings = Category::factory()->for($user)->create(['name' => 'Előtörlesztési persely', 'type' => 'sinking']);
+    BudgetLine::factory()->for($user)->for($savings)->create(['amount' => 50_000, 'due_day' => 10]);
+    $this->actingAs($user);
+
+    $page = visit(route('plan'))->on()->mobile()->resize($width, 640);
+
+    $layout = $page->script(<<<'JS'
+        () => ({
+            cut: [...document.querySelectorAll('[data-test="plan-line"] [data-test="line-name"]')]
+                .filter(name => name.scrollWidth > name.clientWidth + 0.5 || name.scrollHeight > name.clientHeight + 0.5)
+                .map(name => name.textContent.trim()),
+            badgeShown: document.querySelector('[data-test="due-day"]').getBoundingClientRect().width > 1,
+            noSideScroll: document.documentElement.scrollWidth <= window.innerWidth,
+        })
+    JS);
+
+    expect($layout)->toBe(['cut' => [], 'badgeShown' => $badgeShown, 'noSideScroll' => true]);
+})->with([
+    '320 px' => [320, false],
+    '393 px' => [393, true],
+]);
