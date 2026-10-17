@@ -41,9 +41,14 @@ final readonly class OverviewService
         }
 
         $categoryNames = [];
+        $removedCategoryIds = [];
 
-        foreach ($user->categories()->withTrashed()->whereIn('id', array_keys($spent))->get(['id', 'name']) as $category) {
+        foreach ($user->categories()->withTrashed()->whereIn('id', array_keys($spent))->get(['id', 'name', 'deleted_at']) as $category) {
             $categoryNames[$category->id] = $category->name;
+
+            if ($category->trashed()) {
+                $removedCategoryIds[] = $category->id;
+            }
         }
 
         $pocketMoves = $this->periods->pocketMoves($period);
@@ -57,6 +62,7 @@ final readonly class OverviewService
             categoryNames: $categoryNames,
             pocketDeposits: $pocketMoves['deposits'],
             pocketWithdrawals: $pocketMoves['withdrawals'],
+            removedCategoryIds: $removedCategoryIds,
         );
 
         return new Overview(

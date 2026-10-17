@@ -465,8 +465,9 @@ new #[Title('Today')] class extends Component {
 
     @if ($categories !== [])
         @php
-            $unbudgeted = array_values(array_filter($categories, fn ($category): bool => $category->planned <= 0));
-            $budgetLineIds = $unbudgeted !== [] ? auth()->user()?->budgetLines()->pluck('id', 'category_id') ?? collect() : collect();
+            // A category deleted from the plan has no line to open; an active one without a budget opens its own line.
+            $hasUnbudgeted = array_filter($categories, fn ($category): bool => $category->planned <= 0 && ! $category->removedFromPlan) !== [];
+            $budgetLineIds = $hasUnbudgeted ? auth()->user()?->budgetLines()->pluck('id', 'category_id') ?? collect() : collect();
         @endphp
         <x-ui.card class="mx-4 mb-3 px-[18px] pb-1.5 pt-[18px]" data-test="categories">
             <div class="flex flex-wrap items-baseline justify-between gap-x-3">
@@ -476,16 +477,9 @@ new #[Title('Today')] class extends Component {
                 </span>
             </div>
 
-            {{-- One quiet note for every category without a budget, instead of a link under each of them. --}}
-            @if ($unbudgeted !== [])
-                <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-group bg-surface-2 py-2 pl-3.5 pr-2" data-test="no-budget-note">
-                    <span class="min-w-[10rem] flex-1 text-[13px] leading-snug text-muted">{{ trans_choice('{1} :names has no budget yet.|[2,*] :count categories have no budget yet.', count($unbudgeted), ['count' => count($unbudgeted), 'names' => $unbudgeted[0]->categoryName]) }}</span>
-                    <x-ui.button variant="tonal" size="sm" :href="route('plan', array_filter(['tetel' => count($unbudgeted) === 1 ? $budgetLineIds->get($unbudgeted[0]->categoryId) : null]))" wire:navigate class="ml-auto shrink-0" data-test="set-budget">{{ __('Set a budget') }}</x-ui.button>
-                </div>
-            @endif
-
             @foreach ($categories as $category)
                 @php
+                    $removed = $category->removedFromPlan;
                     $noBudget = $category->planned <= 0;
                     $ratio = $noBudget ? 0 : $category->spent / $category->planned;
                     // Red only for going over a budget, amber from 80%; a category without a budget stays neutral.
@@ -496,37 +490,43 @@ new #[Title('Today')] class extends Component {
                         default => 'accent',
                     };
                 @endphp
-                <div wire:key="category-{{ $category->categoryId }}" @class(['border-b border-line' => ! $loop->last]) data-test="category-row">
-                    <a href="{{ route('month', ['kategoria' => $category->categoryId]) }}" wire:navigate
-                       class="focus-ring grid grid-cols-[40px_minmax(0,1fr)_18px] items-center gap-3 rounded-xl py-3">
-                        <x-ui.icon-tile :icon="$this->icons[$category->categoryId] ?? \App\Support\Icons::FALLBACK" />
-                        <div class="min-w-0">
-                            {{-- The amount wraps under the name rather than squeezing it on a narrow phone. --}}
-                            <div class="flex flex-wrap items-baseline justify-between gap-x-2">
-                                <span class="min-w-0 truncate text-[15px] font-medium">{{ $category->categoryName }}</span>
-                                @if ($noBudget)
-                                    <x-ui.amount size="sm" :value="$category->spent" class="ml-auto shrink-0 text-sm [&>span:first-child]:font-semibold" />
-                                @else
-                                    <x-ui.amount size="sm" :value="$category->spent" :of="$category->planned" class="ml-auto shrink-0 text-sm [&>span:first-child]:font-semibold" />
-                                @endif
-                            </div>
+                {{-- The whole row opens the category in Month; the "Set a budget" link sits above that stretched link. --}}
+                <div wire:key="category-{{ $category->categoryId }}" @class(['relative grid grid-cols-[40px_minmax(0,1fr)_18px] items-center gap-3 py-3', 'border-b border-line' => ! $loop->last]) data-test="category-row" @if ($removed) data-removed @endif>
+                    <x-ui.icon-tile :icon="$this->icons[$category->categoryId] ?? \App\Support\Icons::FALLBACK" @class(['opacity-60' => $removed]) />
+                    <div class="min-w-0">
+                        {{-- The amount wraps under the name rather than squeezing it on a narrow phone. --}}
+                        <div class="flex flex-wrap items-baseline justify-between gap-x-2">
+                            <a href="{{ route('month', ['kategoria' => $category->categoryId]) }}" wire:navigate
+                               @class(['min-w-0 truncate text-[15px] font-medium outline-none before:absolute before:inset-0 before:rounded-xl focus-visible:before:outline-2 focus-visible:before:outline-offset-2 focus-visible:before:outline-accent', 'text-ink-2' => $removed])
+                               data-test="category-link">{{ $category->categoryName }}</a>
                             @if ($noBudget)
-                                <div class="mt-0.5 text-xs text-muted" data-test="no-budget">{{ __('no budget') }}</div>
-                            @elseif ($this->hasSpending)
-                                <x-ui.bar :label="$category->categoryName" :value="$ratio" :tone="$tone" class="mt-2" />
-                                <div @class(['num mt-1.5 text-xs', 'text-danger' => $tone === 'danger', 'text-warn' => $tone === 'warn', 'text-muted' => $tone === 'accent'])>
-                                    @if ($category->spent > $category->planned)
-                                        {{ __('+:amount over', ['amount' => money($category->spent - $category->planned)]) }}
-                                    @elseif ($category->spent === $category->planned)
-                                        {{ __('Budget used up') }}
-                                    @else
-                                        {{ __(':amount left', ['amount' => money($category->planned - $category->spent)]) }}
-                                    @endif
-                                </div>
+                                <x-ui.amount size="sm" :value="$category->spent" class="ml-auto shrink-0 text-sm [&>span:first-child]:font-semibold" />
+                            @else
+                                <x-ui.amount size="sm" :value="$category->spent" :of="$category->planned" class="ml-auto shrink-0 text-sm [&>span:first-child]:font-semibold" />
                             @endif
                         </div>
-                        <x-ui.icon name="chevron_right" :size="18" class="text-faint" />
-                    </a>
+                        @if ($removed)
+                            <div class="mt-0.5 text-xs text-muted" data-test="removed-from-plan">{{ __('removed from the plan') }}</div>
+                        @elseif ($noBudget)
+                            <div class="mt-0.5 flex flex-wrap items-baseline gap-x-1 text-xs text-muted" data-test="no-budget">
+                                <span>{{ __('no budget') }}</span><span aria-hidden="true">·</span>
+                                <a href="{{ route('plan', array_filter(['tetel' => $budgetLineIds->get($category->categoryId)])) }}" wire:navigate
+                                   class="focus-ring relative z-10 -my-2 rounded-small py-2 font-semibold text-accent" data-test="set-budget">{{ __('Set a budget') }}</a>
+                            </div>
+                        @elseif ($this->hasSpending)
+                            <x-ui.bar :label="$category->categoryName" :value="$ratio" :tone="$tone" class="mt-2" />
+                            <div @class(['num mt-1.5 text-xs', 'text-danger' => $tone === 'danger', 'text-warn' => $tone === 'warn', 'text-muted' => $tone === 'accent'])>
+                                @if ($category->spent > $category->planned)
+                                    {{ __('+:amount over', ['amount' => money($category->spent - $category->planned)]) }}
+                                @elseif ($category->spent === $category->planned)
+                                    {{ __('Budget used up') }}
+                                @else
+                                    {{ __(':amount left', ['amount' => money($category->planned - $category->spent)]) }}
+                                @endif
+                            </div>
+                        @endif
+                    </div>
+                    <x-ui.icon name="chevron_right" :size="18" class="text-faint" />
                 </div>
             @endforeach
         </x-ui.card>

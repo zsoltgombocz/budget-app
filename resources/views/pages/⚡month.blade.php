@@ -857,7 +857,7 @@ new #[Title('Month')] class extends Component {
             <div x-show="! edit?.readonly">
             <x-ui.form-group>
                 <x-ui.select-row :label="__('Category')" x-model.number="form.category" data-test="edit-category">
-                    @foreach ($this->editCategories as $editCategory)<option value="{{ $editCategory->id }}">{{ $editCategory->name }}</option>@endforeach
+                    @foreach ($this->editCategories as $editCategory)<option value="{{ $editCategory->id }}">{{ $editCategory->trashed() ? __(':name, removed from the plan', ['name' => $editCategory->name]) : $editCategory->name }}</option>@endforeach
                 </x-ui.select-row>
                 <label class="relative flex min-h-[52px] items-center justify-between gap-3 px-4 py-2.5 focus-within:bg-accent/10">
                     <span class="text-[15px]">{{ __('Date') }}</span>

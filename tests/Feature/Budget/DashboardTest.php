@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Budget\DeletePlanLine;
 use App\Actions\Budget\MovePocketMoney;
 use App\Actions\Budget\ToggleLinePaid;
 use App\Enums\Currency;
@@ -296,7 +297,7 @@ it('says how much of the leftover is budget not spent yet', function (): void {
         ->assertSeeInOrder(['data-test="unspent-budget"', 'This includes your budget not spent yet: '.money(120_000), 'data-test="leftover-if-spent"'], false);
 });
 
-it('shows a category without a budget neutrally with a way to set one, not as overspending', function (): void {
+it('shows a category without a budget once, on its own row, with a link to its plan line', function (): void {
     $other = Category::factory()->for($this->user)->create(['name' => 'Other', 'type' => 'variable']);
     $line = BudgetLine::factory()->for($this->user)->for($other)->create(['amount' => 0]);
     Transaction::factory()->for($this->user)->for($this->period)->for($other)->create(['amount' => 3_990, 'occurred_on' => '2026-10-05']);
@@ -306,12 +307,35 @@ it('shows a category without a budget neutrally with a way to set one, not as ov
 
     expect($row)->toContain('data-test="no-budget"')
         ->toContain('no budget')
+        ->toContain(e(route('plan', ['tetel' => $line->id])))
         ->not->toContain('over')
-        ->not->toContain('text-danger');
+        ->not->toContain('text-danger')
+        // No separate note above the rows: the information is shown once.
+        ->and($html)->not->toContain('no-budget-note')
+        ->and(substr_count($html, 'data-test="set-budget"'))->toBe(1)
+        ->and(substr_count($html, 'data-test="category-row"'))->toBe(3);
+});
 
-    // One note above the rows names it and opens its plan line.
-    Livewire::test('pages::today')
-        ->assertSeeHtmlInOrder(['data-test="no-budget-note"', 'Other has no budget yet.', e(route('plan', ['tetel' => $line->id])), 'data-test="set-budget"', 'data-test="category-row"']);
+it('shows a category deleted from the plan with its spending as removed, without a way to set a budget', function (): void {
+    Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 50_000, 'occurred_on' => '2026-10-05']);
+    $before = resolve(OverviewService::class)->forUser($this->user)->forecast;
+
+    resolve(DeletePlanLine::class)->handle(BudgetLine::query()->where('category_id', $this->fuel->id)->firstOrFail());
+
+    $forecast = resolve(OverviewService::class)->forUser($this->user)->forecast;
+    $html = Livewire::test('pages::today')->html();
+    $row = substr($html, (int) strpos($html, '>Fuel<') - 1200, 2000);
+
+    expect($this->fuel->refresh()->trashed())->toBeTrue()
+        // The spending still counts: the budget is gone, the money spent is not.
+        ->and($forecast->variableSpent)->toBe($before->variableSpent)
+        ->and($forecast->variablePlanned)->toBe($before->variablePlanned - 60_000)
+        ->and($row)->toContain('data-removed')
+        ->toContain('data-test="removed-from-plan"')
+        ->toContain('removed from the plan')
+        ->toContain(e(route('month', ['kategoria' => $this->fuel->id])))
+        ->and($html)->not->toContain('data-test="set-budget"')
+        ->not->toContain('data-test="no-budget"');
 });
 
 it('keeps fixed items already paid visible and dimmed at the bottom, and says what is behind the more row', function (): void {

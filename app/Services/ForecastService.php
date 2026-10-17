@@ -30,6 +30,7 @@ final class ForecastService
      * @param  array<int, string>  $categoryNames  names for spent categories without a plan line
      * @param  int  $pocketDeposits  put into pockets from this period's budget (positive)
      * @param  int  $pocketWithdrawals  taken out of pockets into this period's budget (positive)
+     * @param  list<int>  $removedCategoryIds  spent categories deleted from the plan (soft deleted)
      */
     public function forecast(
         array $lines,
@@ -40,6 +41,7 @@ final class ForecastService
         array $categoryNames = [],
         int $pocketDeposits = 0,
         int $pocketWithdrawals = 0,
+        array $removedCategoryIds = [],
     ): Forecast {
         $baseIncome = $income;
         $income = $baseIncome + $pocketWithdrawals - $pocketDeposits;
@@ -47,11 +49,13 @@ final class ForecastService
         $variablePlan = [];
         $committedCategories = [];
         $names = $categoryNames;
+        $plannedCategories = [];
 
         foreach ($lines as $line) {
             if ($line->type === LineType::Variable) {
                 $variablePlan[$line->categoryId] = ($variablePlan[$line->categoryId] ?? 0) + $line->planned();
                 $names[$line->categoryId] = $line->categoryName;
+                $plannedCategories[$line->categoryId] = true;
             } else {
                 $committed += $line->counted();
                 $committedCategories[$line->categoryId] = true;
@@ -68,6 +72,7 @@ final class ForecastService
         }
 
         $categories = [];
+        $removed = array_flip($removedCategoryIds);
 
         foreach ($variablePlan as $categoryId => $planned) {
             $spent = $spentByCategory[$categoryId] ?? 0;
@@ -78,6 +83,7 @@ final class ForecastService
                 planned: $planned,
                 spent: $spent,
                 expected: $this->expectedSpend($planned, $spent),
+                removedFromPlan: isset($removed[$categoryId]) && ! isset($plannedCategories[$categoryId]),
             );
         }
 
@@ -118,7 +124,7 @@ final class ForecastService
 
         foreach ($forecast->categories as $category) {
             if ($category->spent > $category->planned) {
-                $items[] = new DeviationItem(DeviationReason::Overspent, -($category->spent - $category->planned), $category->categoryName, withoutBudget: $category->planned === 0);
+                $items[] = new DeviationItem(DeviationReason::Overspent, -($category->spent - $category->planned), $category->categoryName, withoutBudget: $category->planned === 0, removedFromPlan: $category->removedFromPlan);
             }
         }
 

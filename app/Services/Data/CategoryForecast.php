@@ -2,6 +2,10 @@
 
 namespace App\Services\Data;
 
+/**
+ * One variable category in the forecast. `removedFromPlan`: the category was deleted from the plan
+ * but still has spending this period, so it counts without a budget and has no plan line to open.
+ */
 final readonly class CategoryForecast
 {
     public const float WARNING_RATIO = 0.8;
@@ -12,6 +16,7 @@ final readonly class CategoryForecast
         public int $planned,
         public int $spent,
         public int $expected,
+        public bool $removedFromPlan = false,
     ) {}
 
     public function ratio(): float

@@ -158,3 +158,18 @@ it('does not count a raised budget as a deviation', function (): void {
 
     expect($service->deviation($service->forecast($lines, 500_000, [3 => 80_000], 30, 10), $lines)->amount())->toBe(0);
 });
+
+it('marks spending in a category deleted from the plan, still counted without a budget', function (): void {
+    $service = new ForecastService;
+    $lines = forecastPlan();
+    // Fuel (3) is planned, so it is never "removed" even if listed; Food (98) was deleted with 50 000 spent.
+    $forecast = $service->forecast($lines, 500_000, [3 => 10_000, 98 => 50_000], 30, 10, [98 => 'Food'], removedCategoryIds: [3, 98]);
+    $categories = collect($forecast->categories)->keyBy('categoryId');
+
+    expect($categories[98]->removedFromPlan)->toBeTrue()
+        ->and($categories[98]->planned)->toBe(0)
+        ->and($categories[3]->removedFromPlan)->toBeFalse()
+        ->and($forecast->variableSpent)->toBe(60_000)
+        ->and($forecast->expectedLeftover)->toBe(500_000 - 300_000 - 60_000 - 90_000 - 50_000)
+        ->and($service->deviation($forecast, $lines)->items[0]->label())->toBe('Food, removed from the plan');
+});
