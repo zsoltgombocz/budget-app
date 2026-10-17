@@ -181,6 +181,38 @@ it('keeps the plan summary inside a 320 px screen with long euro amounts', funct
     expect($fits)->toBeTrue();
 });
 
+it('keeps the list from showing through the stuck plan summary and draws a hairline under it', function (): void {
+    $this->actingAs(onboardedUser());
+
+    $page = visit(route('plan'))->on()->mobile()->resize(320, 568);
+
+    $band = $page->script(<<<'JS'
+        async () => {
+            const band = document.querySelector('[data-test="plan-summary-band"]')
+            const alpha = color => {
+                const parts = color.match(/[\d.]+%?/g) ?? []
+                const slash = color.includes('/') ? color.split('/').pop() : null
+                const value = slash ?? (color.startsWith('rgba') ? parts[3] : '1')
+                return value.trim().endsWith('%') ? parseFloat(value) / 100 : parseFloat(value)
+            }
+            const atRest = alpha(getComputedStyle(band).borderBottomColor)
+            window.scrollTo(0, 400)
+            // Polls: the page fades up on entry and the hairline fades in.
+            const settled = () => Math.abs(band.getBoundingClientRect().top - parseFloat(getComputedStyle(band).top)) <= 0.5 && alpha(getComputedStyle(band).borderBottomColor) > 0.05
+            for (let i = 0; i < 30 && ! settled(); i++) await new Promise(r => setTimeout(r, 100))
+            const style = getComputedStyle(band)
+            return {
+                stuck: Math.abs(band.getBoundingClientRect().top - parseFloat(style.top)) <= 0.5,
+                opaque: alpha(style.backgroundColor) >= 0.95,
+                hairlineAtRest: atRest > 0,
+                hairlineStuck: alpha(style.borderBottomColor) > 0,
+            }
+        }
+    JS);
+
+    expect($band)->toBe(['stuck' => true, 'opaque' => true, 'hairlineAtRest' => false, 'hairlineStuck' => true]);
+});
+
 it('changes a budget in four taps: line, amount, numpad, save', function (): void {
     $this->actingAs(onboardedUser());
 

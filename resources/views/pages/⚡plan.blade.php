@@ -630,8 +630,17 @@ new #[Title('Plan')] class extends Component {
         </x-slot>
     </x-ui.page-header>
 
-    {{-- Bevétel / Kiadás / Marad stays on top while scrolling: a translucent band over the page, not a floating card. --}}
-    <div class="sticky top-[var(--safe-top)] z-10 bg-bg/80 px-6 pb-3 pt-4 backdrop-blur-xl max-[359px]:px-5">
+    {{--
+        Bevétel / Kiadás / Marad stays on top while scrolling: a band over the page, not a floating card.
+        Opaque enough that the list never shows through the labels (solid where backdrop blur is missing),
+        with a hairline under it once it is stuck.
+    --}}
+    {{-- Where the band would sit unstuck: once this marker scrolls above the band's sticky top, the band is stuck. --}}
+    <div x-ref="summaryMarker" aria-hidden="true"></div>
+    <div x-data="{ stuck: false, check() { this.stuck = this.$refs.summaryMarker.getBoundingClientRect().top < parseFloat(getComputedStyle(this.$el).top) } }"
+         x-init="check()" x-on:scroll.window.passive="check()"
+         class="sticky top-[var(--safe-top)] z-10 border-b border-transparent bg-bg px-6 pb-3 pt-4 transition-colors max-[359px]:px-5 data-stuck:border-line supports-[backdrop-filter:blur(1px)]:bg-bg/95 supports-[backdrop-filter:blur(1px)]:backdrop-blur-xl"
+         :data-stuck="stuck ? 'true' : null" data-test="plan-summary-band">
         {{-- Three figures side by side; on a very narrow screen with long amounts they wrap instead of overflowing. --}}
         <div class="flex flex-wrap justify-between gap-x-3 gap-y-2" data-test="plan-summary">
             <div class="min-w-0"><div class="text-xs text-muted">{{ __('Income') }}</div><x-ui.amount size="sm" :value="$summary->income" class="mt-[3px] text-base font-semibold max-[359px]:text-[15px]" /></div>
