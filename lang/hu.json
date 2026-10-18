@@ -1270,5 +1270,6 @@
     "Your monthly net pay. Tap it when it changes.": "A havi nettó fizetésed. Koppints rá, ha változik.",
     "Your monthly plan": "A havi terv",
     ":amount went into pockets": ":amount perselybe ment",
-    "Red means you went over a budget. Money you put into a pocket is your choice, so it shows without red.": "Piros, ha túlléptél egy keretet. A perselybe tett pénz a te döntésed, ezért az nem piros."
+    "Red means you went over a budget. Money you put into a pocket is your choice, so it shows without red.": "Piros, ha túlléptél egy keretet. A perselybe tett pénz a te döntésed, ezért az nem piros.",
+    "{1} :count fixed item was due|[2,*] :count fixed items were due": "{1} :count fix tétel esedékes volt|[2,*] :count fix tétel esedékes volt"
 }

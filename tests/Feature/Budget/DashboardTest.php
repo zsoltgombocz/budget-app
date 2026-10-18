@@ -302,6 +302,18 @@ it('marks every step of the tour on Today and continues on the plan, the pockets
         ->assertSee('data-tour="month-close"', false);
 });
 
+it('says the due items were due when every one of them is past its day', function (): void {
+    $this->travelTo($this->period->starts_on->addDays(10)->setTime(12, 0));
+    BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail()->update(['due_day' => 1]);
+
+    Livewire::test('pages::today')->assertSeeInOrder(['data-test="due-summary"', '1 fixed item was due'], false);
+
+    $phone = Category::factory()->for($this->user)->create(['name' => 'Phone', 'type' => 'fixed']);
+    BudgetLine::factory()->for($this->user)->for($phone)->create(['amount' => 12_000, 'due_day' => 11]);
+
+    Livewire::test('pages::today')->assertSeeInOrder(['data-test="due-summary"', '2 fixed items due'], false);
+});
+
 it('lets only a signed-in user mark the tour as seen', function (): void {
     auth()->logout();
 

@@ -464,6 +464,9 @@ new #[Title('Pockets and loans')] class extends Component {
     $ordered = collect([$featured, $reserve])->filter()->concat($pockets->reject(fn ($p) => $p->is($featured) || $p->is($reserve)))->values();
     $loans = $this->loans;
     $decimals = $this->currency->decimals();
+    // The month-end leftover tops up the reserve only when the leftover rule sends some of it there.
+    $settings = auth()->user()?->settings();
+    $leftoverFillsReserve = $settings !== null && ($settings->reserve_fixed !== null ? $settings->reserve_fixed > 0 : $settings->reserve_pct > 0);
 @endphp
 
 @php
@@ -505,7 +508,7 @@ new #[Title('Pockets and loans')] class extends Component {
                 // At most two short muted lines under the name: what it is for, and what comes in every month.
                 $notes = array_filter([
                     $isFeatured ? ($pocket->loan ? __('Prepayment · :loan', ['loan' => $pocket->loan->name]) : __('Saving for a prepayment')) : null,
-                    $isReserve ? __('filled from the month-end leftover') : null,
+                    $isReserve && $leftoverFillsReserve ? __('filled from the month-end leftover') : null,
                     // The plan's monthly saving moves into the pocket at closing (PeriodCloser), not on payday.
                     $deposit > 0 ? __('+:amount/month at closing', ['amount' => money($deposit)]) : null,
                 ]);
@@ -739,7 +742,8 @@ new #[Title('Pockets and loans')] class extends Component {
                         </button>
                     @endforeach
                 </div>
-                <p class="mt-2 text-center text-xs text-muted" x-show="form.balance <= 0" data-test="empty-note">{{ __('The pocket is empty, there is nothing to take out.') }}</p>
+                {{-- Why the two ways out are greyed out on an empty pocket: only next to them, not under a deposit. --}}
+                <p class="mt-2 text-center text-xs text-muted" x-show="form.balance <= 0 && modesOpen" data-test="empty-note">{{ __('The pocket is empty, there is nothing to take out.') }}</p>
                 <div class="mt-2 text-center" :class="! positive('move') && 'text-muted'"><x-ui.amount bind="display('move')" size="lg" data-test="move-amount" /></div>
                 <p class="mt-1 text-center text-xs text-danger" x-show="errors.move" x-text="errors.move" role="alert"></p>
                 {{-- Lower keys on a very short phone (320×568), so the balance and the tabs stay on screen above. --}}

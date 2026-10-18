@@ -93,6 +93,9 @@ it('offers only a deposit on an empty pocket and says why', function (): void {
         ->assertAttribute('[data-test="mode-deposit"]', 'aria-checked', 'true')
         ->assertDisabled('[data-test="mode-budget"]')
         ->assertDisabled('[data-test="mode-spend"]')
+        // Not under the deposit: only next to the greyed-out ways out, once the choices are open.
+        ->assertMissing('[data-test="empty-note"]')
+        ->click('[data-test="mode-deposit"]')
         ->assertSeeIn('[data-test="empty-note"]', 'The pocket is empty, there is nothing to take out.')
         ->assertNoJavaScriptErrors();
 });

@@ -272,6 +272,7 @@ new #[Title('Today')] class extends Component {
         $openPositions += $isOpenAtLoad ? 1 : 0;
     }
     $dueItems = $period->isOpen() ? array_values(array_filter($fixed, fn ($item) => $item->isOverdue($overview->today))) : [];
+    $allDueLate = $dueItems !== [] && array_filter($dueItems, fn ($item): bool => ! $item->dueOn->lessThan($overview->today)) === [];
 
     // The period's own numbers for the "how is this calculated" sheets.
     $minus = fn (int $amount): string => $amount > 0 ? '−'.money($amount) : money(0);
@@ -409,7 +410,10 @@ new #[Title('Today')] class extends Component {
                 <x-ui.icon-tile icon="schedule" tone="warn" />
                 {{-- Show me / Hide sits under the title, not at the right edge, where the + floats at rest on a short phone. --}}
                 <span class="min-w-0 flex-1">
-                    <span class="num block truncate text-[15px] font-semibold">{{ trans_choice('{1} :count fixed item due|[2,*] :count fixed items due', count($dueItems), ['count' => count($dueItems)]) }}</span>
+                    {{-- When every one of them is past its day, the title says so ("was due"), like the rows below. --}}
+                    <span class="num block truncate text-[15px] font-semibold">{{ $allDueLate
+                        ? trans_choice('{1} :count fixed item was due|[2,*] :count fixed items were due', count($dueItems), ['count' => count($dueItems)])
+                        : trans_choice('{1} :count fixed item due|[2,*] :count fixed items due', count($dueItems), ['count' => count($dueItems)]) }}</span>
                     <span class="mt-0.5 flex items-center gap-0.5 text-[13px] font-medium text-ink-2">
                         <span x-text="showDue ? @js(__('Hide')) : @js(__('Show me'))">{{ __('Show me') }}</span>
                         <x-ui.icon name="expand_more" :size="18" class="text-muted transition-transform duration-200 ease-out" x-bind:class="showDue && 'rotate-180'" />

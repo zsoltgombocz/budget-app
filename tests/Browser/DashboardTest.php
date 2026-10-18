@@ -197,7 +197,7 @@ it('skips a due fixed item for this month on Today and undoes it, and sets it ba
 
     $page = visit(route('dashboard'))->on()->mobile()->resize(390, 844);
 
-    $page->assertSeeIn('[data-test="due-summary"]', '1 fixed item due')
+    $page->assertSeeIn('[data-test="due-summary"]', '1 fixed item was due')
         ->assertMissing('[data-test="due-item"]:visible')
         ->click('[data-test="due-summary"]')
         ->assertVisible('[data-test="due-item"]')
