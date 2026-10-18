@@ -151,6 +151,19 @@ it('explains the deviation from the plan with reasons that add up to it', functi
         ]);
 });
 
+it('tells a shortfall from overspending apart from money put into pockets', function (): void {
+    $service = new ForecastService;
+    $lines = forecastPlan();
+    $deposit = $service->deviation($service->forecast($lines, 500_000, [], 30, 10, pocketDeposits: 10_000), $lines);
+    $both = $service->deviation($service->forecast($lines, 500_000, [3 => 62_000], 30, 10, pocketDeposits: 10_000), $lines);
+    $offset = $service->deviation($service->forecast($lines, 500_000, [3 => 62_000], 30, 10, pocketWithdrawals: 5_000), $lines);
+
+    // A deposit alone is no overspending; with 2 000 over a budget only those 2 000 are; a withdrawal covering it leaves none.
+    expect([$deposit->amount(), $deposit->overspentShortfall(), $deposit->toPockets()])->toBe([-10_000, 0, 10_000])
+        ->and([$both->amount(), $both->overspentShortfall(), $both->toPockets()])->toBe([-12_000, 2_000, 10_000])
+        ->and([$offset->amount(), $offset->overspentShortfall(), $offset->toPockets()])->toBe([3_000, 0, 0]);
+});
+
 it('does not count a raised budget as a deviation', function (): void {
     $service = new ForecastService;
     $lines = forecastPlan();

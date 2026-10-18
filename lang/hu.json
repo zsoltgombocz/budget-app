@@ -1268,5 +1268,7 @@
     "You switch screens down here.": "Lent váltasz a képernyők között.",
     "Your fixed items, transfers, loan installments and monthly savings are already taken off in full; of the variable spending only what you have spent so far.": "A fix tételek, utalások, törlesztők és havi gyűjtések már a teljes összegükkel le vannak vonva, a változó kiadásokból csak az, amit eddig elköltöttél.",
     "Your monthly net pay. Tap it when it changes.": "A havi nettó fizetésed. Koppints rá, ha változik.",
-    "Your monthly plan": "A havi terv"
+    "Your monthly plan": "A havi terv",
+    ":amount went into pockets": ":amount perselybe ment",
+    "Red means you went over a budget. Money you put into a pocket is your choice, so it shows without red.": "Piros, ha túlléptél egy keretet. A perselybe tett pénz a te döntésed, ezért az nem piros."
 }

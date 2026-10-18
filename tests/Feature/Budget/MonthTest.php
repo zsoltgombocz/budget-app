@@ -94,6 +94,27 @@ it('counts a skipped fixed item and pocket moves as the reasons the month is bet
         ->assertSeeHtmlInOrder(['data-test="pocket-move"', 'From pockets into the budget', 'Holiday', 'Concert', '+'.money(5_000), 'data-test="pocket-move"', 'Put into pockets', 'Holiday', '−'.money(10_000)]);
 });
 
+it('does not paint money put into a pocket red: only overspending is over the plan', function (): void {
+    $pocket = Pocket::factory()->for($this->user)->create(['name' => 'Reserve', 'balance' => 0]);
+    resolve(MovePocketMoney::class)->handle($this->user, $pocket, 10_000, null, toBudget: true);
+
+    $html = Livewire::test('pages::month')->html();
+
+    expect($html)->toMatch('/class="[^"]*bg-ink\/8[^"]*" data-test="plan-deviation-verdict">(?:\s|<!--.*?-->)*'.preg_quote(money(10_000), '/').' went into pockets/')
+        ->not->toContain('over the plan');
+
+    // With 2 000 over a budget too, only those 2 000 are over the plan, in red.
+    Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 62_000]);
+
+    expect(Livewire::test('pages::month')->html())->toMatch('/class="[^"]*bg-danger\/16[^"]*" data-test="plan-deviation-verdict">(?:\s|<!--.*?-->)*'.preg_quote(money(2_000), '/').' over the plan/');
+});
+
+it('says how many days are left in the header', function (): void {
+    $this->travelTo($this->period->ends_on->subDays(2)->setTime(12, 0));
+
+    $this->get(route('month'))->assertSee('3 days left');
+});
+
 it('does not show the close-now figures for a closed period', function (): void {
     $this->travelTo($this->period->ends_on->setTime(18, 0));
     resolve(PeriodCloser::class)->close($this->user, $this->period, $this->period->income());

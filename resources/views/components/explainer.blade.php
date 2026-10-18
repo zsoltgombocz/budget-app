@@ -36,6 +36,7 @@
             'notes' => [
                 __('The badge next to it compares the month with the plan, as if you spent every budget in full.'),
                 __('Only going over a budget, a skipped fixed item or a pocket move changes this.'),
+                __('Red means you went over a budget. Money you put into a pocket is your choice, so it shows without red.'),
             ],
         ],
         // ForecastService::dailyAllowance(): (variable budget + net pocket moves − variable spent) / remaining days incl. today.

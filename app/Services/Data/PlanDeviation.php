@@ -2,6 +2,8 @@
 
 namespace App\Services\Data;
 
+use App\Enums\DeviationReason;
+
 /**
  * How far the month is from its plan: the leftover if every budget is spent in full, against
  * the leftover the plan expects. Only overspending, skipped fixed items and pocket moves make
@@ -29,5 +31,42 @@ final readonly class PlanDeviation
     public function isOnPlan(): bool
     {
         return $this->amount() === 0;
+    }
+
+    /**
+     * How much of a shortfall against the plan comes from overspending (positive, 0 if none).
+     * Money put into pockets is a choice, not overspending: it is left out here.
+     */
+    public function overspentShortfall(): int
+    {
+        if ($this->amount() >= 0) {
+            return 0;
+        }
+
+        $overspent = 0;
+
+        foreach ($this->items as $item) {
+            if ($item->reason === DeviationReason::Overspent) {
+                $overspent -= $item->amount;
+            }
+        }
+
+        return min($overspent, -$this->amount());
+    }
+
+    /**
+     * Money put into pockets from this month (positive).
+     */
+    public function toPockets(): int
+    {
+        $total = 0;
+
+        foreach ($this->items as $item) {
+            if ($item->reason === DeviationReason::ToPockets) {
+                $total -= $item->amount;
+            }
+        }
+
+        return $total;
     }
 }

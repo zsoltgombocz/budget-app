@@ -587,7 +587,7 @@ new #[Title('Month')] class extends Component {
                 @if (! $period->isOpen())
                     {{ __('closed') }}
                 @elseif ($period->contains($today))
-                    {{ trans_choice('{1} :count day|[2,*] :count days', $forecast->remainingDays, ['count' => $forecast->remainingDays]) }}
+                    {{ trans_choice('{1} :count day left|[2,*] :count days left', $forecast->remainingDays, ['count' => $forecast->remainingDays]) }}
                 @else
                     {{ __('open') }}
                 @endif
@@ -610,6 +610,7 @@ new #[Title('Month')] class extends Component {
                 $closeLeftover = $this->closePreview->leftover();
                 $deviation = $this->deviation;
                 $deviationAmount = $deviation->amount();
+                $overspentShortfall = $deviation->overspentShortfall();
                 $signedMoney = fn (int $amount): string => ($amount > 0 ? '+' : '').money($amount);
                 // The "i" sheet: why the month differs from the plan, item by item, then the difference.
                 $deviationRows = [
@@ -622,18 +623,24 @@ new #[Title('Month')] class extends Component {
                     <span>{{ __('If the month ended today') }}</span>
                     <x-explainer topic="month-leftover" :rows="$deviationRows" />
                 </div>
-                {{-- ForecastService::deviation(): "if you spend every budget in full" against the planned leftover, as one badge. --}}
+                {{--
+                    ForecastService::deviation(): "if you spend every budget in full" against the planned leftover, as one badge.
+                    Red only for overspending; a shortfall that comes from money put into pockets is a choice and reads neutral.
+                --}}
                 <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5">
                     <x-ui.amount :value="$closeLeftover" size="lg" :tone="$closeLeftover >= 0 ? 'accent' : 'danger'" class="[&>span:first-child]:text-[28px]" x-data x-number-change />
                     <span @class([
                         'num inline-flex h-[22px] items-center whitespace-nowrap rounded-full px-2 text-xs font-semibold',
-                        'bg-danger/16 text-danger' => $deviationAmount < 0,
+                        'bg-danger/16 text-danger' => $overspentShortfall > 0,
+                        'bg-ink/8 text-ink-2' => $overspentShortfall === 0 && $deviationAmount < 0,
                         'bg-accent/16 text-accent' => $deviationAmount >= 0,
                     ]) data-test="plan-deviation-verdict">
-                        @if ($deviationAmount > 0)
+                        @if ($overspentShortfall > 0)
+                            {{ __(':amount over the plan', ['amount' => money($overspentShortfall)]) }}
+                        @elseif ($deviationAmount > 0)
                             {{ __(':amount better than the plan', ['amount' => money($deviationAmount)]) }}
                         @elseif ($deviationAmount < 0)
-                            {{ __(':amount over the plan', ['amount' => money(-$deviationAmount)]) }}
+                            {{ __(':amount went into pockets', ['amount' => money($deviation->toPockets())]) }}
                         @else
                             {{ __('You are on plan') }}
                         @endif
