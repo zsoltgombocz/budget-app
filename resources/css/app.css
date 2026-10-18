@@ -113,6 +113,9 @@
         --toast-accent: #4BD88A;
         --toast-danger: #FF8A8E;
         --toast-shadow: 0 10px 28px rgba(14, 17, 15, 0.22);
+
+        /* The "How it works" tour's dim over the page (components/tour): a little heavier on the light page. */
+        --tour-scrim: rgba(4, 6, 5, 0.78);
     }
 
     .dark {
@@ -140,6 +143,8 @@
         --toast-accent: var(--app-accent);
         --toast-danger: var(--app-danger);
         --toast-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+
+        --tour-scrim: rgba(4, 6, 5, 0.72);
 
         /* Flux sets a white accent in dark mode; keep the design's green. */
         --color-accent: var(--app-accent);
@@ -506,6 +511,12 @@ html[data-motion='off'] *::after {
 }
 
 /* Solid strip behind the status bar; iOS samples fixed top elements to colour the edge. */
+/* While the "How it works" tour runs (resources/js/tour.js), the page gets room to scroll its last
+   card up to where the tour card fits under it; the tour scrolls back to the top when it ends. */
+html[data-touring] main {
+    padding-bottom: 60vh !important;
+}
+
 #status-shield {
     position: fixed;
     inset: 0 0 auto 0;

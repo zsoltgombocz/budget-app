@@ -18,7 +18,9 @@
     data-record-button-twin (Today's own "Record" button) is on screen it stays away too: two
     buttons doing the same thing must never sit side by side. It also steps aside while a toast shows
     (app-toast-visibility from x-toast-host): the toast sits right above the tab bar, where the
-    button would cover it. Sizes come from --tabbar-h, --fab-size and --fab-gap (app.css).
+    button would cover it. During the "How it works" tour (html[data-touring]) it stays under the tour's
+    dim like the rest of the page, toned down further so its bright green does not stand out.
+    Sizes come from --tabbar-h, --fab-size and --fab-gap (app.css).
 --}}
 <button type="button"
         x-data="{
@@ -82,7 +84,7 @@
         x-on:app-toast-visibility.window="toastOpen = $event.detail"
         x-init="syncPage(); document.addEventListener('livewire:navigated', () => syncPage()); new MutationObserver(() => syncMarker()).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-hides-record-button'] })"
         x-on:click="$dispatch('open-entry')"
-        class="fixed right-5 bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+var(--fab-gap))] z-20 flex size-(--fab-size) items-center justify-center rounded-[20px] bg-accent text-accent-ink shadow-[0_10px_24px_color-mix(in_srgb,var(--app-accent)_32%,transparent)] transition-transform active:scale-95"
+        class="fixed right-5 bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+var(--fab-gap))] z-20 flex size-(--fab-size) items-center justify-center rounded-[20px] bg-accent text-accent-ink shadow-[0_10px_24px_color-mix(in_srgb,var(--app-accent)_32%,transparent)] transition-transform active:scale-95 [html[data-touring]_&]:opacity-50 [html[data-touring]_&]:shadow-none"
         :class="visible && allowed && ! toastOpen ? 'translate-y-0 duration-300 ease-out' : 'pointer-events-none translate-y-[calc(100%_+_160px)] duration-[400ms] ease-in'"
         :aria-hidden="allowed ? null : 'true'" :tabindex="allowed ? null : '-1'"
         aria-label="{{ __('Record spending') }}" data-test="tab-entry">
@@ -100,7 +102,7 @@
                }"
                x-init="active = matches(location.pathname); document.addEventListener('livewire:navigated', () => active = matches(location.pathname)); window.addEventListener('tab-selected', e => active = matches(e.detail))"
                x-on:click="if (location.pathname !== path) document.documentElement.classList.add('navigating'); window.dispatchEvent(new CustomEvent('tab-selected', { detail: path }))"
-               class="flex flex-col items-center gap-[3px] text-[11px]"
+               class="flex min-w-0 flex-col items-center gap-[3px] text-[11px] max-[359px]:text-[10px] max-[359px]:tracking-[-0.01em]"
                :class="active ? 'font-semibold text-ink' : 'font-medium text-muted'"
                :aria-current="active ? 'page' : null">
                 <span class="ms" style="font-size:24px;width:24px;height:24px" :class="active && 'ms-fill'" aria-hidden="true">{{ $tab['icon'] }}</span>

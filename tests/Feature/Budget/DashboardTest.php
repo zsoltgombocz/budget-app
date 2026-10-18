@@ -9,6 +9,7 @@ use App\Models\BudgetLine;
 use App\Models\BudgetSetting;
 use App\Models\Category;
 use App\Models\DayMark;
+use App\Models\Loan;
 use App\Models\Pocket;
 use App\Models\Transaction;
 use App\Models\User;
@@ -281,8 +282,10 @@ it('marks every step of the tour on Today and continues on the plan, the pockets
     BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail()->update(['due_day' => 5]);
     Pocket::factory()->for($this->user)->create(['name' => 'Reserve', 'is_reserve' => true, 'balance' => 100_000]);
 
+    Loan::factory()->for($this->user)->create();
+
     $today = $this->get(route('dashboard'))->assertOk();
-    foreach (['leftover', 'if-spent', 'daily', 'record', 'no-spend', 'due', 'categories', 'fixed', 'tabs'] as $target) {
+    foreach (['leftover', 'if-spent', 'daily', 'record', 'categories', 'fixed'] as $target) {
         $today->assertSee('data-tour="'.$target.'"', false);
     }
 
@@ -293,6 +296,7 @@ it('marks every step of the tour on Today and continues on the plan, the pockets
         ->assertSee('data-test="tour"', false);
 
     $this->get(route('pockets'))->assertOk()
+        ->assertSee('data-tour="pocket-card"', false)
         ->assertSee('data-tour="pocket-deposit"', false)
         ->assertSee('data-tour="pocket-withdraw"', false)
         ->assertSee('data-tour="loans"', false);
@@ -300,6 +304,16 @@ it('marks every step of the tour on Today and continues on the plan, the pockets
     $this->get(route('month'))->assertOk()
         ->assertSee('data-tour="month-now"', false)
         ->assertSee('data-tour="month-close"', false);
+});
+
+it('starts the tour on Today with the step counts of the screens after it, and only then', function (): void {
+    $this->user->settings()->update(['intro_seen_at' => null]);
+
+    expect(Livewire::test('pages::today')->html())->toContain('upcoming\\u0022:{\\u0022plan\\u0022:3,\\u0022pockets\\u0022:1,\\u0022month\\u0022:3}');
+
+    $this->user->settings()->update(['intro_seen_at' => now()]);
+
+    expect(Livewire::test('pages::today')->html())->toContain('upcoming\\u0022:{}');
 });
 
 it('says the due items were due when every one of them is past its day', function (): void {

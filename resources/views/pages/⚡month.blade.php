@@ -901,7 +901,13 @@ new #[Title('Month')] class extends Component {
         $closer = app(\App\Services\PeriodCloser::class);
         $tourClosableFrom = $period->isOpen() && ! $closer->canClose(auth()->user(), $period) ? $closer->closableFrom($period) : null;
     @endphp
-    <x-tour section="month" :label="__('Month')" :steps="\App\Support\Tour::month(leftover: $period->isOpen() ? $this->closePreview->leftover() : 0, closableFrom: $tourClosableFrom)" />
+    <x-tour section="month" :label="__('Month')"
+            :steps="\App\Support\Tour::month(
+                leftover: $period->isOpen() ? $this->closePreview->leftover() : 0,
+                closableFrom: $tourClosableFrom,
+                hasSpending: $period->transactions()->exists(),
+                hasFilters: $this->filterCategories->isNotEmpty(),
+            )" />
 </div>
 
 @script

@@ -364,7 +364,7 @@ new #[Title('Today')] class extends Component {
         @endif
         @if ($overview->spentToday === 0)
             <div class="mt-3.5 border-t border-line py-1 [&>[data-test=no-spend]]:-ml-3">
-                <x-no-spend-button :marked="$overview->noSpendMarked" data-tour="no-spend" />
+                <x-no-spend-button :marked="$overview->noSpendMarked" data-tour="record" />
             </div>
         @endif
     </x-ui.card>
@@ -404,7 +404,7 @@ new #[Title('Today')] class extends Component {
         While it is open the + steps aside (data-hides-record-button), so it never covers a row's buttons.
     --}}
     @if ($dueItems !== [])
-        <x-ui.card class="mx-4 mb-3 px-[18px] py-1" x-data="{ showDue: false }" x-bind:data-hides-record-button="showDue ? 'true' : null" data-tour="due" data-test="due-items">
+        <x-ui.card class="mx-4 mb-3 px-[18px] py-1" x-data="{ showDue: false }" x-bind:data-hides-record-button="showDue ? 'true' : null" data-test="due-items">
             <button type="button" x-on:click="showDue = ! showDue" :aria-expanded="showDue ? 'true' : 'false'" aria-expanded="false" aria-controls="today-due-list"
                     class="focus-ring -mx-1 flex min-h-[60px] w-[calc(100%+0.5rem)] items-center gap-3 rounded-xl px-1 text-left" data-test="due-summary">
                 <x-ui.icon-tile icon="schedule" tone="warn" />
@@ -466,8 +466,9 @@ new #[Title('Today')] class extends Component {
             $hasUnbudgeted = array_filter($categories, fn ($category): bool => $category->planned <= 0 && ! $category->removedFromPlan) !== [];
             $budgetLineIds = $hasUnbudgeted ? auth()->user()?->budgetLines()->pluck('id', 'category_id') ?? collect() : collect();
         @endphp
-        <x-ui.card class="mx-4 mb-3 px-[18px] pb-1.5 pt-[18px]" data-tour="categories" data-test="categories">
-            <div class="flex flex-wrap items-baseline justify-between gap-x-3">
+        {{-- The tour lights the header and the first row only: the whole card is too tall next to its text on a short phone. --}}
+        <x-ui.card class="mx-4 mb-3 px-[18px] pb-1.5 pt-[18px]" data-test="categories">
+            <div class="flex flex-wrap items-baseline justify-between gap-x-3" data-tour="categories">
                 <h2 class="text-[15px] font-semibold">{{ __('Variable spending') }}</h2>
                 <span @class(['num ml-auto shrink-0 text-[13px]', 'text-danger' => $forecast->variableSpent > $forecast->variablePlanned, 'text-muted' => $forecast->variableSpent <= $forecast->variablePlanned]) x-data x-number-change>
                     {{ money_number($forecast->variableSpent) }} / {{ money($forecast->variablePlanned) }}
@@ -488,7 +489,7 @@ new #[Title('Today')] class extends Component {
                     };
                 @endphp
                 {{-- The whole row opens the category in Month; the "Set a budget" link sits above that stretched link. --}}
-                <div wire:key="category-{{ $category->categoryId }}" @class(['relative grid grid-cols-[40px_minmax(0,1fr)_18px] items-center gap-3 py-3', 'border-b border-line' => ! $loop->last]) data-test="category-row" @if ($removed) data-removed @endif>
+                <div wire:key="category-{{ $category->categoryId }}" @class(['relative grid grid-cols-[40px_minmax(0,1fr)_18px] items-center gap-3 py-3', 'border-b border-line' => ! $loop->last]) @if ($loop->first) data-tour="categories" @endif data-test="category-row" @if ($removed) data-removed @endif>
                     <x-ui.icon-tile :icon="$this->icons[$category->categoryId] ?? \App\Support\Icons::FALLBACK" @class(['opacity-60' => $removed]) />
                     <div class="min-w-0">
                         {{-- The amount wraps under the name rather than squeezing it on a narrow phone. --}}
@@ -531,13 +532,13 @@ new #[Title('Today')] class extends Component {
 
     {{-- The fixed items to tick off, in a stable order while the page is open. --}}
     @if ($fixed !== [])
-        <x-ui.card class="mx-4 mb-3 px-[18px] pb-1.5 pt-[18px]" data-tour="fixed" data-test="fixed-items">
-            <div class="mb-1">
+        <x-ui.card class="mx-4 mb-3 px-[18px] pb-1.5 pt-[18px]" data-test="fixed-items">
+            <div class="mb-1" data-tour="fixed">
                 <h2 class="text-[15px] font-semibold">{{ __('Fixed items') }}</h2>
                 <p class="mt-0.5 text-[13px] text-muted">{{ __('already in the plan, no need to record them') }}</p>
             </div>
             @foreach ($visibleFixed as $item)
-                <x-fixed-item-row :item="$item" :today="$overview->today" :open="$period->isOpen()" @class(['border-b border-line' => ! $loop->last || $hiddenFixed !== []]) wire:key="fixed-{{ $item->line->lineId }}" />
+                <x-fixed-item-row :item="$item" :today="$overview->today" :open="$period->isOpen()" @class(['border-b border-line' => ! $loop->last || $hiddenFixed !== []]) :data-tour="$loop->first ? 'fixed' : null" wire:key="fixed-{{ $item->line->lineId }}" />
             @endforeach
             @if ($hiddenFixed !== [])
                 <x-ui.button variant="text" size="md" icon-trailing="arrow_forward" wire:click="$set('showAllFixed', true)" class="-ml-3 mb-1" data-test="fixed-more">{{ __('All items (:count)', ['count' => count($fixed)]) }}</x-ui.button>
@@ -571,7 +572,22 @@ new #[Title('Today')] class extends Component {
 
     <x-fixed-item-sheet />
 
-    <x-tour section="today" :label="__('Today')" :open="$showIntro"
-            :steps="\App\Support\Tour::today(leftover: $current, unspentBudget: $unspentBudget, ifSpent: $forecast->expectedLeftover, daily: $dailyShown, remainingDays: $forecast->remainingDays, variableSpent: $forecast->variableSpent, variablePlanned: $forecast->variablePlanned)"
+    {{-- The rest of the tour, for the step counter across the screens: only needed when it starts here. --}}
+    <x-tour section="today" :label="__('Today')" :open="$showIntro" :upcoming="$showIntro ? \App\Support\Tour::upcoming(auth()->user()) : []"
+            :steps="\App\Support\Tour::today(
+                leftover: $current,
+                unspentBudget: $unspentBudget,
+                ifSpent: $forecast->expectedLeftover,
+                daily: $dailyShown,
+                remainingDays: $forecast->remainingDays,
+                variableSpent: $forecast->variableSpent,
+                variablePlanned: $forecast->variablePlanned,
+                committedTypes: array_values(array_unique(array_map(fn ($item) => $item->line->type, $fixed), SORT_REGULAR)),
+                pocketDeposits: $forecast->pocketDeposits,
+                hasCategories: $categories !== [],
+                hasUnbudgeted: array_filter($categories, fn ($category): bool => $category->planned <= 0 && ! $category->removedFromPlan) !== [],
+                hasFixed: $fixed !== [],
+                canMarkNoSpend: $overview->spentToday === 0,
+            )"
             :next="['label' => __('On to the Plan'), 'url' => route('plan'), 'section' => 'plan']" />
 </div>

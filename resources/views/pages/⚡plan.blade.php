@@ -625,7 +625,7 @@ new #[Title('Plan')] class extends Component {
             @if ($editing)
                 <x-ui.button variant="tonal" size="sm" wire:click="$set('editing', false)" data-test="toggle-edit">{{ __('Done') }}</x-ui.button>
             @else
-                <x-ui.icon-button icon="edit" wire:click="$set('editing', true)" :label="__('Add or reorder items')" data-tour="plan-edit" data-test="toggle-edit" />
+                <x-ui.icon-button icon="edit" wire:click="$set('editing', true)" :label="__('Add or reorder items')" data-test="toggle-edit" />
             @endif
         </x-slot>
     </x-ui.page-header>
@@ -640,7 +640,7 @@ new #[Title('Plan')] class extends Component {
     <div x-data="{ stuck: false, check() { this.stuck = this.$refs.summaryMarker.getBoundingClientRect().top < parseFloat(getComputedStyle(this.$el).top) } }"
          x-init="check()" x-on:scroll.window.passive="check()"
          class="sticky top-[var(--safe-top)] z-10 border-b border-transparent bg-bg px-6 pb-3 pt-4 transition-colors max-[359px]:px-5 data-stuck:border-line supports-[backdrop-filter:blur(1px)]:bg-bg/95 supports-[backdrop-filter:blur(1px)]:backdrop-blur-xl"
-         :data-stuck="stuck ? 'true' : null" data-tour="plan-summary" data-tour-sticky data-test="plan-summary-band">
+         :data-stuck="stuck ? 'true' : null" data-tour="plan-summary" data-tour-pad="0" data-tour-sticky data-test="plan-summary-band">
         {{-- Three figures side by side; on a very narrow screen with long amounts they wrap instead of overflowing. --}}
         <div class="flex flex-wrap justify-between gap-x-3 gap-y-2" data-test="plan-summary">
             <div class="min-w-0"><div class="text-xs text-muted">{{ __('Income') }}</div><x-ui.amount size="sm" :value="$summary->income" class="mt-[3px] text-base font-semibold max-[359px]:text-[15px]" x-data x-number-change /></div>
@@ -650,7 +650,7 @@ new #[Title('Plan')] class extends Component {
         </div>
     </div>
 
-    <button type="button" x-on:click="openIncome(@js(Money::toInput($settings->income, $this->currency)))" class="focus-ring mx-4 mt-1 flex w-[calc(100%-2rem)] items-center justify-between gap-3 rounded-card bg-surface px-[18px] py-4 text-left" data-tour="plan-income" data-test="income">
+    <button type="button" x-on:click="openIncome(@js(Money::toInput($settings->income, $this->currency)))" class="focus-ring mx-4 mt-1 flex w-[calc(100%-2rem)] items-center justify-between gap-3 rounded-card bg-surface px-[18px] py-4 text-left" data-tour="plan-summary" data-test="income">
         <span class="flex min-w-0 items-center gap-3">
             <x-ui.icon-tile icon="payments" tone="accent" />
             <span class="min-w-0">
@@ -672,8 +672,9 @@ new #[Title('Plan')] class extends Component {
         @php $lines = $this->groups[$type->value]; @endphp
         {{-- The repayment section always shows, so a loan can be added from the plan. --}}
         @continue($lines->isEmpty() && ! $editing && $type !== LineType::Loan)
-        <section wire:key="group-{{ $type->value }}" class="mt-[22px] px-4" data-tour="plan-{{ $type->value }}" data-test="group-{{ $type->value }}">
-            <x-ui.section-label group :label="$this->sectionTitle($type)" :aside="trans_choice('{0} no items|{1} :count item|[2,*] :count items', $lines->count(), ['count' => $lines->count()])" />
+        {{-- The tour lights the variable group's label and first line: the whole group is too tall next to its text on a short phone. --}}
+        <section wire:key="group-{{ $type->value }}" class="mt-[22px] px-4" data-test="group-{{ $type->value }}">
+            <x-ui.section-label group :label="$this->sectionTitle($type)" :aside="trans_choice('{0} no items|{1} :count item|[2,*] :count items', $lines->count(), ['count' => $lines->count()])" :data-tour="$type === LineType::Variable ? 'plan-variable' : null" />
             <div class="divide-y divide-line rounded-card bg-surface px-[18px] py-0.5">
                 @if ($lines->isNotEmpty())
                     <div class="divide-y divide-line" @if ($editing) wire:sort="reorder" @endif>
@@ -691,7 +692,7 @@ new #[Title('Plan')] class extends Component {
                                 // A repayment follows its loan, so outside edit mode it opens the loan itself.
                                 $opensLoan = $type === LineType::Loan && $line->loan_id !== null && ! $editing;
                             @endphp
-                            <div wire:key="line-{{ $line->id }}" @if ($editing) wire:sort:item="{{ $line->category_id }}" @endif data-test="plan-line">
+                            <div wire:key="line-{{ $line->id }}" @if ($editing) wire:sort:item="{{ $line->category_id }}" @endif @if ($type === LineType::Variable && $loop->first) data-tour="plan-variable" @endif data-test="plan-line">
                                 <div class="flex items-center">
                                     @if ($editing)
                                         <span wire:sort:handle class="-ml-3 flex size-11 shrink-0 cursor-grab touch-none items-center justify-center text-muted" role="img" aria-label="{{ __('Drag to reorder') }}" data-test="line-handle"><x-ui.icon name="drag_indicator" :size="20" /></span>
@@ -768,11 +769,12 @@ new #[Title('Plan')] class extends Component {
         The leftover rules, inline as on the onboarding: the sentence sums them up, every choice
         below saves at once. Two levels only: the cards hold their fields as rows, no boxes inside.
     --}}
-    <section class="mt-[22px] px-4" data-tour="plan-month-end" data-test="month-end">
-        <x-ui.section-label group :label="__('Reserve and leftover')" class="!pb-0.5" />
+    <section class="mt-[22px] px-4" data-test="month-end">
+        {{-- The tour lights the title and the rule in one sentence, not the cards under them. --}}
+        <x-ui.section-label group :label="__('Reserve and leftover')" class="!pb-0.5" data-tour="plan-month-end" />
         <p class="px-1.5 text-xs text-muted">{{ __('What you choose here is saved right away.') }}</p>
         <div class="px-1.5 pb-2 pt-3">
-            <p class="num text-[15px] font-medium leading-snug text-pretty" data-test="leftover-rule">{{ $this->leftoverRule() }}</p>
+            <p class="num text-[15px] font-medium leading-snug text-pretty" data-tour="plan-month-end" data-test="leftover-rule">{{ $this->leftoverRule() }}</p>
             <p class="min-h-5 text-[13px] font-medium text-accent-strong" role="status" aria-live="polite">
                 @if ($ruleSavedTick > 0)
                     <span wire:key="rule-saved-{{ $ruleSavedTick }}" x-data x-init="setTimeout(() => $el.remove(), 3000)" class="inline-flex items-center gap-1" data-test="rule-saved"><x-ui.icon name="check" :size="16" />{{ __('Leftover rule saved.') }}</span>
@@ -1018,7 +1020,16 @@ new #[Title('Plan')] class extends Component {
         <x-slot:pad><x-ui.amount-pad :decimal="$this->currency->decimals() > 0" /></x-slot:pad>
     </x-ui.sheet>
 
-    <x-tour section="plan" :label="__('Plan')" :steps="\App\Support\Tour::plan(income: $summary->income, expenses: $summary->totalExpenses, left: $summary->leftover)"
+    <x-tour section="plan" :label="__('Plan')"
+            :steps="\App\Support\Tour::plan(
+                income: $summary->income,
+                expenses: $summary->totalExpenses,
+                left: $summary->leftover,
+                hasSavings: $summary->totalFor(LineType::Sinking) > 0,
+                hasVariable: $this->groups[LineType::Variable->value]->isNotEmpty(),
+                reserveMonthly: $this->reservePocket ? $this->monthEnd->reserveMonthly : 0,
+                reserveName: $this->reservePocket->name ?? '',
+            )"
             :next="['label' => __('On to Pockets'), 'url' => route('pockets'), 'section' => 'pockets']" />
 </div>
 

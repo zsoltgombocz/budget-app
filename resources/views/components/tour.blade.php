@@ -1,4 +1,4 @@
-@props(['section', 'label', 'steps', 'open' => false, 'next' => null])
+@props(['section', 'label', 'steps', 'open' => false, 'next' => null, 'upcoming' => []])
 
 {{--
     The "How it works" spotlight tour of one screen (behaviour: resources/js/tour.js, steps:
@@ -7,7 +7,8 @@
     text, the step counter, Back / Next and Skip. It starts when `open` is true (Today: once
     after onboarding, or ?bemutato=1 from Settings), or by itself when the previous screen's
     tour led here. next: ['label', 'url', 'section'] turns the last step's button into "on to
-    the next screen".
+    the next screen". upcoming: [section => step count] of the screens still to come, on the
+    screen where the tour starts, so the counter runs across the screens ("5 / 15").
 
     The page underneath cannot be tapped or scrolled by hand while the tour runs. Focus moves
     into the card, Tab stays inside, Escape ends the tour; the scrim is aria-hidden. Transitions
@@ -19,8 +20,9 @@
         'steps' => $steps,
         'open' => (bool) $open,
         'next' => $next,
+        'upcoming' => (object) $upcoming,
         'seenUrl' => route('intro.seen'),
-        'labels' => ['next' => __('Next'), 'done' => __('Done'), 'skip' => __('Skip'), 'finish' => __('Finish')],
+        'labels' => ['next' => __('Next'), 'done' => __('Done'), 'skip' => __('Skip'), 'finish' => __('Finish'), 'again' => __('You can watch this again any time: Settings → How it works.')],
     ];
     $motion = 'motion-reduce:transition-none [html[data-motion=off]_&]:transition-none';
 @endphp
@@ -35,14 +37,15 @@
             <div class="absolute inset-0 touch-none" x-on:click.prevent x-on:wheel.prevent x-on:touchmove.prevent aria-hidden="true" data-test="tour-scrim"></div>
 
             {{-- The spotlight: a hole in the scrim (its huge shadow is the scrim), with a thin accent ring. --}}
-            <div class="pointer-events-none absolute left-0 top-0 shadow-[0_0_0_200vmax_rgba(4,6,5,0.72),0_0_0_2px_color-mix(in_srgb,var(--app-accent)_75%,transparent)] transition-[left,top,width,height,border-radius] duration-300 ease-out {{ $motion }}"
-                 :style="tourSpotStyle" aria-hidden="true" data-test="tour-spotlight"></div>
+            {{-- While the page scrolls to the next element the hole is closed at once (tourInstant), so it never trails behind. --}}
+            <div class="pointer-events-none absolute left-0 top-0 shadow-[0_0_0_200vmax_var(--tour-scrim),0_0_0_2px_color-mix(in_srgb,var(--app-accent)_75%,transparent)] transition-[left,top,width,height,border-radius] duration-300 ease-out {{ $motion }}"
+                 :class="tourInstant && '!transition-none'" :style="tourSpotStyle" aria-hidden="true" data-test="tour-spotlight"></div>
 
             <div x-ref="tourTip" role="dialog" aria-modal="true" aria-labelledby="tour-{{ $section }}-title" aria-describedby="tour-{{ $section }}-body" tabindex="-1"
                  x-on:keydown.tab="tourTrap($event)"
                  :style="tourTipStyle"
                  :class="tourPlaced ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'"
-                 class="absolute inset-x-4 mx-auto max-w-[400px] rounded-card bg-surface text-ink shadow-[0_18px_48px_rgba(0,0,0,0.45)] outline-none transition-[opacity,transform,top] duration-200 ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent dark:bg-surface-2 {{ $motion }}"
+                 class="absolute inset-x-4 mx-auto max-w-[400px] rounded-card bg-surface text-ink shadow-[0_2px_10px_rgba(0,0,0,0.28)] outline-none transition-[opacity,transform,top] duration-200 ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent dark:bg-surface-2 {{ $motion }}"
                  data-test="tour-tooltip">
                 {{-- Points at the lit element, when the card sits right above or below it. --}}
                 <span x-show="tourTip.arrow" class="pointer-events-none absolute size-3.5 -translate-x-1/2 rotate-45 rounded-[3px] bg-surface dark:bg-surface-2"
@@ -61,7 +64,7 @@
                     </div>
                     <div class="mt-4 flex gap-2">
                         {{-- Icon-only on a 320px phone, so the longer "On to Pockets" label still fits. --}}
-                        <x-ui.button variant="secondary" size="md" icon="arrow_back" x-show="tourIndex > 0" x-on:click="tourBack()" class="max-[360px]:px-3" :aria-label="__('Back')" data-test="tour-back"><span class="max-[360px]:sr-only">{{ __('Back') }}</span></x-ui.button>
+                        <x-ui.button variant="secondary" size="md" icon="arrow_back" x-show="tourIndex > 0" x-on:click="tourBack()" class="max-[360px]:px-3 dark:bg-surface-3" :aria-label="__('Back')" data-test="tour-back"><span class="max-[360px]:sr-only">{{ __('Back') }}</span></x-ui.button>
                         <x-ui.button variant="tonal" size="md" class="min-w-0 flex-1" x-on:click="tourForward()" data-test="tour-next"><span class="truncate" x-text="tourNextLabel">{{ __('Next') }}</span></x-ui.button>
                     </div>
                     <p class="sr-only" aria-live="polite" x-text="tourAnnouncement"></p>

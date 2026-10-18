@@ -513,8 +513,8 @@ new #[Title('Pockets and loans')] class extends Component {
                     $deposit > 0 ? __('+:amount/month at closing', ['amount' => money($deposit)]) : null,
                 ]);
             @endphp
-            <div class="mx-4 mb-3 rounded-card bg-surface" wire:key="pocket-{{ $pocket->id }}" @if ($loop->first) data-tour="pocket-card" @endif data-test="pocket-card-{{ $pocket->id }}">
-                <button type="button" x-on:click="openPocket({{ $pocket->id }})" class="focus-ring block w-full rounded-card px-[18px] pb-3.5 pt-[18px] text-left" data-test="pocket-{{ $pocket->id }}">
+            <div class="mx-4 mb-3 rounded-card bg-surface" wire:key="pocket-{{ $pocket->id }}" data-test="pocket-card-{{ $pocket->id }}">
+                <button type="button" x-on:click="openPocket({{ $pocket->id }})" class="focus-ring block w-full rounded-card px-[18px] pb-3.5 pt-[18px] text-left" @if ($loop->first) data-tour="pocket-card" @endif data-test="pocket-{{ $pocket->id }}">
                     <span class="flex items-center gap-3">
                         <x-ui.icon-tile :icon="$icon" tone="accent" />
                         <span class="min-w-0 flex-1">
@@ -548,8 +548,8 @@ new #[Title('Pockets and loans')] class extends Component {
     </section>
 
     {{-- Loans: their own section, surface cards like the pockets above --}}
-    <section class="mt-3" data-tour="loans" data-test="loans-section">
-        <x-ui.section-header :title="__('Loans')" :subtitle="__('What you owe and what you pay every month.')">
+    <section class="mt-3" data-test="loans-section">
+        <x-ui.section-header :title="__('Loans')" :subtitle="__('What you owe and what you pay every month.')" :data-tour="$loans->isNotEmpty() ? 'loans' : null">
             <x-slot:actions>
                 <x-ui.button variant="secondary" size="sm" icon="add" x-on:click="openLoan(null)" data-test="add-loan"><span class="max-[360px]:sr-only">{{ __('New loan') }}</span></x-ui.button>
             </x-slot:actions>
@@ -568,7 +568,7 @@ new #[Title('Pockets and loans')] class extends Component {
                 // Once the prepayment pocket reached its step, recording the prepayment is the card's main action.
                 $prepayReady = $fund !== null && $fund->hasReachedPrepayStep();
             @endphp
-            <div class="mx-4 mb-3 rounded-card bg-surface p-[18px]" wire:key="loan-{{ $loan->id }}" data-test="loan-{{ $loan->id }}">
+            <div class="mx-4 mb-3 rounded-card bg-surface p-[18px]" wire:key="loan-{{ $loan->id }}" @if ($loop->first) data-tour="loans" @endif data-test="loan-{{ $loan->id }}">
                 <button type="button" x-on:click="openLoan({{ $loan->id }})" class="focus-ring flex w-full items-center gap-3 rounded-control text-left" data-test="edit-loan-{{ $loan->id }}">
                     <x-ui.icon-tile icon="account_balance" />
                     <span class="min-w-0 flex-1">
@@ -806,7 +806,7 @@ new #[Title('Pockets and loans')] class extends Component {
         </x-slot:footer>
     </x-ui.sheet>
 
-    <x-tour section="pockets" :label="__('Pockets')" :steps="\App\Support\Tour::pockets(saved: (int) $pockets->sum('balance'))"
+    <x-tour section="pockets" :label="__('Pockets')" :steps="\App\Support\Tour::pockets(saved: (int) $pockets->sum('balance'), hasPockets: $pockets->isNotEmpty(), hasLoans: $loans->isNotEmpty())"
             :next="['label' => __('On to the Month'), 'url' => route('month'), 'section' => 'month']" />
 </div>
 

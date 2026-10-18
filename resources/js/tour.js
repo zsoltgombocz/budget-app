@@ -3,12 +3,15 @@
  * cut-out around the element being explained, and a card next to it with the step's text.
  *
  * Each screen renders its own steps (App\Support\Tour); a step points at the elements marked
- * data-tour="{id}" (several elements with the same id are spotlighted together) and is skipped
- * when none of them is on screen. The last step of a screen can lead on to the next screen:
- * the section to resume is kept in sessionStorage, and that screen's tour starts by itself
- * after wire:navigate. Finishing, skipping or leaving with Escape marks the intro as seen.
+ * data-tour="{id}" (several elements with the same id are spotlighted together, each with its
+ * data-tour-pad, default 6px) and is skipped when none of them is on screen. The last step of a
+ * screen can lead on to the next screen: the section to resume, the steps done so far and the
+ * step counts of the screens still to come are kept in sessionStorage, and that screen's tour
+ * starts by itself after wire:navigate. One counter runs across the screens ("5 / 15"): the
+ * first screen gets the later screens' counts as `upcoming`. Finishing, skipping or leaving
+ * with Escape marks the intro as seen, scrolls back to the top and says where to find the tour again.
  *
- * Usage: x-data="appTour({ section, steps, open, next, seenUrl, labels })" (components/tour).
+ * Usage: x-data="appTour({ section, steps, open, next, upcoming, seenUrl, labels })" (components/tour).
  */
 const STORAGE_KEY = 'app-tour'
 const FOCUSABLE = 'button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
@@ -20,22 +23,35 @@ function motionOff() {
     return document.documentElement.dataset.motion === 'off' || window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
+/** @returns {{ section: string, done: number, later: Object<string, number> } | null} */
 function readResume() {
     try {
-        return sessionStorage.getItem(STORAGE_KEY)
+        const raw = sessionStorage.getItem(STORAGE_KEY)
+        if (! raw) {
+            return null
+        }
+        const resume = JSON.parse(raw)
+
+        return resume && typeof resume.section === 'string' ? resume : null
     } catch (e) {
         return null
     }
 }
 
-function writeResume(section) {
+function writeResume(resume) {
     try {
-        if (section) {
-            sessionStorage.setItem(STORAGE_KEY, section)
+        if (resume) {
+            sessionStorage.setItem(STORAGE_KEY, JSON.stringify(resume))
         } else {
             sessionStorage.removeItem(STORAGE_KEY)
         }
     } catch (e) {}
+}
+
+function padOf(element) {
+    const pad = parseFloat(element.dataset.tourPad)
+
+    return Number.isFinite(pad) ? pad : PADDING
 }
 
 function isShown(element) {
@@ -59,13 +75,21 @@ export function registerTour(Alpine) {
         tourFrame: null,
         tourRun: 0,
         tourListeners: null,
+        tourScrolling: false,
+        tourInstant: false,
+        tourOffset: 0,
+        tourLater: {},
 
         init() {
             const resume = readResume()
-            if (resume === config.section) {
+            if (resume?.section === config.section) {
                 writeResume(null)
+                this.tourOffset = Number(resume.done) || 0
+                this.tourLater = resume.later ?? {}
                 this.tourStart()
             } else if (config.open) {
+                this.tourOffset = 0
+                this.tourLater = config.upcoming ?? {}
                 this.tourStart()
             }
         },
@@ -82,8 +106,12 @@ export function registerTour(Alpine) {
             return this.tourIndex === this.tourSteps.length - 1
         },
 
+        get tourTotal() {
+            return this.tourOffset + this.tourSteps.length + Object.values(this.tourLater).reduce((sum, count) => sum + (Number(count) || 0), 0)
+        },
+
         get tourCounter() {
-            return `${this.tourIndex + 1} / ${this.tourSteps.length}`
+            return `${this.tourOffset + this.tourIndex + 1} / ${this.tourTotal}`
         },
 
         get tourNextLabel() {
@@ -95,7 +123,7 @@ export function registerTour(Alpine) {
         },
 
         get tourSkipLabel() {
-            return this.tourIsLast && config.next ? config.labels.finish : config.labels.skip
+            return this.tourIsLast ? config.labels.finish : config.labels.skip
         },
 
         get tourSpotStyle() {
@@ -120,6 +148,7 @@ export function registerTour(Alpine) {
                     return
                 }
                 this.tourActive = true
+                document.documentElement.dataset.touring = ''
                 this.tourListen()
                 this.tourGo(0, true)
             }, motionOff() ? 0 : 450)
@@ -139,6 +168,7 @@ export function registerTour(Alpine) {
         },
 
         tourTeardown() {
+            delete document.documentElement.dataset.touring
             this.tourListeners?.()
             this.tourListeners = null
             if (this.tourFrame) {
@@ -203,11 +233,16 @@ export function registerTour(Alpine) {
         },
 
         tourRect(targets) {
-            const boxes = targets.map((target) => target.getBoundingClientRect())
-            const top = Math.min(...boxes.map((box) => box.top)) - PADDING
-            const left = Math.min(...boxes.map((box) => box.left)) - PADDING
-            const bottom = Math.max(...boxes.map((box) => box.bottom)) + PADDING
-            const right = Math.max(...boxes.map((box) => box.right)) + PADDING
+            const boxes = targets.map((target) => {
+                const box = target.getBoundingClientRect()
+                const pad = padOf(target)
+
+                return { top: box.top - pad, left: box.left - pad, bottom: box.bottom + pad, right: box.right + pad }
+            })
+            const top = Math.min(...boxes.map((box) => box.top))
+            const left = Math.min(...boxes.map((box) => box.left))
+            const bottom = Math.max(...boxes.map((box) => box.bottom))
+            const right = Math.max(...boxes.map((box) => box.right))
 
             return { top, left, bottom, right, height: bottom - top }
         },
@@ -229,11 +264,22 @@ export function registerTour(Alpine) {
                 return this.tourGo(Math.min(index, this.tourSteps.length - 1), first)
             }
 
+            // The card's new text is laid out before it is measured for the scroll.
+            await new Promise((resolve) => requestAnimationFrame(resolve))
             await this.tourScrollTo(targets)
             if (run !== this.tourRun) {
                 return
             }
-            this.tourPosition()
+            await this.tourOpen(targets)
+            if (this.tourPosition() && run === this.tourRun) {
+                // The element ended up cropped by the card (it was measured before it settled): scroll once more.
+                await this.tourScrollTo(targets)
+                if (run !== this.tourRun) {
+                    return
+                }
+                await this.tourOpen(targets)
+                this.tourPosition()
+            }
             this.tourPlaced = true
 
             // Keep focus on the button that was pressed; otherwise (first step, or the button is gone) the card takes it.
@@ -244,6 +290,18 @@ export function registerTour(Alpine) {
             if (! first) {
                 this.tourAnnouncement = `${this.tourCounter}. ${this.tourStep.title}. ${this.tourStep.body.join(' ')}`
             }
+        },
+
+        /** Back from a scroll with the hole closed (tourInstant): it opens again from the element's centre. */
+        async tourOpen(targets) {
+            if (! this.tourInstant) {
+                return
+            }
+            const rect = this.tourRect(targets)
+            this.tourSpot = { ...this.tourSpot, x: (rect.left + rect.right) / 2, y: (rect.top + rect.bottom) / 2, width: 0, height: 0 }
+            await this.$nextTick()
+            await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+            this.tourInstant = false
         },
 
         /** Focuses the card; retried for a few frames while it is still being revealed. */
@@ -279,6 +337,14 @@ export function registerTour(Alpine) {
             }
 
             const smooth = ! motionOff()
+            if (smooth) {
+                // While the page scrolls the hole would trail behind its element: close it at once (the
+                // scrim stays whole) and open it again on the element once the page stands still.
+                this.tourScrolling = true
+                this.tourInstant = true
+                this.tourSpot = { ...this.tourSpot, x: -40, y: -40, width: 0, height: 0 }
+                await this.$nextTick()
+            }
             window.scrollTo({ top: target, behavior: smooth ? 'smooth' : 'auto' })
 
             if (! smooth) {
@@ -294,6 +360,7 @@ export function registerTour(Alpine) {
                     still = Math.abs(window.scrollY - last) < 0.5 ? still + 1 : 0
                     last = window.scrollY
                     if (still >= 4 || performance.now() - started > 1200) {
+                        this.tourScrolling = false
                         resolve()
                     } else {
                         requestAnimationFrame(tick)
@@ -303,13 +370,14 @@ export function registerTour(Alpine) {
             })
         },
 
+        /** Places the spotlight and the card; true when the card had to crop the lit element. */
         tourPosition() {
-            if (! this.tourActive) {
-                return
+            if (! this.tourActive || this.tourScrolling) {
+                return false
             }
             const targets = this.tourTargets(this.tourStep)
             if (targets.length === 0) {
-                return
+                return false
             }
 
             const rect = this.tourRect(targets)
@@ -364,6 +432,8 @@ export function registerTour(Alpine) {
                 arrow,
                 arrowX: Math.round(Math.max(24, Math.min(tipBox.width - 24, (left + right) / 2 - tipBox.left))),
             }
+
+            return spotTop > top + 0.5 || spotBottom < bottom - 0.5
         },
 
         tourForward() {
@@ -374,7 +444,9 @@ export function registerTour(Alpine) {
             }
 
             if (config.next) {
-                writeResume(config.next.section)
+                const later = { ...this.tourLater }
+                delete later[config.next.section]
+                writeResume({ section: config.next.section, done: this.tourOffset + this.tourSteps.length, later })
                 this.tourEnd({ keepResume: true })
                 window.Livewire ? window.Livewire.navigate(config.next.url) : (window.location.href = config.next.url)
 
@@ -405,7 +477,15 @@ export function registerTour(Alpine) {
             this.tourRun++
             this.tourActive = false
             this.tourPlaced = false
+            this.tourScrolling = false
+            this.tourInstant = false
             this.tourTeardown()
+
+            if (! keepResume) {
+                // Back to where the screen starts, and a word on where the tour lives.
+                window.scrollTo({ top: 0, behavior: motionOff() ? 'auto' : 'smooth' })
+                window.dispatchEvent(new CustomEvent('app-toast', { detail: { title: config.labels.again, icon: 'lightbulb' } }))
+            }
 
             if (config.seenUrl) {
                 const token = document.querySelector('meta[name="csrf-token"]')?.content ?? ''

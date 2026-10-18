@@ -26,7 +26,8 @@
             'lead' => __('What is left at the end of the period if you spend every variable budget in full.'),
             'notes' => [
                 __('Every variable category counts with its full budget, or with what you have spent if that is more already.'),
-                __('As long as you stay within your budgets, this is the leftover your plan expects. Whatever you spend over a budget lowers it.'),
+                __('As long as you spend within your budgets, it stays put.'),
+                __('Overspending and money put into a pocket lower it; money taken out of a pocket and a skipped fixed item raise it.'),
             ],
         ],
         // Month page: PeriodCloser::preview()->leftover() and ForecastService::deviation() for the badge next to it.
@@ -39,7 +40,7 @@
                 __('Red means you went over a budget. Money you put into a pocket is your choice, so it shows without red.'),
             ],
         ],
-        // ForecastService::dailyAllowance(): (variable budget + net pocket moves − variable spent) / remaining days incl. today.
+        // ForecastService::dailyAllowance(): (variable budget + net pocket moves − variable spent) / remaining days incl. today, rounded down.
         'daily' => [
             'title' => __('You can still spend today'),
             'lead' => __('What is left of your variable budgets, spread evenly over the remaining days, today included.'),
@@ -47,6 +48,7 @@
                 __('Today’s spending is already taken off, so the amount is recalculated after every entry. Fixed items are not in it.'),
                 __('Money taken from a pocket into the budget raises it, money put into a pocket lowers it.'),
                 __('If spending every budget in full would end the period in the red, it shows 0.'),
+                __('It is rounded down, so the days together never get more than what is left.'),
             ],
         ],
     ];

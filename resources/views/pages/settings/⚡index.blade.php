@@ -15,7 +15,11 @@ new #[Title('Settings')] class extends Component {
 
 @php
     $user = auth()->user();
+    // "How it works" leads, so it shows without scrolling on a 320×568 phone (the tour's last card points here).
     $groups = [
+        [
+            ['route' => 'dashboard', 'params' => ['bemutato' => 1], 'test' => 'how-it-works', 'icon' => 'lightbulb', 'title' => __('How it works'), 'subtitle' => __('A guided walk through the main screens')],
+        ],
         [
             ['route' => 'budget.edit', 'icon' => 'tune', 'title' => __('Budget'), 'subtitle' => __('Period and base currency')],
             ['route' => 'notifications.edit', 'icon' => 'notifications', 'title' => __('Notifications'), 'subtitle' => __('Daily reminder, due items, this device')],
@@ -26,7 +30,6 @@ new #[Title('Settings')] class extends Component {
             ['route' => 'security.edit', 'icon' => 'lock', 'title' => __('Security'), 'subtitle' => __('Passkeys')],
         ],
         [
-            ['route' => 'dashboard', 'params' => ['bemutato' => 1], 'test' => 'how-it-works', 'icon' => 'lightbulb', 'title' => __('How it works'), 'subtitle' => __('A guided walk through the main screens')],
             ['route' => 'install', 'icon' => 'install_mobile', 'title' => __('Install the app'), 'subtitle' => __('Steps for your phone and browser')],
             ['route' => 'contact', 'icon' => 'mail', 'title' => __('Contact'), 'subtitle' => __('E-mail, bug reports and ideas')],
             ['route' => 'changelog', 'params' => ['honnan' => 'beallitasok'], 'icon' => 'celebration', 'title' => __('What’s new'), 'subtitle' => __('Version :version', ['version' => config('app.version')])],

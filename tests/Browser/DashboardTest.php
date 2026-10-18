@@ -6,6 +6,7 @@ use App\Models\BudgetLine;
 use App\Models\Category;
 use App\Models\PeriodClose;
 use App\Models\PeriodLineStatus;
+use App\Models\Pocket;
 use App\Models\Transaction;
 use App\Services\PeriodService;
 use Illuminate\Support\Sleep;
@@ -50,12 +51,17 @@ function measureTourStep(string $theme): string
             await until(() => { const now = JSON.stringify(box('[data-test="tour-spotlight"]')); const still = now === last; last = now; return still })
 
             const id = tour().tourStep.id
-            const rects = [...document.querySelectorAll('[data-tour~="' + id + '"]')].map(element => element.getBoundingClientRect()).filter(r => r.height > 0)
+            // Each lit element with its own padding (data-tour-pad, default 6px).
+            const rects = [...document.querySelectorAll('[data-tour~="' + id + '"]')].map(element => {
+                const r = element.getBoundingClientRect()
+                const pad = element.dataset.tourPad === undefined ? 6 : parseFloat(element.dataset.tourPad)
+                return { top: r.top - pad, bottom: r.bottom + pad, left: r.left - pad, right: r.right + pad, height: r.height }
+            }).filter(r => r.height > 0)
             const want = {
-                top: Math.max(0, Math.min(...rects.map(r => r.top)) - 6),
-                bottom: Math.min(window.innerHeight, Math.max(...rects.map(r => r.bottom)) + 6),
-                left: Math.max(4, Math.min(...rects.map(r => r.left)) - 6),
-                right: Math.min(window.innerWidth - 4, Math.max(...rects.map(r => r.right)) + 6),
+                top: Math.max(0, Math.min(...rects.map(r => r.top))),
+                bottom: Math.min(window.innerHeight, Math.max(...rects.map(r => r.bottom))),
+                left: Math.max(4, Math.min(...rects.map(r => r.left))),
+                right: Math.min(window.innerWidth - 4, Math.max(...rects.map(r => r.right))),
             }
             const spot = box('[data-test="tour-spotlight"]')
             const card = tip().getBoundingClientRect()
@@ -64,6 +70,7 @@ function measureTourStep(string $theme): string
 
             return {
                 id,
+                counter: document.querySelector('[data-test="tour-counter"]').textContent.replace(/\s+/g, ' ').trim(),
                 last: tour().tourIsLast,
                 spotMatches: near(spot.left, want.left) && near(spot.right, want.right) && (whole || (spot.top >= want.top - 2.5 && spot.bottom <= want.bottom + 2.5 && spot.height >= 20)),
                 whole,
@@ -102,16 +109,16 @@ it('walks the Today tour after onboarding: the spotlight sits on each element, t
         }
     } while (! $step['last'] && count($steps) < 12);
 
-    expect(array_column($steps, 'id'))->toBe(['leftover', 'if-spent', 'daily', 'record', 'no-spend', 'due', 'categories', 'fixed', 'tabs']);
+    expect(array_column($steps, 'id'))->toBe(['leftover', 'if-spent', 'daily', 'record', 'categories', 'fixed']);
     foreach ($steps as $step) {
-        expect($step)->toMatchArray(['spotMatches' => true, 'cardOnScreen' => true, 'cardClearOfSpot' => true, 'focusInCard' => true]);
+        // Lit whole, the card next to it and never over it, on a 320×568 phone too.
+        expect($step)->toMatchArray(['spotMatches' => true, 'whole' => true, 'cardOnScreen' => true, 'cardClearOfSpot' => true, 'focusInCard' => true]);
     }
-    // At 393 px every element is lit whole; on a 320×568 phone only the tall cards may be cropped.
-    $cropped = array_column(array_filter($steps, fn (array $step): bool => ! $step['whole']), 'id');
-    expect($width >= 393 ? $cropped : array_diff($cropped, ['leftover', 'categories', 'fixed']))->toBe([]);
+    // One counter across the screens: Today's six steps, then the plan (3), the pockets (1) and the month (3).
+    expect($steps[0]['counter'])->toBe('Today · 1 / 13');
 
     $page->script(pressTour('back'));
-    expect($page->script(measureTourStep($theme))['id'])->toBe('fixed');
+    expect($page->script(measureTourStep($theme))['id'])->toBe('categories');
 
     $closed = $page->script(<<<'JS'
         async () => {
@@ -152,7 +159,64 @@ it('continues the tour on the plan after Today', function (): void {
         }
     JS);
 
-    expect($plan)->toBe(['path' => '/terv', 'counter' => 'Plan · 1 / 6', 'bemutato' => false]);
+    expect($plan)->toBe(['path' => '/terv', 'counter' => 'Plan · 7 / 13', 'bemutato' => false]);
+});
+
+it('keeps the plan, its card clear of the spotlight, with the record button under the dim', function (int $width, int $height): void {
+    $user = onboardedUser();
+    $reserve = Pocket::factory()->for($user)->create(['name' => 'Reserve', 'is_reserve' => true, 'balance' => 20_000]);
+    $saving = Category::factory()->for($user)->create(['name' => 'Reserve', 'type' => 'sinking']);
+    BudgetLine::factory()->for($user)->for($saving)->create(['amount' => 5_000, 'pocket_id' => $reserve->id]);
+    $this->actingAs($user);
+
+    $page = visit(route('plan'))->on()->mobile()->resize($width, $height);
+    $page->script("() => { sessionStorage.setItem('app-tour', JSON.stringify({ section: 'plan', done: 6, later: { pockets: 4, month: 3 } })); location.reload() }");
+
+    $steps = [];
+    do {
+        $step = $page->script(measureTourStep('dark'));
+        // Whatever covers the record button's centre is the tour, not the button.
+        $step['buttonCovered'] = $page->script(<<<'JS'
+            () => {
+                const button = document.querySelector('[data-test="tab-entry"]').getBoundingClientRect()
+                const top = document.elementFromPoint(button.left + button.width / 2, button.top + button.height / 2)
+                return top === null || top.closest('[data-test="tour"]') !== null
+            }
+        JS);
+        $steps[] = $step;
+        if (! $step['last']) {
+            $page->script(pressTour('next'));
+        }
+    } while (! $step['last'] && count($steps) < 6);
+
+    expect(array_column($steps, 'id'))->toBe(['plan-summary', 'plan-variable', 'plan-month-end'])
+        ->and($steps[0]['counter'])->toBe('Plan · 7 / 16');
+    foreach ($steps as $step) {
+        expect($step)->toMatchArray(['spotMatches' => true, 'whole' => true, 'cardOnScreen' => true, 'cardClearOfSpot' => true, 'buttonCovered' => true]);
+    }
+    $page->assertNoJavaScriptErrors();
+})->with([
+    '393×852' => [393, 852],
+    '320×568' => [320, 568],
+]);
+
+it('ends the tour with a word on where to find it again, back at the top of the screen', function (): void {
+    $this->actingAs(onboardedUser(['intro_seen_at' => null]));
+
+    $page = visit(route('dashboard'))->on()->mobile()->resize(393, 852);
+    $page->script(measureTourStep('dark'));
+    $page->script(pressTour('next'));
+    $page->script(measureTourStep('dark'));
+    $page->click('[data-test="tour-skip"]')
+        ->waitForText('You can watch this again any time: Settings → How it works.');
+
+    expect($page->script(<<<'JS'
+        async () => {
+            for (let i = 0; i < 50 && window.scrollY > 0; i++) await new Promise(resolve => setTimeout(resolve, 40))
+            return window.scrollY
+        }
+    JS))->toBe(0);
+    $page->assertNoJavaScriptErrors();
 });
 
 it('explains the daily figure', function (): void {
