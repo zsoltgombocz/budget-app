@@ -25,7 +25,8 @@ function entryForm(array $overrides = []): array
     return [
         'category' => Category::query()->where('name', 'Fuel')->value('id'),
         'amount' => '1000',
-        'date' => now()->toDateString(),
+        // The user's own today (Europe/Budapest), as the sheet sends it; around midnight it differs from UTC.
+        'date' => resolve(PeriodService::class)->today(test()->user->settings())->toDateString(),
         'note' => null,
         'clientUuid' => (string) Str::uuid(),
         ...$overrides,

@@ -246,4 +246,36 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
     {
         return $this->hasMany(ExtraIncome::class);
     }
+
+    /**
+     * @return HasMany<AcornEvent, $this>
+     */
+    public function acornEvents(): HasMany
+    {
+        return $this->hasMany(AcornEvent::class);
+    }
+
+    /**
+     * @return HasMany<Achievement, $this>
+     */
+    public function achievements(): HasMany
+    {
+        return $this->hasMany(Achievement::class);
+    }
+
+    /**
+     * @return HasMany<Challenge, $this>
+     */
+    public function challenges(): HasMany
+    {
+        return $this->hasMany(Challenge::class);
+    }
+
+    /**
+     * @return HasMany<UserItem, $this>
+     */
+    public function items(): HasMany
+    {
+        return $this->hasMany(UserItem::class);
+    }
 }

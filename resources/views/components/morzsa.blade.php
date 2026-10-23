@@ -44,9 +44,11 @@
     $hl2 = 64 - $er * 0.36;
     $hly = 38 - $er * 0.36;
     $is = fn (string ...$names): bool => in_array($m, $names, true);
+    // A number is pixels; anything else ("100%") is used as it is.
+    $dimension = is_numeric($size) ? $size.'px' : $size;
 @endphp
 
-<div role="img" aria-label="{{ $alts[$m] }}" {{ $attributes->class(['morzsa relative block shrink-0']) }} style="width: {{ $size }}px; height: {{ $size }}px">
+<div role="img" aria-label="{{ $alts[$m] }}" {{ $attributes->class(['morzsa relative block shrink-0']) }} style="width: {{ $dimension }}; height: {{ $dimension }}">
     <svg viewBox="0 0 100 100" aria-hidden="true" class="block size-full overflow-visible">
         <ellipse cx="50" cy="95" rx="{{ $sleep ? 42 : 35 }}" ry="4" class="morzsa-shadow"></ellipse>
         @unless ($sleep)

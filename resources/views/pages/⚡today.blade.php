@@ -28,6 +28,16 @@ use Livewire\Component;
  * lines, and Morzsa. The numbers come from MonthService / MonthBudget; nothing is worked out here.
  */
 new #[Title('Today')] class extends Component {
+    /** @var list<string> milestones reached since the last visit, celebrated once (Rewards) */
+    public array $celebrate = [];
+
+    public function mount(): void
+    {
+        $rewards = resolve(\App\Services\Rewards::class);
+        $rewards->sync($this->user(), resolve(PeriodService::class)->today($this->user()->settings()));
+        $this->celebrate = $rewards->takeCelebrations($this->user());
+    }
+
     #[Computed]
     public function month(): MonthView
     {
@@ -352,6 +362,8 @@ new #[Title('Today')] class extends Component {
         <x-ui.button size="lg" icon="add" class="w-full" x-on:click="$dispatch('open-entry')" data-record-button-twin data-test="record">{{ __('I spent') }}</x-ui.button>
         <x-no-spend-button :marked="$view->noSpendToday" class="w-full justify-center" />
     </div>
+
+    <x-celebration :keys="$celebrate" />
 
     <x-ui.numpad-sheet show="amountOpen" close="amountOpen = false" title="amountTitle" done="saveAmount()" display="display('value')" :decimal="$currency->decimals() > 0" error="amountError" :intro="\Illuminate\Support\Js::from(__('Only this month. The difference changes what is left.'))->toHtml()" data-test="amount-sheet" />
 </div>
