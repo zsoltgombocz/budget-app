@@ -18,6 +18,10 @@ new #[Title('Notifications')] class extends Component {
 
     public bool $versionReminderEnabled = true;
 
+    public bool $weeklySummaryEnabled = true;
+
+    public bool $watchPushEnabled = false;
+
     public string $reminderTime = '20:30';
 
     public function mount(): void
@@ -27,6 +31,8 @@ new #[Title('Notifications')] class extends Component {
         $this->reminderEnabled = $settings->reminder_enabled;
         $this->dueReminderEnabled = $settings->due_reminder_enabled;
         $this->versionReminderEnabled = $settings->version_reminder_enabled;
+        $this->weeklySummaryEnabled = $settings->weekly_summary_enabled;
+        $this->watchPushEnabled = $settings->watch_push_enabled;
         $this->reminderTime = substr($settings->reminder_time, 0, 5);
     }
 
@@ -39,6 +45,8 @@ new #[Title('Notifications')] class extends Component {
             'reminderEnabled' => ['boolean'],
             'dueReminderEnabled' => ['boolean'],
             'versionReminderEnabled' => ['boolean'],
+            'weeklySummaryEnabled' => ['boolean'],
+            'watchPushEnabled' => ['boolean'],
             'reminderTime' => ['required', 'date_format:H:i'],
         ]);
 
@@ -46,6 +54,8 @@ new #[Title('Notifications')] class extends Component {
             'reminder_enabled' => $this->reminderEnabled,
             'due_reminder_enabled' => $this->dueReminderEnabled,
             'version_reminder_enabled' => $this->versionReminderEnabled,
+            'weekly_summary_enabled' => $this->weeklySummaryEnabled,
+            'watch_push_enabled' => $this->watchPushEnabled,
             'reminder_time' => $this->reminderTime,
         ]);
     }
@@ -88,12 +98,12 @@ new #[Title('Notifications')] class extends Component {
     }
 }; ?>
 
-<x-pages::settings.layout :heading="__('Notifications')" :subheading="__('Daily reminder, due items, this device')">
+<x-pages::settings.layout :heading="__('Notifications')" :subheading="__('Evening reminder, weekly summary, due expenses')">
     <div class="flex flex-col gap-3">
             <x-ui.card class="p-[18px]">
                 <div class="flex items-center justify-between">
                     <div>
-                        <div class="text-[15px] font-semibold">{{ __('Daily reminder') }}</div>
+                        <div class="text-[15px] font-semibold">{{ __('Evening reminder') }}</div>
                         <div class="mt-0.5 text-xs text-muted">{{ __('Only if you have not recorded anything that day.') }}</div>
                     </div>
                     <x-ui.toggle :on="$reminderEnabled" wire:click="$toggle('reminderEnabled')" :aria-label="__('Daily reminder')" />
@@ -111,10 +121,24 @@ new #[Title('Notifications')] class extends Component {
                 @endif
                 <div class="mt-4 flex items-center justify-between border-t border-line pt-4">
                     <div>
-                        <div class="text-sm">{{ __('Fixed items due') }}</div>
-                        <div class="mt-0.5 text-xs text-muted">{{ __('On the due day at 8:00') }}</div>
+                        <div class="text-sm">{{ __('Fixed expense due') }}</div>
+                        <div class="mt-0.5 text-xs text-muted">{{ __('On its day at 8:30, savings too') }}</div>
                     </div>
-                    <x-ui.toggle :on="$dueReminderEnabled" wire:click="$toggle('dueReminderEnabled')" :aria-label="__('Fixed items due')" />
+                    <x-ui.toggle :on="$dueReminderEnabled" wire:click="$toggle('dueReminderEnabled')" :aria-label="__('Fixed expense due')" />
+                </div>
+                <div class="mt-4 flex items-center justify-between border-t border-line pt-4">
+                    <div>
+                        <div class="text-sm">{{ __('Weekly summary') }}</div>
+                        <div class="mt-0.5 text-xs text-muted">{{ __('Sunday 18:00, three lines from Morzsa') }}</div>
+                    </div>
+                    <x-ui.toggle :on="$weeklySummaryEnabled" wire:click="$toggle('weeklySummaryEnabled')" :aria-label="__('Weekly summary')" data-test="weekly-toggle" />
+                </div>
+                <div class="mt-4 flex items-center justify-between border-t border-line pt-4">
+                    <div>
+                        <div class="text-sm">{{ __('80% of a watched category') }}</div>
+                        <div class="mt-0.5 text-xs text-muted">{{ __('In the app anyway; as a push only if you turn it on') }}</div>
+                    </div>
+                    <x-ui.toggle :on="$watchPushEnabled" wire:click="$toggle('watchPushEnabled')" :aria-label="__('80% of a watched category')" data-test="watch-toggle" />
                 </div>
                 <div class="mt-4 flex items-center justify-between border-t border-line pt-4">
                     <div>

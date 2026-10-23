@@ -2,19 +2,22 @@
 
 namespace App\Services;
 
-use App\Enums\LineType;
 use App\Models\Period;
 use App\Models\User;
+use App\Models\WatchedCategory;
 use App\Notifications\BudgetAlert;
+use Illuminate\Support\Facades\Cache;
 
+/**
+ * The 80% note on a watched category: on Today always, as a push only when the user turned it on,
+ * and once per category per month.
+ */
 final readonly class BudgetAlerts
 {
     /**
      * @var list<int>
      */
-    public const array THRESHOLDS = [80, 100];
-
-    public function __construct(private PlanService $plans) {}
+    public const array THRESHOLDS = [80];
 
     /**
      * The highest threshold (in percent) the spending crossed with this change, if any.
@@ -39,30 +42,25 @@ final readonly class BudgetAlerts
     }
 
     /**
-     * Notify the user when a new spending pushed a variable budget over a threshold.
-     * Spending paid from a pocket does not use up the budget, so it is not counted.
+     * Spending paid from a goal does not count.
      */
     public function afterSpending(User $user, Period $period, int $categoryId, int $amount): void
     {
-        if (! $user->pushSubscriptions()->exists()) {
+        if (! $user->settings()->watch_push_enabled || ! $user->pushSubscriptions()->exists()) {
             return;
         }
 
-        $planned = 0;
-        $name = '';
+        $watch = $user->watchedCategories()->with('category')->where('category_id', $categoryId)->first();
 
-        foreach ($this->plans->linesFor($period) as $line) {
-            if ($line->categoryId === $categoryId && $line->type === LineType::Variable) {
-                $planned += $line->planned();
-                $name = $line->categoryName;
-            }
+        if (! $watch instanceof WatchedCategory) {
+            return;
         }
 
         $spentAfter = (int) $period->transactions()->where('category_id', $categoryId)->whereNull('pocket_id')->sum('amount');
-        $threshold = $this->crossedThreshold($planned, $spentAfter - $amount, $spentAfter);
+        $threshold = $this->crossedThreshold($watch->amount, $spentAfter - $amount, $spentAfter);
 
-        if ($threshold !== null) {
-            $user->notify(new BudgetAlert($categoryId, $name, $threshold, $planned - $spentAfter));
+        if ($threshold !== null && Cache::add("notification:watch:{$user->id}:{$categoryId}:{$period->id}", true, now()->addDays(40))) {
+            $user->notify(new BudgetAlert($categoryId, $watch->category->name ?? '', $threshold, $watch->amount - $spentAfter));
         }
     }
 }

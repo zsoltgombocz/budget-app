@@ -2,38 +2,48 @@
 
 namespace App\Services;
 
-use App\Enums\LineType;
-use App\Enums\PeriodMode;
+use App\Actions\Month\CloseMonth;
+use App\Enums\DueState;
 use App\Models\Period;
 use App\Models\User;
 use App\Notifications\BudgetPushNotification;
+use App\Notifications\CloseReminder;
 use App\Notifications\DailyReminder;
 use App\Notifications\DueItemsReminder;
-use App\Notifications\PaydayReminder;
 use App\Notifications\PeriodEndReminder;
-use App\Notifications\SurplusTransferReminder;
+use App\Notifications\WeeklySummary;
+use App\Services\Data\MonthLine;
+use App\Support\Dates;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 /**
- * Decides, per user and in the user's timezone, which scheduled notifications are due.
- * Runs every minute; each notification is sent at most once per local day.
+ * Decides, per user and in the user's timezone, which scheduled notifications are due (2.0, S19).
+ * Runs every minute; each notification is sent at most once (per day, week or month as fits).
+ *
+ * - the evening reminder, only when nothing was written in that day;
+ * - the morning of a fixed line's day (8:30), the day's lines in one notification;
+ * - the last day of the month (19:00) and the morning after it ended without a closing (10:00);
+ * - the weekly summary on Sunday (18:00).
  */
 final readonly class NotificationScheduler
 {
-    public const string PAYDAY_TIME = '08:00';
+    public const string DUE_ITEMS_TIME = '08:30';
 
-    public const string PERIOD_END_TIME = '09:00';
+    public const string CLOSE_TIME = '10:00';
 
-    public const string DUE_ITEMS_TIME = '08:00';
+    public const string WEEKLY_TIME = '18:00';
 
-    public const string SURPLUS_REMINDER_TIME = '09:00';
+    public const string PERIOD_END_TIME = '19:00';
 
     public function __construct(
         private PeriodService $periods,
-        private OverviewService $overviews,
+        private MonthService $months,
         private NotificationLogger $logger,
-        private PeriodCloser $closer,
+        private Streak $streak,
+        private CloseMonth $closeMonth,
     ) {}
 
     /**
@@ -55,53 +65,48 @@ final readonly class NotificationScheduler
 
         if ($settings->reminder_enabled
             && $time >= substr($settings->reminder_time, 0, 5)
-            && $this->claim('daily', $user, $today)) {
+            && $this->claim('daily', $user, $today->toDateString())) {
             if ($period->transactions()->whereDate('occurred_on', $today->toDateString())->exists()) {
                 $this->logger->skipped($user, 'daily-reminder', 'recorded-today');
             } elseif ($user->dayMarks()->whereDate('date', $today->toDateString())->exists()) {
                 $this->logger->skipped($user, 'daily-reminder', 'no-spend-today');
             } else {
-                $this->send($user, new DailyReminder($today->toDateString()));
+                $this->send($user, new DailyReminder($today->toDateString(), $this->streak->forUser($user, $today)));
                 $sent[] = 'daily';
             }
         }
 
-        if ($settings->period_mode === PeriodMode::Payday
-            && $period->starts_on->isSameDay($today)
-            && $time >= self::PAYDAY_TIME
-            && $this->claim('payday', $user, $today)) {
-            $this->send($user, new PaydayReminder($this->transfers($period)));
-            $sent[] = 'payday';
-        }
-
         if ($settings->due_reminder_enabled && $time >= self::DUE_ITEMS_TIME) {
-            $due = $this->dueToday($period, $today);
+            $due = $this->dueToday($user, $period, $today);
 
-            if ($due !== [] && $this->claim('due-items', $user, $today)) {
+            if ($due !== [] && $this->claim('due-items', $user, $today->toDateString())) {
                 $this->send($user, new DueItemsReminder($due));
                 $sent[] = 'due-items';
             }
         }
 
-        if ($time >= self::SURPLUS_REMINDER_TIME) {
-            $pending = $user->periodCloses()->with('surplusAccount')
-                ->whereNull('surplus_transferred_at')->whereNotNull('surplus_account_id')->where('to_invest', '>', 0)
-                ->whereDate('created_at', '<', $today->toDateString())
-                ->get();
+        if ($time >= self::CLOSE_TIME) {
+            $waiting = $user->periods()->where('status', 'open')->whereDate('ends_on', '<', $today->toDateString())->oldest('starts_on')->first();
 
-            foreach ($pending as $close) {
-                if (Cache::add("notification:surplus:{$close->id}", true, now()->addDays(60))) {
-                    $this->send($user, new SurplusTransferReminder($close->id, $close->to_invest, $close->surplusAccount->name ?? ''));
-                    $sent[] = 'surplus-transfer';
-                }
+            if ($waiting instanceof Period && Cache::add("notification:close:{$waiting->id}", true, now()->addDays(60))) {
+                $leftover = $this->closeMonth->summary($user, $waiting)->leftover();
+                $this->send($user, new CloseReminder($waiting->id, Str::ucfirst(Dates::monthCase($waiting->nameDate(), 'in')), $leftover));
+                $sent[] = 'close';
             }
+        }
+
+        if ($settings->weekly_summary_enabled
+            && $today->dayOfWeek === CarbonInterface::SUNDAY
+            && $time >= self::WEEKLY_TIME
+            && $this->claim('weekly', $user, $today->toDateString())) {
+            $this->send($user, $this->weekly($user, $today));
+            $sent[] = 'weekly';
         }
 
         if ($period->ends_on->isSameDay($today)
             && $time >= self::PERIOD_END_TIME
-            && $this->claim('period-end', $user, $today)) {
-            // The same figure as the main number on Today: what closing now would leave.
-            $this->send($user, new PeriodEndReminder($this->closer->preview($user, $period)->leftover()));
+            && $this->claim('period-end', $user, $today->toDateString())) {
+            $this->send($user, new PeriodEndReminder($this->months->view($user, $period, $today)->state->remaining));
             $sent[] = 'period-end';
         }
 
@@ -109,37 +114,51 @@ final readonly class NotificationScheduler
     }
 
     /**
-     * @return list<array{name: string, amount: int}>
-     */
-    private function transfers(Period $period): array
-    {
-        $transfers = [];
-
-        foreach ($this->overviews->fixedItems($period, resolve(PlanService::class)->linesFor($period)) as $item) {
-            if (in_array($item->line->type, [LineType::Transfer, LineType::Sinking], true) && ! $item->isSkipped()) {
-                $transfers[] = ['name' => $item->line->categoryName, 'amount' => $item->line->planned()];
-            }
-        }
-
-        return $transfers;
-    }
-
-    /**
-     * Unticked fixed items whose due date is today.
+     * The fixed lines whose day is today and that are not done or skipped.
      *
-     * @return list<array{name: string, amount: int}>
+     * @return list<array{name: string, amount: int, kind: string}>
      */
-    private function dueToday(Period $period, CarbonImmutable $today): array
+    private function dueToday(User $user, Period $period, CarbonImmutable $today): array
     {
         $due = [];
 
-        foreach ($this->overviews->fixedItems($period, resolve(PlanService::class)->linesFor($period)) as $item) {
-            if (! $item->paid && ! $item->isSkipped() && $item->dueOn?->isSameDay($today)) {
-                $due[] = ['name' => $item->line->categoryName, 'amount' => $item->line->planned()];
+        foreach ($this->months->view($user, $period, $today)->lines as $line) {
+            if (! in_array($line->state, [DueState::DueToday, DueState::ToDo], true)) {
+                continue;
             }
+
+            $due[] = ['name' => $line->name, 'amount' => $line->amount, 'kind' => $this->kind($line)];
         }
 
         return $due;
+    }
+
+    private function kind(MonthLine $line): string
+    {
+        return match (true) {
+            $line->isSavings() => 'savings',
+            $line->manualPay => 'manual',
+            default => 'auto',
+        };
+    }
+
+    private function weekly(User $user, CarbonImmutable $today): WeeklySummary
+    {
+        $from = $today->startOfWeek()->toDateString();
+        $rows = $user->transactions()->with('category')->whereNull('pocket_id')
+            ->whereDate('occurred_on', '>=', $from)->whereDate('occurred_on', '<=', $today->toDateString())->get();
+        $byCategory = [];
+        $total = 0;
+
+        foreach ($rows as $row) {
+            $name = $row->category->name ?? '';
+            $byCategory[$name] = ($byCategory[$name] ?? 0) + $row->amount;
+            $total += $row->amount;
+        }
+
+        arsort($byCategory);
+
+        return new WeeklySummary($total, $byCategory === [] ? null : (string) array_key_first($byCategory), $this->streak->forUser($user, $today));
     }
 
     private function send(User $user, BudgetPushNotification $notification): void
@@ -148,8 +167,8 @@ final readonly class NotificationScheduler
         $user->notify($notification);
     }
 
-    private function claim(string $type, User $user, CarbonImmutable $day): bool
+    private function claim(string $type, User $user, string $key): bool
     {
-        return Cache::add("notification:{$type}:{$user->id}:{$day->toDateString()}", true, now()->addDays(2));
+        return Cache::add("notification:{$type}:{$user->id}:{$key}", true, now()->addDays(2));
     }
 }
