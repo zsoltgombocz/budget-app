@@ -493,7 +493,7 @@ new #[Title('Month')] class extends Component {
     #[Computed]
     public function goals(): \Illuminate\Support\Collection
     {
-        return $this->user()->pockets()->orderBy('sort')->orderBy('name')->get()->toBase();
+        return $this->user()->pockets()->goals()->orderBy('sort')->orderBy('name')->get()->toBase();
     }
 
     /**
@@ -749,6 +749,7 @@ new #[Title('Month')] class extends Component {
             'skipped' => $line->skipped,
             'done' => $line->state === DueState::Done,
             'savings' => $line->isSavings(),
+            'loanUrl' => $line->type === LineType::Loan ? route('loan', $line->lineId) : null,
         ];
     }
 @endphp
@@ -912,6 +913,12 @@ new #[Title('Month')] class extends Component {
                 @endforeach
             </x-ui.card>
         </section>
+    @endif
+
+    @if ($period->isOpen() && auth()->user()->hasPlusz())
+        @foreach (resolve(\App\Services\LoanOverview::class)->saving(auth()->user(), $today) as $loanSummary)
+            <x-loan-progress :summary="$loanSummary" class="mx-4 mt-3" wire:key="loan-{{ $loanSummary->loan->id }}" />
+        @endforeach
     @endif
 
     {{-- Your month: income − fixed lines (savings too) = the month's money, and every fixed line with its state. --}}
@@ -1152,6 +1159,14 @@ new #[Title('Month')] class extends Component {
                     <button type="button" x-show="line.manual_pay && ! line.skipped && ! line.done" x-on:click="$wire.markDone(line.id); closeLine()" class="focus-ring flex min-h-[52px] w-full items-center justify-between gap-3 px-4 text-left text-[15px] font-semibold text-accent-strong" data-test="line-done"
                             x-text="line.savings ? @js(__('Set aside')) : @js(__('Mark as done'))"></button>
                 </x-ui.form-group>
+                <template x-if="line.loanUrl">
+                    <x-ui.form-group class="mt-4">
+                        <a :href="line.loanUrl" wire:navigate class="focus-ring flex min-h-[52px] w-full items-center justify-between gap-3 px-4 text-left text-[15px]" data-test="loan-planner-link">
+                            <span>{{ __('When will I be loan-free?') }}</span>
+                            <span class="flex items-center gap-1.5"><span class="rounded-full bg-plum-tint px-2 py-0.5 text-[11px] font-semibold text-plum">Plusz</span><x-ui.icon name="chevron_right" class="text-faint" /></span>
+                        </a>
+                    </x-ui.form-group>
+                </template>
             </div>
         </template>
 

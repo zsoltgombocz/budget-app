@@ -6,6 +6,8 @@ use App\Models\Concerns\BelongsToUser;
 use Carbon\CarbonImmutable;
 use Database\Factories\PocketFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -88,6 +90,17 @@ class Pocket extends Model
     public function budgetLines(): HasMany
     {
         return $this->hasMany(BudgetLine::class);
+    }
+
+    /**
+     * Goals only: not the pockets that save up a loan's prepayment (those show on the loan).
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function goals(Builder $query): void
+    {
+        $query->whereNull('loan_id');
     }
 
     public function hasReachedPrepayStep(): bool

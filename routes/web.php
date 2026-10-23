@@ -33,6 +33,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         Route::redirect('terv', '/honap')->name('plan');
         Route::livewire('honap', 'pages::month')->name('month');
         Route::livewire('morzsa', 'pages::companion')->name('companion');
+        Route::livewire('hitel/{line}', 'pages::loan')->name('loan');
         Route::livewire('honap/zaras/{period}', 'pages::close')->name('close');
         Route::redirect('perselyek', '/morzsa')->name('pockets');
         Route::livewire('ujdonsagok', 'pages::changelog')->name('changelog');

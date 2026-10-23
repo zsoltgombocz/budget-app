@@ -317,6 +317,12 @@ new #[Title('Today')] class extends Component {
         </div>
     @endif
 
+    @if (auth()->user()->hasPlusz())
+        @foreach (resolve(\App\Services\LoanOverview::class)->saving(auth()->user(), $today) as $loanSummary)
+            <x-loan-progress :summary="$loanSummary" class="mx-5 mt-2.5 shadow-e1" wire:key="loan-{{ $loanSummary->loan->id }}" />
+        @endforeach
+    @endif
+
     {{-- Today's fixed lines --}}
     @foreach ($rows as $row)
         @php

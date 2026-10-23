@@ -167,7 +167,7 @@ new #[Title('Morzsa')] class extends Component {
     {
         $monthly = $this->user()->budgetLines()->whereNotNull('pocket_id')->whereNull('active_to')->get()->groupBy('pocket_id')->map(fn ($lines): int => (int) $lines->sum('amount'));
 
-        return $this->user()->pockets()->orderBy('sort')->orderBy('name')->get()
+        return $this->user()->pockets()->goals()->orderBy('sort')->orderBy('name')->get()
             ->map(fn (Pocket $goal): array => [
                 'goal' => $goal,
                 'monthly' => $monthly[$goal->id] ?? 0,

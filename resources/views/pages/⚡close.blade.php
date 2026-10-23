@@ -39,7 +39,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
     public function mount(int $period): void
     {
         $this->periodId = $this->user()->periods()->findOrFail($period)->id;
-        $this->goalId = $this->user()->pockets()->orderBy('sort')->value('id');
+        $this->goalId = $this->user()->pockets()->goals()->orderBy('sort')->value('id');
         $this->decision = $this->summary->decisions($this->goalId !== null)[0]->value;
     }
 
@@ -153,7 +153,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
     #[Computed]
     public function goals(): \Illuminate\Support\Collection
     {
-        return $this->user()->pockets()->orderBy('sort')->orderBy('name')->get()->toBase();
+        return $this->user()->pockets()->goals()->orderBy('sort')->orderBy('name')->get()->toBase();
     }
 
     /**

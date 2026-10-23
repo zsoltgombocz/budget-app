@@ -44,6 +44,8 @@ final readonly class RecordPrepayment
             );
 
             $today = $this->periods->today($user->settings());
+            $before = ['principal_before' => $loan->principal_balance, 'installment_before' => $loan->installment, 'remaining_months_before' => $loan->remaining_months];
+            $movementId = null;
 
             $loan->update([
                 'principal_balance' => $after->principal,
@@ -54,14 +56,14 @@ final readonly class RecordPrepayment
             $loan->budgetLines()->update(['amount' => $loan->monthlyPayment()]);
 
             if ($pocket instanceof Pocket) {
-                $user->pocketMovements()->create([
+                $movementId = $user->pocketMovements()->create([
                     'pocket_id' => $pocket->id,
                     'period_id' => $this->periods->forDate($user, $today)->id,
                     'amount' => -$amount,
                     'type' => PocketMovementType::Prepay,
                     'occurred_on' => $today->toDateString(),
                     'note' => $loan->name,
-                ]);
+                ])->id;
                 $pocket->decrement('balance', $amount);
             }
 
@@ -69,11 +71,43 @@ final readonly class RecordPrepayment
                 'loan_id' => $loan->id,
                 'type' => LoanEventType::Prepayment,
                 'amount' => $amount,
+                ...$before,
                 'principal_after' => $after->principal,
                 'installment_after' => $after->installment,
                 'remaining_months_after' => $after->remainingMonths,
+                'pocket_movement_id' => $movementId,
                 'occurred_on' => $today->toDateString(),
             ]);
+        });
+    }
+
+    /**
+     * Undo a prepayment ("Visszavonás"): the loan goes back to how it was, the money back to its pocket.
+     */
+    public function undo(User $user, LoanEvent $event): void
+    {
+        if ($event->type !== LoanEventType::Prepayment || $event->principal_before === null || $event->installment_before === null) {
+            throw ValidationException::withMessages(['amount' => __('This prepayment cannot be undone.')]);
+        }
+
+        DB::transaction(function () use ($user, $event): void {
+            $loan = $user->loans()->findOrFail($event->loan_id);
+            $loan->update([
+                'principal_balance' => $event->principal_before,
+                'installment' => $event->installment_before,
+                'remaining_months' => $event->remaining_months_before,
+            ]);
+            $loan->budgetLines()->update(['amount' => $loan->monthlyPayment()]);
+
+            $movement = $event->pocket_movement_id !== null ? $user->pocketMovements()->find($event->pocket_movement_id) : null;
+
+            if ($movement !== null) {
+                $user->pockets()->withTrashed()->whereKey($movement->pocket_id)->decrement('balance', $movement->amount);
+                $event->update(['pocket_movement_id' => null]);
+                $movement->delete();
+            }
+
+            $event->delete();
         });
     }
 }
