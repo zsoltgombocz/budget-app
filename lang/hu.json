@@ -1263,5 +1263,8 @@
     "It is rounded down, so the days together never get more than what is left.": "Lefelé kerekít, így a napok együtt sosem kapnak többet, mint ami maradt.",
     "Red means you went over a budget. Money you put into a pocket is your choice, so it shows without red.": "Piros, ha túlléptél egy keretet. A perselybe tett pénz a te döntésed, ezért az nem piros.",
     "{1} :count fixed item was due|[2,*] :count fixed items were due": "{1} :count fix tétel esedékes volt|[2,*] :count fix tétel esedékes volt",
-    "Only this spending needs recording: the monthly budgets for groceries, the market, medicine. Bills like rent are taken off in advance.": "Csak az ide tartozó költéseket rögzíted: ezek a havi keretek boltra, piacra, gyógyszerre. A számlák, például a lakbér, előre le vannak vonva."
+    "Only this spending needs recording: the monthly budgets for groceries, the market, medicine. Bills like rent are taken off in advance.": "Csak az ide tartozó költéseket rögzíted: ezek a havi keretek boltra, piacra, gyógyszerre. A számlák, például a lakbér, előre le vannak vonva.",
+    "On a good pace": "Jó tempóban vagy",
+    "Spending a bit fast": "Kicsit gyorsan költesz",
+    "Slow down a little": "Lassíts egy kicsit"
 }
