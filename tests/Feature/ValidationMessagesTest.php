@@ -58,7 +58,7 @@ it('asks for the income in a natural sentence during onboarding', function (): v
     $component = Livewire::test('pages::onboarding')->set('income', '')->call('next');
 
     expectHumanErrors($component->errors()->toArray(), ['income']);
-    expect($component->errors()->first('income'))->toBe('Add meg a havi nettó bevételed.');
+    expect($component->errors()->first('income'))->toBe('Add meg a havi bevételed.');
 
     $component = Livewire::test('pages::onboarding')
         ->set('income', '500000')->call('next')

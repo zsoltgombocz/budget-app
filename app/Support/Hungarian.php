@@ -50,4 +50,19 @@ final class Hungarian
 
         return in_array(intdiv($number % 100, 10), [2, 3, 6, 8], true);
     }
+
+    /**
+     * A day of the month with the "on" suffix as it is read: 1-jén, 2-án, 4-én, 10-én, 20-án, 31-én.
+     */
+    public static function onDay(int $day): string
+    {
+        if ($day === 1) {
+            return '1-jén';
+        }
+
+        $ones = $day % 10;
+        $back = $ones === 0 ? in_array($day, [20, 30], true) : in_array($ones, [2, 3, 6, 8], true);
+
+        return $day.'-'.($back ? 'án' : 'én');
+    }
 }
