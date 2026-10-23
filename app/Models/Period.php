@@ -20,12 +20,13 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property CarbonImmutable $ends_on
  * @property int $income_planned
  * @property int|null $income_actual
+ * @property int $carried_over
  * @property PeriodStatus $status
  * @property array<string, mixed>|null $plan_snapshot
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
-#[Fillable(['starts_on', 'ends_on', 'income_planned', 'income_actual', 'status', 'plan_snapshot'])]
+#[Fillable(['starts_on', 'ends_on', 'income_planned', 'income_actual', 'carried_over', 'status', 'plan_snapshot'])]
 class Period extends Model
 {
     /** @use HasFactory<PeriodFactory> */
@@ -43,6 +44,7 @@ class Period extends Model
             'ends_on' => 'immutable_date',
             'income_planned' => 'integer',
             'income_actual' => 'integer',
+            'carried_over' => 'integer',
             'status' => PeriodStatus::class,
             'plan_snapshot' => 'array',
         ];
@@ -62,6 +64,14 @@ class Period extends Model
     public function lineStatuses(): HasMany
     {
         return $this->hasMany(PeriodLineStatus::class);
+    }
+
+    /**
+     * @return HasMany<ExtraIncome, $this>
+     */
+    public function extraIncomes(): HasMany
+    {
+        return $this->hasMany(ExtraIncome::class);
     }
 
     /**

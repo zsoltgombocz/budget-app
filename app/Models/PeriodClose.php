@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\CloseDecision;
 use App\Models\Concerns\BelongsToUser;
 use Carbon\CarbonImmutable;
 use Database\Factories\PeriodCloseFactory;
@@ -17,6 +18,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $planned_total
  * @property int $actual_total
  * @property int $leftover
+ * @property CloseDecision|null $decision
+ * @property int $to_goal
+ * @property int|null $goal_id
+ * @property int $carried_over
  * @property int $to_reserve
  * @property int $to_invest
  * @property int|null $surplus_account_id
@@ -26,7 +31,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
-#[Fillable(['period_id', 'planned_total', 'actual_total', 'leftover', 'to_reserve', 'to_invest', 'surplus_account_id', 'surplus_transferred_at', 'from_reserve', 'breakdown'])]
+#[Fillable(['period_id', 'planned_total', 'actual_total', 'leftover', 'decision', 'to_goal', 'goal_id', 'carried_over', 'to_reserve', 'to_invest', 'surplus_account_id', 'surplus_transferred_at', 'from_reserve', 'breakdown'])]
 class PeriodClose extends Model
 {
     /** @use HasFactory<PeriodCloseFactory> */
@@ -43,6 +48,9 @@ class PeriodClose extends Model
             'planned_total' => 'integer',
             'actual_total' => 'integer',
             'leftover' => 'integer',
+            'decision' => CloseDecision::class,
+            'to_goal' => 'integer',
+            'carried_over' => 'integer',
             'to_reserve' => 'integer',
             'to_invest' => 'integer',
             'from_reserve' => 'integer',

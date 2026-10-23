@@ -221,4 +221,20 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
     {
         return $this->hasMany(PeriodClose::class);
     }
+
+    /**
+     * @return HasMany<WatchedCategory, $this>
+     */
+    public function watchedCategories(): HasMany
+    {
+        return $this->hasMany(WatchedCategory::class);
+    }
+
+    /**
+     * @return HasMany<ExtraIncome, $this>
+     */
+    public function extraIncomes(): HasMany
+    {
+        return $this->hasMany(ExtraIncome::class);
+    }
 }

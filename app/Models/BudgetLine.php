@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $amount_max
  * @property CalcMode $calc_mode
  * @property int|null $due_day
+ * @property bool $manual_pay
  * @property int|null $pocket_id
  * @property int|null $loan_id
  * @property int|null $orig_amount
@@ -31,7 +32,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
-#[Fillable(['category_id', 'amount', 'amount_avg', 'amount_max', 'calc_mode', 'due_day', 'pocket_id', 'loan_id', 'orig_amount', 'orig_currency', 'active_from', 'active_to', 'note'])]
+#[Fillable(['category_id', 'amount', 'amount_avg', 'amount_max', 'calc_mode', 'due_day', 'manual_pay', 'pocket_id', 'loan_id', 'orig_amount', 'orig_currency', 'active_from', 'active_to', 'note'])]
 class BudgetLine extends Model
 {
     /** @use HasFactory<BudgetLineFactory> */
@@ -50,6 +51,7 @@ class BudgetLine extends Model
             'amount_avg' => 'integer',
             'amount_max' => 'integer',
             'due_day' => 'integer',
+            'manual_pay' => 'boolean',
             'orig_amount' => 'integer',
             'active_from' => 'immutable_date',
             'active_to' => 'immutable_date',
