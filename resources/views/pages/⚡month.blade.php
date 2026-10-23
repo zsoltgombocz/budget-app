@@ -437,7 +437,7 @@ new #[Title('Month')] class extends Component {
     {
         $watched = [];
 
-        foreach ($this->user()->watchedCategories()->with('category')->orderBy('id')->get() as $watch) {
+        foreach ($this->user()->visibleWatchedCategories() as $watch) {
             $watched[$watch->category_id] = ['name' => $watch->category->name ?? '', 'amount' => $watch->amount];
         }
 
@@ -1217,6 +1217,7 @@ new #[Title('Month')] class extends Component {
                         <x-morzsa mood="nyugodt" :size="72" />
                         <p class="mt-3 text-[17px] font-semibold">{{ __('Two categories can be watched') }}</p>
                         <p class="mt-1 text-[15px] text-muted">{{ __('The base plan watches two categories. With Plusz, any number.') }}</p>
+                        <x-ui.button variant="tonal" size="md" :href="route('subscription')" wire:navigate class="mt-4 w-full" data-test="watch-to-subscription">{{ __('What is in Plusz?') }}</x-ui.button>
                     </div>
                 @else
                     <p class="px-1 pb-2 text-[13px] font-medium text-muted">{{ __('Which category?') }}</p>

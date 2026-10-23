@@ -19,6 +19,7 @@ new #[Title('Settings')] class extends Component {
         [
             ['route' => 'budget.edit', 'icon' => 'tune', 'title' => __('Your month'), 'subtitle' => __('Income, start of the month, base currency')],
             ['route' => 'companion.edit', 'icon' => 'pets', 'title' => __('Morzsa'), 'subtitle' => __('Presence and animations')],
+            ['route' => 'subscription', 'icon' => 'subscriptions', 'title' => __('Subscription · :plan', ['plan' => $user->currentPlan()->label()]), 'subtitle' => $user->hasPlusz() ? __('Plusz: loan planner, unlimited watched categories') : __('What is in Plusz?')],
             ['route' => 'notifications.edit', 'icon' => 'notifications', 'title' => __('Notifications'), 'subtitle' => __('Evening reminder, weekly summary, due expenses')],
             ['route' => 'appearance.edit', 'icon' => 'palette', 'title' => __('Appearance'), 'subtitle' => __('Theme, language and time zone')],
         ],

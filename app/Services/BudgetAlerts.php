@@ -50,7 +50,7 @@ final readonly class BudgetAlerts
             return;
         }
 
-        $watch = $user->watchedCategories()->with('category')->where('category_id', $categoryId)->first();
+        $watch = $user->visibleWatchedCategories()->firstWhere('category_id', $categoryId);
 
         if (! $watch instanceof WatchedCategory) {
             return;

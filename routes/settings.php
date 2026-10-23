@@ -17,6 +17,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         Route::livewire('settings/notifications', 'pages::settings.notifications')->name('notifications.edit');
         Route::livewire('settings/morzsa', 'pages::settings.companion')->name('companion.edit');
         Route::livewire('settings/help', 'pages::settings.help')->name('help');
+        Route::livewire('settings/subscription', 'pages::settings.subscription')->name('subscription');
         Route::get('settings/export', ExportController::class)->name('export');
     });
 });

@@ -18,10 +18,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $user_id
  * @property int $category_id
  * @property int $amount
+ * @property bool $kept_on_basic stays visible on the base plan (picked when going back from Plusz)
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
-#[Fillable(['category_id', 'amount'])]
+#[Fillable(['category_id', 'amount', 'kept_on_basic'])]
 class WatchedCategory extends Model
 {
     /** @use HasFactory<WatchedCategoryFactory> */
@@ -36,6 +37,7 @@ class WatchedCategory extends Model
     {
         return [
             'amount' => 'integer',
+            'kept_on_basic' => 'boolean',
         ];
     }
 

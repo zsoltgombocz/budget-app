@@ -276,10 +276,17 @@ new #[Title('When will I be loan-free?')] class extends Component {
 <div x-data="loanPage({ decimals: @js($currency->decimals()), locale: @js(app()->getLocale()), details: @js($details), hasLoan: @js($loan !== null), openOnStart: @js($loan === null && auth()->user()->hasPlusz()), saved: @js(Money::toInput($summary?->saved() ?: null, $currency)), savedAmount: @js($summary?->saved() ?? 0), step: @js(Money::toInput($this->step, $currency)) })">
     <x-pages::settings.layout :heading="__('When will I be loan-free?')" back="month">
         @unless (auth()->user()->hasPlusz())
-            <x-ui.card class="flex flex-col items-center p-6 text-center" data-test="loan-plusz">
-                <x-morzsa mood="nyugodt" :size="72" />
-                <p class="mt-3 text-[17px] font-semibold">{{ __('The loan planner is part of Plusz') }}</p>
-                <p class="mt-1 text-[15px] text-muted">{{ __('It shows when your loan runs out if you set aside a little for prepaying it each month.') }}</p>
+            <x-ui.card class="p-[18px]" data-test="loan-plusz">
+                <div class="flex items-center gap-3">
+                    <x-morzsa mood="kivancsi" :size="56" />
+                    <div class="min-w-0">
+                        <span class="rounded-full bg-plum-tint px-2 py-0.5 text-[11px] font-semibold text-plum">Plusz</span>
+                        <p class="mt-1 text-[17px] font-semibold">{{ __('What is in Plusz?') }}</p>
+                    </div>
+                </div>
+                <p class="mt-2 text-[15px] text-ink-2">{{ __('It shows when your loan runs out if you set aside a little for prepaying it each month.') }}</p>
+                <x-plusz-info class="mt-4" />
+                <x-ui.button variant="tonal" size="md" :href="route('subscription')" wire:navigate class="mt-4 w-full" data-test="to-subscription">{{ __('Switch to Plusz') }}</x-ui.button>
             </x-ui.card>
         @else
             @if ($summary === null)
@@ -391,7 +398,7 @@ new #[Title('When will I be loan-free?')] class extends Component {
                 </x-ui.card>
 
                 @if ($this->prepayments->isNotEmpty())
-                    <x-ui.section-label class="mt-5">{{ __('Prepayments') }}</x-ui.section-label>
+                    <x-ui.section-label class="mt-5" :label="__('Prepayments')" />
                     <x-ui.card class="px-4" data-test="loan-prepayments">
                         @foreach ($this->prepayments as $event)
                             <div wire:key="prepayment-{{ $event->id }}" @class(['flex items-center justify-between gap-3 py-3', 'border-b border-line' => ! $loop->last])>

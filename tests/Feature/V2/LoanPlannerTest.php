@@ -18,7 +18,7 @@ use Livewire\Livewire;
 
 beforeEach(function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-15 19:00'));
-    $this->user = User::factory()->create();
+    $this->user = User::factory()->plus()->create();
     BudgetSetting::factory()->for($this->user)->create(['period_mode' => PeriodMode::Calendar, 'income' => 450_000, 'locale' => 'hu', 'onboarded_at' => now()]);
     $category = Category::factory()->for($this->user)->create(['name' => 'Autóhitel', 'type' => LineType::Loan]);
     $this->line = BudgetLine::factory()->for($this->user)->for($category)->create(['amount' => 72_600, 'due_day' => 5]);
@@ -161,4 +161,13 @@ it('shows the prepayment being saved up on Today and Month, and links the planne
 
     Livewire::test('pages::today')->assertSee('Következő előtörlesztés')->assertSee(money_number(340_000));
     Livewire::test('pages::month')->assertSee('Következő előtörlesztés')->assertSee(route('loan', $this->line));
+});
+
+it('shows what is in Plusz instead of the planner on Alap', function (): void {
+    $this->user->forceFill(['plan' => null])->save();
+
+    Livewire::test('pages::loan', ['line' => $this->line])
+        ->assertSee('Mi van a Pluszban?')
+        ->assertSee('Korlátlan figyelt kategória')
+        ->assertDontSee('Add meg a hitel adatait');
 });

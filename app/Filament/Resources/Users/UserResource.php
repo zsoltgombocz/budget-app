@@ -3,13 +3,20 @@
 namespace App\Filament\Resources\Users;
 
 use App\Actions\Admin\InviteUser;
+use App\Enums\Plan;
 use App\Filament\Resources\Users\Pages\ManageUsers;
+use App\Models\Admin;
 use App\Models\User;
+use App\Services\Plans;
 use BackedEnum;
+use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Facades\Filament;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -70,6 +77,10 @@ class UserResource extends Resource
                         __('Invited') => 'warning',
                         default => 'success',
                     }),
+                TextColumn::make('plan')->label(__('Plan'))->badge()
+                    ->state(fn (User $record): string => $record->currentPlan()->label())
+                    ->description(fn (User $record): ?string => self::planDetail($record))
+                    ->color(fn (User $record): string => $record->hasPlusz() ? 'success' : 'gray'),
                 IconColumn::make('onboarded')->label(__('Setup done'))->boolean()
                     ->tooltip(fn (bool $state): string => $state ? __('Finished the setup wizard.') : __('Has not finished the setup wizard yet.')),
                 TextColumn::make('last_seen_at')->label(__('Last seen'))->since()->sortable()->placeholder('–'),
@@ -82,6 +93,28 @@ class UserResource extends Resource
             ->recordActions([
                 ActionGroup::make([
                     EditAction::make(),
+                    Action::make('plan')
+                        ->label(__('Set the plan'))
+                        ->icon(Heroicon::OutlinedSparkles)
+                        ->modalDescription(__('Automatic: the 30-day trial, then Alap. A plan set here wins until its end (empty: no end). Every change is logged.'))
+                        ->fillForm(fn (User $record): array => ['plan' => $record->plan->value ?? 'auto', 'plan_until' => $record->plan_until?->toDateString()])
+                        ->schema([
+                            Select::make('plan')->label(__('Plan'))->required()->native(false)
+                                ->options(['auto' => __('Automatic'), Plan::Basic->value => Plan::Basic->label(), Plan::Plus->value => Plan::Plus->label()]),
+                            DatePicker::make('plan_until')->label(__('Until'))->native(false)->displayFormat('Y. m. d.')->minDate(now()),
+                            TextInput::make('note')->label(__('Note'))->maxLength(255),
+                        ])
+                        ->action(function (User $record, array $data, Plans $plans): void {
+                            $admin = Filament::auth()->user();
+                            $plans->set(
+                                $record,
+                                Plan::tryFrom(is_string($data['plan'] ?? null) ? $data['plan'] : ''),
+                                is_string($data['plan_until'] ?? null) && $data['plan_until'] !== '' ? CarbonImmutable::parse($data['plan_until']) : null,
+                                $admin instanceof Admin ? $admin : null,
+                                is_string($data['note'] ?? null) && $data['note'] !== '' ? $data['note'] : null,
+                            );
+                            Notification::make()->title(__('Plan of :name: :plan', ['name' => $record->name, 'plan' => $record->currentPlan()->label()]))->success()->send();
+                        }),
                     Action::make('resendInvite')
                         ->label(__('Send invite again'))
                         ->icon(Heroicon::OutlinedEnvelope)
@@ -108,6 +141,28 @@ class UserResource extends Resource
                         ->modalDescription(__('Deletes the account and all of its data. This cannot be undone.')),
                 ]),
             ]);
+    }
+
+    /**
+     * Under the plan badge: until when a set plan or the offer runs, or when the trial ends.
+     */
+    public static function planDetail(User $user): ?string
+    {
+        $until = match ($user->currentPlan()) {
+            Plan::Trial => resolve(Plans::class)->trialEndsAt($user),
+            Plan::PlusTrial => $user->plus_offer_until,
+            default => $user->plan !== null ? $user->plan_until : null,
+        };
+
+        if ($until !== null) {
+            return __('until :date', ['date' => $until->format('Y. m. d')]);
+        }
+
+        if ($user->plan === null) {
+            return null;
+        }
+
+        return __('Set by an admin');
     }
 
     public static function status(User $user): string

@@ -52,7 +52,7 @@ new #[Title('Today')] class extends Component {
     {
         $watched = [];
 
-        foreach ($this->user()->watchedCategories()->with('category')->orderBy('id')->get() as $watch) {
+        foreach ($this->user()->visibleWatchedCategories() as $watch) {
             $watched[$watch->category_id] = ['name' => $watch->category->name ?? '', 'amount' => $watch->amount];
         }
 

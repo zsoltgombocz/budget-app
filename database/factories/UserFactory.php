@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\Plan;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -43,6 +44,16 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes): array => [
             'disabled_at' => now(),
+        ]);
+    }
+
+    /**
+     * Plusz set on the account, with no end.
+     */
+    public function plus(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'plan' => Plan::Plus,
         ]);
     }
 
