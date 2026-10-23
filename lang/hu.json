@@ -1327,5 +1327,21 @@
     "Mark as done": "Elintéztem",
     "{1} :count day in a row.|[2,*] :count days in a row.": "{1} :count napja egymás után.|[2,*] :count napja egymás után.",
     "Write down what you spend today and our streak starts.": "Írd be, mit költesz ma, és indul a sorozatunk.",
-    "Morzsa": "Morzsa"
+    "Morzsa": "Morzsa",
+    "Daily allowance: :amount left": "Napi keret: még :amount",
+    "After it :amount left today": "Utána ma még :amount",
+    ":amount more than today’s allowance. From tomorrow :allowance a day.": "Ez :amount-tal több a mai keretnél. Holnaptól napi :allowance.",
+    "An earlier day: it counts in the month, today’s allowance stays.": "Korábbi nap: a hónapba beleszámít, a mai keret nem változik.",
+    "Then this month has :amount · daily allowance :allowance": "Így még erre a hónapra :amount · napi keret :allowance",
+    "A gift, a side job, a refund": "Ajándék, mellékes, visszatérítés",
+    "New entry": "Új bejegyzés",
+    "Got money": "Kaptam pénzt",
+    "What was it for?": "Mire ment?",
+    "Where did it come from?": "Honnan jött?",
+    "Side job": "Mellékes",
+    "Refund": "Visszatérítés",
+    "Add it": "Hozzáadom",
+    ":amount over today. From tomorrow :allowance a day.": "Ma :amount-tal túl. Holnaptól napi :allowance.",
+    "More categories": "Több",
+    "Something else": "Más"
 }

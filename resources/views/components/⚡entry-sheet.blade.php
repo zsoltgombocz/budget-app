@@ -2,11 +2,14 @@
 
 use App\Actions\Budget\MarkNoSpendDay;
 use App\Actions\Budget\RecordTransaction;
+use App\Actions\Month\RecordExtraIncome;
 use App\Actions\Budget\UpdateTransaction;
 use App\Enums\LineType;
 use App\Models\Transaction;
 use App\Models\User;
-use App\Services\OverviewService;
+use App\Services\FrequentEntries;
+use App\Services\MonthBudget;
+use App\Services\MonthService;
 use App\Services\PeriodService;
 use App\Support\Icons;
 use App\Support\Money;
@@ -21,8 +24,18 @@ new class extends Component {
     /** Largest amount accepted in one entry, in major units. */
     private const int MAX_MAJOR = 1_000_000_000;
 
-    /** @var list<array{id: int, name: string, icon: string, planned: int, remaining: int}> */
+    /** @var list<array{id: int, name: string, icon: string}> spending categories, most used first */
     public array $options = [];
+
+    /**
+     * Today's numbers for the hint under the amount (MonthService), in minor units.
+     *
+     * @var array{allowance: int, todayLeft: int, remaining: int, daysLeft: int}
+     */
+    public array $month = ['allowance' => 0, 'todayLeft' => 0, 'remaining' => 0, 'daysLeft' => 1];
+
+    /** @var list<array{category_id: int, amount: int, count: int}> one-tap chips (FrequentEntries) */
+    public array $frequent = [];
 
     public bool $noSpendMarked = false;
 
@@ -92,20 +105,72 @@ new class extends Component {
 
         $this->loadState();
         $category = collect($this->options)->firstWhere('id', $transaction->category_id);
+        $isToday = $transaction->occurred_on->toDateString() === $this->today;
 
         $this->dispatch('budget-updated');
         $this->dispatch('app-toast',
             title: __('Saved').' · '.($category['name'] ?? '').' '.Money::of($transaction->amount, $currency)->format(),
-            subtitle: $category !== null && $category['planned'] > 0
-                ? ($category['remaining'] >= 0
-                    ? __(':amount left in the budget', ['amount' => Money::of($category['remaining'], $currency)->format()])
-                    : __(':amount over the budget', ['amount' => Money::of(-$category['remaining'], $currency)->format()]))
-                : null,
+            subtitle: ! $isToday ? null : ($this->month['todayLeft'] >= 0
+                ? __('Daily allowance: :amount left', ['amount' => Money::of($this->month['todayLeft'], $currency)->format()])
+                : __(':amount over today. From tomorrow :allowance a day.', [
+                    'amount' => Money::of(-$this->month['todayLeft'], $currency)->format(),
+                    'allowance' => Money::of(resolve(MonthBudget::class)->allowance($this->month['remaining'], max(1, $this->month['daysLeft'] - 1)), $currency)->format(),
+                ])),
             undo: 'undo-transaction',
             params: ['id' => $transaction->id],
         );
 
         return ['ok' => true, 'errors' => []];
+    }
+
+    /**
+     * "Kaptam pénzt": money on top of the month's income, counted at once.
+     *
+     * @param  array<string, mixed>  $form
+     * @return array{ok: bool, errors: array<string, string>}
+     */
+    public function saveIncome(array $form, RecordExtraIncome $recordExtraIncome): array
+    {
+        $user = $this->user();
+        $currency = $user->settings()->currency;
+        $amount = is_string($form['amount'] ?? null) ? Money::parse($form['amount'], $currency) : null;
+        $note = is_string($form['note'] ?? null) && $form['note'] !== '' ? mb_substr($form['note'], 0, 255) : null;
+        $uuid = is_string($form['clientUuid'] ?? null) && \Illuminate\Support\Str::isUuid($form['clientUuid']) ? $form['clientUuid'] : null;
+
+        if ($amount === null || $amount < 1 || $amount > self::MAX_MAJOR * $currency->minorPerMajor()) {
+            return ['ok' => false, 'errors' => ['amount' => __('Enter a valid amount.')]];
+        }
+
+        try {
+            $income = $recordExtraIncome->record($user, $amount, null, $note, $uuid);
+        } catch (ValidationException $exception) {
+            return ['ok' => false, 'errors' => $this->firstMessages($exception->errors())];
+        }
+
+        $this->loadState();
+        $this->dispatch('budget-updated');
+        $this->dispatch('app-toast',
+            title: __('Added').' · +'.Money::of($income->amount, $currency)->format(),
+            subtitle: __('This month now has :amount.', ['amount' => Money::of($this->month['remaining'], $currency)->format()]),
+            undo: 'undo-extra-income',
+            params: ['id' => $income->id],
+        );
+
+        return ['ok' => true, 'errors' => []];
+    }
+
+    #[On('undo-extra-income')]
+    public function undoExtraIncome(int $id, RecordExtraIncome $recordExtraIncome): void
+    {
+        try {
+            $recordExtraIncome->delete($this->user(), $id);
+        } catch (ValidationException) {
+            return;
+        }
+
+        $this->loadState();
+        $this->dispatch('budget-updated');
+        $this->dispatch('app-toast', title: __('Entry removed.'), icon: 'undo');
     }
 
     #[On('undo-transaction')]
@@ -195,6 +260,13 @@ new class extends Component {
         $this->options = $this->loadOptions();
         $this->noSpendMarked = app(MarkNoSpendDay::class)->isMarked($user);
         $this->spentToday = $user->transactions()->whereDate('occurred_on', $this->today)->exists();
+        $state = resolve(MonthService::class)->current($user)->state;
+        $this->month = ['allowance' => $state->dailyAllowance, 'todayLeft' => $state->todayLeft, 'remaining' => $state->remaining, 'daysLeft' => $state->daysLeft];
+        $ids = array_column($this->options, 'id');
+        $this->frequent = array_values(array_filter(
+            resolve(FrequentEntries::class)->forUser($user, CarbonImmutable::parse($this->today)),
+            fn (array $entry): bool => in_array($entry['category_id'], $ids, true),
+        ));
     }
 
     /**
@@ -209,27 +281,28 @@ new class extends Component {
     }
 
     /**
-     * Quick entry categories with what is left of their budget this period.
+     * The spending categories, the ones used most in the last 60 days first.
      *
-     * @return list<array{id: int, name: string, icon: string, planned: int, remaining: int}>
+     * @return list<array{id: int, name: string, icon: string}>
      */
     private function loadOptions(): array
     {
         $user = $this->user();
-        $forecast = collect(app(OverviewService::class)->forUser($user)->forecast->categories)->keyBy('categoryId');
+        $uses = $user->transactions()
+            ->whereDate('occurred_on', '>', CarbonImmutable::parse($this->currentDay())->subDays(60)->toDateString())
+            ->selectRaw('category_id, count(*) as uses')->groupBy('category_id')
+            ->pluck('uses', 'category_id');
 
         return $user->categories()
             ->where('type', LineType::Variable)
-            ->where('is_quick_entry', true)
             ->orderBy('sort')
             ->orderBy('name')
             ->get()
+            ->sortByDesc(fn ($category): int => (int) ($uses[$category->id] ?? 0))
             ->map(fn ($category): array => [
                 'id' => $category->id,
                 'name' => $category->name,
                 'icon' => Icons::forCategory($category->icon),
-                'planned' => $forecast->get($category->id)?->planned ?? 0,
-                'remaining' => $forecast->get($category->id)?->remaining() ?? 0,
             ])
             ->values()
             ->all();
@@ -262,9 +335,12 @@ new class extends Component {
         decimals: {{ $currency->decimals() }},
         symbol: @js($currency->symbol()),
         texts: {
-            empty: @js(__('Type the amount')),
-            left: @js(__(':category budget left: :amount')),
-            over: @js(__(':amount over the :category budget')),
+            allowance: @js(__('Daily allowance: :amount left')),
+            after: @js(__('After it :amount left today')),
+            over: @js(__(':amount more than today’s allowance. From tomorrow :allowance a day.')),
+            past: @js(__('An earlier day: it counts in the month, today’s allowance stays.')),
+            income: @js(__('Then this month has :amount · daily allowance :allowance')),
+            incomeEmpty: @js(__('A gift, a side job, a refund')),
             today: @js(__('Today')),
             failed: @js(__('Could not save. Check your connection and try again.')),
         },
@@ -291,84 +367,88 @@ new class extends Component {
              class="absolute inset-x-0 bottom-0 top-[max(clamp(1rem,calc(100dvh-37rem),5rem),calc(var(--safe-top)+clamp(0.5rem,calc(100dvh-37rem),4rem)))] mx-auto flex max-w-lg flex-col rounded-t-[30px] bg-surface px-4 outline-none pb-[calc(clamp(0.5rem,1.5dvh,1.25rem)+env(safe-area-inset-bottom))] pt-2"
              :aria-busy="busy">
             <div class="mx-auto h-[5px] w-9 shrink-0 rounded-full bg-ink/18"></div>
-            <div class="mt-1 grid h-[clamp(36px,5.2dvh,44px)] shrink-0 grid-cols-[72px_1fr_72px] items-center px-2 max-[360px]:px-1" data-test="sheet-header">
+            <div class="mt-1 grid h-[clamp(36px,5.2dvh,44px)] shrink-0 grid-cols-[64px_1fr_64px] items-center px-2 max-[360px]:px-1" data-test="sheet-header">
                 <button type="button" class="focus-ring relative -ml-2 h-full rounded-xl px-2 text-left text-[15px] text-muted before:absolute before:inset-x-0 before:-inset-y-1" x-on:click="close()" data-test="entry-cancel">{{ __('Cancel') }}</button>
-                <h2 class="text-center text-base font-semibold">{{ __('New spending') }}</h2>
+                <div class="mx-auto flex h-9 w-full max-w-[236px] gap-0.5 rounded-control bg-surface-2 p-[3px]" role="tablist" aria-label="{{ __('New entry') }}">
+                    <button type="button" role="tab" :aria-selected="mode === 'spend'" x-on:click="setMode('spend')" class="flex-1 rounded-[11px] px-2 text-sm font-semibold whitespace-nowrap" :class="mode === 'spend' ? 'bg-surface text-ink shadow-e1' : 'text-muted'" data-test="entry-mode-spend">{{ __('I spent') }}</button>
+                    <button type="button" role="tab" :aria-selected="mode === 'income'" x-on:click="setMode('income')" class="flex-1 rounded-[11px] px-2 text-sm font-semibold whitespace-nowrap" :class="mode === 'income' ? 'bg-surface text-ink shadow-e1' : 'text-muted'" data-test="entry-mode-income">{{ __('Got money') }}</button>
+                </div>
                 <span></span>
             </div>
 
-            @if ($options === [])
-                <div class="flex flex-1 flex-col justify-center">
-                    <x-ui.empty-state icon="category" :title="__('No quick entry categories yet')">
-                        {{ __('Add a variable budget line on the Plan screen and it shows up here.') }}
-                        <x-slot name="actions">
-                            <x-ui.button size="md" variant="secondary" :href="route('plan')" wire:navigate>{{ __('Open the plan') }}</x-ui.button>
-                        </x-slot>
-                    </x-ui.empty-state>
-                </div>
-            @else
-                <div class="no-scrollbar -mx-4 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4">
-                    <div class="shrink-0 pb-1 pt-[clamp(0px,1dvh,10px)] text-center">
-                        <div class="num flex items-baseline justify-center gap-2">
-                            <span class="text-[clamp(40px,7dvh,60px)] font-semibold leading-[1.05] tracking-[-0.045em]" :class="hasAmount() ? 'text-ink' : 'text-muted'" x-text="display('amount')" aria-live="polite"></span>
-                            <span class="text-[clamp(20px,3dvh,26px)] font-medium text-muted">{{ $currency->symbol() }}</span>
-                        </div>
-                        <div class="num mt-1 text-[13px]" :class="error ? 'font-medium text-danger' : hintClass()" x-text="error ?? hint()" aria-live="polite" data-test="entry-hint"></div>
+            <div class="no-scrollbar -mx-4 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4">
+                <div class="shrink-0 pb-1 pt-[clamp(0px,1dvh,10px)] text-center">
+                    <div class="num flex items-baseline justify-center gap-2">
+                        <span class="text-[clamp(40px,7dvh,60px)] font-semibold leading-[1.05] tracking-[-0.045em]" :class="hasAmount() ? 'text-ink' : 'text-muted'" x-text="(mode === 'income' && hasAmount() ? '+' : '') + display('amount')" aria-live="polite"></span>
+                        <span class="text-[clamp(20px,3dvh,26px)] font-medium text-muted">{{ $currency->symbol() }}</span>
                     </div>
+                    <div class="num mt-1 text-[13px] leading-[18px]" :class="error ? 'font-medium text-danger' : hintClass()" x-text="error ?? hint()" aria-live="polite" data-test="entry-hint"></div>
+                </div>
 
-                    <div class="no-scrollbar -mx-4 mt-[clamp(8px,1.6dvh,14px)] flex shrink-0 gap-2 overflow-x-auto px-4" data-test="category-grid">
-                        <template x-for="category in categories" :key="category.id">
+                <div x-show="mode === 'spend' && frequent.length > 0" class="no-scrollbar -mx-4 mt-[clamp(6px,1.2dvh,10px)] flex shrink-0 gap-2 overflow-x-auto px-4" data-test="frequent">
+                    <template x-for="entry in frequent" :key="entry.category_id + '-' + entry.amount">
+                        <button type="button" x-on:click="useFrequent(entry)" class="focus-ring num flex h-10 shrink-0 items-center rounded-[14px] border border-control-border bg-surface-2 px-3 text-sm font-medium whitespace-nowrap" x-text="frequentLabel(entry)"></button>
+                    </template>
+                </div>
+
+                <div x-show="mode === 'spend'" class="shrink-0">
+                    <p class="mt-[clamp(8px,1.6dvh,14px)] text-[13px] font-medium text-muted">{{ __('What was it for?') }}</p>
+                    <div class="mt-1.5 grid grid-cols-3 gap-2" data-test="category-grid">
+                        <template x-for="category in shownCategories()" :key="category.id">
                             <button type="button" x-on:click="pick(category.id)" :disabled="busy" :aria-pressed="category.id === categoryId ? 'true' : 'false'"
-                                    class="focus-ring flex min-h-[clamp(56px,8.2dvh,70px)] min-w-[max(78px,calc((100%-32px)/5))] flex-1 flex-col items-center justify-center gap-[clamp(2px,0.6dvh,5px)] rounded-btn border-[1.5px] px-1 py-1.5 transition active:scale-95"
-                                    :class="category.id === categoryId ? 'border-accent bg-accent/14 text-accent' : 'border-transparent bg-surface-2 text-ink-2'">
-                                <span class="ms" style="font-size:24px;width:24px;height:24px" x-text="category.icon" aria-hidden="true"></span>
-                                <span class="line-clamp-2 max-w-full text-center text-xs font-medium leading-tight break-words hyphens-auto" x-text="category.name"></span>
+                                    class="focus-ring flex min-h-11 min-w-0 items-center gap-1.5 rounded-control border px-2 py-1 text-left text-sm leading-tight font-medium transition active:scale-95"
+                                    :class="category.id === categoryId ? 'border-[1.5px] border-accent bg-accent-tint text-ink' : 'border-control-border bg-surface-2 text-ink'">
+                                <span class="ms shrink-0" style="font-size:20px;width:20px;height:20px" :class="category.id === categoryId ? 'text-accent-strong' : 'text-ink-2'" x-text="category.id === categoryId ? 'check' : category.icon" aria-hidden="true"></span>
+                                <span class="line-clamp-2 min-w-0 break-words hyphens-auto" x-text="category.name"></span>
                             </button>
                         </template>
+                        <button type="button" x-show="categories.length > 6 && ! showAll" x-on:click="showAll = true" class="focus-ring flex h-11 items-center justify-center rounded-control border border-control-border bg-surface-2 text-[15px] font-medium text-ink-2" data-test="more-categories">{{ __('More categories') }}</button>
                     </div>
+                </div>
 
-                    <div class="mt-[clamp(6px,1.4dvh,12px)] flex shrink-0 gap-2">
-                        <label class="relative flex h-[clamp(38px,5.2dvh,44px)] flex-none items-center gap-1.5 rounded-[14px] bg-surface-2 px-3.5 text-sm font-medium focus-within:ring-2 focus-within:ring-accent">
-                            <x-ui.icon name="calendar_today" :size="18" class="text-muted" />
-                            <span x-text="date === today ? texts.today : shortDate(date)"></span>
-                            <input type="date" x-model="date" :max="today" x-on:change="error = null" class="absolute inset-x-0 -inset-y-1 opacity-0" aria-label="{{ __('Date') }}" data-test="entry-date">
-                        </label>
-                        <label class="relative flex h-[clamp(38px,5.2dvh,44px)] min-w-0 flex-1 items-center gap-1.5 rounded-[14px] bg-surface-2 px-3.5 text-sm text-muted focus-within:ring-2 focus-within:ring-accent before:absolute before:inset-x-0 before:-inset-y-1" data-test="entry-note">
-                            <x-ui.icon name="edit_note" :size="18" />
-                            <input type="text" x-model="note" maxlength="255" placeholder="{{ __('Note (optional)') }}" class="relative min-w-0 flex-1 self-stretch bg-transparent text-ink outline-none placeholder:text-muted">
-                        </label>
-                    </div>
-
-                    <div class="mt-[clamp(6px,1.4dvh,12px)] grid flex-1 grid-cols-3 gap-1.5">
-                        @foreach ($keys as $key)
-                            <button type="button" x-on:click="press(@js($key))" :disabled="busy" data-key="{{ $key }}"
-                                    class="focus-ring num flex min-h-[clamp(40px,6.5dvh,50px)] items-center justify-center rounded-2xl bg-ink/4 text-[26px] font-medium transition active:bg-ink/12"
-                                    aria-label="{{ $key === 'del' ? __('Delete') : $key }}">
-                                @if ($key === 'del')
-                                    <x-ui.icon name="backspace" :size="24" />
-                                @else
-                                    {{ $key }}
-                                @endif
-                            </button>
+                <div x-show="mode === 'income'" class="shrink-0">
+                    <p class="mt-[clamp(8px,1.6dvh,14px)] text-[13px] font-medium text-muted">{{ __('Where did it come from?') }}</p>
+                    <div class="mt-1.5 flex flex-wrap gap-2" data-test="income-sources">
+                        @foreach ([__('Gift'), __('Side job'), __('Refund'), __('Something else')] as $source)
+                            <button type="button" x-on:click="source = source === @js($source) ? '' : @js($source)" class="focus-ring flex h-11 items-center rounded-control border px-3 text-[15px] font-medium"
+                                    :class="source === @js($source) ? 'border-[1.5px] border-accent bg-accent-tint' : 'border-control-border bg-surface-2'">{{ $source }}</button>
                         @endforeach
                     </div>
                 </div>
 
-                <div class="mt-[clamp(6px,1.4dvh,12px)] flex shrink-0 items-center gap-3">
-                    @unless ($spentToday)
-                        {{-- A text button (x-ui.button text) sized with the sheet's height-scaled footer. --}}
-                        <button type="button" x-on:click="noSpend()" :disabled="busy"
-                                class="focus-ring -ml-2 flex h-[clamp(46px,7dvh,56px)] shrink-0 items-center gap-1.5 rounded-control px-2 text-[15px] font-medium transition hover:bg-ink/6 active:bg-ink/6"
-                                :class="$wire.noSpendMarked ? 'text-accent' : 'text-ink-2'" data-test="no-spend">
-                            <span class="ms" style="font-size:20px;width:20px;height:20px" x-text="$wire.noSpendMarked ? 'check_circle' : 'do_not_disturb_on'" aria-hidden="true">do_not_disturb_on</span>
-                            <span x-text="$wire.noSpendMarked ? @js(__('Marked · undo')) : @js(__("I didn't spend today"))"></span>
-                        </button>
-                    @endunless
-                    <button type="button" x-on:click="submit()" :disabled="! hasAmount() || busy"
-                            class="focus-ring h-[clamp(46px,7dvh,56px)] flex-1 rounded-btn text-[17px] font-semibold transition active:scale-[0.98]"
-                            :class="[hasAmount() ? 'bg-accent text-accent-ink' : 'bg-surface-3 text-muted', busy ? 'opacity-60' : '']" data-test="save-entry">{{ __('Save') }}</button>
+                <div class="mt-[clamp(6px,1.4dvh,12px)] flex shrink-0 gap-2" x-show="mode === 'spend'">
+                    <label class="relative flex h-[clamp(38px,5.2dvh,44px)] flex-none items-center gap-1.5 rounded-[14px] bg-surface-2 px-3.5 text-sm font-medium focus-within:ring-2 focus-within:ring-accent">
+                        <x-ui.icon name="calendar_today" :size="18" class="text-muted" />
+                        <span x-text="date === today ? texts.today : shortDate(date)"></span>
+                        <input type="date" x-model="date" :max="today" x-on:change="error = null" class="absolute inset-x-0 -inset-y-1 opacity-0" aria-label="{{ __('Date') }}" data-test="entry-date">
+                    </label>
+                    <label class="relative flex h-[clamp(38px,5.2dvh,44px)] min-w-0 flex-1 items-center gap-1.5 rounded-[14px] bg-surface-2 px-3.5 text-sm text-muted focus-within:ring-2 focus-within:ring-accent before:absolute before:inset-x-0 before:-inset-y-1" data-test="entry-note">
+                        <x-ui.icon name="edit_note" :size="18" />
+                        <input type="text" x-model="note" maxlength="255" placeholder="{{ __('Note (optional)') }}" class="relative min-w-0 flex-1 self-stretch bg-transparent text-ink outline-none placeholder:text-muted">
+                    </label>
                 </div>
-            @endif
+
+                <div class="mt-[clamp(6px,1.4dvh,12px)] grid flex-1 grid-cols-3 gap-1.5">
+                    @foreach ($keys as $key)
+                        <button type="button" x-on:click="press(@js($key))" :disabled="busy" data-key="{{ $key }}"
+                                class="focus-ring num flex min-h-[clamp(40px,6.5dvh,50px)] items-center justify-center rounded-2xl bg-ink/4 text-[26px] font-medium transition active:bg-ink/12"
+                                aria-label="{{ $key === 'del' ? __('Delete') : $key }}">
+                            @if ($key === 'del')
+                                <x-ui.icon name="backspace" :size="24" />
+                            @else
+                                {{ $key }}
+                            @endif
+                        </button>
+                    @endforeach
+                </div>
+            </div>
+
+            <div class="mt-[clamp(6px,1.4dvh,12px)] flex shrink-0 items-center gap-3">
+                <button type="button" x-on:click="submit()" :disabled="! canSave() || busy"
+                        class="focus-ring h-[clamp(46px,7dvh,56px)] flex-1 rounded-btn text-[17px] font-semibold transition active:scale-[0.98]"
+                        :class="[canSave() ? 'bg-accent text-accent-ink' : 'bg-surface-3 text-muted', busy ? 'opacity-60' : '']" data-test="save-entry"
+                        x-text="mode === 'income' ? @js(__('Add it')) : @js(__('Save'))">{{ __('Save') }}</button>
+            </div>
         </div>
     </div>
 </div>
@@ -379,7 +459,11 @@ new class extends Component {
         // Numpad keys (digits, 000, comma with the currency's decimals) from the shared helper.
         ...window.amountFields({ decimals, locale, fields: { amount: '' }, active: 'amount', rules: { amount: { maxWhole: 9 } } }),
         open: false,
+        mode: 'spend',
+        source: '',
+        showAll: false,
         get categories() { return $wire.options },
+        get frequent() { return $wire.frequent },
         categoryId: null,
         date: today,
         today,
@@ -426,6 +510,9 @@ new class extends Component {
         show() {
             this.fields.amount = ''
             this.note = ''
+            this.mode = 'spend'
+            this.source = ''
+            this.showAll = false
             this.error = null
             this.pending = null
             // The sheet lives across navigation: after midnight reload today and today's state from the server.
@@ -440,6 +527,35 @@ new class extends Component {
 
         close() {
             this.open = false
+        },
+
+        setMode(mode) {
+            this.mode = mode
+            this.error = null
+        },
+
+        /** The first five categories and "More", or all of them; the picked one always shows. */
+        shownCategories() {
+            if (this.showAll || this.categories.length <= 6) return this.categories
+            const shown = this.categories.slice(0, 5)
+            const picked = this.category()
+            if (picked && ! shown.includes(picked)) shown[4] = picked
+            return shown
+        },
+
+        useFrequent(entry) {
+            this.pick(entry.category_id)
+            this.fields.amount = String(entry.amount / minor).replace('.', ',')
+            this.amountFresh = true
+        },
+
+        frequentLabel(entry) {
+            const category = this.categories.find(c => c.id === entry.category_id)
+            return (category?.name ?? '') + ' · ' + this.money(entry.amount)
+        },
+
+        canSave() {
+            return this.hasAmount() && (this.mode === 'income' || this.categoryId !== null)
         },
 
         pick(id) {
@@ -478,31 +594,33 @@ new class extends Component {
             return this.categories.find(c => c.id === this.categoryId)
         },
 
-        left() {
-            const c = this.category()
-            return c ? c.remaining - this.minorAmount() : 0
+        /** What one day gets out of what is left (MonthBudget::allowance), never below zero. */
+        allowanceFor(left, days) {
+            return left > 0 ? Math.floor(left / Math.max(1, days)) : 0
         },
 
         money(minorAmount) {
-            return this.moneyFormat.format(minorAmount / minor) + ' ' + symbol
+            return this.moneyFormat.format(minorAmount / minor) + '\u00A0' + symbol
         },
 
         hint() {
-            const c = this.category()
-            if (! this.filled('amount') || ! c) return this.texts.empty
-            if (c.planned <= 0) return c.name
-            const left = this.left()
-            return left >= 0
-                ? this.texts.left.replace(':category', c.name).replace(':amount', this.money(left))
-                : this.texts.over.replace(':category', c.name).replace(':amount', this.money(-left))
+            const month = $wire.month
+            const amount = this.minorAmount()
+            if (this.mode === 'income') {
+                if (! amount) return this.texts.incomeEmpty
+                const remaining = month.remaining + amount
+                return this.texts.income.replace(':amount', this.money(remaining)).replace(':allowance', this.money(this.allowanceFor(month.remaining + amount + (month.allowance - month.todayLeft), month.daysLeft)))
+            }
+            if (! amount) return this.texts.allowance.replace(':amount', this.money(Math.max(0, month.todayLeft)))
+            if (this.date !== this.today) return this.texts.past
+            const left = month.todayLeft - amount
+            if (left >= 0) return this.texts.after.replace(':amount', this.money(left))
+            return this.texts.over.replace(':amount', this.money(-left)).replace(':allowance', this.money(this.allowanceFor(month.remaining - amount, month.daysLeft - 1)))
         },
 
         hintClass() {
-            const c = this.category()
-            if (! this.filled('amount') || ! c || c.planned <= 0) return 'text-muted'
-            const left = this.left()
-            if (left < 0) return 'text-danger'
-            return left / c.planned < 0.2 ? 'text-warn' : 'text-muted'
+            if (this.mode === 'income' || ! this.hasAmount() || this.date !== this.today) return 'text-muted'
+            return $wire.month.todayLeft - this.minorAmount() < 0 ? 'font-medium text-warn-text' : 'text-muted'
         },
 
         shortDate(value) {
@@ -516,15 +634,20 @@ new class extends Component {
         },
 
         async submit() {
-            if (! this.hasAmount() || this.busy || ! this.categoryId) return
+            if (! this.canSave() || this.busy) return
             this.busy = true
             this.error = null
-            const form = { category: this.categoryId, amount: this.fields.amount, date: this.date, note: this.note || null }
+            const income = this.mode === 'income'
+            const form = income
+                ? { amount: this.fields.amount, note: this.source || null }
+                : { category: this.categoryId, amount: this.fields.amount, date: this.date, note: this.note || null }
             // A retry of the same form keeps its UUID, so a save that did reach the server is not recorded twice.
-            const key = JSON.stringify(form)
+            const key = JSON.stringify({ income, ...form })
             if (this.pending?.key !== key) this.pending = { key, uuid: this.uuid() }
             try {
-                const result = await $wire.save({ ...form, clientUuid: this.pending.uuid })
+                const result = income
+                    ? await $wire.saveIncome({ ...form, clientUuid: this.pending.uuid })
+                    : await $wire.save({ ...form, clientUuid: this.pending.uuid })
                 if (result?.ok) {
                     this.pending = null
                     navigator.vibrate?.(30)
