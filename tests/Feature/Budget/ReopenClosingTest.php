@@ -241,8 +241,9 @@ it('refuses after a base currency change', function (): void {
 });
 
 it('undoes the closing from the closed summary with the app confirmation', function (): void {
+    closeEarly();
+
     Livewire::test('pages::close', ['period' => $this->period->id])
-        ->call('goTo', 2)->call('goTo', 3)->call('close')
         ->assertSee('Undo the closing')
         ->assertSee('data-test="reopen-closing"', false);
 
@@ -283,6 +284,6 @@ it('does not offer the undo for an older closing', function (): void {
 
     $this->get(route('month', ['periodus' => $this->period->id]))
         ->assertOk()
-        ->assertSee('data-test="close-summary"', false)
+        ->assertSee('data-test="month-summary"', false)
         ->assertDontSee('data-test="reopen-closing"', false);
 });

@@ -140,6 +140,24 @@ new #[Title('Today')] class extends Component {
         $this->changed();
     }
 
+    /**
+     * The closing toast's "Visszavonás" (the closing page sends here after closing).
+     */
+    #[On('undo-close')]
+    public function undoClose(int $periodId): void
+    {
+        try {
+            $period = resolve(\App\Actions\Budget\ReopenPeriod::class)->handle($this->user(), $this->user()->periods()->findOrFail($periodId));
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            $this->dispatch('app-toast', title: (string) collect($exception->errors())->flatten()->first(), icon: 'error');
+
+            return;
+        }
+
+        $this->dispatch('app-toast', title: __('Closing undone.'), subtitle: __(':month is open again.', ['month' => \App\Support\Dates::monthName($period->nameDate())]), icon: 'undo');
+        $this->redirectRoute('month', ['periodus' => $period->id], navigate: true);
+    }
+
     #[On('budget-updated')]
     public function refresh(): void
     {

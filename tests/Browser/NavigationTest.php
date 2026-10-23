@@ -112,9 +112,9 @@ it('hides the record button on a closed month and shows it again on the open one
 
     expect($page->script($visible))->toBeFalse();
 
-    $page->click('[data-test="next-period"]')->assertSee('Close the month');
+    $page->click('[data-test="next-period"]')->assertSee('Left this month');
     expect($page->script($visible))->toBeTrue();
 
-    $page->click('[data-test="previous-period"]')->assertSee('To the reserve');
+    $page->click('[data-test="previous-period"]')->assertSee('Left over');
     expect($page->script($visible))->toBeFalse();
 });

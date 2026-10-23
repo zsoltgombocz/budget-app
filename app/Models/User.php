@@ -68,6 +68,15 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
     }
 
     /**
+     * Whether the user has MoneySight Plusz. Until the plans and Stripe arrive (F6) every
+     * account counts as Plusz, so nothing is locked away during the build.
+     */
+    public function hasPlusz(): bool
+    {
+        return true;
+    }
+
+    /**
      * A disabled user cannot sign in, and an open session ends on the next request.
      */
     public function isDisabled(): bool

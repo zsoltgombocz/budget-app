@@ -27,3 +27,12 @@ it('writes "from this day" in English', function (): void {
 
     expect(Dates::from(CarbonImmutable::create(2026, 10, 10)))->toBe('from Oct 10');
 });
+
+it('puts a Hungarian month name in a case in its vowel harmony', function (): void {
+    app()->setLocale('hu');
+
+    expect(Dates::monthCase(CarbonImmutable::parse('2026-11-01'), 'in'))->toBe('novemberben')
+        ->and(Dates::monthCase(CarbonImmutable::parse('2026-11-01'), 'into'))->toBe('novemberbe')
+        ->and(Dates::monthCase(CarbonImmutable::parse('2027-01-01'), 'from'))->toBe('januárból')
+        ->and(Dates::monthCase(CarbonImmutable::parse('2027-04-01'), 'in'))->toBe('áprilisban');
+});

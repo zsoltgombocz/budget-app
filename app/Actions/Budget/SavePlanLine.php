@@ -13,7 +13,7 @@ final class SavePlanLine
     /**
      * Create or update a plan line together with its category.
      *
-     * @param  array{name: string, type: LineType, icon?: string|null, color?: string|null, is_quick_entry?: bool, amount: int, amount_avg?: int|null, amount_max?: int|null, calc_mode?: CalcMode, due_day?: int|null, pocket_id?: int|null, loan_id?: int|null, orig_amount?: int|null, orig_currency?: string|null, active_from?: string|null, active_to?: string|null, note?: string|null}  $data
+     * @param  array{name: string, type: LineType, icon?: string|null, color?: string|null, is_quick_entry?: bool, amount: int, amount_avg?: int|null, amount_max?: int|null, calc_mode?: CalcMode, due_day?: int|null, manual_pay?: bool, pocket_id?: int|null, loan_id?: int|null, orig_amount?: int|null, orig_currency?: string|null, active_from?: string|null, active_to?: string|null, note?: string|null}  $data
      */
     public function handle(User $user, array $data, ?BudgetLine $line = null): BudgetLine
     {
@@ -46,6 +46,7 @@ final class SavePlanLine
                 'amount_max' => $type === LineType::Variable ? ($data['amount_max'] ?? null) : null,
                 'calc_mode' => $calcMode,
                 'due_day' => $type === LineType::Variable ? null : ($data['due_day'] ?? null),
+                'manual_pay' => $type !== LineType::Variable && ($data['manual_pay'] ?? false),
                 'pocket_id' => in_array($type, [LineType::Transfer, LineType::Sinking], true) ? ($data['pocket_id'] ?? null) : null,
                 'loan_id' => $type === LineType::Loan ? ($data['loan_id'] ?? null) : null,
                 'orig_amount' => $data['orig_amount'] ?? null,
