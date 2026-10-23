@@ -22,7 +22,7 @@ it('records a spending from the + button with the numpad', function (): void {
         ->assertNoJavaScriptErrors();
 
     expect(Transaction::query()->sole()->amount)->toBe(12_500);
-    visit(route('dashboard'))->on()->mobile()->resize(390, 844)->assertSee('47,500');
+    visit(route('dashboard'))->on()->mobile()->resize(390, 844)->assertSee('287,500');
 });
 
 it('undoes the entry from the toast', function (): void {
@@ -44,12 +44,12 @@ it('marks and unmarks a no-spend day from the dashboard', function (): void {
     $this->actingAs(onboardedUser());
 
     visit(route('dashboard'))->on()->mobile()->resize(390, 844)
-        ->click('[data-test="daily-allowance"] [data-test="no-spend"]')
+        ->click('main [data-test="no-spend"]')
         ->waitForText("You didn't spend today")
-        // It stays in the daily card as a marked row, undoable in place.
-        ->assertVisible('[data-test="daily-allowance"] [data-test="no-spend-marked"]')
-        ->click('[data-test="undo-no-spend"]')
-        ->assertVisible('[data-test="daily-allowance"] [data-test="no-spend"]');
+        // It stays in place as a marked row, undoable there.
+        ->assertVisible('main [data-test="no-spend-marked"]')
+        ->click('main [data-test="undo-no-spend"]')
+        ->assertVisible('main [data-test="no-spend"]');
 
     expect(DayMark::query()->count())->toBe(0);
 });

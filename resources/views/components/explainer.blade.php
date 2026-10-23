@@ -9,6 +9,16 @@
 --}}
 @php
     $entries = [
+        // 2.0, MonthBudget::state(): spendable − spent = left this month; ÷ days left (today included) = daily allowance.
+        'month-left' => [
+            'title' => __('How is it worked out?'),
+            'lead' => __('Your income minus every monthly expense is the month’s money. What you spent so far is taken off.'),
+            'notes' => [
+                __('Fixed expenses and savings are already taken off, you do not record them.'),
+                __('The daily allowance is what was left this morning, spread over the days left, today included. Spending today does not change it today; tomorrow it is worked out again from what is left.'),
+                __('Spend less today and tomorrow’s allowance is bigger; spend more and it is smaller. Extra income counts at once.'),
+            ],
+        ],
         // PeriodCloser::preview()->leftover(): the same figure as the Month page and the closing.
         'leftover' => [
             'title' => __('Leftover'),

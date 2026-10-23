@@ -32,6 +32,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         Route::livewire('ertesitesek', 'pages::notifications')->name('notifications.onboarding');
         Route::livewire('terv', 'pages::plan')->name('plan');
         Route::livewire('honap', 'pages::month')->name('month');
+        Route::livewire('morzsa', 'pages::companion')->name('companion');
         Route::livewire('honap/zaras/{period}', 'pages::close')->name('close');
         Route::livewire('perselyek', 'pages::pockets')->name('pockets');
         Route::livewire('ujdonsagok', 'pages::changelog')->name('changelog');

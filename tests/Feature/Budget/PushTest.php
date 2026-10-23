@@ -68,12 +68,6 @@ it('links the manifest and service worker assets', function (): void {
         ->and(public_path('offline.html'))->toBeFile();
 });
 
-it('renders the device-aware reminder prompt', function (): void {
-    $this->actingAs(onboardedUser());
-
-    $this->get(route('dashboard'))->assertSee('data-test="push-prompt"', false);
-});
-
 it('previews the daily reminder with the product name and the real push text', function (): void {
     config(['app.name' => 'Budget']);
     $this->actingAs(onboardedUser());

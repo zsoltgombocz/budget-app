@@ -256,13 +256,13 @@
         --safe-top: env(safe-area-inset-top, 0px);
 
         /*
-         * Bottom chrome (x-tab-bar): the tab bar's height without the home indicator, the
-         * floating record button and its gap above the bar. The page's bottom padding
-         * (layouts/app/mobile) adds them up plus 24px, so the last row's amount is never under it.
+         * Bottom chrome (x-tab-bar): the floating tab bar's row (64px pill + 12px under it) without
+         * the home indicator; the record button sits in the same row, right of the pill. The page's
+         * bottom padding (layouts/app/mobile) adds 24px, so the last row's amount is never under it.
          */
-        --tabbar-h: 82px;
-        --fab-size: 58px;
-        --fab-gap: 16px;
+        --tabbar-h: 76px;
+        --fab-size: 64px;
+        --fab-gap: 0px;
     }
 
     /*

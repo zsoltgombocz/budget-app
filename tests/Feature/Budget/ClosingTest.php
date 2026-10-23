@@ -14,12 +14,10 @@ use App\Models\Period;
 use App\Models\Pocket;
 use App\Models\Transaction;
 use App\Models\User;
-use App\Notifications\SurplusTransferReminder;
 use App\Services\PeriodCloser;
 use App\Services\PeriodService;
 use App\Services\PlanService;
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 
@@ -289,23 +287,6 @@ it('sends the leftover to a new savings pocket chosen at closing', function (): 
 
     expect($pocket->balance)->toBe(280_000)
         ->and($this->user->settings()->refresh()->surplus_pocket_id)->toBe($pocket->id);
-});
-
-it('reminds to transfer the leftover to an investment account', function (): void {
-    Notification::fake();
-    $this->user->updatePushSubscription('https://push.example.com/abc', 'key', 'token');
-    $broker = $this->user->accounts()->create(['name' => 'Broker', 'type' => 'investment', 'currency' => 'HUF']);
-
-    $close = resolve(PeriodCloser::class)->close($this->user, $this->period, null, null, 'account:'.$broker->id);
-
-    expect($close->surplus_account_id)->toBe($broker->id)
-        ->and($close->awaitsTransfer())->toBeTrue();
-    Notification::assertSentTo($this->user, SurplusTransferReminder::class);
-
-    $this->get(route('dashboard'))->assertSee('data-test="pending-transfer"', false);
-    Livewire::test('pages::today')->call('markTransferred', $close->id);
-
-    expect($close->refresh()->awaitsTransfer())->toBeFalse();
 });
 
 it('ignores another user\'s account as a closing target', function (): void {

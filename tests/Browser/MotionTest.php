@@ -24,12 +24,12 @@ it('turns the animations off from Appearance, keeps it across navigation and mak
     $state = $page->script(<<<'JS'
         async () => {
             const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
-            document.querySelector('nav a[href$="/terv"]').click()
-            for (let i = 0; i < 50 && ! document.querySelector('[data-test="income"]'); i++) await wait(100)
+            document.querySelector('nav a[href$="/ma"]').click()
+            for (let i = 0; i < 50 && ! document.querySelector('[data-test="explain-month-left"]'); i++) await wait(100)
             const motionAfterNavigate = document.documentElement.dataset.motion
-            document.querySelector('[data-test="income"]').click()
+            document.querySelector('[data-test="explain-month-left"]').click()
             await wait(50)
-            const panel = document.querySelector('[data-test="income-sheet"]')
+            const panel = document.querySelector('[data-test="explainer-month-left"]')
             const style = getComputedStyle(panel)
             return {
                 motionAfterNavigate,

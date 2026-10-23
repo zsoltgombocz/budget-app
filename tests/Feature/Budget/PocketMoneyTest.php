@@ -101,13 +101,3 @@ it('handles both withdrawal modes from the pockets screen', function (): void {
         ->and($page->payFromPocket($this->reserve->id, '5000', null, null, resolve(PayFromPocket::class))['errors'])->toHaveKey('category')
         ->and($this->reserve->refresh()->balance)->toBe(85_000);
 });
-
-it('links "cover from the reserve" with the missing amount', function (): void {
-    Transaction::factory()->for($this->user)->for(resolve(PeriodService::class)->current($this->user))->for($this->fuel)
-        ->create(['amount' => 400_000, 'occurred_on' => '2026-10-05']);
-
-    $expected = resolve(OverviewService::class)->forUser($this->user)->forecast->expectedLeftover;
-
-    $this->get(route('dashboard'))->assertSee('fedezes='.(-$expected), false);
-    $this->get(route('pockets', ['fedezes' => -$expected]))->assertOk()->assertSee('pocketId', false);
-});

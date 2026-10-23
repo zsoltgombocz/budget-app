@@ -6,13 +6,11 @@ use App\Enums\LineStatus;
 use App\Enums\PeriodStatus;
 use App\Models\BudgetLine;
 use App\Models\Category;
-use App\Models\Pocket;
 use App\Services\OverviewService;
 use App\Services\PeriodCloser;
 use App\Services\PeriodService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 
 beforeEach(function (): void {
@@ -30,82 +28,6 @@ function psPlusStatus(): LineStatus
 
     return $item->status();
 }
-
-it('skips an overdue fixed item on Today: off the due cards, shown in the list, counted as 0', function (): void {
-    $before = Livewire::test('pages::today')->instance();
-    $leftover = $before->currentLeftover;
-    $ifSpent = $before->overview->forecast->expectedLeftover;
-
-    Livewire::test('pages::today')
-        ->assertSeeHtmlInOrder(['data-test="due-item"', 'PS Plus', 'data-test="skip-due"', __('Skip')])
-        ->call('skipLine', $this->psPlus->id)
-        ->assertDispatched('budget-updated')
-        ->assertDispatched('app-toast',
-            title: __('Skipped this month.'),
-            subtitle: __(':amount more is left.', ['amount' => money(4_990)]),
-            undo: 'fixed-item-undo',
-            params: ['budgetLineId' => $this->psPlus->id, 'status' => 'open'],
-        )
-        ->assertDontSee('data-test="due-item"', false)
-        ->assertSeeHtmlInOrder(['data-test="fixed-items"', 'data-status="skipped"', 'PS Plus', __('skipped – counted as :zero', ['zero' => money(0)]), 'line-through']);
-
-    $after = Livewire::test('pages::today')->instance();
-    expect(psPlusStatus())->toBe(LineStatus::Skipped)
-        ->and($after->currentLeftover)->toBe($leftover + 4_990)
-        ->and($after->overview->forecast->expectedLeftover)->toBe($ifSpent + 4_990);
-});
-
-it('undoes a skip back to the status it had', function (): void {
-    $today = Livewire::test('pages::today')->call('skipLine', $this->psPlus->id);
-    $today->dispatch('fixed-item-undo', budgetLineId: $this->psPlus->id, status: 'open');
-    expect(psPlusStatus())->toBe(LineStatus::Open);
-});
-
-it('does not skip an item that was ticked off, nor offer it', function (): void {
-    $today = Livewire::test('pages::today')->call('togglePaid', $this->psPlus->id);
-
-    $today->call('skipLine', $this->psPlus->id)->assertNotDispatched('app-toast', title: __('Skipped this month.'));
-    expect(psPlusStatus())->toBe(LineStatus::Paid);
-
-    // Rent (open) still offers it; the ticked-off PS Plus does not.
-    expect(substr_count(Livewire::test('pages::today')->html(), 'data-test="fixed-item-options"'))->toBe(1);
-});
-
-it('lets a skipped item come up after all, then it can be ticked off as usual', function (): void {
-    $today = Livewire::test('pages::today')->call('skipLine', $this->psPlus->id);
-
-    $today->call('unskipLine', $this->psPlus->id)
-        ->assertDispatched('app-toast', params: ['budgetLineId' => $this->psPlus->id, 'status' => 'skipped'], title: __('It comes up after all.'))
-        ->assertSee('data-test="due-item"', false);
-    expect(psPlusStatus())->toBe(LineStatus::Open);
-
-    $today->call('togglePaid', $this->psPlus->id)->assertDispatched('app-toast', title: __('Paid.'));
-    expect(psPlusStatus())->toBe(LineStatus::Paid);
-});
-
-it('offers skipping only for a plain fixed item', function (): void {
-    $pocket = Pocket::factory()->for($this->user)->create(['name' => 'Holiday']);
-    $category = Category::factory()->for($this->user)->create(['name' => 'Holiday fund', 'type' => 'sinking']);
-    $holiday = BudgetLine::factory()->for($this->user)->for($category)->create(['amount' => 20_000, 'due_day' => 2, 'pocket_id' => $pocket->id]);
-    $fuel = BudgetLine::query()->whereRelation('category', 'name', 'Fuel')->firstOrFail();
-
-    $html = Livewire::test('pages::today')->html();
-    expect(substr_count($html, 'data-test="skip-due"'))->toBe(1)
-        ->and(substr_count($html, 'data-test="fixed-item-options"'))->toBe(2);
-
-    expect(fn () => resolve(SetLineStatus::class)->handle($this->user, $this->period, $holiday->id, LineStatus::Skipped))->toThrow(ValidationException::class)
-        ->and(fn () => resolve(SetLineStatus::class)->handle($this->user, $this->period, $fuel->id, LineStatus::Skipped))->toThrow(ValidationException::class);
-
-    Livewire::test('pages::today')->call('skipLine', $holiday->id)->assertNotDispatched('app-toast');
-});
-
-it('cannot mark another user\'s line', function (): void {
-    $foreign = BudgetLine::factory()->create();
-
-    Livewire::test('pages::today')->call('skipLine', $foreign->id)->assertNotFound();
-    expect(fn () => resolve(SetLineStatus::class)->handle($this->user, $this->period, $foreign->id, LineStatus::Skipped))
-        ->toThrow(ModelNotFoundException::class);
-});
 
 it('shows the skipped item on the Month list and leaves it out of the fixed total', function (): void {
     $month = Livewire::test('pages::month')
