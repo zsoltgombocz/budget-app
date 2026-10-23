@@ -18,10 +18,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $amount_actual
  * @property CarbonImmutable|null $paid_on
  * @property CarbonImmutable|null $skipped_on
+ * @property int|null $pocket_movement_id
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
-#[Fillable(['period_id', 'budget_line_id', 'amount_actual', 'paid_on', 'skipped_on'])]
+#[Fillable(['period_id', 'budget_line_id', 'amount_actual', 'paid_on', 'skipped_on', 'pocket_movement_id'])]
 class PeriodLineStatus extends Model
 {
     /** @use HasFactory<PeriodLineStatusFactory> */

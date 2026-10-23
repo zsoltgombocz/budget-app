@@ -35,14 +35,14 @@ beforeEach(function (): void {
     $this->period = resolve(PeriodService::class)->forDate($this->user, CarbonImmutable::parse('2026-10-01'));
 });
 
-function spend(object $test, string $date, int $amount): void
+function spendInMonth(object $test, string $date, int $amount): void
 {
     Transaction::factory()->for($test->user)->for($test->period)->create(['category_id' => $test->groceries->id, 'amount' => $amount, 'occurred_on' => $date]);
 }
 
 it('shows what the month has left on a day', function (): void {
-    spend($this, '2026-10-05', 70_000);
-    spend($this, '2026-10-15', 2_000);
+    spendInMonth($this, '2026-10-05', 70_000);
+    spendInMonth($this, '2026-10-15', 2_000);
 
     $view = resolve(MonthService::class)->view($this->user, $this->period, CarbonImmutable::parse('2026-10-15'));
 
@@ -84,7 +84,7 @@ it('counts a different amount and a skipped line for this month only', function 
 it('adds extra income and money carried over at once', function (): void {
     $this->period->update(['carried_over' => 18_400]);
     ExtraIncome::factory()->for($this->user)->for($this->period)->create(['amount' => 15_000, 'occurred_on' => '2026-10-15']);
-    spend($this, '2026-10-05', 70_000);
+    spendInMonth($this, '2026-10-05', 70_000);
 
     $view = resolve(MonthService::class)->view($this->user, $this->period->refresh(), CarbonImmutable::parse('2026-10-15'));
 

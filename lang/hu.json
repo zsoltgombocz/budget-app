@@ -1266,5 +1266,9 @@
     "Only this spending needs recording: the monthly budgets for groceries, the market, medicine. Bills like rent are taken off in advance.": "Csak az ide tartozó költéseket rögzíted: ezek a havi keretek boltra, piacra, gyógyszerre. A számlák, például a lakbér, előre le vannak vonva.",
     "On a good pace": "Jó tempóban vagy",
     "Spending a bit fast": "Kicsit gyorsan költesz",
-    "Slow down a little": "Lassíts egy kicsit"
+    "Slow down a little": "Lassíts egy kicsit",
+    "Enter an amount.": "Adj meg egy összeget.",
+    "This month is closed.": "Ez a hónap már le van zárva.",
+    "Set aside": "Félretettem",
+    "Choose what happens to the leftover.": "Válaszd ki, mi legyen a maradékkal."
 }
