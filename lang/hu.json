@@ -1726,5 +1726,19 @@
     "loan planner, with prepayment": "hiteltervező, előtörlesztéssel",
     "not just two": "nem csak kettő",
     "until :date": ":date-ig",
-    "Set by an admin": "Admin állította be"
+    "Set by an admin": "Admin állította be",
+    "Unauthorized": "Be kell lépned",
+    "Sign in again, then try once more.": "Lépj be újra, aztán próbáld még egyszer.",
+    "Forbidden": "Ehhez nincs hozzáférésed",
+    "You do not have access to this.": "Ez az oldal nem a tiéd, vagy nincs hozzá jogod.",
+    "Not Found": "Ezt az oldalt nem találom",
+    "It may have moved, or the address has a typo.": "Lehet, hogy elköltözött, vagy elírás van a címben.",
+    "Page Expired": "Lejárt az oldal",
+    "It was open for too long. Load it again and retry.": "Túl sokáig volt nyitva. Töltsd be újra, és próbáld újra.",
+    "Too Many Requests": "Túl sok kérés",
+    "Wait a minute, then try again.": "Várj egy percet, aztán próbáld újra.",
+    "Server Error": "Valami elromlott nálunk",
+    "Something broke on our side. Try again in a few minutes.": "Valami hiba történt nálunk. Próbáld újra pár perc múlva.",
+    "Service Unavailable": "Épp frissítünk",
+    "We are updating. Back in a few minutes.": "Pár perc, és újra itt vagyunk."
 }

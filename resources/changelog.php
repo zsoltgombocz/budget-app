@@ -6,6 +6,24 @@
  */
 return [
     [
+        'version' => '2.0.0',
+        'date' => '2026-10-24',
+        'changes' => [
+            ['hu' => 'Új kinézet, és megérkezett Morzsa, a hörcsög: veled van a Ma oldalon és a saját szobájában.', 'en' => 'A new look, and Morzsa the hamster is here: on the Today page and in a room of its own.'],
+            ['hu' => 'Egyszerűbb számolás: a bevételből levonom a fix kiadásokat (a félretételt is), ami marad, az a hónap pénze. A Ma oldalon a „Még erre a hónapra” és a napi keret látszik.', 'en' => 'Simpler numbers: the fixed expenses (savings included) are taken off the income, and what is left is the month’s money. Today shows what is left this month and the daily allowance.'],
+            ['hu' => 'A fix kiadásoknak napjuk lehet; amit kézzel fizetsz, annál „Elintéztem”, a félretételnél „Félretettem” gomb jelenik meg.', 'en' => 'Fixed expenses can have a day; for those you pay by hand an “Elintéztem” button shows, for savings “Félretettem”.'],
+            ['hu' => 'A perselyek helyett célok vannak a Morzsa oldalon; a cél a „Félretettem” gombra nő.', 'en' => 'Pockets became goals on the Morzsa page; a goal grows when you tap “Félretettem”.'],
+            ['hu' => 'A keretek helyett figyelt kategóriák: nem változtatják a számokat, 80%-nál szólok.', 'en' => 'Budgets became watched categories: they change no number, and I speak up at 80%.'],
+            ['hu' => 'Kaptam pénzt: a plusz bevétel azonnal beszámít.', 'en' => 'Kaptam pénzt: extra income counts at once.'],
+            ['hu' => 'A hónap zárása egyetlen kérdés: mi legyen a maradékkal.', 'en' => 'Closing the month is one question: what happens to what is left.'],
+            ['hu' => 'Sorozat pihenőnappal, makk, heti kihívás, mérföldkövek és Morzsa ruhatára.', 'en' => 'A streak with a rest day, acorns, a weekly challenge, milestones and Morzsa’s wardrobe.'],
+            ['hu' => 'Új értesítések: a fix kiadás napján reggel, a hónap végén, a zárásnál és vasárnap egy heti összefoglaló. Az iPhone-on mindegyik megjelenik, nem írják felül egymást.', 'en' => 'New notifications: on a fixed expense’s morning, at the month’s end, at closing and a weekly summary on Sunday. On iPhone each one shows, they no longer replace each other.'],
+            ['hu' => 'Mikor leszek hitelmentes? A hiteltervező megmutatja, mit változtat egy havi előtörlesztési félretétel (Plusz).', 'en' => 'When will I be loan-free? The loan planner shows what a monthly prepayment saving changes (Plusz).'],
+            ['hu' => 'Két csomag: Alap és Plusz. A Beállítások → Előfizetés alatt látod, mi van bennük.', 'en' => 'Two plans: Alap and Plusz. Settings → Subscription shows what is in them.'],
+            ['hu' => 'Az adataidat CSV fájlban letöltheted a Beállításokban.', 'en' => 'You can download your data as a CSV file in Settings.'],
+        ],
+    ],
+    [
         'version' => '1.9.1',
         'date' => '2026-10-10',
         'changes' => [
