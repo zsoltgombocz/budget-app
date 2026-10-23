@@ -346,7 +346,7 @@ new #[Title('Morzsa')] class extends Component {
         <p class="pb-2 text-[13px] font-semibold">{{ __('What are you saving for?') }}</p>
         <div class="flex flex-wrap gap-2">
             @foreach ([__('Emergency fund'), __('Holiday'), __('Present'), __('Car')] as $template)
-                <x-ui.choice x-on:click="form.name = @js($template)" ::selected="form.name === @js($template)" ::aria-pressed="form.name === @js($template)" class="rounded-control px-3 text-[15px]">{{ $template }}</x-ui.choice>
+                <x-ui.choice x-on:click="form.name = {{ \Illuminate\Support\Js::from($template) }}" ::selected="form.name === {{ \Illuminate\Support\Js::from($template) }}" ::aria-pressed="form.name === {{ \Illuminate\Support\Js::from($template) }}" class="rounded-control px-3 text-[15px]">{{ $template }}</x-ui.choice>
             @endforeach
         </div>
         <x-ui.form-group class="mt-3">
@@ -389,7 +389,7 @@ new #[Title('Morzsa')] class extends Component {
         </x-ui.form-group>
         <p class="px-1.5 pt-2 text-xs text-danger" x-show="error" x-text="error"></p>
         <x-slot:danger>
-            <x-ui.button variant="danger" size="md" icon="delete" x-on:click="archive()" class="w-full" data-test="archive-goal" x-text="form.reached ? @js(__('Done, archive it')) : @js(__('Archive the goal'))">{{ __('Archive the goal') }}</x-ui.button>
+            <x-ui.button variant="danger" size="md" icon="delete" x-on:click="archive()" class="w-full" data-test="archive-goal" x-text="form.reached ? {{ \Illuminate\Support\Js::from(__('Done, archive it')) }} : {{ \Illuminate\Support\Js::from(__('Archive the goal')) }}">{{ __('Archive the goal') }}</x-ui.button>
         </x-slot:danger>
         <x-slot:footer>
             <x-ui.button x-on:click="saveEdit()" class="w-full">{{ __('Save') }}</x-ui.button>

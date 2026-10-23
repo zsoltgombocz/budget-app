@@ -1,7 +1,5 @@
 <?php
 
-use App\Actions\Budget\SaveLoan;
-use App\Actions\Budget\SavePlanLine;
 use App\Models\User;
 use Database\Seeders\CategoryTemplateSeeder;
 use Livewire\Livewire;
@@ -65,26 +63,6 @@ it('asks for the income in a natural sentence during onboarding', function (): v
         ->set('periodMode', '')->call('next');
 
     expectHumanErrors($component->errors()->toArray(), ['periodMode']);
-});
-
-it('names the plan line fields in Hungarian', function (): void {
-    $this->actingAs(onboardedUser(['locale' => 'hu']));
-
-    $result = Livewire::test('pages::plan')->instance()->saveLine(['name' => '', 'type' => '', 'origCurrency' => 'EUR'], resolve(SavePlanLine::class));
-
-    expect($result['ok'])->toBeFalse();
-    expectHumanErrors($result['errors'], ['form.name', 'form.type']);
-});
-
-it('names the pocket and loan fields in Hungarian', function (): void {
-    $this->actingAs(onboardedUser(['locale' => 'hu']));
-    $page = Livewire::test('pages::pockets')->instance();
-
-    $pocket = $page->savePocket(['name' => '', 'amounts' => ['target' => 'abc']]);
-    expectHumanErrors($pocket['errors'], ['name']);
-
-    $loan = $page->saveLoan(['name' => '', 'amounts' => ['thm' => '500', 'months' => '0']], resolve(SaveLoan::class));
-    expectHumanErrors($loan['errors'], ['name', 'principal', 'installment', 'months', 'prepayMode']);
 });
 
 it('names the settings fields in Hungarian', function (): void {

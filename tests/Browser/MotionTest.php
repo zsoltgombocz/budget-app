@@ -55,14 +55,14 @@ it('turns the animations off from Appearance, keeps it across navigation and mak
 it('animates sheets while the animations are on', function (): void {
     $this->actingAs(onboardedUser());
 
-    $page = visit(route('plan'))->on()->mobile()->resize(393, 852);
+    $page = visit(route('month'))->on()->mobile()->resize(393, 852);
 
     $duration = $page->script(<<<'JS'
         async () => {
             for (let i = 0; i < 50 && ! window.Alpine; i++) await new Promise(resolve => setTimeout(resolve, 100))
-            document.querySelector('[data-test="income"]').click()
+            document.querySelector('[data-test="add-fixed-line"]').click()
             await new Promise(resolve => requestAnimationFrame(resolve))
-            return getComputedStyle(document.querySelector('[data-test="income-sheet"]')).transitionDuration
+            return getComputedStyle(document.querySelector('[data-test="line-sheet"]')).transitionDuration
         }
     JS);
 

@@ -92,12 +92,4 @@ class BudgetSetting extends Model
     {
         return $this->onboarded_at !== null;
     }
-
-    /**
-     * Whether the "how it works" intro still has to be shown once after onboarding.
-     */
-    public function needsIntro(): bool
-    {
-        return $this->isOnboarded() && $this->intro_seen_at === null;
-    }
 }

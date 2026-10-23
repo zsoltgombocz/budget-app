@@ -47,7 +47,7 @@ it('shows a toast with undo on one row right above the tab bar, with the record 
     $this->actingAs(onboardedUser());
 
     // On the plan: on Today the + already stays away while the card's own Record button is on screen.
-    $page = visit(route('plan'))->on()->mobile()->resize($width, $height);
+    $page = visit(route('month'))->on()->mobile()->resize($width, $height);
 
     expect($page->script(measureUndoToast($theme)))->toBe([
         'oneRow' => true,

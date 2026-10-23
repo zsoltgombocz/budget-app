@@ -357,7 +357,7 @@ new #[Title('Today')] class extends Component {
                 <div class="flex w-full gap-1 pl-[52px]">
                     <x-ui.button size="sm" variant="tonal" wire:click="markDone({{ $row->lineId }})" data-test="mark-done">{{ $row->isSavings() ? __('Set aside') : __('Mark as done') }}</x-ui.button>
                     @unless ($row->isSavings())
-                        <x-ui.button size="sm" variant="text" x-on:click="openAmount({{ $row->lineId }}, @js(\App\Support\Money::toInput($row->amount, $currency)), @js($row->name))">{{ __('It was another amount') }}</x-ui.button>
+                        <x-ui.button size="sm" variant="text" data-test="other-amount" x-on:click="openAmount({{ $row->lineId }}, {{ \Illuminate\Support\Js::from(\App\Support\Money::toInput($row->amount, $currency)) }}, {{ \Illuminate\Support\Js::from($row->name) }})">{{ __('It was another amount') }}</x-ui.button>
                     @endunless
                 </div>
             @endif

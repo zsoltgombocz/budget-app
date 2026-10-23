@@ -316,6 +316,31 @@ new #[Title('Month')] class extends Component {
     }
 
     /**
+     * The monthly income, from this month on (Bevétel in Your month).
+     *
+     * @return array{ok: bool, error: string|null}
+     */
+    public function setIncome(string $value): array
+    {
+        $amount = Money::parse($value, $this->user()->settings()->currency);
+
+        if ($amount === null || $amount < 1) {
+            return ['ok' => false, 'error' => __('Enter your monthly income.')];
+        }
+
+        $this->user()->settings()->update(['income' => $amount]);
+
+        if ($this->period->isOpen()) {
+            $this->period->update(['income_planned' => $amount]);
+        }
+
+        $this->changed();
+        $this->dispatch('app-toast', title: __('Income saved'), subtitle: __('This month now has :amount.', ['amount' => money($this->month->state->remaining)]));
+
+        return ['ok' => true, 'error' => null];
+    }
+
+    /**
      * @return array{ok: bool, error: string|null}
      */
     public function saveWatch(int $categoryId, string $value): array
@@ -899,7 +924,11 @@ new #[Title('Month')] class extends Component {
         <h2 class="px-1.5 pb-2 pt-3 text-[13px] font-semibold text-ink-2">{{ __('Your month') }}</h2>
         <x-ui.card class="px-4 py-3">
             <dl class="num text-[15px]">
-                <div class="flex justify-between py-1"><dt class="text-ink-2">{{ __('Income') }}</dt><dd>{{ money($month->income) }}</dd></div>
+                @if ($period->isOpen())
+                    <button type="button" class="focus-ring -mx-1 flex w-[calc(100%+0.5rem)] justify-between rounded-lg px-1 py-1" x-on:click="openIncome(@js(\App\Support\Money::toInput($month->income, $currency)))" data-test="edit-income"><dt class="text-ink-2">{{ __('Income') }}</dt><dd class="flex items-center gap-1">{{ money($month->income) }}<x-ui.icon name="edit" :size="16" class="text-faint" /></dd></button>
+                @else
+                    <div class="flex justify-between py-1"><dt class="text-ink-2">{{ __('Income') }}</dt><dd>{{ money($month->income) }}</dd></div>
+                @endif
                 @if ($month->extraIncome > 0)
                     <div class="flex justify-between py-1"><dt class="text-ink-2">{{ __('Extra income') }}</dt><dd>+{{ money($month->extraIncome) }}</dd></div>
                 @endif
@@ -1128,7 +1157,7 @@ new #[Title('Month')] class extends Component {
 
         <x-ui.form-group :title="__('Every month')" class="mt-4">
             <x-ui.text-row :label="__('Name')" x-model="lineForm.name" maxlength="60" data-test="line-name" />
-            <x-ui.amount-row name="amount" :label="__('Amount')" />
+            <x-ui.amount-row name="amount" :label="__('Amount')" data-test="field-amount" />
             <x-ui.select-row :label="__('Type')" x-model="lineForm.type" data-test="line-type">
                 <option value="fixed">{{ __('Fixed expense') }}</option>
                 <option value="loan">{{ __('Loan installment') }}</option>
@@ -1159,6 +1188,8 @@ new #[Title('Month')] class extends Component {
         </x-slot:footer>
         <x-slot:pad><x-ui.amount-pad :decimal="$currency->decimals() > 0" /></x-slot:pad>
     </x-ui.sheet>
+
+    <x-ui.numpad-sheet show="incomeOpen" close="incomeOpen = false" :label="__('Monthly income')" done="saveIncome()" display="display('income')" :decimal="$currency->decimals() > 0" error="incomeError" :intro="\Illuminate\Support\Js::from(__('From this month on.'))->toHtml()" data-test="income-sheet" />
 
     <x-ui.numpad-sheet show="thisMonthOpen" close="thisMonthOpen = false" title="lineTitle()" done="saveThisMonth()" display="display('thisMonth')" :decimal="$currency->decimals() > 0" error="thisMonthError" :intro="\Illuminate\Support\Js::from(__('Only this month. The difference changes what is left.'))->toHtml()" data-test="this-month-sheet" />
 
@@ -1203,7 +1234,20 @@ new #[Title('Month')] class extends Component {
 @script
 <script>
     Alpine.data('monthPage', ({ decimals, locale, today, failed, categoryNames, symbol }) => ({
-        ...window.amountFields({ decimals, locale, fields: { amount: '', thisMonth: '', watch: '' }, rules: { amount: { maxWhole: 9 }, thisMonth: { maxWhole: 9 }, watch: { maxWhole: 9 } } }),
+        ...window.amountFields({ decimals, locale, fields: { amount: '', thisMonth: '', watch: '', income: '' }, rules: { amount: { maxWhole: 9 }, thisMonth: { maxWhole: 9 }, watch: { maxWhole: 9 }, income: { maxWhole: 9 } } }),
+        incomeOpen: false,
+        incomeError: null,
+
+        openIncome(value) {
+            this.editAmount('income', value, '')
+            this.incomeError = null
+            this.incomeOpen = true
+        },
+        async saveIncome() {
+            const result = await $wire.setIncome(this.fields.income || '0')
+            this.incomeError = result.error
+            if (result.ok) this.incomeOpen = false
+        },
         symbol,
         line: null,
         lineForm: { name: '', type: 'fixed', due_day: '', manual_pay: false, goal_id: '' },

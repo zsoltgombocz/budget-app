@@ -1618,5 +1618,10 @@
     "Let’s start": "Kezdjük",
     "Which day does it go out? I tell you on that morning. You can set it later too.": "Hányadikán megy le? Aznap reggel szólok. Később is megadhatod.",
     "every month on the :day": "minden hónap :day",
-    "Choose when your month starts.": "Válaszd ki, mikor kezdődik a hónapod."
+    "Choose when your month starts.": "Válaszd ki, mikor kezdődik a hónapod.",
+    "Income saved": "Bevétel elmentve",
+    "From this month on.": "A mostani hónaptól.",
+    "Income and fixed expenses": "Bevétel és fix kiadások",
+    "They are on the Month screen, under Your month, next to the numbers they make.": "A Hónap képernyőn vannak, „A hónapod” alatt, a számok mellett, amiket kiadnak.",
+    "Open Your month": "A hónapod megnyitása"
 }

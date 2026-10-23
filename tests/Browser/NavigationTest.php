@@ -26,7 +26,7 @@ it('marks the tab and shows the loader as soon as it is tapped', function (): vo
 it('slides the record button away on any scroll down and ignores the bounce after a fling down', function (): void {
     $this->actingAs(onboardedUser());
 
-    $page = visit(route('plan'))->on()->mobile()->resize(390, 500);
+    $page = visit(route('month'))->on()->mobile()->resize(390, 500);
 
     $states = $page->script(<<<'JS'
         async () => {

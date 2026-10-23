@@ -1,14 +1,16 @@
 <?php
 
 use App\Models\BudgetLine;
+use App\Models\PeriodLineStatus;
+use App\Services\PeriodService;
 
 it('replaces a filled amount on the first key, takes a physical keyboard and closes only the pad on Escape', function (): void {
     $this->actingAs(onboardedUser());
 
-    $page = visit(route('plan'))->on()->mobile()->resize(390, 844);
-    $page->script("() => [...document.querySelectorAll('[data-test=plan-line] button')].find(b => b.textContent.includes('Groceries')).click()");
+    $page = visit(route('month'))->on()->mobile()->resize(390, 844);
+    $page->script("() => [...document.querySelectorAll('[data-test=fixed-line]')].find(b => b.textContent.includes('Rent')).click()");
 
-    $page->waitForText('Edit item')
+    $page->waitForText('Every month')
         ->click('[data-test="line-sheet"] [data-test="field-amount"]')
         ->assertVisible('[data-test="line-sheet"] [data-test="amount-pad"] [role="status"]');
 
@@ -25,22 +27,25 @@ it('replaces a filled amount on the first key, takes a physical keyboard and clo
 
     expect($page->script("async () => { for (let i = 0; i < 40; i++) { if (document.activeElement?.getAttribute('data-test') === 'field-amount') break; await new Promise(r => setTimeout(r, 50)) } return document.activeElement?.getAttribute('data-test') }"))->toBe('field-amount');
 
-    $page->click('[data-test="save-line"]')->waitForText('Plan updated.')->assertNoJavaScriptErrors();
+    $page->click('[data-test="save-line"]')->waitForText('Saved for every month')->assertNoJavaScriptErrors();
 
-    expect(BudgetLine::query()->whereRelation('category', 'name', 'Groceries')->value('amount'))->toBe(95_000);
+    expect(BudgetLine::query()->whereRelation('category', 'name', 'Rent')->value('amount'))->toBe(95_000);
 });
 
 it('confirms a numpad sheet with Enter and names the keys', function (): void {
-    $this->actingAs(onboardedUser());
+    $user = onboardedUser();
+    BudgetLine::query()->whereRelation('category', 'name', 'Rent')->update(['manual_pay' => true, 'due_day' => resolve(PeriodService::class)->today($user->settings())->day]);
+    $this->actingAs($user);
 
-    $page = visit(route('plan'))->on()->mobile()->resize(390, 844)
-        ->click('[data-test="income"]')
-        ->assertVisible('[data-test="income-sheet"]')
-        ->assertAttribute('[data-test="income-sheet"] [data-key="del"]', 'aria-label', 'Delete the last digit');
+    $page = visit(route('dashboard'))->on()->mobile()->resize(390, 844)
+        ->click('[data-test="other-amount"]')
+        ->assertVisible('[data-test="amount-sheet"]')
+        ->assertAttribute('[data-test="amount-sheet"] [data-key="del"]', 'aria-label', 'Delete the last digit');
 
-    $page->keys('[data-test="income-sheet"] [data-key="1"]', ['6', '0', '0', '0', '0', '0', 'Enter'])
-        ->waitForText('Plan updated.')
+    $page->keys('[data-test="amount-sheet"] [data-key="1"]', ['2', '1', '0', '0', '0', '0', 'Enter'])
+        ->waitForText('this month')
+        ->wait(0.5)
         ->assertNoJavaScriptErrors();
 
-    expect(auth()->user()->settings()->refresh()->income)->toBe(600_000);
+    expect(PeriodLineStatus::query()->sole()->amount_actual)->toBe(210_000);
 });

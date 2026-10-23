@@ -7,7 +7,7 @@ it('records a spending from the + button with the numpad', function (): void {
     $this->actingAs(onboardedUser());
 
     // From the plan: on Today the floating + stays away while the card's own Record button is on screen.
-    $page = visit(route('plan'))->on()->mobile()->resize(390, 844);
+    $page = visit(route('month'))->on()->mobile()->resize(390, 844);
 
     $page->click('[data-test="tab-entry"]')
         ->click('[data-test="category-grid"] button:has-text("Fuel")')

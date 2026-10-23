@@ -3,7 +3,7 @@
 it('asks in the app’s own dialog and answers with the button pressed', function (): void {
     $this->actingAs(onboardedUser());
 
-    $answers = visit(route('plan'))->on()->mobile()->script(<<<'JS'
+    $answers = visit(route('month'))->on()->mobile()->script(<<<'JS'
         async () => {
             const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
             const shown = () => getComputedStyle(document.querySelector('[data-test="confirm-dialog"]')).display !== 'none'
@@ -30,7 +30,7 @@ it('asks in the app’s own dialog and answers with the button pressed', functio
 it('stacks the dialog buttons on a 320 px screen, the confirming one on top, so a long label fits', function (int $width, bool $stacked): void {
     $this->actingAs(onboardedUser());
 
-    $layout = visit(route('plan'))->on()->mobile()->resize($width, 568)->script(<<<'JS'
+    $layout = visit(route('month'))->on()->mobile()->resize($width, 568)->script(<<<'JS'
         async () => {
             const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
             while (! window.Alpine) await wait(50)

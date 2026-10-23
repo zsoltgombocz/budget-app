@@ -265,9 +265,9 @@ new #[Title('Budget settings')] class extends Component {
             </x-ui.card>
 
             <x-ui.card class="p-[18px]">
-                <div class="text-[15px] font-semibold">{{ __('Month-end leftover') }}</div>
-                <div class="mt-1 text-[13px] leading-snug text-muted">{{ __('Where the leftover goes is set on the Plan screen, next to the numbers it is worked out from.') }}</div>
-                <x-ui.button variant="secondary" size="md" :href="route('plan')" wire:navigate class="mt-3">{{ __('Open the plan') }}</x-ui.button>
+                <div class="text-[15px] font-semibold">{{ __('Income and fixed expenses') }}</div>
+                <div class="mt-1 text-[13px] leading-snug text-muted">{{ __('They are on the Month screen, under Your month, next to the numbers they make.') }}</div>
+                <x-ui.button variant="secondary" size="md" :href="route('month')" wire:navigate class="mt-3" data-test="open-your-month">{{ __('Open Your month') }}</x-ui.button>
             </x-ui.card>
 
         </form>
