@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\DayMark;
+use App\Notifications\DailyReminder;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\URL;
 use Livewire\Livewire;
 
@@ -117,4 +119,14 @@ it('shows the device switch with a state for every outcome, a retry and an error
         ->assertSee('Could not turn notifications on. Check your connection and try again.')
         ->assertSee('Could not turn notifications off. Check your connection and try again.')
         ->assertSee('The app could not check this device yet. Try again in a moment.');
+});
+
+it('gives each day its own tag and a high urgency, so iOS shows the reminder instead of silently replacing yesterday’s', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-24 20:30'));
+    $user = onboardedUser();
+
+    $message = new DailyReminder('2026-10-24')->toWebPush($user, new DailyReminder('2026-10-24'));
+
+    expect($message->toArray()['tag'])->toBe('daily-reminder-20261024')
+        ->and($message->getOptions()['urgency'])->toBe('high');
 });
