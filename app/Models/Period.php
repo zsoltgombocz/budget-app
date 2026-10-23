@@ -33,6 +33,13 @@ class Period extends Model
     use BelongsToUser, HasFactory;
 
     /**
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'carried_over' => 0,
+    ];
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string|class-string>
