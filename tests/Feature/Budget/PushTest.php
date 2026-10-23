@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\DayMark;
+use App\Notifications\DailyReminder;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\URL;
 use Livewire\Livewire;
 
@@ -89,4 +91,14 @@ it('stores the reminder choices from the notification onboarding', function (): 
     expect($settings->reminder_time)->toStartWith('21:30')
         ->and($settings->due_reminder_enabled)->toBeFalse()
         ->and($settings->notifications_onboarded_at)->not->toBeNull();
+});
+
+it('gives each day its own tag and a high urgency, so iOS shows the reminder instead of silently replacing yesterday’s', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-24 20:30'));
+    $user = onboardedUser();
+
+    $message = new DailyReminder('2026-10-24')->toWebPush($user, new DailyReminder('2026-10-24'));
+
+    expect($message->toArray()['tag'])->toBe('daily-reminder-20261024')
+        ->and($message->getOptions()['urgency'])->toBe('high');
 });
