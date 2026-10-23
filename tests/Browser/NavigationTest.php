@@ -1,11 +1,7 @@
 <?php
 
 use App\Enums\PeriodStatus;
-use App\Models\BudgetLine;
-use App\Models\Category;
-use App\Models\Loan;
 use App\Models\PeriodClose;
-use App\Models\Pocket;
 use App\Services\PeriodService;
 
 it('marks the tab and shows the loader as soon as it is tapped', function (): void {
@@ -15,7 +11,7 @@ it('marks the tab and shows the loader as soon as it is tapped', function (): vo
 
     $state = $page->script(<<<'JS'
         async () => {
-            const link = document.querySelector('nav a[href$="/terv"]')
+            const link = document.querySelector('nav a[href$="/honap"]')
             link.click()
             // The loader must be on synchronously, before the next page can arrive.
             const navigating = document.documentElement.classList.contains('navigating')
@@ -30,7 +26,7 @@ it('marks the tab and shows the loader as soon as it is tapped', function (): vo
 it('slides the record button away on any scroll down and ignores the bounce after a fling down', function (): void {
     $this->actingAs(onboardedUser());
 
-    $page = visit(route('plan'))->on()->mobile()->resize(390, 500);
+    $page = visit(route('month'))->on()->mobile()->resize(390, 500);
 
     $states = $page->script(<<<'JS'
         async () => {
@@ -73,14 +69,14 @@ it('slides the record button away on any scroll down and ignores the bounce afte
     expect($states)->toBe(['atTop' => true, 'slowDown' => false, 'afterBounce' => false, 'up' => true]);
 });
 
-it('slides behind the tab bar', function (): void {
+it('sits in the tab bar\'s row, right of the pill', function (): void {
     $this->actingAs(onboardedUser());
 
-    $page = visit(route('plan'))->on()->mobile();
+    $page = visit(route('month'))->on()->mobile();
 
-    $layers = $page->script("() => ({ button: getComputedStyle(document.querySelector('[data-test=\"tab-entry\"]')).zIndex, nav: getComputedStyle(document.querySelector('nav[aria-label]')).zIndex })");
+    $boxes = $page->script("() => { const fab = document.querySelector('[data-test=\"tab-entry\"]').getBoundingClientRect(); const pill = document.querySelector('nav[aria-label] > div > div').getBoundingClientRect(); return { right: fab.left >= pill.right, row: Math.abs((fab.top + fab.bottom) / 2 - (pill.top + pill.bottom) / 2) < 2 } }");
 
-    expect((int) $layers['button'])->toBeLessThan((int) $layers['nav']);
+    expect($boxes)->toBe(['right' => true, 'row' => true]);
 });
 
 it('has no record button on the settings pages', function (): void {
@@ -116,44 +112,9 @@ it('hides the record button on a closed month and shows it again on the open one
 
     expect($page->script($visible))->toBeFalse();
 
-    $page->click('[data-test="next-period"]')->assertSee('Close the month');
+    $page->click('[data-test="next-period"]')->assertSee('Left this month');
     expect($page->script($visible))->toBeTrue();
 
-    $page->click('[data-test="previous-period"]')->assertSee('To the reserve');
+    $page->click('[data-test="previous-period"]')->assertSee('Left over');
     expect($page->script($visible))->toBeFalse();
 });
-
-it('keeps every action control out from under the record button at rest', function (string $route, int $width, int $height): void {
-    $user = onboardedUser();
-    BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail()->update(['due_day' => 1]);
-    foreach (['Utilities' => 35_000, 'Phone and internet' => 12_000, 'Insurance' => 9_000] as $name => $amount) {
-        BudgetLine::factory()->for($user)->for(Category::factory()->for($user)->create(['name' => $name, 'type' => 'fixed']))->create(['amount' => $amount, 'due_day' => 12]);
-    }
-    $loan = Loan::factory()->for($user)->create(['name' => 'Personal loan', 'lender' => 'Demo Bank']);
-    Pocket::factory()->for($user)->create(['name' => 'Prepayment pocket', 'balance' => 450_000, 'prepay_step' => 500_000, 'loan_id' => $loan->id]);
-    Pocket::factory()->for($user)->create(['name' => 'Reserve', 'is_reserve' => true, 'balance' => 204_522, 'target_amount' => 300_000]);
-    $this->actingAs($user);
-
-    $page = visit(route($route))->on()->mobile()->resize($width, $height);
-
-    // The buttons, switches and chips (not whole list rows, whose amount may run under the +), with half a pixel of slack.
-    $covered = $page->script(<<<'JS'
-        async () => {
-            await new Promise(resolve => setTimeout(resolve, 500))
-            const fabButton = document.querySelector('[data-test="tab-entry"]')
-            if (! fabButton.className.includes('translate-y-0')) return []
-            const fab = fabButton.getBoundingClientRect()
-            const overlaps = box => box.width > 0 && box.right > fab.left + 0.5 && box.left < fab.right - 0.5 && box.bottom > fab.top + 0.5 && box.top < fab.bottom - 0.5
-            return [...document.querySelectorAll('main [data-variant], main [role=switch], main [aria-pressed]')]
-                .filter(control => control.offsetParent !== null && overlaps(control.getBoundingClientRect()))
-                .map(control => control.dataset.test ?? control.textContent.trim())
-        }
-    JS);
-
-    expect($covered)->toBe([]);
-})->with([
-    'Today' => ['dashboard', 393, 659],
-    'Plan' => ['plan', 393, 659],
-    'Pockets' => ['pockets', 393, 659],
-    'Pockets, small phone' => ['pockets', 320, 568],
-]);

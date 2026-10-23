@@ -1,20 +1,16 @@
 <?php
 
-use App\Actions\Budget\PayFromPocket;
 use App\Actions\Budget\RecordTransaction;
-use App\Enums\PeriodMode;
 use App\Models\BudgetLine;
 use App\Models\Category;
-use App\Models\PeriodClose;
-use App\Models\Pocket;
 use App\Models\Transaction;
 use App\Notifications\BudgetAlert;
+use App\Notifications\CloseReminder;
 use App\Notifications\DailyReminder;
 use App\Notifications\DueItemsReminder;
-use App\Notifications\PaydayReminder;
 use App\Notifications\PeriodEndReminder;
+use App\Notifications\WeeklySummary;
 use App\Services\NotificationScheduler;
-use App\Services\PeriodCloser;
 use App\Services\PeriodService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Notification;
@@ -61,31 +57,42 @@ it('respects a disabled reminder', function (): void {
     expect($this->scheduler->run($this->user, budapest('2026-10-14 21:00')))->toBe([]);
 });
 
-it('sends the payday notification with the transfers on payday morning', function (): void {
-    $this->user->settings()->update(['period_mode' => PeriodMode::Payday, 'payday_day' => 10]);
-    $category = Category::factory()->for($this->user)->create(['name' => 'Joint account', 'type' => 'transfer']);
-    BudgetLine::factory()->for($this->user)->for($category)->create(['amount' => 150_000]);
+it('reminds that a month is waiting to be closed, once, the morning after it ended', function (): void {
+    $october = resolve(PeriodService::class)->forDate($this->user, budapest('2026-10-14'));
 
-    expect($this->scheduler->run($this->user->refresh(), budapest('2026-10-10 07:59')))->toBe([])
-        ->and($this->scheduler->run($this->user, budapest('2026-10-10 08:01')))->toBe(['payday']);
+    expect($this->scheduler->run($this->user, budapest('2026-11-01 09:59')))->not->toContain('close')
+        ->and($this->scheduler->run($this->user, budapest('2026-11-01 10:01')))->toContain('close')
+        ->and($this->scheduler->run($this->user, budapest('2026-11-02 10:01')))->not->toContain('close');
 
-    Notification::assertSentTo($this->user, PaydayReminder::class, fn (PaydayReminder $n): bool => $n->transfers === [['name' => 'Joint account', 'amount' => 150_000]]
-        && $n->toWebPush($this->user, $n)->toArray()['title'] === 'Payday – time for the transfers');
+    Notification::assertSentTo($this->user, CloseReminder::class, fn (CloseReminder $n): bool => $n->periodId === $october->id && $n->leftover === 300_000);
 });
 
-it('sends the period end notification on the last day', function (): void {
+it('sends the period end notification on the last day evening with what the month still has', function (): void {
     $period = resolve(PeriodService::class)->current($this->user);
     Transaction::factory()->for($this->user)->for($period)->for(Category::query()->where('name', 'Fuel')->firstOrFail())->create(['amount' => 15_000, 'occurred_on' => '2026-10-20']);
 
-    expect($this->scheduler->run($this->user, budapest('2026-10-31 09:05')))->toContain('period-end');
+    expect($this->scheduler->run($this->user, budapest('2026-10-31 18:59')))->not->toContain('period-end')
+        ->and($this->scheduler->run($this->user, budapest('2026-10-31 19:05')))->toContain('period-end');
 
-    // The main number on Today (leftover as things stand), not the "every budget spent" forecast.
-    $leftover = resolve(PeriodCloser::class)->preview($this->user, $period)->leftover();
-    Notification::assertSentTo($this->user, PeriodEndReminder::class, function (PeriodEndReminder $reminder) use ($leftover): bool {
+    Notification::assertSentTo($this->user, PeriodEndReminder::class, function (PeriodEndReminder $reminder): bool {
         $message = $reminder->toWebPush($this->user, $reminder)->toArray();
 
-        return $reminder->leftover === $leftover && str_contains((string) $message['body'], 'Leftover as things stand: '.money($leftover));
+        return $reminder->remaining === 285_000 && str_contains((string) $message['body'], money(285_000));
     });
+});
+
+it('sends the weekly summary on Sunday evening, when it is on', function (): void {
+    $period = resolve(PeriodService::class)->forDate($this->user, budapest('2026-10-18'));
+    Transaction::factory()->for($this->user)->for($period)->for(Category::query()->where('name', 'Groceries')->firstOrFail())->create(['amount' => 12_300, 'occurred_on' => '2026-10-17']);
+
+    expect($this->scheduler->run($this->user, budapest('2026-10-18 17:59')))->not->toContain('weekly')
+        ->and($this->scheduler->run($this->user, budapest('2026-10-18 18:01')))->toContain('weekly');
+
+    Notification::assertSentTo($this->user, WeeklySummary::class, fn (WeeklySummary $n): bool => $n->spent === 12_300 && $n->topCategory === 'Groceries');
+
+    $this->user->settings()->update(['weekly_summary_enabled' => false]);
+
+    expect($this->scheduler->run($this->user, budapest('2026-10-25 18:01')))->not->toContain('weekly');
 });
 
 it('builds the reminder payload with the record and no-spend actions', function (): void {
@@ -103,45 +110,53 @@ it('uses the user\'s language', function (): void {
     expect($this->user->refresh()->preferredLocale())->toBe('hu');
 });
 
-it('alerts when a spending crosses 80 percent of the budget', function (): void {
+it('pushes the 80% note on a watched category once, only when asked for', function (): void {
     $fuel = Category::query()->where('name', 'Fuel')->firstOrFail();
+    $this->user->watchedCategories()->create(['category_id' => $fuel->id, 'amount' => 50_000]);
     $record = resolve(RecordTransaction::class);
 
     $record->handle($this->user, $fuel->id, 40_000);
     Notification::assertNotSentTo($this->user, BudgetAlert::class);
 
-    $record->handle($this->user, $fuel->id, 10_000);
-    Notification::assertSentTo($this->user, BudgetAlert::class, fn (BudgetAlert $alert): bool => $alert->percent === 80 && $alert->remaining === 10_000);
+    $this->user->settings()->update(['watch_push_enabled' => true]);
+    $record->handle($this->user->refresh(), $fuel->id, 1_000);
+    Notification::assertNotSentTo($this->user, BudgetAlert::class);
+
+    $this->user->watchedCategories()->update(['amount' => 45_000]);
+    $record->handle($this->user, $fuel->id, 100);
+    $record->handle($this->user, $fuel->id, 100);
+    Notification::assertSentToTimes($this->user, BudgetAlert::class, 0);
 });
 
-it('does not alert or count spending paid from a pocket against the budget', function (): void {
+it('pushes when a spending crosses 80% of a watched category', function (): void {
+    $this->user->settings()->update(['watch_push_enabled' => true]);
     $fuel = Category::query()->where('name', 'Fuel')->firstOrFail();
-    $pocket = Pocket::factory()->for($this->user)->create(['balance' => 100_000]);
+    $this->user->watchedCategories()->create(['category_id' => $fuel->id, 'amount' => 50_000]);
+    $record = resolve(RecordTransaction::class);
 
-    $paid = resolve(PayFromPocket::class)->handle($this->user, $pocket, $fuel->id, 50_000);
-    Notification::assertNotSentTo($this->user, BudgetAlert::class);
-    expect($paid->pocket_id)->toBe($pocket->id);
+    $record->handle($this->user->refresh(), $fuel->id, 39_000);
+    $record->handle($this->user, $fuel->id, 2_000);
+    $record->handle($this->user, $fuel->id, 2_000);
 
-    // 40 000 of the 60 000 budget: under 80 % once the pocket-paid 50 000 is left out.
-    resolve(RecordTransaction::class)->handle($this->user, $fuel->id, 40_000);
-    Notification::assertNotSentTo($this->user, BudgetAlert::class);
-
-    resolve(RecordTransaction::class)->handle($this->user, $fuel->id, 10_000);
-    Notification::assertSentTo($this->user, BudgetAlert::class, fn (BudgetAlert $alert): bool => $alert->percent === 80 && $alert->remaining === 10_000);
+    Notification::assertSentToTimes($this->user, BudgetAlert::class, 1);
+    Notification::assertSentTo($this->user, BudgetAlert::class, fn (BudgetAlert $alert): bool => $alert->percent === 80 && $alert->remaining === 9_000);
 });
 
 it('sends push notifications through the web push channel', function (): void {
     expect(new DailyReminder('2026-10-14')->via($this->user))->toBe([WebPushChannel::class]);
 });
 
-it('reminds about fixed items due today at 8:00', function (): void {
+it('reminds about the day\'s fixed lines at 8:30, in one notification', function (): void {
     BudgetLine::query()->whereRelation('category', 'name', 'Rent')->update(['due_day' => 14]);
+    $bills = Category::factory()->for($this->user)->create(['name' => 'Bills', 'type' => 'fixed']);
+    BudgetLine::factory()->for($this->user)->for($bills)->create(['amount' => 38_000, 'due_day' => 14, 'manual_pay' => true]);
 
-    expect($this->scheduler->run($this->user, budapest('2026-10-14 07:59')))->not->toContain('due-items')
-        ->and($this->scheduler->run($this->user, budapest('2026-10-14 08:01')))->toContain('due-items')
+    expect($this->scheduler->run($this->user, budapest('2026-10-14 08:29')))->not->toContain('due-items')
+        ->and($this->scheduler->run($this->user, budapest('2026-10-14 08:31')))->toContain('due-items')
         ->and($this->scheduler->run($this->user, budapest('2026-10-14 09:00')))->not->toContain('due-items');
 
-    Notification::assertSentTo($this->user, DueItemsReminder::class, fn ($n): bool => $n->items === [['name' => 'Rent', 'amount' => 200_000]]);
+    Notification::assertSentTo($this->user, DueItemsReminder::class, fn ($n): bool => $n->items === [['name' => 'Bills', 'amount' => 38_000, 'kind' => 'manual'], ['name' => 'Rent', 'amount' => 200_000, 'kind' => 'auto']]
+        && str_contains((string) $n->toWebPush($this->user, $n)->toArray()['body'], 'Goes out today: Rent'));
 });
 
 it('respects the due reminder setting', function (): void {
@@ -149,19 +164,6 @@ it('respects the due reminder setting', function (): void {
     BudgetLine::query()->whereRelation('category', 'name', 'Rent')->update(['due_day' => 14]);
 
     expect($this->scheduler->run($this->user, budapest('2026-10-14 08:30')))->not->toContain('due-items');
-});
-
-it('reminds once the next morning about an untransferred leftover', function (): void {
-    $broker = $this->user->accounts()->create(['name' => 'Broker', 'type' => 'investment', 'currency' => 'HUF']);
-    $period = resolve(PeriodService::class)->forDate($this->user, budapest('2026-10-14'));
-    $close = new PeriodClose(['period_id' => $period->id, 'planned_total' => 0, 'actual_total' => 0, 'leftover' => 50_000, 'to_invest' => 50_000, 'surplus_account_id' => $broker->id, 'breakdown' => []]);
-    $close->user_id = $this->user->id;
-    $close->created_at = budapest('2026-10-13 20:00');
-    $close->save();
-
-    expect($this->scheduler->run($this->user, budapest('2026-10-14 08:59')))->not->toContain('surplus-transfer')
-        ->and($this->scheduler->run($this->user, budapest('2026-10-14 09:01')))->toContain('surplus-transfer')
-        ->and($this->scheduler->run($this->user, budapest('2026-10-15 09:01')))->not->toContain('surplus-transfer');
 });
 
 it('logs a queued reminder and a skipped one with the reason', function (): void {

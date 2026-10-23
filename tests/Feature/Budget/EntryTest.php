@@ -25,7 +25,8 @@ function entryForm(array $overrides = []): array
     return [
         'category' => Category::query()->where('name', 'Fuel')->value('id'),
         'amount' => '1000',
-        'date' => now()->toDateString(),
+        // The user's own today (Europe/Budapest), as the sheet sends it; around midnight it differs from UTC.
+        'date' => resolve(PeriodService::class)->today(test()->user->settings())->toDateString(),
         'note' => null,
         'clientUuid' => (string) Str::uuid(),
         ...$overrides,
@@ -37,26 +38,66 @@ it('opens the entry sheet over the dashboard from /rogzites', function (): void 
     $this->get('/ma?rogzites=1')->assertOk()->assertSee('data-test="entry-sheet"', false);
 });
 
-it('offers the variable categories with what is left of their budget', function (): void {
-    $options = Livewire::test('entry-sheet')->get('options');
+it('offers the spending categories, the most used first', function (): void {
+    expect(array_column(Livewire::test('entry-sheet')->get('options'), 'name'))->toBe(['Fuel', 'Groceries']);
 
-    expect(array_column($options, 'name'))->toBe(['Fuel', 'Groceries'])
-        ->and($options[0]['remaining'])->toBe(60_000);
+    $groceries = Category::query()->where('name', 'Groceries')->firstOrFail();
+    Transaction::factory()->for($this->user)->for(resolve(PeriodService::class)->current($this->user))->for($groceries)->create(['occurred_on' => now()->toDateString()]);
+
+    expect(array_column(Livewire::test('entry-sheet')->get('options'), 'name'))->toBe(['Groceries', 'Fuel']);
 });
 
-it('records a spending, shows an undoable toast and refreshes the budget left', function (): void {
+it('records a spending, shows an undoable toast with what is left of today', function (): void {
     $component = Livewire::test('entry-sheet');
+    $allowance = $component->get('month')['allowance'];
 
-    $result = $component->call('save', entryForm(['amount' => '12500']))
+    $result = $component->call('save', entryForm(['amount' => '1000']))
         ->assertDispatched('budget-updated')
         ->assertDispatched('app-toast', fn (string $name, array $params): bool => $params['undo'] === 'undo-transaction'
             && str_contains($params['title'], 'Fuel')
-            && str_contains($params['subtitle'], money(47_500)))
+            && $params['subtitle'] === 'Daily allowance: '.money($allowance - 1_000).' left')
         ->effects['returns'][0];
 
     expect($result)->toBe(['ok' => true, 'errors' => []])
-        ->and(Transaction::query()->sole()->amount)->toBe(12_500)
-        ->and($component->get('options')[0]['remaining'])->toBe(47_500);
+        ->and(Transaction::query()->sole()->amount)->toBe(1_000)
+        ->and($component->get('month')['todayLeft'])->toBe($allowance - 1_000);
+});
+
+it('says by how much a spending goes over today and what tomorrow gets', function (): void {
+    $component = Livewire::test('entry-sheet');
+    $allowance = $component->get('month')['allowance'];
+
+    $component->call('save', entryForm(['amount' => (string) ($allowance + 2_000)]))
+        ->assertDispatched('app-toast', fn (string $name, array $params): bool => str_starts_with((string) $params['subtitle'], money(2_000).' over today.'));
+});
+
+it('records extra income, counted in the month at once, and undoes it', function (): void {
+    $component = Livewire::test('entry-sheet');
+    $remaining = $component->get('month')['remaining'];
+
+    $component->call('saveIncome', ['amount' => '15000', 'note' => 'Gift', 'clientUuid' => (string) Str::uuid()])
+        ->assertReturned(['ok' => true, 'errors' => []])
+        ->assertDispatched('app-toast', fn (string $name, array $params): bool => $params['undo'] === 'undo-extra-income');
+
+    expect($component->get('month')['remaining'])->toBe($remaining + 15_000)
+        ->and($this->user->extraIncomes()->sole()->note)->toBe('Gift');
+
+    $component->dispatch('undo-extra-income', id: $this->user->extraIncomes()->sole()->id);
+
+    expect($this->user->extraIncomes()->count())->toBe(0);
+});
+
+it('refuses extra income without an amount', function (): void {
+    Livewire::test('entry-sheet')
+        ->call('saveIncome', ['amount' => '', 'clientUuid' => (string) Str::uuid()])
+        ->assertReturned(['ok' => false, 'errors' => ['amount' => 'Enter a valid amount.']]);
+});
+
+it('offers a chip for an amount recorded three times in 30 days', function (): void {
+    $period = resolve(PeriodService::class)->current($this->user);
+    Transaction::factory()->for($this->user)->for($period)->for($this->fuel)->count(3)->create(['amount' => 8_900, 'occurred_on' => now()->toDateString()]);
+
+    expect(Livewire::test('entry-sheet')->get('frequent'))->toBe([['category_id' => $this->fuel->id, 'amount' => 8_900, 'count' => 3]]);
 });
 
 it('offers the 000 key in forint and a decimal key in a currency with cents', function (): void {
@@ -145,20 +186,6 @@ it('clears the no-spend mark when spending is recorded that day', function (): v
         ->assertSet('noSpendMarked', false);
 
     expect(DayMark::query()->count())->toBe(0);
-});
-
-it('hides "I didn\'t spend today" once something is recorded for today', function (): void {
-    $today = resolve(PeriodService::class)->today($this->user->settings());
-
-    Livewire::test('entry-sheet')
-        ->assertSet('spentToday', false)
-        ->assertSeeHtml('data-test="no-spend"')
-        ->call('save', entryForm(['date' => $today->subDay()->toDateString()]))
-        ->assertSet('spentToday', false)
-        ->assertSeeHtml('data-test="no-spend"')
-        ->call('save', entryForm(['date' => $today->toDateString()]))
-        ->assertSet('spentToday', true)
-        ->assertDontSeeHtml('data-test="no-spend"');
 });
 
 it('reloads today on refresh, so a sheet kept open past midnight moves to the new day', function (): void {

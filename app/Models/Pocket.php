@@ -6,6 +6,8 @@ use App\Models\Concerns\BelongsToUser;
 use Carbon\CarbonImmutable;
 use Database\Factories\PocketFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,6 +25,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string $name
  * @property int $balance
  * @property int|null $target_amount
+ * @property CarbonImmutable|null $target_month
  * @property int|null $prepay_step
  * @property bool $is_reserve
  * @property bool $is_shared
@@ -31,7 +34,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property CarbonImmutable|null $updated_at
  * @property CarbonImmutable|null $deleted_at
  */
-#[Fillable(['account_id', 'loan_id', 'name', 'balance', 'target_amount', 'prepay_step', 'is_reserve', 'is_shared', 'sort'])]
+#[Fillable(['account_id', 'loan_id', 'name', 'balance', 'target_amount', 'target_month', 'prepay_step', 'is_reserve', 'is_shared', 'sort'])]
 class Pocket extends Model
 {
     /** @use HasFactory<PocketFactory> */
@@ -47,6 +50,7 @@ class Pocket extends Model
         return [
             'balance' => 'integer',
             'target_amount' => 'integer',
+            'target_month' => 'immutable_date',
             'prepay_step' => 'integer',
             'is_reserve' => 'boolean',
             'is_shared' => 'boolean',
@@ -86,6 +90,17 @@ class Pocket extends Model
     public function budgetLines(): HasMany
     {
         return $this->hasMany(BudgetLine::class);
+    }
+
+    /**
+     * Goals only: not the pockets that save up a loan's prepayment (those show on the loan).
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function goals(Builder $query): void
+    {
+        $query->whereNull('loan_id');
     }
 
     public function hasReachedPrepayStep(): bool

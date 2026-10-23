@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ExportController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->group(function (): void {
@@ -14,6 +15,9 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::middleware('onboarded')->group(function (): void {
         Route::livewire('settings/budget', 'pages::settings.budget')->name('budget.edit');
         Route::livewire('settings/notifications', 'pages::settings.notifications')->name('notifications.edit');
+        Route::livewire('settings/morzsa', 'pages::settings.companion')->name('companion.edit');
+        Route::livewire('settings/help', 'pages::settings.help')->name('help');
+        Route::get('settings/export', ExportController::class)->name('export');
     });
 });
 

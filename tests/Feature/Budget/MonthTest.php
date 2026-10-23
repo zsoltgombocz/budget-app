@@ -1,6 +1,5 @@
 <?php
 
-use App\Actions\Budget\MovePocketMoney;
 use App\Actions\Budget\SetLineStatus;
 use App\Enums\LineStatus;
 use App\Enums\PeriodStatus;
@@ -9,7 +8,6 @@ use App\Models\Category;
 use App\Models\Period;
 use App\Models\Pocket;
 use App\Models\Transaction;
-use App\Services\OverviewService;
 use App\Services\PeriodCloser;
 use App\Services\PeriodService;
 use Livewire\Livewire;
@@ -56,59 +54,6 @@ it('shows the payday and no-spend days in the timeline', function (): void {
     $this->get(route('month'))->assertSee('Salary')->assertSee('1 item, counted at its planned amount')->assertSee("Didn't spend");
 });
 
-it('shows what the month would leave if it ended today, and how far it is from the plan with the reasons', function (): void {
-    Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 75_000]);
-
-    $preview = resolve(PeriodCloser::class)->preview($this->user, $this->period);
-
-    $this->get(route('month'))
-        ->assertOk()
-        // The reasons sit in the "i" sheet next to the label, the verdict is a badge next to the figure.
-        ->assertSeeInOrder(['data-test="close-now"', 'If the month ended today', 'data-test="explainer-month-leftover"', 'Fuel over budget', '−'.money(15_000), 'Against the plan',
-            money_number($preview->leftover()), 'data-test="plan-deviation-verdict"', money(15_000).' over the plan', 'Variable spending so far'], false);
-});
-
-it('says the month is on plan while every budget holds, also early in the month', function (): void {
-    Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 5_000]);
-
-    $this->get(route('month'))
-        ->assertOk()
-        ->assertSeeInOrder(['data-test="plan-deviation-verdict"', 'You are on plan'], false)
-        ->assertDontSee('data-test="plan-deviation-items"', false);
-});
-
-it('counts a skipped fixed item and pocket moves as the reasons the month is better or worse than the plan', function (): void {
-    $rent = BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail();
-    resolve(SetLineStatus::class)->handle($this->user, $this->period, $rent->id, LineStatus::Skipped);
-    $pocket = Pocket::factory()->for($this->user)->create(['name' => 'Holiday', 'balance' => 50_000]);
-    resolve(MovePocketMoney::class)->handle($this->user, $pocket, 10_000, null, toBudget: true);
-    resolve(MovePocketMoney::class)->handle($this->user, $pocket, -5_000, 'Concert', toBudget: true);
-
-    $deviation = resolve(OverviewService::class)->deviation($this->user, $this->period);
-
-    expect($deviation->amount())->toBe(200_000 - 10_000 + 5_000);
-
-    Livewire::test('pages::month')
-        ->assertSeeInOrder(['Rent skipped', '+'.money(200_000), 'Put into pockets', '−'.money(10_000), 'From pockets into the budget', '+'.money(5_000), 'Against the plan', '+'.money(195_000), money(195_000).' better than the plan'])
-        // Both moves are rows of the day list too.
-        ->assertSeeHtmlInOrder(['data-test="pocket-move"', 'From pockets into the budget', 'Holiday', 'Concert', '+'.money(5_000), 'data-test="pocket-move"', 'Put into pockets', 'Holiday', '−'.money(10_000)]);
-});
-
-it('does not paint money put into a pocket red: only overspending is over the plan', function (): void {
-    $pocket = Pocket::factory()->for($this->user)->create(['name' => 'Reserve', 'balance' => 0]);
-    resolve(MovePocketMoney::class)->handle($this->user, $pocket, 10_000, null, toBudget: true);
-
-    $html = Livewire::test('pages::month')->html();
-
-    expect($html)->toMatch('/class="[^"]*bg-ink\/8[^"]*" data-test="plan-deviation-verdict">(?:\s|<!--.*?-->)*'.preg_quote(money(10_000), '/').' went into pockets/')
-        ->not->toContain('over the plan');
-
-    // With 2 000 over a budget too, only those 2 000 are over the plan, in red.
-    Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 62_000]);
-
-    expect(Livewire::test('pages::month')->html())->toMatch('/class="[^"]*bg-danger\/16[^"]*" data-test="plan-deviation-verdict">(?:\s|<!--.*?-->)*'.preg_quote(money(2_000), '/').' over the plan/');
-});
-
 it('says how many days are left in the header', function (): void {
     $this->travelTo($this->period->ends_on->subDays(2)->setTime(12, 0));
 
@@ -122,18 +67,6 @@ it('does not show the close-now figures for a closed period', function (): void 
     Livewire::withQueryParams(['periodus' => $this->period->id])
         ->test('pages::month')
         ->assertDontSee('data-test="close-now"', false);
-});
-
-it('does not say "so far" or point to the + button on a closed period', function (): void {
-    $this->travelTo($this->period->ends_on->setTime(18, 0));
-    resolve(PeriodCloser::class)->close($this->user, $this->period, $this->period->income());
-
-    Livewire::withQueryParams(['periodus' => $this->period->id])
-        ->test('pages::month')
-        ->assertSee('Variable spending')
-        ->assertDontSee('Variable spending so far')
-        ->assertSee('No spending or “didn’t spend” day was recorded in this period.')
-        ->assertDontSee('with the + button');
 });
 
 it('saves a corrected spending from the edit sheet', function (): void {
@@ -236,22 +169,6 @@ it('shows a no-results state with a way to clear the filters', function (): void
         ->assertDontSee('data-test="no-results"', false);
 });
 
-it('shows plan against actual per category on a closed month, with the overspend in words', function (): void {
-    Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 110_000, 'occurred_on' => $this->period->starts_on]);
-    Transaction::factory()->for($this->user)->for($this->period)->for($this->groceries)->create(['amount' => 60_000, 'occurred_on' => $this->period->starts_on]);
-    $this->travelTo($this->period->ends_on->setTime(18, 0));
-    resolve(PeriodCloser::class)->close($this->user, $this->period, $this->period->income());
-
-    Livewire::withQueryParams(['periodus' => $this->period->id])
-        ->test('pages::month')
-        ->assertSee('Variable spending total')
-        ->assertSee(money(20_000).' over the budget')
-        // Neutral rows; only the deviation is coloured, with one sign everywhere: − overspent, + left.
-        ->assertSeeInOrder(['data-test="closed-breakdown"', 'role="table"', 'role="columnheader"', 'data-test="over-budget-row"', 'role="rowheader"', 'Fuel', 'over the budget by '.money(50_000), money_number(60_000), money_number(110_000), '−'.money_number(50_000), 'Groceries', 'under the budget by '.money(30_000), '+'.money_number(30_000)], false)
-        ->assertSee('over the budget by '.money(50_000))
-        ->assertDontSee('data-test="fixed-items"', false);
-});
-
 it('has no plan against actual on an open month', function (): void {
     Livewire::test('pages::month')->assertDontSee('data-test="closed-breakdown"', false);
 });
@@ -270,27 +187,6 @@ it('shows no "month not found" notice without a requested month', function (): v
     Livewire::test('pages::month')->assertDontSee('data-test="period-not-found"', false);
 });
 
-it('ticks a fixed item with an undo and keeps the list order', function (): void {
-    $rent = Category::query()->where('name', 'Rent')->firstOrFail();
-    $insurance = Category::factory()->for($this->user)->create(['name' => 'Insurance', 'type' => 'fixed', 'sort' => 9]);
-    $rentLine = BudgetLine::query()->where('category_id', $rent->id)->firstOrFail();
-    BudgetLine::factory()->for($this->user)->for($insurance)->create(['amount' => 10_000]);
-
-    $page = Livewire::test('pages::month')
-        ->assertSeeInOrder(['data-test="fixed-items"', 'role="checkbox"', 'aria-checked="false"', 'Rent', 'Insurance'], false)
-        ->call('togglePaid', $rentLine->id)
-        ->assertDispatched('app-toast', undo: 'fixed-item-undo', params: ['budgetLineId' => $rentLine->id, 'status' => 'open']);
-
-    // The ticked item stays first although ticked items sort last on a fresh page.
-    expect($page->html())->toMatch('/data-test="fixed-items".*aria-checked="true".*Rent.*aria-checked="false".*Insurance/s')
-        ->and($this->period->lineStatuses()->whereNotNull('paid_on')->count())->toBe(1);
-
-    $page->dispatch('fixed-item-undo', budgetLineId: $rentLine->id, status: 'open')
-        ->dispatch('fixed-item-undo', budgetLineId: $rentLine->id, status: 'open');
-
-    expect($this->period->lineStatuses()->whereNotNull('paid_on')->count())->toBe(0);
-});
-
 it('marks the arrow without a neighbouring month as disabled', function (): void {
     Livewire::test('pages::month')
         ->assertSeeInOrder(['aria-disabled="true"', 'data-test="previous-period"', 'aria-disabled="true"', 'data-test="next-period"'], false)
@@ -299,29 +195,6 @@ it('marks the arrow without a neighbouring month as disabled', function (): void
     $previous = resolve(PeriodService::class)->forDate($this->user, $this->period->starts_on->subDay());
 
     Livewire::test('pages::month')->assertSee('showPeriod('.$previous->id.')', false);
-});
-
-it('folds the fixed items into a summary row that counts what is done and what is due', function (): void {
-    $this->travelTo($this->period->starts_on->addDays(14)->setTime(12, 0));
-    $rent = Category::query()->where('name', 'Rent')->firstOrFail();
-    $rentLine = BudgetLine::query()->where('category_id', $rent->id)->firstOrFail();
-    $rentLine->update(['due_day' => 10]);
-    $insurance = Category::factory()->for($this->user)->create(['name' => 'Insurance', 'type' => 'fixed', 'sort' => 9]);
-    BudgetLine::factory()->for($this->user)->for($insurance)->create(['amount' => 10_000, 'due_day' => 25]);
-
-    Livewire::test('pages::month')
-        ->assertSeeInOrder(['data-test="fixed-summary"', 'Fixed items', '0 done', '2 left', 'data-test="fixed-due"', '1 due', 'id="month-fixed-list"', 'x-show="open"', 'data-test="fixed-item"'], false)
-        ->assertSee('aria-expanded="false"', false)
-        ->assertSee('aria-controls="month-fixed-list"', false)
-        ->call('togglePaid', $rentLine->id)
-        ->assertSeeInOrder(['1 done', '1 left'])
-        ->assertDontSee('data-test="fixed-due"', false);
-});
-
-it('names the progress bar and uses the icon font for the search', function (): void {
-    Livewire::test('pages::month')
-        ->assertSeeInOrder(['role="progressbar"', 'aria-label="Variable spending so far"'], false)
-        ->assertSeeInOrder(['data-test="month-filters"', '>search</span>', 'data-test="month-search"'], false);
 });
 
 it('says so when a corrected spending no longer matches the search', function (): void {

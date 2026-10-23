@@ -40,3 +40,4 @@ yarn-error.log
 
 # Specs, design and planning notes stay local
 /docs/
+/.playwright-mcp

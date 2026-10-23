@@ -68,6 +68,15 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
     }
 
     /**
+     * Whether the user has MoneySight Plusz. Until the plans and Stripe arrive (F6) every
+     * account counts as Plusz, so nothing is locked away during the build.
+     */
+    public function hasPlusz(): bool
+    {
+        return true;
+    }
+
+    /**
      * A disabled user cannot sign in, and an open session ends on the next request.
      */
     public function isDisabled(): bool
@@ -220,5 +229,53 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
     public function periodCloses(): HasMany
     {
         return $this->hasMany(PeriodClose::class);
+    }
+
+    /**
+     * @return HasMany<WatchedCategory, $this>
+     */
+    public function watchedCategories(): HasMany
+    {
+        return $this->hasMany(WatchedCategory::class);
+    }
+
+    /**
+     * @return HasMany<ExtraIncome, $this>
+     */
+    public function extraIncomes(): HasMany
+    {
+        return $this->hasMany(ExtraIncome::class);
+    }
+
+    /**
+     * @return HasMany<AcornEvent, $this>
+     */
+    public function acornEvents(): HasMany
+    {
+        return $this->hasMany(AcornEvent::class);
+    }
+
+    /**
+     * @return HasMany<Achievement, $this>
+     */
+    public function achievements(): HasMany
+    {
+        return $this->hasMany(Achievement::class);
+    }
+
+    /**
+     * @return HasMany<Challenge, $this>
+     */
+    public function challenges(): HasMany
+    {
+        return $this->hasMany(Challenge::class);
+    }
+
+    /**
+     * @return HasMany<UserItem, $this>
+     */
+    public function items(): HasMany
+    {
+        return $this->hasMany(UserItem::class);
     }
 }

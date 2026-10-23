@@ -179,7 +179,8 @@ final readonly class ReopenPeriod
                     $next->lineStatuses()->delete();
                     $next->delete();
                 } else {
-                    $next->update(['starts_on' => $preview->regularEnd->addDay()->toDateString()]);
+                    // What the closing carried over (or deducted) goes away with it.
+                    $next->update(['starts_on' => $preview->regularEnd->addDay()->toDateString(), 'carried_over' => 0]);
                 }
             }
 

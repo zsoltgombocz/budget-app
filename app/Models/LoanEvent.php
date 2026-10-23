@@ -17,14 +17,18 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $loan_id
  * @property LoanEventType $type
  * @property int $amount
+ * @property int|null $principal_before
+ * @property int|null $installment_before
+ * @property int|null $remaining_months_before
  * @property int $principal_after
  * @property int $installment_after
  * @property int|null $remaining_months_after
+ * @property int|null $pocket_movement_id
  * @property CarbonImmutable $occurred_on
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
-#[Fillable(['loan_id', 'type', 'amount', 'principal_after', 'installment_after', 'remaining_months_after', 'occurred_on'])]
+#[Fillable(['loan_id', 'type', 'amount', 'principal_before', 'installment_before', 'remaining_months_before', 'principal_after', 'installment_after', 'remaining_months_after', 'pocket_movement_id', 'occurred_on'])]
 class LoanEvent extends Model
 {
     /** @use HasFactory<LoanEventFactory> */
@@ -40,6 +44,9 @@ class LoanEvent extends Model
         return [
             'type' => LoanEventType::class,
             'amount' => 'integer',
+            'principal_before' => 'integer',
+            'installment_before' => 'integer',
+            'remaining_months_before' => 'integer',
             'principal_after' => 'integer',
             'installment_after' => 'integer',
             'remaining_months_after' => 'integer',

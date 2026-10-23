@@ -89,4 +89,40 @@ final class Dates
 
         return Hungarian::withArticle($name);
     }
+
+    /**
+     * Month name in a case, lower case: Hungarian "novemberben" (in), "novemberbe" (into),
+     * "novemberből" (from), "novemberig" (until), in the month's vowel harmony (január → januárban); English just the name.
+     */
+    public static function monthCase(CarbonInterface $date, string $case): string
+    {
+        $name = $date->locale(app()->getLocale())->isoFormat('MMMM');
+
+        if (app()->getLocale() !== 'hu') {
+            return $name;
+        }
+
+        $name = mb_strtolower($name);
+        $front = in_array($date->month, [9, 10, 11, 12], true);
+
+        return $name.match ($case) {
+            'in' => $front ? 'ben' : 'ban',
+            'into' => $front ? 'be' : 'ba',
+            'from' => $front ? 'ből' : 'ból',
+            'until' => 'ig',
+            default => '',
+        };
+    }
+
+    /**
+     * Year and month: Hungarian "2030. január" (or in a case: "2031. májusig"), English "January 2030".
+     */
+    public static function yearMonth(CarbonInterface $date, ?string $case = null): string
+    {
+        if (app()->getLocale() !== 'hu') {
+            return $date->locale(app()->getLocale())->isoFormat('MMMM YYYY');
+        }
+
+        return $date->year.'. '.($case === null ? mb_strtolower($date->locale('hu')->isoFormat('MMMM')) : self::monthCase($date, $case));
+    }
 }

@@ -43,9 +43,6 @@ it('keeps the entry sheet controls tappable and the Save row on screen at 320x56
 it('gives small buttons, segments and settings controls a 44px touch target', function (): void {
     $this->actingAs(onboardedUser());
 
-    $pockets = visit(route('pockets'))->on()->mobile()->resize(375, 667)->wait(0.5);
-    expect(tapHeight($pockets, '[data-test="add-loan"]'))->toBeGreaterThanOrEqual(44);
-
     $budget = visit(route('budget.edit'))->on()->mobile()->resize(375, 667)->wait(0.5);
     expect(tapHeight($budget, '[data-test="period-payday"]'))->toBeGreaterThanOrEqual(44);
 

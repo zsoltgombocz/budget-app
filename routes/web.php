@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\DevGateController;
-use App\Http\Controllers\IntroSeenController;
 use App\Http\Controllers\MagicLinkController;
 use App\Http\Controllers\NoSpendFromNotificationController;
 use App\Http\Controllers\PushSubscriptionController;
@@ -30,13 +29,14 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         // Opens the quick entry sheet over the dashboard (push notification and shortcut target).
         Route::redirect('rogzites', '/ma?rogzites=1')->name('entry');
         Route::livewire('ertesitesek', 'pages::notifications')->name('notifications.onboarding');
-        Route::livewire('terv', 'pages::plan')->name('plan');
+        // 1.x screens: the plan lives in Month (Your month), the pockets became goals on the Morzsa screen.
+        Route::redirect('terv', '/honap')->name('plan');
         Route::livewire('honap', 'pages::month')->name('month');
+        Route::livewire('morzsa', 'pages::companion')->name('companion');
+        Route::livewire('hitel/{line}', 'pages::loan')->name('loan');
         Route::livewire('honap/zaras/{period}', 'pages::close')->name('close');
-        Route::livewire('perselyek', 'pages::pockets')->name('pockets');
+        Route::redirect('perselyek', '/morzsa')->name('pockets');
         Route::livewire('ujdonsagok', 'pages::changelog')->name('changelog');
-        // The "How it works" tour was finished or skipped (components/tour).
-        Route::post('bemutato', IntroSeenController::class)->name('intro.seen');
     });
 });
 

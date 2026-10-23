@@ -1,9 +1,8 @@
 @php
     $tabs = [
-        ['route' => 'dashboard', 'icon' => 'today', 'label' => __('Today')],
-        ['route' => 'plan', 'icon' => 'list_alt', 'label' => __('Plan')],
-        ['route' => 'pockets', 'icon' => 'savings', 'label' => __('Pockets')],
+        ['route' => 'dashboard', 'icon' => 'light_mode', 'label' => __('Today')],
         ['route' => 'month', 'icon' => 'calendar_month', 'label' => __('Month')],
+        ['route' => 'companion', 'icon' => null, 'label' => auth()->user()?->settings()->companion_mode === 'off' ? __('Progress') : __('Morzsa')],
         ['route' => 'settings', 'icon' => 'settings', 'label' => __('Settings')],
     ];
 @endphp
@@ -20,7 +19,7 @@
     (app-toast-visibility from x-toast-host): the toast sits right above the tab bar, where the
     button would cover it. During the "How it works" tour (html[data-touring]) it stays under the tour's
     dim like the rest of the page, toned down further so its bright green does not stand out.
-    Sizes come from --tabbar-h, --fab-size and --fab-gap (app.css).
+    It sits in the tab bar's row, right of the pill. Sizes come from --tabbar-h and --fab-size (app.css).
 --}}
 <button type="button"
         x-data="{
@@ -84,30 +83,40 @@
         x-on:app-toast-visibility.window="toastOpen = $event.detail"
         x-init="syncPage(); document.addEventListener('livewire:navigated', () => syncPage()); new MutationObserver(() => syncMarker()).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-hides-record-button'] })"
         x-on:click="$dispatch('open-entry')"
-        class="fixed right-5 bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+var(--fab-gap))] z-20 flex size-(--fab-size) items-center justify-center rounded-[20px] bg-accent text-accent-ink shadow-[0_10px_24px_color-mix(in_srgb,var(--app-accent)_32%,transparent)] transition-transform active:scale-95 [html[data-touring]_&]:opacity-50 [html[data-touring]_&]:shadow-none"
+        class="fixed right-3 bottom-[calc(12px+env(safe-area-inset-bottom))] z-40 flex size-(--fab-size) items-center justify-center rounded-full bg-accent text-accent-ink shadow-e2 transition-transform active:scale-95 [html[data-touring]_&]:opacity-50 [html[data-touring]_&]:shadow-none"
         :class="visible && allowed && ! toastOpen ? 'translate-y-0 duration-300 ease-out' : 'pointer-events-none translate-y-[calc(100%_+_160px)] duration-[400ms] ease-in'"
         :aria-hidden="allowed ? null : 'true'" :tabindex="allowed ? null : '-1'"
         aria-label="{{ __('Record spending') }}" data-test="tab-entry">
     <x-ui.icon name="add" :size="32" :weight="500" />
 </button>
 
-<nav class="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg pb-[env(safe-area-inset-bottom)]" aria-label="{{ __('Main navigation') }}">
-    <div data-tour="tabs" class="mx-auto grid h-(--tabbar-h) max-w-lg grid-cols-5 items-start pt-2">
-        @foreach ($tabs as $tab)
-            <a href="{{ route($tab['route']) }}" wire:navigate
-               x-data="{
-                    active: false,
-                    path: @js(parse_url(route($tab['route']), PHP_URL_PATH)),
-                    matches(pathname) { return pathname === this.path || pathname.startsWith(this.path + '/') },
-               }"
-               x-init="active = matches(location.pathname); document.addEventListener('livewire:navigated', () => active = matches(location.pathname)); window.addEventListener('tab-selected', e => active = matches(e.detail))"
-               x-on:click="if (location.pathname !== path) document.documentElement.classList.add('navigating'); window.dispatchEvent(new CustomEvent('tab-selected', { detail: path }))"
-               class="flex min-w-0 flex-col items-center gap-[3px] text-[11px] max-[359px]:text-[10px] max-[359px]:tracking-[-0.01em]"
-               :class="active ? 'font-semibold text-ink' : 'font-medium text-muted'"
-               :aria-current="active ? 'page' : null">
-                <span class="ms" style="font-size:24px;width:24px;height:24px" :class="active && 'ms-fill'" aria-hidden="true">{{ $tab['icon'] }}</span>
-                {{ $tab['label'] }}
-            </a>
-        @endforeach
+{{-- 2.0 navigation: a floating glass pill with four tabs; the record button sits right of it. --}}
+<nav class="pointer-events-none fixed inset-x-0 bottom-0 z-30 pb-[calc(12px+env(safe-area-inset-bottom))]" aria-label="{{ __('Main navigation') }}">
+    <div class="mx-auto flex max-w-lg px-3">
+        <div class="pointer-events-auto mr-[calc(var(--fab-size)+8px)] flex h-16 flex-1 items-center justify-around rounded-full bg-glass px-1 shadow-[var(--app-e2),var(--app-gedge)] backdrop-blur-xl">
+            @foreach ($tabs as $tab)
+                <a href="{{ route($tab['route']) }}" wire:navigate
+                   x-data="{
+                        active: false,
+                        path: @js(parse_url(route($tab['route']), PHP_URL_PATH)),
+                        matches(pathname) { return pathname === this.path || pathname.startsWith(this.path + '/') },
+                   }"
+                   x-init="active = matches(location.pathname); document.addEventListener('livewire:navigated', () => active = matches(location.pathname)); window.addEventListener('tab-selected', e => active = matches(e.detail))"
+                   x-on:click="if (location.pathname !== path) document.documentElement.classList.add('navigating'); window.dispatchEvent(new CustomEvent('tab-selected', { detail: path }))"
+                   class="flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-xs leading-4 font-semibold max-[359px]:text-[0px]"
+                   :class="active ? 'text-accent-strong max-[359px]:text-[11px]' : 'text-muted'"
+                   :aria-current="active ? 'page' : null"
+                   aria-label="{{ $tab['label'] }}">
+                    <span class="flex h-8 w-14 items-center justify-center rounded-full max-[359px]:w-11" :class="active && 'bg-accent-tint'">
+                        @if ($tab['icon'])
+                            <span class="ms" style="font-size:24px;width:24px;height:24px" :class="active && 'ms-fill'" aria-hidden="true">{{ $tab['icon'] }}</span>
+                        @else
+                            <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.4" cy="6.8" r="2.2"/><circle cx="16.6" cy="6.8" r="2.2"/><path d="M12 6.5c4.4 0 7.5 3.6 7.5 7.6 0 3.6-3 5.9-7.5 5.9s-7.5-2.3-7.5-5.9c0-4 3.1-7.6 7.5-7.6z"/><path d="M9.6 12.6v.4M14.4 12.6v.4"/></svg>
+                        @endif
+                    </span>
+                    {{ $tab['label'] }}
+                </a>
+            @endforeach
+        </div>
     </div>
 </nav>

@@ -55,34 +55,6 @@ it('deletes a spending and brings it back from the toast', function (): void {
     expect(Transaction::query()->sole()->client_uuid)->toBe($this->spending->client_uuid);
 });
 
-it('keeps the fixed items folded into one row until it is opened, and remembers that for the session', function (): void {
-    $page = visit(route('month'))->on()->mobile()->resize(390, 844);
-
-    $page->assertSeeIn('[data-test="fixed-summary"]', '0 done')
-        ->assertAttribute('[data-test="fixed-summary"]', 'aria-expanded', 'false')
-        ->assertMissing('[data-test="fixed-item"]:visible')
-        ->click('[data-test="fixed-summary"]')
-        ->assertAttribute('[data-test="fixed-summary"]', 'aria-expanded', 'true')
-        ->assertVisible('[data-test="fixed-item"]')
-        ->click('[data-test="fixed-item"]')
-        ->waitForText('Paid.')
-        ->assertSeeIn('[data-test="fixed-summary"]', '1 done')
-        ->assertAttribute('[data-test="fixed-item"]', 'aria-checked', 'true')
-        ->assertVisible('[data-test="fixed-item"]');
-
-    $page->click('Undo')
-        ->waitForText('0 done')
-        ->assertAttribute('[data-test="fixed-item"]', 'aria-checked', 'false');
-
-    // Still open after a reload in the same browser session.
-    $page->refresh()
-        ->assertAttribute('[data-test="fixed-summary"]', 'aria-expanded', 'true')
-        ->assertVisible('[data-test="fixed-item"]')
-        ->click('[data-test="fixed-summary"]')
-        ->assertMissing('[data-test="fixed-item"]:visible')
-        ->assertNoJavaScriptErrors();
-});
-
 it('titles the edit sheet with the category picked before saving', function (): void {
     visit(route('month'))->on()->mobile()->resize(390, 844)
         ->click('[data-test="transaction"]')
@@ -106,7 +78,6 @@ it('fits an open and a closed month with seven-digit amounts on a 320 px phone, 
     expect($page->script($noSideScroll))->toBeTrue();
 
     $page = visit(route('month', ['periodus' => $previous->id]))->on()->mobile()->resize(320, 568)->assertSee('Groceries and household shopping');
-    expect($page->script($noSideScroll))->toBeTrue()
-        ->and($page->script("() => document.querySelector('[data-test=closed-breakdown] [role=rowheader]').getBoundingClientRect().width > 200"))->toBeTrue();
+    expect($page->script($noSideScroll))->toBeTrue();
     $page->assertNoJavaScriptErrors();
 });
