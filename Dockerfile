@@ -17,7 +17,8 @@ COPY --from=vendor /app/vendor/livewire/flux/ vendor/livewire/flux/
 COPY --from=vendor /app/vendor/laravel/framework/src/Illuminate/Pagination/resources/views/ vendor/laravel/framework/src/Illuminate/Pagination/resources/views/
 RUN bun run build
 
-FROM mirror.gcr.io/library/php:8.4-fpm AS app
+# Pinned to the patch release: 8.4.27 fixes GHSA-w8hw-w9fx-j79w and GHSA-6wmf-4rv5-p3rp (2026-10-22).
+FROM mirror.gcr.io/library/php:8.4.27-fpm AS app
 
 # Commit the image was built from; Sentry groups errors by it.
 ARG APP_REVISION=""
