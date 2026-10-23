@@ -13,6 +13,25 @@
 /* Short viewports (Safari with toolbars, iPhone SE): sheets tighten so the numpad still fits. */
 @custom-variant short (@media (max-height: 700px));
 
+/* Bricolage Grotesque (OFL), latin + latin-ext so ő and ű render in the display face. */
+@font-face {
+    font-family: 'Bricolage Grotesque';
+    font-style: normal;
+    font-weight: 600 800;
+    font-display: swap;
+    src: url('../fonts/bricolage-grotesque-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+    font-family: 'Bricolage Grotesque';
+    font-style: normal;
+    font-weight: 600 800;
+    font-display: swap;
+    src: url('../fonts/bricolage-grotesque-latin-ext.woff2') format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
 @font-face {
     font-family: 'Material Symbols Rounded';
     font-style: normal;
@@ -50,6 +69,22 @@
     --color-warn: var(--app-warn);
     --color-danger: var(--app-danger);
     --color-track: var(--app-track);
+    --color-control-border: var(--app-control-border);
+    --color-accent-tint: var(--app-accent-tint);
+    --color-plum: var(--app-plum);
+    --color-plum-ink: var(--app-plum-ink);
+    --color-plum-tint: var(--app-plum-tint);
+    --color-warn-text: var(--app-warn-text);
+    --color-warn-tint: var(--app-warn-tint);
+    --color-bubble: var(--app-bubble);
+    --color-lamp: var(--app-lamp);
+    --color-scrim: var(--app-scrim);
+    --color-glass: var(--app-glass);
+    --shadow-e1: var(--app-e1);
+    --shadow-e2: var(--app-e2);
+
+    /* Celebration and onboarding titles. */
+    --font-display: 'Bricolage Grotesque', 'Geist Variable', system-ui, sans-serif;
 
     /*
      * Radius scale (rounded-*): card 24 (x-ui.card, empty states), callout 20, group 18
@@ -88,23 +123,41 @@
 
 @layer theme {
     :root {
-        --app-bg: #F3F4F2;
+        --app-bg: #F7F6F1;
         --app-surface: #FFFFFF;
-        --app-surface-2: #EEF0EE;
-        --app-surface-3: #E2E5E3;
-        --app-ink: #0E110F;
+        --app-surface-2: #EFEEE8;
+        --app-surface-3: #E4E3DC;
+        --app-ink: #121513;
         --app-ink-2: #3E4441;
-        --app-muted: #5F6662;
-        --app-faint: #828884;
-        --app-line: rgba(14, 17, 15, 0.06);
-        --app-accent: #1FB866;
-        --app-accent-strong: #096F35;
-        --app-warn: #D9800B;
-        --app-danger: #E0383E;
-        --app-track: rgba(14, 17, 15, 0.08);
-        /* White on #C42B31: 5.6:1. */
-        --app-danger-solid: #C42B31;
+        --app-muted: #5C635F;
+        --app-faint: #8A908C;
+        --app-line: rgba(18, 21, 19, 0.10);
+        --app-control-border: #8C918D;
+        --app-accent: #22C26E;
+        --app-accent-strong: #0B7A3E;
+        --app-accent-tint: rgba(34, 194, 110, 0.14);
+        /* Morzsa's colour: rewards and the subscription. */
+        --app-plum: #5B3FD0;
+        --app-plum-ink: #FFFFFF;
+        --app-plum-tint: rgba(91, 63, 208, 0.10);
+        --app-warn: #E89412;
+        /* Warn as text on a light page (5.4:1); the fill stays the brighter warn. */
+        --app-warn-text: #9A5B00;
+        --app-warn-tint: rgba(232, 148, 18, 0.12);
+        --app-danger: #C62F35;
+        --app-track: rgba(18, 21, 19, 0.08);
+        /* White on #C62F35: 5.5:1. */
+        --app-danger-solid: #C62F35;
         --app-danger-ink: #FFFFFF;
+        --app-bubble: #FFFFFF;
+        /* The warm lamp light behind Morzsa. */
+        --app-lamp: rgba(227, 164, 98, 0.18);
+        --app-scrim: rgba(18, 21, 19, 0.32);
+        --app-glass: rgba(255, 255, 255, 0.72);
+        --app-e1: 0 1px 2px rgba(40, 30, 10, 0.06), 0 2px 8px rgba(40, 30, 10, 0.04);
+        --app-e2: 0 8px 24px rgba(40, 30, 10, 0.10);
+        --app-gedge: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(18, 21, 19, 0.06);
+        --morzsa-shadow: rgba(60, 40, 20, 0.12);
 
         /* Toast: inverse in the light theme (dark bubble, light text) so it stands off the page. */
         --toast-bg: #1A1E1C;
@@ -119,23 +172,38 @@
     }
 
     .dark {
-        --app-bg: #0C0E0D;
-        --app-surface: #161917;
-        --app-surface-2: #1F2321;
-        --app-surface-3: #2A2F2C;
+        --app-bg: #0E100F;
+        --app-surface: #181B19;
+        --app-surface-2: #212522;
+        --app-surface-3: #2C312E;
         --app-ink: #F3F5F4;
         --app-ink-2: #C9CECB;
-        --app-muted: #959C98;
-        --app-faint: #6A706D;
-        --app-line: rgba(255, 255, 255, 0.06);
+        --app-muted: #9AA19D;
+        --app-faint: #6E7571;
+        --app-line: rgba(255, 255, 255, 0.08);
+        --app-control-border: #4A504C;
         --app-accent: #4BD88A;
         --app-accent-strong: #4BD88A;
-        --app-warn: #F2A33A;
-        --app-danger: #FF6B70;
+        --app-accent-tint: rgba(75, 216, 138, 0.14);
+        --app-plum: #B9A3FF;
+        --app-plum-ink: #1B1240;
+        --app-plum-tint: rgba(185, 163, 255, 0.14);
+        --app-warn: #F5B045;
+        --app-warn-text: #F5B045;
+        --app-warn-tint: rgba(245, 176, 69, 0.14);
+        --app-danger: #FF6B6F;
         --app-track: rgba(255, 255, 255, 0.08);
-        /* Dark ink on #FF6B70: 7.4:1. */
-        --app-danger-solid: #FF6B70;
-        --app-danger-ink: #2A0507;
+        /* White on #E5484D: 4.6:1 at the 17px semibold button label. */
+        --app-danger-solid: #E5484D;
+        --app-danger-ink: #FFFFFF;
+        --app-bubble: #212522;
+        --app-lamp: rgba(227, 164, 98, 0.10);
+        --app-scrim: rgba(0, 0, 0, 0.56);
+        --app-glass: rgba(24, 27, 25, 0.72);
+        --app-e1: none;
+        --app-e2: 0 8px 24px rgba(0, 0, 0, 0.40);
+        --app-gedge: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        --morzsa-shadow: rgba(0, 0, 0, 0.35);
 
         --toast-bg: var(--app-surface-3);
         --toast-ink: var(--app-ink);
@@ -556,4 +624,14 @@ html:not(.dark) .text-danger {
 
 html:not(.dark) .\!text-danger {
     color: #A91F25 !important;
+}
+
+/* Morzsa (components/morzsa): the rim light reads in the dark theme, the outline in the light one. */
+@layer components {
+    .morzsa-shadow { fill: var(--morzsa-shadow); }
+    .morzsa-line { fill: none; stroke: #2A1D15; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+    .morzsa-outline { display: inline; }
+    .morzsa-rim { display: none; }
+    .dark .morzsa-outline { display: none; }
+    .dark .morzsa-rim { display: inline; }
 }
