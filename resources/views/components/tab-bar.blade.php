@@ -2,7 +2,7 @@
     $tabs = [
         ['route' => 'dashboard', 'icon' => 'light_mode', 'label' => __('Today')],
         ['route' => 'month', 'icon' => 'calendar_month', 'label' => __('Month')],
-        ['route' => 'companion', 'icon' => null, 'label' => __('Morzsa')],
+        ['route' => 'companion', 'icon' => null, 'label' => auth()->user()?->settings()->companion_mode === 'off' ? __('Progress') : __('Morzsa')],
         ['route' => 'settings', 'icon' => 'settings', 'label' => __('Settings')],
     ];
 @endphp

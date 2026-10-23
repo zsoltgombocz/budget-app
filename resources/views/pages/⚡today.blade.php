@@ -205,6 +205,7 @@ new #[Title('Today')] class extends Component {
     $state = $view->state;
     $today = $view->today;
     $companion = $this->companion;
+    $companionMode = auth()->user()->settings()->companion_mode;
     $currency = user_currency();
     $heading = \Illuminate\Support\Str::ucfirst($today->locale(app()->getLocale())->isoFormat('dddd')).', '.\App\Support\Dates::short($today);
     $paceClass = match ($state->pace) {
@@ -249,13 +250,20 @@ new #[Title('Today')] class extends Component {
         </a>
     @endif
 
-    {{-- Morzsa's stage --}}
+    {{-- Morzsa's stage; with Morzsa off a bar of the month's days stands in for it. --}}
+    @if ($companionMode === 'off')
+        <div class="mx-5 mt-2 mb-3" data-test="month-days">
+            <div class="flex justify-between text-[13px] font-medium text-muted"><span>{{ \App\Support\Dates::monthName($view->period->nameDate()) }}</span><span>{{ __(':day. day of :days', ['day' => $view->period->totalDays() - $state->daysLeft + 1, 'days' => $view->period->totalDays()]) }}</span></div>
+            <x-ui.bar :label="__('Days of the month')" :value="($view->period->totalDays() - $state->daysLeft + 1) / $view->period->totalDays()" tone="accent" class="mt-1.5" />
+        </div>
+    @else
     <div class="relative h-[150px] shrink-0 bg-[radial-gradient(170px_110px_at_30%_80%,var(--app-lamp),transparent)]">
         <x-morzsa :mood="$companion->mood" :size="124" class="absolute bottom-1 left-6" />
-        @if ($companion->text)
+        @if ($companion->text && $companionMode === 'full')
             <p role="status" class="absolute top-3 right-4 left-[150px] rounded-[20px] bg-bubble px-4 py-3 text-[15px] leading-snug font-medium shadow-e1 before:absolute before:bottom-4 before:-left-1.5 before:size-3.5 before:rotate-45 before:rounded-[3px] before:bg-bubble" data-test="companion">{{ $companion->text }}</p>
         @endif
     </div>
+    @endif
 
     {{-- The main number --}}
     <section class="flex flex-col items-center px-5 text-center" data-test="month-left">

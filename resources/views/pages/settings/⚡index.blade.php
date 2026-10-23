@@ -15,21 +15,20 @@ new #[Title('Settings')] class extends Component {
 
 @php
     $user = auth()->user();
-    // "How it works" leads, so it shows without scrolling on a 320×568 phone (the tour's last card points here).
     $groups = [
         [
-            ['route' => 'dashboard', 'params' => ['bemutato' => 1], 'test' => 'how-it-works', 'icon' => 'lightbulb', 'title' => __('How it works'), 'subtitle' => __('A guided walk through the main screens')],
-        ],
-        [
-            ['route' => 'budget.edit', 'icon' => 'tune', 'title' => __('Budget'), 'subtitle' => __('Period and base currency')],
-            ['route' => 'notifications.edit', 'icon' => 'notifications', 'title' => __('Notifications'), 'subtitle' => __('Daily reminder, due items, this device')],
+            ['route' => 'budget.edit', 'icon' => 'tune', 'title' => __('Your month'), 'subtitle' => __('Income, start of the month, base currency')],
+            ['route' => 'companion.edit', 'icon' => 'pets', 'title' => __('Morzsa'), 'subtitle' => __('Presence and animations')],
+            ['route' => 'notifications.edit', 'icon' => 'notifications', 'title' => __('Notifications'), 'subtitle' => __('Evening reminder, weekly summary, due expenses')],
             ['route' => 'appearance.edit', 'icon' => 'palette', 'title' => __('Appearance'), 'subtitle' => __('Theme, language and time zone')],
         ],
         [
             ['route' => 'profile.edit', 'icon' => 'person', 'title' => __('Profile'), 'subtitle' => __('Name, email, delete account')],
             ['route' => 'security.edit', 'icon' => 'lock', 'title' => __('Security'), 'subtitle' => __('Passkeys')],
+            ['route' => 'export', 'icon' => 'download', 'title' => __('Download my data'), 'subtitle' => __('Every spending and month, in a CSV file'), 'download' => true],
         ],
         [
+            ['route' => 'help', 'icon' => 'lightbulb', 'title' => __('How it works'), 'subtitle' => __('Five short cards')],
             ['route' => 'install', 'icon' => 'install_mobile', 'title' => __('Install the app'), 'subtitle' => __('Steps for your phone and browser')],
             ['route' => 'contact', 'icon' => 'mail', 'title' => __('Contact'), 'subtitle' => __('E-mail, bug reports and ideas')],
             ['route' => 'changelog', 'params' => ['honnan' => 'beallitasok'], 'icon' => 'celebration', 'title' => __('What’s new'), 'subtitle' => __('Version :version', ['version' => config('app.version')])],
@@ -52,7 +51,7 @@ new #[Title('Settings')] class extends Component {
     @foreach ($groups as $group)
         <div class="mx-4 mt-3 overflow-hidden rounded-card bg-surface">
             @foreach ($group as $item)
-                <a href="{{ route($item['route'], $item['params'] ?? []) }}" wire:navigate @class(['flex items-center gap-3 px-[18px] py-3.5 transition active:bg-ink/4', 'divider-inset' => ! $loop->last]) data-test="settings-{{ $item['test'] ?? $item['route'] }}">
+                <a href="{{ route($item['route'], $item['params'] ?? []) }}" @unless ($item['download'] ?? false) wire:navigate @endunless @class(['flex items-center gap-3 px-[18px] py-3.5 transition active:bg-ink/4', 'divider-inset' => ! $loop->last]) data-test="settings-{{ $item['test'] ?? $item['route'] }}">
                     <x-ui.icon-tile :icon="$item['icon']" :size="36" />
                     <span class="min-w-0 flex-1">
                         <span class="block text-[15px] font-medium">{{ $item['title'] }}</span>

@@ -223,6 +223,7 @@ new #[Title('Morzsa')] class extends Component {
 
 @php
     $currency = user_currency();
+    $off = auth()->user()->settings()->companion_mode === 'off';
     $streak = $this->streak;
     $challenge = $this->challenge;
     $hour = (int) now()->setTimezone(auth()->user()->settings()->timezone)->format('G');
@@ -237,14 +238,16 @@ new #[Title('Morzsa')] class extends Component {
 
 <div class="px-5 pt-4" x-data="companionPage({ decimals: @js($currency->decimals()), locale: @js(app()->getLocale()), thisMonth: @js(now()->format('Y-m')) })">
     <div class="flex items-center justify-between">
-        <h1 class="font-display text-[32px] leading-9 font-bold tracking-[-0.02em]">{{ __('Morzsa') }}</h1>
+        <h1 class="font-display text-[32px] leading-9 font-bold tracking-[-0.02em]">{{ $off ? __('Progress') : __('Morzsa') }}</h1>
         <span class="num inline-flex h-8 items-center gap-1.5 rounded-full bg-plum-tint pr-3 pl-2 text-[15px] font-semibold text-plum" data-test="acorns">
             <svg class="size-5" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 10.5h12c0 5.8-3 9.6-6 10.2-3-.6-6-4.4-6-10.2z" fill="#E9C38F"/><path d="M4.6 11c0-3.8 3.4-6 7.4-6s7.4 2.2 7.4 6z" fill="#8A5A34"/></svg>
             {{ trans_choice('{1} :count acorn|[2,*] :count acorns', $this->acorns, ['count' => $this->acorns]) }}
         </span>
     </div>
 
-    <x-morzsa-room :stage="$this->stage" :time="$time" :jars="$jars" :items="$equipped" class="mt-3" />
+    @unless ($off)
+        <x-morzsa-room :stage="$this->stage" :time="$time" :jars="$jars" :items="$equipped" class="mt-3" />
+    @endunless
 
     {{-- Streak --}}
     <div class="mt-3 flex items-center gap-3 rounded-card bg-surface px-4 py-3 shadow-e1" data-test="streak-card">
