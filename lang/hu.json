@@ -1004,5 +1004,10 @@
     "Where should it go?": "Hová kerüljön?",
     "nothing moves": "nem mozdul semmi",
     "tap an amount to change it": "koppints az összegre a módosításhoz",
-    "two places, you set how much": "két helyre, te adod meg, mennyit"
+    "two places, you set how much": "két helyre, te adod meg, mennyit",
+    "At the start of the month": "Hónap elején",
+    "from the 1st to the end of the month": "1-jétől a hónap végéig",
+    "I set the day": "Megadom a napot",
+    "on day :day of every month": "minden hónap :onDay",
+    "for example your payday": "például a fizetésnapod"
 }

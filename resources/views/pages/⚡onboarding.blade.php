@@ -395,20 +395,32 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                 <x-ui.button variant="secondary" size="md" wire:click="skip" class="mt-3 w-full" data-test="onboarding-skip">{{ __('Skip, I set it up myself') }}</x-ui.button>
             </div>
         @elseif ($step === 2)
-            <div class="grid gap-2">
-                @foreach (PeriodMode::cases() as $mode)
-                    <x-ui.choice :selected="$periodMode === $mode->value" wire:click="$set('periodMode', '{{ $mode->value }}')" class="rounded-btn px-4 py-4 text-left text-[15px]">
-                        {{ $mode->label() }}
-                    </x-ui.choice>
-                @endforeach
-            </div>
-            @if ($periodMode === 'payday')
-                <div class="mt-5 px-1 text-[13px] text-muted">{{ __('Payday (day of month)') }}</div>
-                <div class="mt-2 grid grid-cols-7 gap-1.5" data-test="payday-grid">
-                    @for ($day = 1; $day <= 31; $day++)
-                        <x-ui.choice :selected="$paydayDay === $day" wire:click="$set('paydayDay', {{ $day }})" class="num aspect-square rounded-xl text-sm">{{ $day }}</x-ui.choice>
-                    @endfor
+            @php $payday = $periodMode === PeriodMode::Payday->value; @endphp
+            <div class="flex flex-col gap-2" role="radiogroup" aria-label="{{ __('When does your month start?') }}">
+                <button type="button" role="radio" aria-checked="{{ $payday ? 'false' : 'true' }}" wire:click="$set('periodMode', '{{ PeriodMode::Calendar->value }}')"
+                        @class(['press flex min-h-16 items-center gap-3.5 rounded-[20px] border-[1.5px] px-4 py-2.5 text-left', 'border-accent bg-picked' => ! $payday, 'border-surface-3 bg-surface' => $payday]) data-test="mode-calendar">
+                    <span @class(['flex size-[22px] shrink-0 items-center justify-center rounded-full border-2', 'border-accent' => ! $payday, 'border-surface-3' => $payday])><span @class(['size-2.5 rounded-full', 'bg-accent' => ! $payday])></span></span>
+                    <span><span class="block text-base font-semibold">{{ __('At the start of the month') }}</span><span class="block text-[13px] text-muted">{{ __('from the 1st to the end of the month') }}</span></span>
+                </button>
+                <div @class(['rounded-[20px] border-[1.5px]', 'border-accent bg-picked' => $payday, 'border-surface-3 bg-surface' => ! $payday])>
+                    <button type="button" role="radio" aria-checked="{{ $payday ? 'true' : 'false' }}" wire:click="$set('periodMode', '{{ PeriodMode::Payday->value }}')" class="flex min-h-16 w-full items-center gap-3.5 px-4 py-2.5 text-left" data-test="mode-payday">
+                        <span @class(['flex size-[22px] shrink-0 items-center justify-center rounded-full border-2', 'border-accent' => $payday, 'border-surface-3' => ! $payday])><span @class(['size-2.5 rounded-full', 'bg-accent' => $payday])></span></span>
+                        <span>
+                            <span class="block text-base font-semibold">{{ __('I set the day') }}</span>
+                            <span class="num block text-[13px] text-muted">{{ $payday && $paydayDay ? __('on day :day of every month', ['day' => $paydayDay, 'onDay' => \App\Support\Hungarian::onDay($paydayDay)]) : __('for example your payday') }}</span>
+                        </span>
+                    </button>
+                    @if ($payday)
+                        <div class="num grid grid-cols-7 gap-1 px-3 pb-3" role="radiogroup" aria-label="{{ __('Payday (day of month)') }}" data-test="payday-grid">
+                            @for ($day = 1; $day <= 31; $day++)
+                                <button type="button" role="radio" aria-checked="{{ $paydayDay === $day ? 'true' : 'false' }}" wire:click="$set('paydayDay', {{ $day }})"
+                                        @class(['h-[38px] rounded-xl border text-[15px]', 'border-accent bg-accent font-bold text-accent-ink' => $paydayDay === $day, 'border-ink/8 bg-surface-3' => $paydayDay !== $day])>{{ $day }}</button>
+                            @endfor
+                        </div>
+                    @endif
                 </div>
+            </div>
+            @if ($payday)
                 <p class="mt-2 px-1 text-xs text-muted">{{ __('If the month is shorter, the last day counts.') }}</p>
             @endif
         @elseif ($step === 3)
