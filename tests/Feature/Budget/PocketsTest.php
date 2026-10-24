@@ -237,7 +237,7 @@ it('previews the installment after the next prepayment', function (): void {
 
     expect(($this->page)()->nextInstallment($loan, $pocket))->toBe(77_856 + 2_549);
 
-    $this->get(route('pockets'))->assertSee(money(77_856 + 2_549));
+    $this->get(route('pockets'))->assertSee('~'.money_number(77_856 + 2_549));
 });
 
 it('cannot touch another user\'s pocket', function (): void {
@@ -258,4 +258,28 @@ it('lists archived pockets and restores one with its balance', function (): void
         ->assertDontSee('data-test="archived-pockets"', false);
 
     expect(Pocket::query()->find($pocket->id)?->balance)->toBe(120_000);
+});
+
+it('records how the bank applied a prepayment and remembers it', function (): void {
+    $loan = Loan::factory()->for($this->user)->create([
+        'principal_balance' => 2_000_000, 'installment' => 50_000, 'insurance' => 0,
+        'thm' => 12.0, 'remaining_months' => 48, 'prepay_mode' => PrepayMode::ReduceInstallment,
+    ]);
+
+    $result = ($this->page)()->prepay($loan->id, '500000', null, resolve(RecordPrepayment::class), PrepayMode::ReduceTerm->value);
+
+    expect($result['ok'])->toBeTrue()
+        ->and($loan->refresh()->installment)->toBe(50_000)
+        ->and($loan->remaining_months)->toBeLessThan(48)
+        ->and($loan->prepay_mode)->toBe(PrepayMode::ReduceTerm)
+        ->and(($this->page)()->prepayData($loan->id)['mode'])->toBe('reduce_term');
+});
+
+it('splits pockets and loans into two tabs', function (): void {
+    Loan::factory()->for($this->user)->create(['name' => 'Car loan']);
+
+    $this->get(route('pockets'))
+        ->assertSee('data-test="tab-pots"', false)
+        ->assertSee('data-test="tab-loans"', false)
+        ->assertSee('Car loan');
 });

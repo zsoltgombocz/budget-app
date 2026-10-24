@@ -4,6 +4,7 @@ namespace App\Actions\Budget;
 
 use App\Enums\LoanEventType;
 use App\Enums\PocketMovementType;
+use App\Enums\PrepayMode;
 use App\Models\Loan;
 use App\Models\LoanEvent;
 use App\Models\Pocket;
@@ -22,10 +23,11 @@ final readonly class RecordPrepayment
     ) {}
 
     /**
-     * Prepay a loan, optionally from a pocket. The new installment flows into the
-     * loan's plan line, so the next period's leftover grows.
+     * Prepay a loan, optionally from a pocket. The bank either shortens the term or lowers the
+     * installment ($mode; the loan's last choice when not given, and the choice is kept). A lower
+     * installment flows into the loan's plan line, so the next period's leftover grows.
      */
-    public function handle(User $user, Loan $loan, int $amount, ?Pocket $pocket = null): LoanEvent
+    public function handle(User $user, Loan $loan, int $amount, ?Pocket $pocket = null, ?PrepayMode $mode = null): LoanEvent
     {
         if ($amount <= 0) {
             throw ValidationException::withMessages(['amount' => __('The amount must be greater than zero.')]);
@@ -35,11 +37,13 @@ final readonly class RecordPrepayment
             throw ValidationException::withMessages(['amount' => __('The pocket does not have enough money.')]);
         }
 
-        return DB::transaction(function () use ($user, $loan, $amount, $pocket): LoanEvent {
+        $mode ??= $loan->prepay_mode;
+
+        return DB::transaction(function () use ($user, $loan, $amount, $pocket, $mode): LoanEvent {
             $after = $this->calculator->afterPrepayment(
                 new LoanState($loan->principal_balance, $loan->installment, $loan->remaining_months),
                 min($amount, $loan->principal_balance),
-                $loan->prepay_mode,
+                $mode,
                 $loan->thm,
             );
 
@@ -49,6 +53,7 @@ final readonly class RecordPrepayment
                 'principal_balance' => $after->principal,
                 'installment' => $after->installment,
                 'remaining_months' => $after->remainingMonths,
+                'prepay_mode' => $mode,
             ]);
 
             $loan->budgetLines()->update(['amount' => $loan->monthlyPayment()]);

@@ -541,3 +541,42 @@ html.navigating main {
 @media (prefers-reduced-motion: reduce) {
     .tile-grow { animation: none; }
 }
+
+/* Loan planner slider, on the green card. */
+.loan-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 28px;
+    background: transparent;
+    margin: 0;
+}
+
+.loan-slider::-webkit-slider-runnable-track {
+    height: 8px;
+    border-radius: 4px;
+    background: var(--app-hero-2);
+}
+
+.loan-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 28px;
+    height: 28px;
+    margin-top: -10px;
+    border-radius: 14px;
+    background: var(--app-hero-ink);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.loan-slider::-moz-range-track {
+    height: 8px;
+    border-radius: 4px;
+    background: var(--app-hero-2);
+}
+
+.loan-slider::-moz-range-thumb {
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 14px;
+    background: var(--app-hero-ink);
+}

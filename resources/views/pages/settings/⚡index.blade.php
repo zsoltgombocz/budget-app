@@ -17,6 +17,7 @@ new #[Title('Settings')] class extends Component {
     $user = auth()->user();
     $groups = [
         [
+            ['route' => 'subscription', 'icon' => 'redeem', 'title' => __('Subscription'), 'subtitle' => $user->currentPlan()->label()],
             ['route' => 'budget.edit', 'icon' => 'tune', 'title' => __('Budget'), 'subtitle' => __('Period and base currency')],
             ['route' => 'notifications.edit', 'icon' => 'notifications', 'title' => __('Notifications'), 'subtitle' => __('Daily reminder, due items, this device')],
             ['route' => 'appearance.edit', 'icon' => 'palette', 'title' => __('Appearance'), 'subtitle' => __('Theme, language and time zone')],

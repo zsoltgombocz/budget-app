@@ -33,6 +33,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         Route::livewire('honap', 'pages::month')->name('month');
         Route::livewire('honap/zaras/{period}', 'pages::close')->name('close');
         Route::livewire('perselyek', 'pages::pockets')->name('pockets');
+        Route::livewire('perselyek/hitel/{loan}', 'pages::loan')->name('loan');
         Route::livewire('ujdonsagok', 'pages::changelog')->name('changelog');
     });
 });

@@ -288,6 +288,7 @@ new #[Title('Pockets and loans')] class extends Component {
             'loanId' => $loan->id,
             'loanName' => $loan->name,
             'pocketId' => $pocket?->id,
+            'mode' => $loan->prepay_mode->value,
             'amounts' => ['prepay' => $this->input($pocket?->prepay_step !== null ? min($pocket->prepay_step, max(0, $pocket->balance)) : null)],
         ];
     }
@@ -295,7 +296,7 @@ new #[Title('Pockets and loans')] class extends Component {
     /**
      * @return array{ok: bool, errors: array<string, string>}
      */
-    public function prepay(int $loanId, string $amount, ?int $pocketId, RecordPrepayment $recordPrepayment): array
+    public function prepay(int $loanId, string $amount, ?int $pocketId, RecordPrepayment $recordPrepayment, ?string $mode = null): array
     {
         $user = $this->user();
         $value = $this->parse($amount);
@@ -308,14 +309,17 @@ new #[Title('Pockets and loans')] class extends Component {
         $pocket = $pocketId !== null ? $user->pockets()->findOrFail($pocketId) : null;
 
         try {
-            $recordPrepayment->handle($user, $loan, $value, $pocket);
+            $recordPrepayment->handle($user, $loan, $value, $pocket, PrepayMode::tryFrom((string) $mode));
         } catch (ValidationException $exception) {
             return ['ok' => false, 'errors' => ['prepay' => collect($exception->errors())->flatten()->first()]];
         }
 
         unset($this->loans, $this->pockets);
         $this->dispatch('budget-updated');
-        $this->dispatch('app-toast', title: __('Prepayment recorded.'), subtitle: __('New installment: :amount', ['amount' => money($loan->refresh()->monthlyPayment())]));
+        $loan->refresh();
+        $this->dispatch('app-toast', title: __('Prepayment recorded.'), subtitle: $loan->prepay_mode === PrepayMode::ReduceTerm
+            ? trans_choice('{1} :count month left|[2,*] :count months left', (int) $loan->remaining_months, ['count' => (int) $loan->remaining_months])
+            : __('New installment: :amount', ['amount' => money($loan->monthlyPayment())]));
 
         return ['ok' => true, 'errors' => []];
     }
@@ -383,6 +387,31 @@ new #[Title('Pockets and loans')] class extends Component {
         return $after->installment + $loan->insurance;
     }
 
+    /**
+     * When the loan is paid off with its prepayment pocket's monthly saving (Plusz), if the bank
+     * shortens the term on prepayments; null otherwise (a lower installment keeps the end date).
+     */
+    public function loanFreeBy(Loan $loan): ?\Carbon\CarbonImmutable
+    {
+        $fund = $loan->pockets->first(fn (Pocket $pocket): bool => $pocket->prepay_step !== null);
+
+        if (! $this->user()->hasPlusz() || $loan->prepay_mode !== PrepayMode::ReduceTerm || $fund === null || $loan->thm === null || $loan->remaining_months === null) {
+            return null;
+        }
+
+        return app(\App\Services\LoanPlanner::class)->plan(
+            principal: $loan->principal_balance,
+            thm: $loan->thm,
+            installment: $loan->installment,
+            remainingMonths: $loan->remaining_months,
+            monthlySaving: $this->monthlyDeposit($fund),
+            step: (int) $fund->prepay_step,
+            mode: $loan->prepay_mode,
+            firstMonth: app(\App\Services\PeriodService::class)->today($this->user()->settings())->addMonth(),
+            alreadySaved: max(0, $fund->balance),
+        )->endWith;
+    }
+
     public function monthlyDeposit(Pocket $pocket): int
     {
         return (int) $pocket->budgetLines->sum('amount');
@@ -436,15 +465,34 @@ new #[Title('Pockets and loans')] class extends Component {
     $openLoan = $loanQuery === 'uj' ? 'new' : (is_numeric($loanQuery) && $loans->contains('id', (int) $loanQuery) ? (int) $loanQuery : null);
     // Opened from the plan: closing the loan sheet (save or cancel) goes back there.
     $returnTo = $openLoan !== null && request()->query('vissza') === 'terv' ? route('plan') : null;
+    // ?elotorlesztes=ID opens the prepayment sheet of that loan (from the loan page).
+    $prepayQuery = request()->query('elotorlesztes');
+    $openPrepay = is_numeric($prepayQuery) && $loans->contains('id', (int) $prepayQuery) ? (int) $prepayQuery : null;
+    $startTab = request()->query('ful') === 'hitelek' || $openLoan !== null || $openPrepay !== null ? 'loans' : 'pots';
 @endphp
-<div x-data="pocketsPage({ decimals: {{ $decimals }}, locale: @js(str_replace('_', '-', app()->getLocale())), cover: @js($cover), openLoan: @js($openLoan), returnTo: @js($returnTo) })">
-    <x-ui.page-header :title="__('Pockets')" :subtitle="__('Saved in total: :amount', ['amount' => money((int) $pockets->sum('balance'))])">
-        <x-slot name="actions">
-            <x-ui.icon-button icon="add" x-on:click="sheet = 'new'" :label="__('Add')" data-test="add" />
-        </x-slot>
-    </x-ui.page-header>
+<div x-data="pocketsPage({ decimals: {{ $decimals }}, locale: @js(str_replace('_', '-', app()->getLocale())), cover: @js($cover), openLoan: @js($openLoan), openPrepayFor: @js($openPrepay), returnTo: @js($returnTo), tab: @js($startTab) })">
+    <div class="flex items-center justify-between px-4 pt-5">
+        <h1 class="text-[30px] font-bold tracking-[-0.02em]">{{ __('My money') }}</h1>
+        <button type="button" x-on:click="tab === 'loans' ? openLoan(null) : openPocket(null)" class="press flex h-10 items-center gap-1.5 rounded-full bg-surface-2 pr-3.5 pl-2.5 text-sm font-semibold" data-test="add">
+            <x-ui.icon name="add" :size="18" />
+            <span x-text="tab === 'loans' ? @js(__('Loan')) : @js(__('Pocket'))">{{ __('Pocket') }}</span>
+        </button>
+    </div>
 
-    @if ($pockets->isEmpty() && $loans->isEmpty())
+    <div role="tablist" aria-label="{{ __('Pockets or loans') }}" class="num mx-4 mt-4 grid grid-cols-2 gap-1 rounded-[20px] bg-surface p-1">
+        <button type="button" role="tab" x-on:click="tab = 'pots'" :aria-selected="tab === 'pots'" :class="tab === 'pots' ? 'bg-surface-3' : ''" class="h-14 rounded-2xl px-3.5 text-left" data-test="tab-pots">
+            <span class="block text-[13px]" :class="tab === 'pots' ? 'text-ink-2' : 'text-muted'">{{ __('Pockets') }}</span>
+            <span class="mt-px block text-[17px] font-bold">{{ money_number((int) $pockets->sum('balance')) }}</span>
+        </button>
+        <button type="button" role="tab" x-on:click="tab = 'loans'" :aria-selected="tab === 'loans'" :class="tab === 'loans' ? 'bg-surface-3' : ''" class="h-14 rounded-2xl px-3.5 text-left" data-test="tab-loans">
+            <span class="block text-[13px]" :class="tab === 'loans' ? 'text-ink-2' : 'text-muted'">{{ __('Loans') }}</span>
+            <span class="mt-px block text-[17px] font-bold">{{ money_number((int) $loans->sum('principal_balance')) }}</span>
+        </button>
+    </div>
+
+    <div x-show="tab === 'pots'" data-test="pots">
+
+    @if ($pockets->isEmpty())
         <x-ui.empty-state icon="savings" :title="__('No pockets yet')" class="mx-4 mt-5">
             {{ __('Pockets collect money for a goal: a reserve, a prepayment, a holiday. Link a plan line to a pocket and it fills up at every month end.') }}
         </x-ui.empty-state>
@@ -455,20 +503,17 @@ new #[Title('Pockets and loans')] class extends Component {
             $deposit = $this->monthlyDeposit($featured);
             $missing = max(0, $featured->prepay_step - $featured->balance);
         @endphp
-        <button type="button" x-on:click="openPocket({{ $featured->id }})" class="mx-4 mb-3 mt-[18px] block w-[calc(100%-2rem)] rounded-card bg-surface p-[18px] text-left" data-test="pocket-{{ $featured->id }}">
-            <div class="flex items-start justify-between gap-2">
-                <div class="flex min-w-0 items-center gap-3">
-                    <x-ui.icon-tile icon="trending_down" tone="accent" />
-                    <div class="min-w-0">
-                        <div class="text-[15px] font-semibold">{{ $featured->name }}</div>
-                        @if ($deposit > 0)<div class="num mt-0.5 text-xs text-muted">+{{ money($deposit) }} {{ $perPeriod }}</div>@endif
-                    </div>
-                </div>
-                <span class="num shrink-0 whitespace-nowrap rounded-lg bg-surface-2 px-2 py-[5px] font-mono text-[11px] text-ink-2">{{ __('step: :amount', ['amount' => money_number($featured->prepay_step)]) }}</span>
+        <button type="button" x-on:click="openPocket({{ $featured->id }})" class="press mx-4 mt-4 block w-[calc(100%-2rem)] rounded-[28px] bg-hero p-5 text-left" data-test="pocket-{{ $featured->id }}">
+            <div class="flex items-center gap-2.5">
+                <x-ui.icon name="trending_up" :size="20" class="text-accent" />
+                <span class="min-w-0">
+                    <span class="block truncate text-base font-semibold text-hero-ink">{{ $featured->name }}</span>
+                    @if ($deposit > 0)<span class="num block text-[13px] text-hero-sub">+{{ money_number($deposit) }} {{ $perPeriod }}</span>@endif
+                </span>
             </div>
-            <div class="num mt-[18px] flex items-baseline gap-1.5"><span class="text-[30px] font-semibold tracking-[-0.02em]">{{ money_number($featured->balance) }}</span><span class="text-[15px] text-muted">/ {{ money($featured->prepay_step) }}</span></div>
-            <x-ui.bar :value="$featured->balance / max(1, $featured->prepay_step)" :height="8" :tone="$featured->hasReachedPrepayStep() ? 'warn' : 'accent'" class="mt-3" />
-            <div class="num mt-2 flex justify-between text-xs text-muted">
+            <div class="num mt-4 flex items-baseline gap-1.5"><span class="text-[40px] font-extrabold tracking-[-0.03em] text-hero-ink">{{ money_number($featured->balance) }}</span><span class="text-base text-hero-sub">/ {{ money_number($featured->prepay_step) }}</span></div>
+            <div class="mt-3.5 h-3 overflow-hidden rounded-md bg-hero-2"><div class="tile-grow h-full rounded-md bg-accent" style="width: {{ min(100, round($featured->balance / max(1, $featured->prepay_step) * 100)) }}%"></div></div>
+            <div class="num mt-2.5 flex justify-between text-sm text-hero-soft">
                 @if ($missing > 0)
                     <span>{{ __(':amount to go', ['amount' => money($missing)]) }}</span>
                     @if ($deposit > 0)<span>{{ trans_choice('{1} about :count payday|[2,*] about :count paydays', (int) ceil($missing / $deposit), ['count' => (int) ceil($missing / $deposit)]) }}</span>@endif
@@ -480,7 +525,7 @@ new #[Title('Pockets and loans')] class extends Component {
     @endif
 
     @if ($reserve)
-        <button type="button" x-on:click="openPocket({{ $reserve->id }})" @class(['mx-4 mb-3 block w-[calc(100%-2rem)] rounded-card bg-surface p-[18px] text-left', 'mt-[18px]' => ! $featured]) data-test="pocket-{{ $reserve->id }}">
+        <button type="button" x-on:click="openPocket({{ $reserve->id }})" @class(['press mx-4 block w-[calc(100%-2rem)] rounded-[28px] bg-surface p-5 text-left', 'mt-3' => $featured, 'mt-4' => ! $featured]) data-test="pocket-{{ $reserve->id }}">
             <div class="flex items-center gap-3">
                 <x-ui.icon-tile icon="shield" />
                 <div>
@@ -499,7 +544,7 @@ new #[Title('Pockets and loans')] class extends Component {
     @endif
 
     @if ($others->isNotEmpty())
-        <div class="mx-4 mb-3 grid grid-cols-2 gap-3">
+        <div class="mx-4 mt-3 grid grid-cols-2 gap-3">
             @foreach ($others as $pocket)
                 @php $goal = $pocket->target_amount ?? $pocket->prepay_step; @endphp
                 <button type="button" x-on:click="openPocket({{ $pocket->id }})" wire:key="pocket-{{ $pocket->id }}" class="rounded-card bg-surface p-4 text-left" data-test="pocket-{{ $pocket->id }}">
@@ -513,49 +558,47 @@ new #[Title('Pockets and loans')] class extends Component {
         </div>
     @endif
 
-    @if ($loans->isNotEmpty())
-        <div class="px-[30px] pb-2 pt-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted">{{ __('Loans') }}</div>
-        @foreach ($loans as $loan)
+    </div>
+
+    <div x-show="tab === 'loans'" x-cloak data-test="loans">
+        @forelse ($loans as $loan)
             @php
                 $fund = $loan->pockets->first(fn ($p) => $p->prepay_step !== null);
                 $next = $fund ? $this->nextInstallment($loan, $fund) : null;
-                $detailed = $loop->first || $fund !== null;
+                $freeBy = $this->loanFreeBy($loan);
             @endphp
-            @if ($detailed)
-                <div class="mx-4 mb-3 rounded-card bg-surface p-[18px]" wire:key="loan-{{ $loan->id }}" data-test="loan-{{ $loan->id }}">
-                    <button type="button" x-on:click="openLoan({{ $loan->id }})" class="flex w-full items-center gap-3 text-left">
-                        <x-ui.icon-tile icon="account_balance" />
-                        <span class="min-w-0 flex-1">
-                            <span class="block truncate text-[15px] font-semibold">{{ $loan->name }}</span>
-                            @if ($loan->lender)<span class="block text-xs text-muted">{{ $loan->lender }}</span>@endif
-                        </span>
-                        <x-ui.icon name="chevron_right" :size="22" class="text-faint" />
-                    </button>
-                    <div class="mt-4 grid grid-cols-2 gap-3">
-                        <div><div class="text-xs text-muted">{{ __('Remaining principal') }}</div><div class="num mt-1 text-xl font-semibold">{{ money($loan->principal_balance) }}</div></div>
-                        <div><div class="text-xs text-muted">{{ __('Monthly installment') }}</div><div class="num mt-1 text-xl font-semibold">{{ money($loan->monthlyPayment()) }}</div></div>
-                    </div>
-                    @if ($next !== null && $next < $loan->monthlyPayment())
-                        <div class="mt-4 rounded-btn border border-accent/22 bg-accent/10 px-4 py-3.5">
-                            <div class="text-[13px] leading-snug text-ink-2">{{ __('Expected installment after the next prepayment:') }}</div>
-                            <div class="num mt-2 flex items-center gap-2.5">
-                                <span class="text-[15px] text-muted line-through">{{ money_number($loan->monthlyPayment()) }}</span>
-                                <x-ui.icon name="arrow_forward" :size="18" class="text-accent" />
-                                <span class="text-2xl font-semibold text-accent">~{{ money($next) }}</span>
-                            </div>
-                            <div class="mt-1.5 text-xs text-muted">{{ __('when :pocket reaches :step', ['pocket' => $fund->name, 'step' => money($fund->prepay_step)]) }}</div>
-                        </div>
-                    @endif
-                    <x-ui.button variant="secondary" size="md" icon="trending_down" x-on:click="openPrepay({{ $loan->id }})" class="mt-3 w-full" data-test="prepay-loan-{{ $loan->id }}">{{ __('Record prepayment') }}</x-ui.button>
+            <a href="{{ route('loan', $loan) }}" wire:navigate class="press mx-4 mt-4 block rounded-[28px] bg-surface px-5 py-[18px]" wire:key="loan-{{ $loan->id }}" data-test="loan-{{ $loan->id }}">
+                <div class="flex items-center gap-3">
+                    <span class="flex size-10 items-center justify-center rounded-[14px] bg-surface-2 text-ink-2"><x-ui.icon name="account_balance" :size="20" /></span>
+                    <span class="min-w-0 flex-1">
+                        <span class="block truncate text-base font-semibold">{{ $loan->name }}</span>
+                        @if ($loan->lender)<span class="block text-[13px] text-muted">{{ $loan->lender }}</span>@endif
+                    </span>
+                    <x-ui.icon name="chevron_right" :size="20" class="text-faint" />
                 </div>
-            @else
-                <button type="button" x-on:click="openLoan({{ $loan->id }})" wire:key="loan-{{ $loan->id }}" class="mx-4 mb-3 flex w-[calc(100%-2rem)] items-center justify-between rounded-card bg-surface px-[18px] py-4 text-left" data-test="loan-{{ $loan->id }}">
-                    <span class="flex min-w-0 items-center gap-3"><x-ui.icon-tile icon="work" /><span class="truncate text-[15px] font-semibold">{{ $loan->name }}</span></span>
-                    <span class="num shrink-0 text-sm text-muted">{{ __('monthly :amount', ['amount' => money($loan->monthlyPayment())]) }}</span>
-                </button>
-            @endif
-        @endforeach
-    @endif
+                <div class="num mt-4 grid grid-cols-2 gap-4">
+                    <div><div class="text-[13px] text-muted">{{ __('Owed') }}</div><div class="mt-0.5 text-xl font-bold">{{ money_number($loan->principal_balance) }}</div></div>
+                    <div>
+                        <div class="text-[13px] text-muted">{{ __('Monthly installment') }}</div>
+                        <div class="mt-0.5 text-xl font-bold">{{ money_number($loan->monthlyPayment()) }}</div>
+                        @if ($next !== null && $next < $loan->monthlyPayment())
+                            <div class="mt-0.5 flex items-center gap-1 text-[13px] text-accent" data-test="next-installment"><x-ui.icon name="arrow_forward" :size="14" />~{{ money_number($next) }} {{ __('after the next prepayment') }}</div>
+                        @endif
+                    </div>
+                </div>
+                @if ($freeBy !== null)
+                    <div class="mt-4 flex h-12 items-center justify-between rounded-2xl bg-hero px-3.5">
+                        <span class="text-sm text-hero-soft">{{ __('Loan-free by') }}</span>
+                        <span class="num text-base font-bold text-accent">{{ \App\Support\Dates::monthYear($freeBy) }}</span>
+                    </div>
+                @endif
+            </a>
+        @empty
+            <x-ui.empty-state icon="account_balance" :title="__('No loans')" class="mx-4 mt-4">
+                {{ __('Add a loan and its installment goes into the plan.') }}
+            </x-ui.empty-state>
+        @endforelse
+    </div>
 
     @if ($this->archivedPockets->isNotEmpty())
         <details class="group mx-4 mb-3 mt-2" data-test="archived-pockets">
@@ -576,14 +619,6 @@ new #[Title('Pockets and loans')] class extends Component {
             </div>
         </details>
     @endif
-
-    {{-- Add: choose a pocket or a loan --}}
-    <x-ui.form-sheet show="sheet === 'new'" close="sheet = null" :label="__('Add')" :full="false">
-        <div class="grid gap-2 pb-[env(safe-area-inset-bottom)]">
-            <button type="button" x-on:click="openPocket(null)" class="flex items-center gap-3 rounded-btn bg-surface-2 p-4 text-left" data-test="new-pocket"><x-ui.icon-tile icon="savings" tone="accent" /><span><span class="block font-semibold">{{ __('New pocket') }}</span><span class="block text-xs text-muted">{{ __('Reserve, prepayment or any goal') }}</span></span></button>
-            <button type="button" x-on:click="openLoan(null)" class="flex items-center gap-3 rounded-btn bg-surface-2 p-4 text-left" data-test="new-loan"><x-ui.icon-tile icon="account_balance" /><span><span class="block font-semibold">{{ __('New loan') }}</span><span class="block text-xs text-muted">{{ __('Principal, installment and APR') }}</span></span></button>
-        </div>
-    </x-ui.form-sheet>
 
     {{-- Pocket: money movements and settings --}}
     <x-ui.form-sheet show="sheet === 'pocket'" close="sheet = null" title="title()" data-test="pocket-sheet">
@@ -700,6 +735,17 @@ new #[Title('Pockets and loans')] class extends Component {
                 @foreach ($pockets as $pocket)<option value="{{ $pocket->id }}">{{ $pocket->name }} ({{ money($pocket->balance) }})</option>@endforeach
             </x-ui.select-row>
         </x-ui.form-group>
+        <div class="mt-3 mb-1.5 px-1 text-[15px] font-semibold">{{ __('What did the bank do with it?') }}</div>
+        <div class="grid grid-cols-2 gap-2" role="radiogroup" aria-label="{{ __('What did the bank do with it?') }}">
+            @foreach ([PrepayMode::ReduceTerm->value => [__('Shorter term'), __('same installment')], PrepayMode::ReduceInstallment->value => [__('Lower installment'), __('same term')]] as $value => [$title, $hint])
+                <button type="button" role="radio" x-on:click="form.mode = @js($value)" :aria-checked="form.mode === @js($value)"
+                        :class="form.mode === @js($value) ? 'border-accent bg-picked' : 'border-transparent bg-surface-2'"
+                        class="press rounded-2xl border-[1.5px] px-3.5 py-2.5 text-left" data-test="prepay-mode-{{ $value }}">
+                    <span class="block text-[15px] font-semibold">{{ $title }}</span>
+                    <span class="block text-xs text-muted">{{ $hint }}</span>
+                </button>
+            @endforeach
+        </div>
         <x-ui.numpad :decimal="$decimals > 0" class="mt-3" />
         <x-slot:footer>
             <x-ui.button x-on:click="submit()" ::disabled="saving" class="w-full" data-test="sheet-save">{{ __('Record prepayment') }}</x-ui.button>
@@ -709,8 +755,9 @@ new #[Title('Pockets and loans')] class extends Component {
 
 @script
 <script>
-    Alpine.data('pocketsPage', ({ decimals, locale, cover, openLoan, returnTo }) => ({
+    Alpine.data('pocketsPage', ({ decimals, locale, cover, openLoan, openPrepayFor, returnTo, tab }) => ({
         sheet: null,
+        tab,
         moveMode: 'deposit',
         pocketTab: 'money',
         activeLabel: '',
@@ -737,6 +784,10 @@ new #[Title('Pockets and loans')] class extends Component {
                         setTimeout(() => Livewire.navigate(returnTo), 200)
                     })
                 })
+                history.replaceState(null, '', location.pathname)
+            }
+            if (openPrepayFor !== null) {
+                this.openPrepay(openPrepayFor)
                 history.replaceState(null, '', location.pathname)
             }
             if (cover?.pocketId) {
@@ -812,7 +863,7 @@ new #[Title('Pockets and loans')] class extends Component {
                 let result
                 if (this.sheet === 'pocket') result = await $wire.savePocket({ ...this.form, amounts: { ...this.fields } })
                 else if (this.sheet === 'loan') result = await $wire.saveLoan({ ...this.form, amounts: { ...this.fields } })
-                else if (this.sheet === 'prepay') result = await $wire.prepay(this.form.loanId, this.fields.prepay || '', this.form.pocketId || null)
+                else if (this.sheet === 'prepay') result = await $wire.prepay(this.form.loanId, this.fields.prepay || '', this.form.pocketId || null, this.form.mode || null)
                 this.errors = result?.errors ?? {}
                 if (result?.ok) this.sheet = null
             } finally {

@@ -26,4 +26,12 @@ return [
      * Sentry issues page of production, linked from the admin menu.
      */
     'sentry_url' => env('SENTRY_DASHBOARD_URL') ?: 'https://moneysight.sentry.io/issues/?project=4512205235552336',
+
+    /*
+     * Plan prices in forints. Payment is not live yet: they are only shown.
+     */
+    'prices' => [
+        'basic' => ['month' => 2_490, 'year' => 19_990],
+        'plus' => ['month' => 3_990, 'year' => 31_990],
+    ],
 ];

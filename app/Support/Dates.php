@@ -51,6 +51,18 @@ final class Dates
     }
 
     /**
+     * Year and short month: "2028. okt", "Oct 2028".
+     */
+    public static function monthYear(CarbonInterface $date): string
+    {
+        $date = $date->locale(app()->getLocale());
+
+        return app()->getLocale() === 'hu'
+            ? $date->year.'. '.rtrim($date->isoFormat('MMM'), '.')
+            : $date->isoFormat('MMM YYYY');
+    }
+
+    /**
      * Capitalised month name of the period: "Október".
      */
     public static function monthName(CarbonInterface $date): string
