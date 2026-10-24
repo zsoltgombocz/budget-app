@@ -1026,5 +1026,10 @@
     "Skipped this month": "Ebben a hónapban kihagyva",
     "+:amount left at month end": "+:amount marad a hónap végén",
     "Not transferring this month": "Most nem utalom el",
-    "Skip this month": "Most kihagyom"
+    "Skip this month": "Most kihagyom",
+    "Where should the leftover go?": "Hová menjen a hó végi maradék?",
+    "Until it reaches": "Amíg el nem éri",
+    "no limit": "nincs felső határ",
+    "The rest": "A többi",
+    "All of it": "Az egész"
 }

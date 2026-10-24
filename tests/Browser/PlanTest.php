@@ -43,6 +43,7 @@ it('creates a reserve from the plan with the numpad', function (): void {
     $this->actingAs(onboardedUser());
 
     visit(route('plan'))->on()->mobile()
+        ->click('[data-test="leftover-rule"]')
         ->click('[data-test="create-reserve"]')
         ->assertVisible('[data-test="reserve-sheet"]')
         ->click('[data-test="reserve-monthly"]')
@@ -51,7 +52,7 @@ it('creates a reserve from the plan with the numpad', function (): void {
         ->click('[data-test="reserve-sheet"] [data-key="000"]:visible')
         ->click('[data-test="pad-done"]:visible')
         ->click('[data-test="save-reserve"]')
-        ->assertVisible('[data-test="reserve-row"] >> nth=0');
+        ->assertNoJavaScriptErrors();
 
     expect(BudgetLine::query()->whereNotNull('pocket_id')->value('amount'))->toBe(25_000);
 });
