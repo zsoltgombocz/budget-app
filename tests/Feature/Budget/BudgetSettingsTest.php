@@ -59,7 +59,7 @@ it('shows the month-end leftover on the plan and saves the leftover rule there',
         ->call('setReservePct', 50)
         ->call('setSurplusTarget', 'account:'.$account->id)
         ->assertNotDispatched('app-toast')
-        ->assertSee(money(25_000 + 62_500));
+        ->assertSee('50% to the reserve, the rest: Broker');
 
     $settings = $user->settings()->refresh();
     expect($settings->reserve_pct)->toBe(50)->and($settings->surplus_account_id)->toBe($account->id);

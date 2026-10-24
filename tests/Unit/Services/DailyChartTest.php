@@ -1,11 +1,12 @@
 <?php
 
 use App\Services\DailyChart;
+use App\Services\Data\DailyBar;
 
 it('scales the days to the biggest one and marks today, the no-spend days and the days to come', function (): void {
     $bars = new DailyChart()->bars(dailySpent: [10_000, 0, 0, 5_000], noSpendDays: [1], totalDays: 6, includesToday: true);
 
-    expect(array_map(fn ($bar) => $bar->kind, $bars))->toBe(['spent', 'no_spend', 'empty', 'today', 'future', 'future'])
+    expect(array_map(fn (DailyBar $bar): string => $bar->kind, $bars))->toBe(['spent', 'no_spend', 'empty', 'today', 'future', 'future'])
         ->and($bars[0]->height)->toBe(84.0)
         ->and($bars[0]->y)->toBe(6.0)
         ->and($bars[3]->height)->toBe(42.0)
