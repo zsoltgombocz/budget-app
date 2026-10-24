@@ -67,25 +67,23 @@ final class ExportUserData
         $ids = [];
 
         foreach (Schema::getTableListing(schemaQualified: false) as $table) {
-            if (in_array($table, self::SKIP_TABLES, true) || $table === 'users' || ! Schema::hasColumn($table, 'user_id')) {
+            if (! is_string($table) || in_array($table, self::SKIP_TABLES, true) || $table === 'users' || ! Schema::hasColumn($table, 'user_id')) {
                 continue;
             }
 
             $tables[$table] = $this->rows($table, 'user_id', [$user->id]);
-            $ids[$table] = array_map(fn (array $row): mixed => $row['id'] ?? null, $tables[$table]);
+            $ids[$table] = array_values(array_filter(array_map(fn (array $row): mixed => $row['id'] ?? null, $tables[$table])));
         }
 
         foreach (self::CHILD_TABLES as $table => [$column, $parent]) {
             if (Schema::hasTable($table) && isset($ids[$parent])) {
-                $tables[$table] = $this->rows($table, $column, array_filter($ids[$parent]));
+                $tables[$table] = $this->rows($table, $column, $ids[$parent]);
             }
         }
 
         if (Schema::hasTable('push_subscriptions')) {
-            $tables['push_subscriptions'] = array_map(
-                fn (array $row): array => $this->withoutSecrets('push_subscriptions', $row),
-                array_map(fn (object $row): array => (array) $row, DB::table('push_subscriptions')->where('subscribable_type', $user->getMorphClass())->where('subscribable_id', $user->id)->get()->all()),
-            );
+            $rows = DB::table('push_subscriptions')->where('subscribable_type', $user->getMorphClass())->where('subscribable_id', $user->id)->get()->all();
+            $tables['push_subscriptions'] = array_values(array_map(fn (object $row): array => $this->withoutSecrets('push_subscriptions', $this->toArray($row)), $rows));
         }
 
         ksort($tables);
@@ -109,7 +107,21 @@ final class ExportUserData
             $query->orderBy('id');
         }
 
-        return array_values(array_map(fn (object $row): array => $this->withoutSecrets($table, (array) $row), $query->get()->all()));
+        return array_values(array_map(fn (object $row): array => $this->withoutSecrets($table, $this->toArray($row)), $query->get()->all()));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function toArray(object $row): array
+    {
+        $values = [];
+
+        foreach (get_object_vars($row) as $column => $value) {
+            $values[(string) $column] = $value;
+        }
+
+        return $values;
     }
 
     /**
@@ -134,7 +146,9 @@ final class ExportUserData
             throw new RuntimeException('Could not open a memory stream.');
         }
 
-        $columns = $rows === [] ? array_values(array_diff(Schema::getColumnListing($table), self::SECRET_COLUMNS[$table] ?? [])) : array_keys($rows[0]);
+        $columns = $rows === []
+            ? array_values(array_filter(Schema::getColumnListing($table), fn (mixed $column): bool => is_string($column) && ! in_array($column, self::SECRET_COLUMNS[$table] ?? [], true)))
+            : array_keys($rows[0]);
         fputcsv($handle, $columns, ';', escape: '');
 
         foreach ($rows as $row) {
