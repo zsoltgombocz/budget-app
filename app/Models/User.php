@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Enums\Plan;
+use App\Services\Plans;
+use Carbon\CarbonImmutable;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Translation\HasLocalePreference;
@@ -27,6 +30,9 @@ use NotificationChannels\WebPush\HasPushSubscriptions;
  * @property Carbon|null $invited_at
  * @property Carbon|null $disabled_at
  * @property Carbon|null $last_seen_at
+ * @property Plan|null $plan set by an admin (later a subscription); null: automatic
+ * @property CarbonImmutable|null $plan_until
+ * @property CarbonImmutable|null $plus_offer_until
  * @property string $password
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
@@ -49,6 +55,9 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
         'invited_at' => null,
         'disabled_at' => null,
         'last_seen_at' => null,
+        'plan' => null,
+        'plan_until' => null,
+        'plus_offer_until' => null,
     ];
 
     /**
@@ -63,8 +72,35 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
             'invited_at' => 'datetime',
             'disabled_at' => 'datetime',
             'last_seen_at' => 'datetime',
+            'plan' => Plan::class,
+            'plan_until' => 'immutable_date',
+            'plus_offer_until' => 'immutable_datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * The plan the user has now (see App\Services\Plans).
+     */
+    public function currentPlan(): Plan
+    {
+        return resolve(Plans::class)->current($this);
+    }
+
+    /**
+     * Whether the user has MoneySight Plusz (paid, set by an admin, or the 14-day offer).
+     */
+    public function hasPlusz(): bool
+    {
+        return $this->currentPlan()->isPlus();
+    }
+
+    /**
+     * @return HasMany<PlanChange, $this>
+     */
+    public function planChanges(): HasMany
+    {
+        return $this->hasMany(PlanChange::class);
     }
 
     /**
@@ -220,5 +256,21 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
     public function periodCloses(): HasMany
     {
         return $this->hasMany(PeriodClose::class);
+    }
+
+    /**
+     * @return HasMany<Achievement, $this>
+     */
+    public function achievements(): HasMany
+    {
+        return $this->hasMany(Achievement::class);
+    }
+
+    /**
+     * @return HasMany<Challenge, $this>
+     */
+    public function challenges(): HasMany
+    {
+        return $this->hasMany(Challenge::class);
     }
 }
