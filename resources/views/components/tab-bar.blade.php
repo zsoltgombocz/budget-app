@@ -2,8 +2,8 @@
     $tabs = [
         ['route' => 'dashboard', 'icon' => 'today', 'label' => __('Today')],
         ['route' => 'plan', 'icon' => 'list_alt', 'label' => __('Plan')],
-        ['route' => 'pockets', 'icon' => 'savings', 'label' => __('Pockets')],
-        ['route' => 'month', 'icon' => 'calendar_month', 'label' => __('Month')],
+        ['route' => 'pockets', 'icon' => 'account_balance_wallet', 'label' => __('My money')],
+        ['route' => 'month', 'icon' => 'bar_chart', 'label' => __('Month')],
         ['route' => 'settings', 'icon' => 'settings', 'label' => __('Settings')],
     ];
 @endphp

@@ -61,7 +61,32 @@ final readonly class OverviewService
             fixedItems: $this->fixedItems($period, $lines),
             spentToday: (int) $period->transactions()->whereDate('occurred_on', $today->toDateString())->sum('amount'),
             noSpendMarked: $user->dayMarks()->whereDate('date', $today->toDateString())->exists(),
+            dailySpent: $this->dailySpent($period, $today),
         );
+    }
+
+    /**
+     * Budget spending per day, from the period start up to today (pocket payments left out).
+     *
+     * @return list<int>
+     */
+    public function dailySpent(Period $period, CarbonImmutable $today): array
+    {
+        $last = $today->lessThan($period->ends_on) ? $today : $period->ends_on;
+        $totals = [];
+
+        foreach ($period->transactions()->whereNull('pocket_id')->whereDate('occurred_on', '<=', $last->toDateString())->get(['occurred_on', 'amount']) as $transaction) {
+            $date = $transaction->occurred_on->toDateString();
+            $totals[$date] = ($totals[$date] ?? 0) + $transaction->amount;
+        }
+
+        $days = [];
+
+        for ($day = $period->starts_on; ! $day->greaterThan($last); $day = $day->addDay()) {
+            $days[] = $totals[$day->toDateString()] ?? 0;
+        }
+
+        return $days;
     }
 
     /**

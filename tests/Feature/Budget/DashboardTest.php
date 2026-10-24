@@ -32,7 +32,7 @@ it('shows the expected leftover from the plan and the overspending so far', func
         ->assertOk()
         ->assertSee(money_number(135_000))
         ->assertSee('Fuel')
-        ->assertSee('Rent');
+        ->assertSee('data-test="month-curve"', false);
 });
 
 it('lists fixed items with due dates and ticks them off', function (): void {
@@ -50,12 +50,13 @@ it('lists fixed items with due dates and ticks them off', function (): void {
     expect(resolve(OverviewService::class)->forUser($this->user)->fixedItems[0]->paid)->toBeFalse();
 });
 
-it('shows the currency next to the fixed item amounts', function (): void {
+it('shows the currency next to the due item amounts', function (): void {
     $this->user->settings()->update(['currency' => Currency::EUR]);
     $rent = BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail();
+    $rent->update(['due_day' => 11]);
 
     $html = $this->get(route('dashboard'))->assertOk()->getContent();
-    preg_match('/data-test="fixed-item">.*?Rent.*?<\/button>/s', (string) $html, $row);
+    preg_match('/data-test="due-item">.*?Rent.*?<\/button>/s', (string) $html, $row);
 
     expect($row[0] ?? '')->toContain(money_number($rent->amount, Currency::EUR))
         ->toContain(Currency::EUR->symbol());
@@ -107,11 +108,14 @@ it('warns when the expected leftover is negative', function (): void {
     $this->get(route('dashboard'))->assertSee('data-test="negative-alert"', false)->assertSee('Fuel');
 });
 
-it('puts fixed items due today or overdue up top until they are done', function (): void {
+it('lists fixed items due in the next few days or overdue until they are done', function (): void {
     $rent = BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail();
 
     $rent->update(['due_day' => 20]);
     Livewire::test('pages::today')->assertDontSee('data-test="due-item"', false);
+
+    $rent->update(['due_day' => 13]);
+    Livewire::test('pages::today')->assertSee('data-test="due-item"', false)->assertSee('due');
 
     $rent->update(['due_day' => 11]);
     Livewire::test('pages::today')
@@ -124,5 +128,36 @@ it('puts fixed items due today or overdue up top until they are done', function 
 it('marks a fixed item that was due earlier as late', function (): void {
     BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail()->update(['due_day' => 5]);
 
-    Livewire::test('pages::today')->assertSee('data-test="due-item"', false)->assertSee('was due');
+    Livewire::test('pages::today')->assertSee('data-test="due-item"', false)->assertSee('since');
+});
+
+it('draws the month curve from today\'s left-over to the month end and explains it', function (): void {
+    Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 20_000, 'occurred_on' => '2026-10-03']);
+
+    $overview = resolve(OverviewService::class)->forUser($this->user);
+
+    expect($overview->dailySpent)->toHaveCount(11)
+        ->and($overview->dailySpent[2])->toBe(20_000)
+        ->and($overview->availableNow())->toBe(500_000 - 200_000 - 20_000);
+
+    $this->get(route('dashboard'))
+        ->assertSee('data-test="month-curve"', false)
+        ->assertSee('What does the curve show?')
+        ->assertSee(money_number(280_000));
+});
+
+it('shows the streak, the weekly challenge and celebrates a new milestone once', function (): void {
+    foreach (range(4, 10) as $day) {
+        Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 1_000, 'occurred_on' => sprintf('2026-10-%02d', $day)]);
+    }
+
+    Livewire::test('pages::today')
+        ->assertSee('data-test="streak-chip"', false)
+        ->assertSee('data-test="weekly-challenge"', false)
+        ->assertSee('data-test="milestone-celebration"', false)
+        ->assertSee('First week')
+        ->call('nextCelebration')
+        ->assertDontSee('data-test="milestone-celebration"', false);
+
+    Livewire::test('pages::today')->assertDontSee('data-test="milestone-celebration"', false);
 });

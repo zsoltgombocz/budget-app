@@ -41,6 +41,16 @@
     --color-warn: var(--app-warn);
     --color-danger: var(--app-danger);
     --color-track: var(--app-track);
+    --color-hero: var(--app-hero);
+    --color-hero-2: var(--app-hero-2);
+    --color-hero-ink: var(--app-hero-ink);
+    --color-hero-sub: var(--app-hero-sub);
+    --color-hero-soft: var(--app-hero-soft);
+    --color-warn-tint: var(--app-warn-tint);
+    --color-danger-tint: var(--app-danger-tint);
+    --color-danger-soft: var(--app-danger-soft);
+    --color-picked: var(--app-picked);
+    --color-fill: var(--app-fill);
 
     --radius-card: 24px;
     --radius-btn: 18px;
@@ -78,6 +88,16 @@
         --app-warn: #D9800B;
         --app-danger: #E0383E;
         --app-track: rgba(14, 17, 15, 0.08);
+        --app-hero: #DDF3E5;
+        --app-hero-2: #C4E8D1;
+        --app-hero-ink: #072414;
+        --app-hero-sub: #2D6A46;
+        --app-hero-soft: #3F7A57;
+        --app-warn-tint: #FBEBD3;
+        --app-danger-tint: #FBE1E2;
+        --app-danger-soft: #C2373C;
+        --app-picked: #E4F5EA;
+        --app-fill: #D4EFDE;
     }
 
     .dark {
@@ -95,6 +115,16 @@
         --app-warn: #F2A33A;
         --app-danger: #FF6B70;
         --app-track: rgba(255, 255, 255, 0.08);
+        --app-hero: #0F2B1C;
+        --app-hero-2: #17402A;
+        --app-hero-ink: #F3FFF7;
+        --app-hero-sub: #9FD9B6;
+        --app-hero-soft: #CFE9D9;
+        --app-warn-tint: #2B2213;
+        --app-danger-tint: #351A1C;
+        --app-danger-soft: #FF9EA1;
+        --app-picked: #12261A;
+        --app-fill: #15301F;
 
         /* Flux sets a white accent in dark mode; keep the design's green. */
         --color-accent: var(--app-accent);
@@ -384,4 +414,117 @@ html.navigating main {
     height: var(--safe-top);
     background: var(--app-bg);
     pointer-events: none;
+}
+
+/* ── 1.10 motion: hero curve, tiles, press feedback ─────────────────── */
+
+.press {
+    transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.press:active {
+    transform: scale(0.97);
+}
+
+@keyframes curve-draw {
+    to { stroke-dashoffset: 0; }
+}
+
+@keyframes late-in {
+    to { opacity: 1; }
+}
+
+@keyframes dot-pulse {
+    0% { transform: scale(1); opacity: 0.55; }
+    70% { transform: scale(3.2); opacity: 0; }
+    100% { opacity: 0; }
+}
+
+@keyframes tile-rise {
+    from { transform: scaleY(0); }
+}
+
+.curve-draw {
+    stroke-dasharray: 600;
+    stroke-dashoffset: 600;
+    animation: curve-draw 900ms cubic-bezier(0.23, 1, 0.32, 1) 120ms forwards;
+}
+
+.late-in {
+    opacity: 0;
+    animation: late-in 400ms ease-out 700ms forwards;
+}
+
+.dot-pulse {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: dot-pulse 2.4s ease-out 1s infinite;
+}
+
+.tile-rise {
+    transform-origin: bottom;
+    animation: tile-rise 700ms cubic-bezier(0.23, 1, 0.32, 1) backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .press:active { transform: none; }
+    .curve-draw { animation: none; stroke-dashoffset: 0; }
+    .late-in { animation: none; opacity: 1; }
+    .dot-pulse { animation: none; opacity: 0; }
+    .tile-rise { animation: none; }
+}
+
+/* Milestone celebration. */
+@keyframes celebrate-pop {
+    from { opacity: 0; transform: scale(0.6); }
+}
+
+@keyframes celebrate-rays {
+    from { opacity: 0; transform: scale(0.5) rotate(-20deg); }
+    60% { opacity: 1; }
+    to { opacity: 0.55; transform: none; }
+}
+
+@keyframes celebrate-up {
+    from { opacity: 0; transform: translateY(14px); }
+}
+
+@keyframes celebrate-fall {
+    0% { opacity: 1; transform: translateY(0) rotate(0); }
+    100% { opacity: 0; transform: translateY(100dvh) rotate(540deg); }
+}
+
+.celebrate-pop {
+    animation: celebrate-pop 620ms cubic-bezier(0.34, 1.56, 0.64, 1) 150ms backwards;
+}
+
+.celebrate-rays {
+    opacity: 0.55;
+    animation: celebrate-rays 1100ms cubic-bezier(0.23, 1, 0.32, 1) 200ms backwards;
+}
+
+.celebrate-up {
+    animation: celebrate-up 420ms cubic-bezier(0.23, 1, 0.32, 1) backwards;
+}
+
+.celebrate-bit {
+    position: absolute;
+    top: -20px;
+    width: 8px;
+    height: 14px;
+    border-radius: 2px;
+    opacity: 0;
+    animation: celebrate-fall 1800ms cubic-bezier(0.33, 0.7, 0.5, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .celebrate-pop,
+    .celebrate-rays,
+    .celebrate-up {
+        animation: none;
+    }
+
+    .celebrate-bit {
+        display: none;
+    }
 }

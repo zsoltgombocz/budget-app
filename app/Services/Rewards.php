@@ -22,17 +22,17 @@ final readonly class Rewards
     /**
      * Milestones in the order the streak sheet shows them.
      *
-     * @return array<string, array{title: string, icon: string}>
+     * @return array<string, array{title: string, text: string, icon: string}>
      */
     public static function milestones(): array
     {
         return [
-            'week' => ['title' => __('First week'), 'icon' => 'event_available'],
-            'first_close' => ['title' => __('First closing'), 'icon' => 'check'],
-            'under_budget' => ['title' => __('Closed within budget'), 'icon' => 'target'],
-            'month' => ['title' => __('30-day streak'), 'icon' => 'local_fire_department'],
-            'goal_reached' => ['title' => __('Goal reached'), 'icon' => 'shield'],
-            'first_prepayment' => ['title' => __('First prepayment'), 'icon' => 'account_balance'],
+            'week' => ['title' => __('First week'), 'text' => __('A week of writing in every day.'), 'icon' => 'event_available'],
+            'first_close' => ['title' => __('First closing'), 'text' => __('You closed your first month.'), 'icon' => 'check'],
+            'under_budget' => ['title' => __('Closed within budget'), 'text' => __('The month did not go into the minus.'), 'icon' => 'target'],
+            'month' => ['title' => __('30-day streak'), 'text' => __('A month of writing in every day.'), 'icon' => 'local_fire_department'],
+            'goal_reached' => ['title' => __('Goal reached'), 'text' => __('A pocket reached its goal.'), 'icon' => 'shield'],
+            'first_prepayment' => ['title' => __('First prepayment'), 'text' => __('The loan got smaller ahead of time.'), 'icon' => 'account_balance'],
         ];
     }
 
