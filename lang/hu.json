@@ -990,5 +990,19 @@
     "same installment": "a részlet marad",
     "same term": "a futamidő marad",
     "term got shorter": "rövidebb lett a futamidő",
-    "{1} :count month sooner|[2,*] :count months sooner": "{1} :count hónappal hamarabb|[2,*] :count hónappal hamarabb"
+    "{1} :count month sooner|[2,*] :count months sooner": "{1} :count hónappal hamarabb|[2,*] :count hónappal hamarabb",
+    ":amount from the reserve": ":amount a tartalékból",
+    ":amount income": ":amount bevétel",
+    ":amount now": "most :amount",
+    ":month closing": ":month zárása",
+    ":step is there!": "megvan a :step!",
+    "Close it": "Lezárom",
+    "I split it": "Felosztom",
+    "The month has not ended yet: the new one starts today.": "A hónap még nem ért véget: az új ma indul.",
+    "To the prepayment": "Előtörlesztésbe",
+    "Was it different?": "Más volt?",
+    "Where should it go?": "Hová kerüljön?",
+    "nothing moves": "nem mozdul semmi",
+    "tap an amount to change it": "koppints az összegre a módosításhoz",
+    "two places, you set how much": "két helyre, te adod meg, mennyit"
 }

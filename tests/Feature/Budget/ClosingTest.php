@@ -171,17 +171,16 @@ it('lowers next month\'s installment after prepaying from a full 500k pocket', f
         ->and(resolve(PlanService::class)->summaryFor($next->refresh())->leftover)->toBe($leftoverBefore + 11_122);
 });
 
-it('walks through the three-step closing wizard', function (): void {
+it('closes the month on one screen, with a different income entered at closing', function (): void {
     spend($this->user, $this->period, $this->fuel, 60_000);
 
     Livewire::test('pages::close', ['period' => $this->period->id])
         ->assertSet('step', 1)
-        ->assertSee('Fuel')
-        ->call('goTo', 2)
-        ->assertSet('step', 2)
+        ->assertSee('data-test="close-leftover"', false)
         ->assertSee(money_number(240_000))
-        ->call('goTo', 3)
+        ->assertSee('Was it different?')
         ->call('setIncome', '510000')
+        ->assertSee(money_number(250_000))
         ->assertSet('incomeActual', 510_000)
         ->call('close')
         ->assertSet('step', 4)
@@ -291,14 +290,35 @@ it('splits the leftover from either box on the numpad', function (): void {
     expect($component->instance()->preview->allocation->toSurplus)->toBe(100_000);
 });
 
-it('offers to keep the leftover target only when it differs from the saved one', function (): void {
-    Livewire::test('pages::close', ['period' => $this->period->id])
-        ->call('goTo', 2)
-        ->assertDontSee('data-test="save-target"', false)
-        ->call('chooseTarget', 'none')
-        ->assertSee('data-test="save-target"', false)
-        ->call('chooseTarget', 'pocket:'.$this->savings->id)
-        ->assertDontSee('data-test="save-target"', false);
+it('offers where the leftover goes: the reserve, the saved target, the account, or split', function (): void {
+    $page = Livewire::test('pages::close', ['period' => $this->period->id])
+        ->assertSee('data-test="option-reserve"', false)
+        ->assertSee('data-test="option-target"', false)
+        ->assertSee('data-test="option-stays"', false)
+        ->assertSee('data-test="option-split"', false);
+
+    $leftover = $page->instance()->preview->leftover();
+
+    $page->call('choose', 'stays');
+    expect($page->instance()->preview->allocation->toSurplus)->toBe($leftover)
+        ->and($page->instance()->chosen($page->instance()->preview))->toBe('stays');
+
+    $page->call('choose', 'split')->assertSee('data-test="split"', false);
+    expect($page->instance()->preview->allocation->toReserve)->toBe((int) ceil($leftover / 2));
+
+    $page->call('choose', 'reserve');
+    expect($page->instance()->chosen($page->instance()->preview))->toBe('reserve');
+});
+
+it('sends the leftover to the prepayment pocket when chosen', function (): void {
+    $loan = $this->user->loans()->create(['name' => 'Car', 'principal_balance' => 1_000_000, 'installment' => 30_000, 'prepay_mode' => PrepayMode::ReduceInstallment]);
+    $fund = Pocket::factory()->for($this->user)->create(['name' => 'Car fund', 'balance' => 100_000, 'prepay_step' => 500_000, 'loan_id' => $loan->id]);
+
+    $page = Livewire::test('pages::close', ['period' => $this->period->id])->call('choose', 'prepay');
+    $leftover = $page->instance()->preview->leftover();
+    $page->call('close');
+
+    expect($fund->refresh()->balance)->toBe(100_000 + $leftover);
 });
 
 it('starts the new month on the day of an early closing', function (): void {
@@ -321,5 +341,5 @@ it('starts the new month on the day of an early closing', function (): void {
 
     expect($transaction->period_id)->toBe($next->id);
 
-    $this->get(route('month'))->assertOk()->assertSee('November')->assertSee('data-test="close-now"', false);
+    $this->get(route('month'))->assertOk()->assertSee('November')->assertSee('data-test="month-end"', false);
 });
