@@ -208,13 +208,14 @@ new class extends Component {
                     <div class="num mt-1.5 text-[13px]" :class="hintClass()" x-text="hint()"></div>
                 </div>
 
-                <div class="no-scrollbar -mx-4 mt-3.5 flex shrink-0 gap-2 overflow-x-auto px-4" data-test="category-grid">
+                {{-- Three a row with the name on up to two lines; more than two rows scroll inside. --}}
+                <div class="no-scrollbar mt-3.5 grid max-h-[156px] shrink-0 grid-cols-3 gap-2 overflow-y-auto" data-test="category-grid">
                     <template x-for="category in categories" :key="category.id">
                         <button type="button" x-on:click="pick(category.id)"
-                                class="flex h-[70px] min-w-[calc((100%-32px)/5)] flex-1 flex-col items-center justify-center gap-1.5 rounded-btn border-[1.5px] px-1 transition active:scale-95"
+                                class="flex h-[74px] flex-col items-center justify-center gap-1 rounded-btn border-[1.5px] px-1.5 transition active:scale-95"
                                 :class="category.id === categoryId ? 'border-accent bg-accent/14 text-accent' : 'border-transparent bg-surface-2 text-ink-2'">
-                            <span class="ms" style="font-size:24px;width:24px;height:24px" x-text="category.icon" aria-hidden="true"></span>
-                            <span class="max-w-full truncate text-xs font-medium" x-text="category.name"></span>
+                            <span class="ms shrink-0" style="font-size:24px;width:24px;height:24px" x-text="category.icon" aria-hidden="true"></span>
+                            <span class="line-clamp-2 max-w-full text-center text-xs leading-tight font-medium" x-text="category.name"></span>
                         </button>
                     </template>
                 </div>
