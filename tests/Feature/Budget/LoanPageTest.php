@@ -19,6 +19,8 @@ beforeEach(function (): void {
 });
 
 it('locks the loan planner without Plusz', function (): void {
+    $this->travel(15)->days();
+
     $this->get(route('loan', $this->loan))
         ->assertOk()
         ->assertSee('data-test="plusz-lock"', false)

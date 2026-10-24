@@ -52,7 +52,8 @@ it('creates a reserve from the plan with the numpad', function (): void {
         ->click('[data-test="reserve-sheet"] [data-key="000"]:visible')
         ->click('[data-test="pad-done"]:visible')
         ->click('[data-test="save-reserve"]')
-        ->assertNoJavaScriptErrors();
+        ->click('[data-test="leftover-rule"]')
+        ->assertVisible('[data-test="reserve-row"]');
 
     expect(BudgetLine::query()->whereNotNull('pocket_id')->value('amount'))->toBe(25_000);
 });

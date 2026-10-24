@@ -12,7 +12,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 
 #[Signature('budget:plan {email : Email address of the user} {plan : basic, plus or auto} {--until= : Last day of the plan (Y-m-d); none: no end} {--note= : Why}')]
-#[Description('Set a user\'s plan (as the admin panel does); auto goes back to the trial, then Alap')]
+#[Description('Set a user\'s plan (as the admin panel does); auto follows the subscription or the trial, otherwise Alap')]
 class SetPlan extends Command
 {
     public function handle(Plans $plans): int

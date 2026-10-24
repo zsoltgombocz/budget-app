@@ -112,6 +112,12 @@ new #[Title('Plan')] class extends Component {
         }
 
         $line = $this->form->lineId !== null ? $this->lines->firstWhere('id', $this->form->lineId) : null;
+
+        // On Alap only fixed items and budgets can be added; an existing line keeps its kind.
+        if (! $this->user()->hasPlusz() && ! in_array($this->form->type, [LineType::Fixed->value, LineType::Variable->value], true) && ($line instanceof BudgetLine ? $line->category?->type->value : null) !== $this->form->type) {
+            return ['ok' => false, 'errors' => ['form.type' => __('Putting aside and loans are in Plusz.')]];
+        }
+
         $savePlanLine->handle($this->user(), $payload, $line instanceof BudgetLine ? $line : null);
 
         $this->refreshPlan();
@@ -150,6 +156,8 @@ new #[Title('Plan')] class extends Component {
      */
     public function setReservePct(int $pct): void
     {
+        abort_unless($this->user()->hasPlusz(), 403);
+
         abort_unless(in_array($pct, [0, 25, 50, 75, 100], true), 422);
 
         $this->user()->settings()->update(['reserve_pct' => $pct, 'reserve_fixed' => null]);
@@ -161,6 +169,8 @@ new #[Title('Plan')] class extends Component {
      */
     public function setReserveMode(string $mode): void
     {
+        abort_unless($this->user()->hasPlusz(), 403);
+
         $settings = $this->user()->settings();
 
         if ($mode === 'fixed' && $settings->reserve_fixed === null) {
@@ -204,6 +214,8 @@ new #[Title('Plan')] class extends Component {
      */
     public function saveReserve(array $amounts): array
     {
+        abort_unless($this->user()->hasPlusz(), 403);
+
         $values = [];
         $errors = [];
 
@@ -256,6 +268,8 @@ new #[Title('Plan')] class extends Component {
      */
     public function setSurplusTarget(string $target): void
     {
+        abort_unless($this->user()->hasPlusz(), 403);
+
         $user = $this->user();
         [$type, $id] = array_pad(explode(':', $target, 2), 2, null);
         $accountId = $type === 'account' ? $user->accounts()->whereKey((int) $id)->value('id') : null;
@@ -363,7 +377,9 @@ new #[Title('Plan')] class extends Component {
     {
         $calculator = app(BudgetCalculator::class);
 
-        return $calculator->summarize($calculator->planLines($this->lines), $this->user()->settings()->income);
+        $lines = app(\App\Services\PlanService::class)->withoutLocked($this->user(), $calculator->planLines($this->lines));
+
+        return $calculator->summarize($lines, $this->user()->settings()->income);
     }
 
     #[Computed]
@@ -428,6 +444,10 @@ new #[Title('Plan')] class extends Component {
     $settings = auth()->user()->settings();
     $summary = $this->summary;
     $types = [LineType::Transfer, LineType::Loan, LineType::Fixed, LineType::Sinking, LineType::Variable];
+    $plusz = $this->user()->hasPlusz();
+    $lockedTypes = app(\App\Services\Plans::class)->lockedLineTypes($this->user());
+    // On Alap new lines are fixed items or budgets; putting aside and loans are Plusz.
+    $editorTypes = $plusz ? $types : [LineType::Fixed, LineType::Variable];
     $copyNote = $settings->period_mode === PeriodMode::Payday ? __('copied on every payday') : __('copied every month');
 @endphp
 
@@ -490,10 +510,11 @@ new #[Title('Plan')] class extends Component {
     @foreach ($types as $type)
         @php $lines = $this->groups[$type->value]; @endphp
         {{-- The repayment section always shows, so a loan can be added from the plan. --}}
-        @continue($lines->isEmpty() && ! $editing && $type !== LineType::Loan)
-        <section wire:key="group-{{ $type->value }}" class="mt-[22px] px-4">
+        @php $locked = in_array($type, $lockedTypes, true); @endphp
+        @continue($lines->isEmpty() && (! $editing || ! in_array($type, $editorTypes, true)) && ($type !== LineType::Loan || ! $plusz))
+        <section wire:key="group-{{ $type->value }}" class="mt-[22px] px-4" @if ($locked) data-test="locked-{{ $type->value }}" @endif>
             <x-ui.section-label :label="$this->sectionTitle($type)" :aside="trans_choice('{0} no items|{1} :count item|[2,*] :count items', $lines->count(), ['count' => $lines->count()])" />
-            <div class="rounded-[22px] bg-surface px-[18px] py-0.5">
+            <div @class(['rounded-[22px] bg-surface px-[18px] py-0.5', 'opacity-50' => $locked])>
                 <div @if ($editing) wire:sort="reorder" @endif>
                     @foreach ($lines as $line)
                         @php
@@ -542,7 +563,11 @@ new #[Title('Plan')] class extends Component {
                         </div>
                     @endforeach
                 </div>
-                @if ($type === LineType::Loan)
+                @if ($locked)
+                    <a href="{{ route('subscription') }}" wire:navigate class="flex w-full items-center gap-2 border-b border-line py-[13px] text-[15px] font-medium text-accent" data-test="locked-link">
+                        <x-ui.icon name="lock" :size="20" />{{ __('Counts in the month with Plusz') }}
+                    </a>
+                @elseif ($type === LineType::Loan && $plusz)
                     <a href="{{ route('pockets', ['hitel' => 'uj', 'vissza' => 'terv']) }}" wire:navigate class="flex w-full items-center gap-2 border-b border-line py-[13px] text-[15px] font-medium text-accent" data-test="add-loan">
                         <x-ui.icon name="add" :size="20" />{{ __('New loan') }}
                     </a>
@@ -551,7 +576,7 @@ new #[Title('Plan')] class extends Component {
                         <x-ui.icon name="add" :size="20" />{{ __('New item') }}
                     </button>
                 @endif
-                <div class="flex justify-between py-[13px]">
+                <div @class(['flex justify-between py-[13px]', 'line-through' => $locked])>
                     <span class="text-sm text-muted">{{ __('Subtotal') }}</span>
                     <span class="num text-[15px] font-semibold">{{ money($summary->totalFor($type)) }}</span>
                 </div>
@@ -574,6 +599,7 @@ new #[Title('Plan')] class extends Component {
             ? ($fixedMode ? __(':amount to the reserve', ['amount' => money($settings->reserve_fixed ?? 0)]) : __(':pct% to the reserve', ['pct' => $settings->reserve_pct])).', '.__('the rest: :target', ['target' => $targetName])
             : $targetName;
     @endphp
+    @if ($plusz)
     <section class="mt-[22px] px-4" data-test="month-end">
         <button type="button" x-on:click="$dispatch('open-sheet', 'leftover-rule')" class="press flex w-full items-center gap-3 rounded-[22px] bg-surface px-4 py-3.5 text-left" data-test="leftover-rule">
             <x-ui.icon-tile icon="savings" tone="accent" />
@@ -625,6 +651,7 @@ new #[Title('Plan')] class extends Component {
         <p class="mt-3 text-xs text-muted">{{ __('At closing you can still change it.') }}</p>
         <x-ui.button variant="secondary" class="mt-4 w-full" x-on:click="$dispatch('close-sheet', 'leftover-rule')">{{ __('Done') }}</x-ui.button>
     </x-ui.sheet>
+    @endif
 
     @if (! $editing)
         <div class="px-4 pt-5">
@@ -645,7 +672,7 @@ new #[Title('Plan')] class extends Component {
         <x-ui.form-group :title="__('Kind')">
             <div class="p-3">
                 <div class="flex flex-wrap gap-1.5">
-                    @foreach ($types as $type)
+                    @foreach ($editorTypes as $type)
                         <button type="button" x-on:click="line.type = @js($type->value)" class="h-9 rounded-xl border px-3 text-[13px] font-medium" :class="line.type === @js($type->value) ? 'border-accent bg-accent/14 text-accent' : 'border-transparent bg-surface-3 text-ink-2'" data-test="type-{{ $type->value }}">{{ $this->sectionTitle($type) }}</button>
                     @endforeach
                 </div>

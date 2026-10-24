@@ -87,6 +87,13 @@ final readonly class PeriodCloser
     {
         $lines = $this->plans->linesFor($period);
         $settings = $user->settings();
+        $plusz = $user->hasPlusz();
+
+        // On Alap there are no pockets or accounts to move money to: the leftover stays.
+        if (! $plusz) {
+            [$toReserve, $surplusTarget, $coverDeficit] = [null, 'none', false];
+        }
+
         $topUps = $this->periods->topUps($period);
         $income = ($incomeActual ?? $period->income()) + $topUps;
 
@@ -100,7 +107,7 @@ final readonly class PeriodCloser
         $plannedTotal = array_sum(array_column($categories, 'planned'));
         $actualTotal = array_sum(array_column($categories, 'actual'));
 
-        $pockets = $user->pockets()->get()->keyBy('id');
+        $pockets = $plusz ? $user->pockets()->get()->keyBy('id') : $user->pockets()->whereRaw('1 = 0')->get();
         $deposits = $this->pocketDeposits($lines, $pockets->all());
 
         $reserve = $pockets->first(fn (Pocket $pocket): bool => $pocket->is_reserve);

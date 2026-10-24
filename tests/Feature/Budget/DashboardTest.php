@@ -187,7 +187,7 @@ it('skips a fixed item for this month so its amount stays in the month-end lefto
 
 it('keeps a skipped item out of the closed period', function (): void {
     $rent = BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail();
-    app(SkipLine::class)->handle($this->user, $this->period, $rent->id);
+    resolve(SkipLine::class)->handle($this->user, $this->period, $rent->id);
 
     $lines = resolve(PlanService::class)->linesFor($this->period->refresh());
     $snapshot = resolve(BudgetCalculator::class)->fromSnapshot(resolve(BudgetCalculator::class)->snapshot($lines));

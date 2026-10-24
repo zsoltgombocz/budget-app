@@ -65,7 +65,7 @@ class UserResource extends Resource
         return $table
             // "Onboarded": the user finished the setup wizard (budget_settings.onboarded_at).
             // BelongsToUser scopes budget settings to the signed-in user; the admin looks at everyone.
-            ->modifyQueryUsing(fn (Builder $query): Builder => $query->withExists(['budgetSetting as onboarded' => fn (Builder $settings): Builder => $settings->withoutGlobalScopes()->whereNotNull('onboarded_at')]))
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('subscriptions')->withExists(['budgetSetting as onboarded' => fn (Builder $settings): Builder => $settings->withoutGlobalScopes()->whereNotNull('onboarded_at')]))
             ->defaultSort('created_at', 'desc')
             ->columns([
                 TextColumn::make('name')->label(__('Name'))->searchable()->sortable()
@@ -149,8 +149,7 @@ class UserResource extends Resource
     public static function planDetail(User $user): ?string
     {
         $until = match ($user->currentPlan()) {
-            Plan::Trial => resolve(Plans::class)->trialEndsAt($user),
-            Plan::PlusTrial => $user->plus_offer_until,
+            Plan::PlusTrial => resolve(Plans::class)->trialEndsAt($user),
             default => $user->plan !== null ? $user->plan_until : null,
         };
 

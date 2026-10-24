@@ -1,15 +1,21 @@
 <?php
 
+use App\Enums\LineType;
 use App\Enums\PeriodMode;
 use App\Enums\Plan;
 use App\Filament\Resources\Users\Pages\ManageUsers;
 use App\Models\Admin;
+use App\Models\BudgetLine;
 use App\Models\BudgetSetting;
+use App\Models\Category;
+use App\Models\Pocket;
 use App\Models\User;
+use App\Services\Data\PlanLine;
+use App\Services\PeriodService;
 use App\Services\Plans;
+use App\Services\PlanService;
 use Carbon\CarbonImmutable;
 use Filament\Facades\Filament;
-use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 
 beforeEach(function (): void {
@@ -19,13 +25,33 @@ beforeEach(function (): void {
     app()->setLocale('hu');
 });
 
-it('gives the trial (Alap) for 30 days, then Alap', function (): void {
-    expect($this->user->currentPlan())->toBe(Plan::Trial)
+it('gives Plusz for the first 14 days, then the free Alap', function (): void {
+    expect($this->user->currentPlan())->toBe(Plan::PlusTrial)
+        ->and($this->user->hasPlusz())->toBeTrue();
+
+    $this->travel(15)->days();
+
+    expect($this->user->currentPlan())->toBe(Plan::Basic)
         ->and($this->user->hasPlusz())->toBeFalse();
+});
 
-    $this->travel(31)->days();
+it('gives Plusz with a paid subscription, also on its paid time after cancelling', function (): void {
+    $this->travel(30)->days();
+    $subscription = $this->user->subscriptions()->create(['type' => 'default', 'stripe_id' => 'sub_1', 'stripe_status' => 'active', 'stripe_price' => 'price_1', 'quantity' => 1]);
 
-    expect($this->user->currentPlan())->toBe(Plan::Basic);
+    expect($this->user->fresh()->currentPlan())->toBe(Plan::Plus);
+
+    $subscription->update(['ends_at' => now()->addDays(10)]);
+    expect($this->user->fresh()->currentPlan())->toBe(Plan::Plus);
+
+    $this->travel(11)->days();
+    expect($this->user->fresh()->currentPlan())->toBe(Plan::Basic);
+});
+
+it('does not count putting money aside in the month on Alap, but keeps the lines', function (): void {
+    $this->travel(15)->days();
+
+    expect(resolve(Plans::class)->lockedLineTypes($this->user))->toBe([LineType::Transfer, LineType::Sinking]);
 });
 
 it('lets an admin set Plusz until a day, logged, then it ends', function (): void {
@@ -45,22 +71,6 @@ it('lets an admin set Plusz until a day, logged, then it ends', function (): voi
     expect($this->user->fresh()->plan)->toBeNull()
         ->and($this->user->planChanges()->count())->toBe(2);
 });
-
-it('starts the 14-day Plusz offer once, only after the trial', function (): void {
-    $plans = resolve(Plans::class);
-    expect($plans->canStartOffer($this->user))->toBeFalse();
-
-    $this->travel(31)->days();
-    $plans->startOffer($this->user);
-
-    expect($this->user->fresh()->currentPlan())->toBe(Plan::PlusTrial)
-        ->and($plans->canStartOffer($this->user->fresh()))->toBeFalse();
-
-    $this->travel(15)->days();
-    expect($this->user->fresh()->currentPlan())->toBe(Plan::Basic);
-
-    $plans->startOffer($this->user->fresh());
-})->throws(ValidationException::class);
 
 it('sets a plan from the admin panel', function (): void {
     Filament::setCurrentPanel('admin');
@@ -83,4 +93,29 @@ it('sets a plan from the command line', function (): void {
     expect($this->user->fresh()->plan)->toBe(Plan::Plus);
 
     $this->artisan('budget:plan', ['email' => $this->user->email, 'plan' => 'trial'])->assertFailed();
+});
+
+it('keeps pockets and loans on Alap but locks them', function (): void {
+    $this->travel(15)->days();
+    $this->actingAs($this->user);
+    $pocket = Pocket::factory()->for($this->user)->create(['name' => 'Holiday', 'balance' => 50_000]);
+
+    $this->get(route('pockets'))->assertOk()->assertSee('data-test="plusz-lock"', false)->assertSee('Holiday');
+
+    Livewire::test('pages::pockets')->call('movePocketMoney', $pocket->id, 1, '1000', null)->assertForbidden();
+
+    expect($pocket->fresh()->balance)->toBe(50_000);
+});
+
+it('leaves the savings lines out of the month on Alap', function (): void {
+    $category = Category::factory()->for($this->user)->create(['type' => 'sinking']);
+    BudgetLine::factory()->for($this->user)->for($category)->create(['amount' => 30_000]);
+    $period = resolve(PeriodService::class)->current($this->user);
+
+    $planned = fn (): int => array_sum(array_map(fn (PlanLine $line): int => $line->planned(), resolve(PlanService::class)->linesFor($period)));
+    $withPlusz = $planned();
+
+    $this->travel(15)->days();
+
+    expect($planned())->toBe($withPlusz - 30_000);
 });

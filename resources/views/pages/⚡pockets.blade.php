@@ -32,6 +32,8 @@ new #[Title('Pockets and loans')] class extends Component {
      */
     public function pocketData(?int $pocketId = null): array
     {
+        $this->ensurePlusz();
+
         $pocket = $pocketId === null ? null : $this->user()->pockets()->findOrFail($pocketId);
 
         return [
@@ -62,6 +64,8 @@ new #[Title('Pockets and loans')] class extends Component {
      */
     public function savePocket(array $data): array
     {
+        $this->ensurePlusz();
+
         $user = $this->user();
         $amounts = is_array($data['amounts'] ?? null) ? $data['amounts'] : [];
 
@@ -120,6 +124,8 @@ new #[Title('Pockets and loans')] class extends Component {
      */
     public function movePocketMoney(int $pocketId, int $direction, string $amount, ?string $note, MovePocketMoney $movePocketMoney, bool $toBudget = true): array
     {
+        $this->ensurePlusz();
+
         $value = $this->parse($amount);
 
         if ($value === null || $value <= 0) {
@@ -151,6 +157,8 @@ new #[Title('Pockets and loans')] class extends Component {
      */
     public function payFromPocket(int $pocketId, string $amount, ?int $categoryId, ?string $note, PayFromPocket $payFromPocket): array
     {
+        $this->ensurePlusz();
+
         $value = $this->parse($amount);
 
         if ($value === null || $value <= 0) {
@@ -176,6 +184,8 @@ new #[Title('Pockets and loans')] class extends Component {
 
     public function deletePocket(int $pocketId, DeletePocket $deletePocket): void
     {
+        $this->ensurePlusz();
+
         $pocket = $this->user()->pockets()->findOrFail($pocketId);
         $deletePocket->handle($pocket);
         unset($this->pockets, $this->archivedPockets);
@@ -186,6 +196,8 @@ new #[Title('Pockets and loans')] class extends Component {
     #[On('restore-pocket')]
     public function restorePocket(int $id, RestorePocket $restorePocket): void
     {
+        $this->ensurePlusz();
+
         $pocket = $this->user()->pockets()->onlyTrashed()->find($id);
 
         if ($pocket === null) {
@@ -203,6 +215,8 @@ new #[Title('Pockets and loans')] class extends Component {
      */
     public function loanData(?int $loanId = null): array
     {
+        $this->ensurePlusz();
+
         $loan = $loanId === null ? null : $this->user()->loans()->findOrFail($loanId);
 
         return [
@@ -227,6 +241,8 @@ new #[Title('Pockets and loans')] class extends Component {
      */
     public function saveLoan(array $data, SaveLoan $saveLoan): array
     {
+        $this->ensurePlusz();
+
         $amounts = is_array($data['amounts'] ?? null) ? $data['amounts'] : [];
         $thm = str_replace(',', '.', is_scalar($amounts['thm'] ?? null) ? (string) $amounts['thm'] : '');
 
@@ -281,6 +297,8 @@ new #[Title('Pockets and loans')] class extends Component {
      */
     public function prepayData(int $loanId): array
     {
+        $this->ensurePlusz();
+
         $loan = $this->user()->loans()->findOrFail($loanId);
         $pocket = $this->user()->pockets()->where('loan_id', $loan->id)->first();
 
@@ -298,6 +316,8 @@ new #[Title('Pockets and loans')] class extends Component {
      */
     public function prepay(int $loanId, string $amount, ?int $pocketId, RecordPrepayment $recordPrepayment, ?string $mode = null): array
     {
+        $this->ensurePlusz();
+
         $user = $this->user();
         $value = $this->parse($amount);
 
@@ -412,6 +432,20 @@ new #[Title('Pockets and loans')] class extends Component {
         )->endWith;
     }
 
+    #[Computed]
+    public function plusz(): bool
+    {
+        return $this->user()->hasPlusz();
+    }
+
+    /**
+     * Pockets and loans are Plusz: on Alap they are kept but cannot be changed.
+     */
+    private function ensurePlusz(): void
+    {
+        abort_unless($this->plusz, 403);
+    }
+
     public function monthlyDeposit(Pocket $pocket): int
     {
         return (int) $pocket->budgetLines->sum('amount');
@@ -471,16 +505,32 @@ new #[Title('Pockets and loans')] class extends Component {
     // ?uj-persely=ID opens a new prepayment pocket for that loan (from the loan page).
     $newPocketQuery = request()->query('uj-persely');
     $newPocketFor = is_numeric($newPocketQuery) && $loans->contains('id', (int) $newPocketQuery) ? (int) $newPocketQuery : null;
+    if (! $this->plusz) {
+        [$openLoan, $openPrepay, $newPocketFor, $cover, $returnTo] = [null, null, null, null, null];
+    }
     $startTab = request()->query('ful') === 'hitelek' || $openLoan !== null || $openPrepay !== null ? 'loans' : 'pots';
 @endphp
 <div x-data="pocketsPage({ decimals: {{ $decimals }}, locale: @js(str_replace('_', '-', app()->getLocale())), cover: @js($cover), openLoan: @js($openLoan), openPrepayFor: @js($openPrepay), newPocketFor: @js($newPocketFor), prepayName: @js(__('Prepayment fund')), prepayStep: @js($this->currency === \App\Enums\Currency::HUF ? '500000' : ''), returnTo: @js($returnTo), tab: @js($startTab) })">
     <div class="flex items-center justify-between px-4 pt-5">
         <h1 class="text-[30px] font-bold tracking-[-0.02em]">{{ __('My money') }}</h1>
+        @if ($this->plusz)
         <button type="button" x-on:click="tab === 'loans' ? openLoan(null) : openPocket(null)" class="press flex h-10 items-center gap-1.5 rounded-full bg-surface-2 pr-3.5 pl-2.5 text-sm font-semibold" data-test="add">
             <x-ui.icon name="add" :size="18" />
             <span x-text="tab === 'loans' ? @js(__('Loan')) : @js(__('Pocket'))">{{ __('Pocket') }}</span>
         </button>
+        @endif
     </div>
+
+    <div class="relative">
+    @unless ($this->plusz)
+        <div class="absolute inset-x-4 top-6 z-10 rounded-[28px] bg-surface-2 px-5 pt-6 pb-5 text-center shadow-[0_16px_40px_rgba(0,0,0,.5)]" data-test="plusz-lock">
+            <span class="mx-auto flex size-[52px] items-center justify-center rounded-full bg-warn-tint text-warn"><x-ui.icon name="lock" :size="24" /></span>
+            <h2 class="mt-3.5 text-[22px] font-bold tracking-[-0.01em]">{{ __('Pockets and loans are in Plusz') }}</h2>
+            <p class="mt-2 text-[15px] leading-[1.45] text-ink-2">{{ __('Your pockets and loans are kept, nothing is deleted.') }}</p>
+            <x-ui.button :href="route('subscription')" wire:navigate class="mt-[18px] w-full">{{ __('Switch to Plusz') }}</x-ui.button>
+        </div>
+    @endunless
+    <div @class(['pointer-events-none select-none opacity-45 blur-[5px] grayscale' => ! $this->plusz]) @if (! $this->plusz) aria-hidden="true" inert @endif>
 
     <div role="tablist" aria-label="{{ __('Pockets or loans') }}" class="num mx-4 mt-4 grid grid-cols-2 gap-1 rounded-[20px] bg-surface p-1">
         <button type="button" role="tab" x-on:click="tab = 'pots'" :aria-selected="tab === 'pots'" :class="tab === 'pots' ? 'bg-surface-3' : ''" class="h-14 rounded-2xl px-3.5 text-left" data-test="tab-pots">
@@ -630,6 +680,8 @@ new #[Title('Pockets and loans')] class extends Component {
             </div>
         </details>
     @endif
+    </div>
+    </div>
 
     {{-- Pocket: money movements and settings --}}
     <x-ui.form-sheet show="sheet === 'pocket'" close="sheet = null" title="title()" data-test="pocket-sheet">

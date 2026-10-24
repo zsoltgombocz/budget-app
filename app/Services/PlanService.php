@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Collection;
 
 final readonly class PlanService
 {
-    public function __construct(private BudgetCalculator $calculator) {}
+    public function __construct(private BudgetCalculator $calculator, private Plans $plans) {}
 
     /**
      * @return Collection<int, BudgetLine>
@@ -48,11 +48,26 @@ final readonly class PlanService
         }
 
         $skipped = $period->lineStatuses()->whereNotNull('skipped_on')->pluck('budget_line_id')->flip();
+        $user = User::query()->find($period->user_id);
+        $lines = $user instanceof User ? $this->withoutLocked($user, $this->liveLines($user, $period->starts_on, $period->ends_on)) : [];
 
         return array_map(
             fn (PlanLine $line): PlanLine => $line->lineId !== null && $skipped->has($line->lineId) ? $line->withSkipped(true) : $line,
-            $this->liveLines($period->user_id, $period->starts_on, $period->ends_on),
+            $lines,
         );
+    }
+
+    /**
+     * Leave out the lines only Plusz counts (putting money aside) for a user on Alap.
+     *
+     * @param  list<PlanLine>  $lines
+     * @return list<PlanLine>
+     */
+    public function withoutLocked(User $user, array $lines): array
+    {
+        $locked = $this->plans->lockedLineTypes($user);
+
+        return $locked === [] ? $lines : array_values(array_filter($lines, fn (PlanLine $line): bool => ! in_array($line->type, $locked, true)));
     }
 
     public function summaryFor(Period $period): PlanSummary

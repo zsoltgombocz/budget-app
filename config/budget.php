@@ -28,10 +28,15 @@ return [
     'sentry_url' => env('SENTRY_DASHBOARD_URL') ?: 'https://moneysight.sentry.io/issues/?project=4512205235552336',
 
     /*
-     * Plan prices in forints. Payment is not live yet: they are only shown.
+     * Plusz prices in forints, as shown on the subscription page (Alap is free). They must match
+     * the Stripe prices below, which Checkout charges.
      */
     'prices' => [
-        'basic' => ['month' => 2_490, 'year' => 19_990],
         'plus' => ['month' => 3_990, 'year' => 31_990],
+    ],
+
+    'stripe_prices' => [
+        'month' => env('STRIPE_PRICE_PLUS_MONTHLY'),
+        'year' => env('STRIPE_PRICE_PLUS_YEARLY'),
     ],
 ];
