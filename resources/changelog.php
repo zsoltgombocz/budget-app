@@ -6,6 +6,20 @@
  */
 return [
     [
+        'version' => '1.10.0',
+        'date' => '2026-10-24',
+        'changes' => [
+            ['hu' => 'A Ma oldal egy számot mutat: mennyi marad a hónap végére. Alatta egy görbe a hónapodról, az (i) gomb elmagyarázza.', 'en' => 'Today shows one number: what is left at month end. Below it a curve of your month; the (i) button explains it.'],
+            ['hu' => 'A keretek csempéken: látod, mennyi maradt bennük, a túllépett keret piros.', 'en' => 'Budgets as tiles: you see what is left in each, an overspent one turns red.'],
+            ['hu' => 'Sorozat, heti kihívás és mérföldkövek: a láng mutatja, hány napja vezeted folyamatosan.', 'en' => 'Streak, weekly challenge and milestones: the flame shows how many days in a row you have kept it up.'],
+            ['hu' => 'A Hónap oldalon napi költés diagram, és ugyanaz a hó végi szám, mint a Ma oldalon.', 'en' => 'The Month page has a daily spending chart and the same month-end number as Today.'],
+            ['hu' => 'Pénzeim: a perselyek és a hitelek külön fülön. Előtörlesztéskor megadod, hogy a bank a futamidőt rövidítette vagy a részletet csökkentette.', 'en' => 'My money: pockets and loans on separate tabs. When you prepay, you tell whether the bank shortened the term or lowered the installment.'],
+            ['hu' => 'A zárás egy képernyő: mennyi maradt, ha más volt a bevétel, ott átírhatod, és egy koppintással választod, hová kerüljön a maradék.', 'en' => 'Closing is one screen: what was left, the income can be changed if it was different, and one tap chooses where the leftover goes.'],
+            ['hu' => 'Csomagok: Alap és Plusz. A Pluszban a hiteltervező megmutatja, mikor leszel hitelmentes, ha havonta félreteszel.', 'en' => 'Plans: Alap and Plusz. In Plusz the loan planner shows when you will be loan-free with a monthly saving.'],
+            ['hu' => 'Az iPhone minden nap megjeleníti az esti emlékeztetőt, és biztonsági frissítést kapott a szerver.', 'en' => 'iPhones show the evening reminder every day, and the server got a security update.'],
+        ],
+    ],
+    [
         'version' => '1.9.1',
         'date' => '2026-10-10',
         'changes' => [
