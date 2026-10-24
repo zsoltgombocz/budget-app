@@ -1009,5 +1009,14 @@
     "from the 1st to the end of the month": "1-jétől a hónap végéig",
     "I set the day": "Megadom a napot",
     "on day :day of every month": "minden hónap :onDay",
-    "for example your payday": "például a fizetésnapod"
+    "for example your payday": "például a fizetésnapod",
+    ":amount to the reserve": ":amount tartalékba",
+    ":pct% to the reserve": ":pct% tartalékba",
+    "the rest: :target": "a többi: :target",
+    "What is left at month end": "Ami a hónap végén marad",
+    "No reserve pocket yet": "Még nincs tartalék perselyed",
+    "Create": "Létrehozás",
+    "The leftover goes": "A maradék útja",
+    "To the reserve, until it reaches the target": "Tartalékba, amíg el nem éri a célt",
+    "At closing you can still change it.": "Záráskor még módosíthatod."
 }
