@@ -1,0 +1,150 @@
+<?php
+
+namespace App\Actions\Account;
+
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use RuntimeException;
+use ZipArchive;
+
+/**
+ * Everything stored about a user, as a ZIP of CSV files (one per table). Secrets that only
+ * matter for signing in (password hash, two-factor secrets, passkey keys, push keys) stay out.
+ */
+final class ExportUserData
+{
+    /** Tables that are not user data even if they have a user_id column. */
+    private const array SKIP_TABLES = ['pulse_aggregates', 'pulse_entries', 'pulse_values', 'jobs', 'failed_jobs', 'job_batches', 'cache', 'cache_locks', 'migrations'];
+
+    /** @var array<string, list<string>> */
+    private const array SECRET_COLUMNS = [
+        'users' => ['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'],
+        'passkeys' => ['credential', 'credential_id'],
+        'push_subscriptions' => ['public_key', 'auth_token'],
+        'sessions' => ['payload'],
+    ];
+
+    /**
+     * Child tables without a user_id: table => [foreign key, parent table].
+     *
+     * @var array<string, array{0: string, 1: string}>
+     */
+    private const array CHILD_TABLES = [
+        'subscription_items' => ['subscription_id', 'subscriptions'],
+        'currency_conversion_values' => ['currency_conversion_id', 'currency_conversions'],
+    ];
+
+    /**
+     * Writes the ZIP to a temporary file and returns its path.
+     */
+    public function handle(User $user): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'export');
+
+        if ($path === false) {
+            throw new RuntimeException('Could not create a temporary file.');
+        }
+
+        $zip = new ZipArchive;
+        $zip->open($path, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+
+        foreach ($this->tables($user) as $table => $rows) {
+            $zip->addFromString($table.'.csv', $this->csv($table, $rows));
+        }
+
+        $zip->close();
+
+        return $path;
+    }
+
+    /**
+     * @return array<string, list<array<string, mixed>>>
+     */
+    public function tables(User $user): array
+    {
+        $tables = ['users' => $this->rows('users', 'id', [$user->id])];
+        $ids = [];
+
+        foreach (Schema::getTableListing(schemaQualified: false) as $table) {
+            if (in_array($table, self::SKIP_TABLES, true) || $table === 'users' || ! Schema::hasColumn($table, 'user_id')) {
+                continue;
+            }
+
+            $tables[$table] = $this->rows($table, 'user_id', [$user->id]);
+            $ids[$table] = array_map(fn (array $row): mixed => $row['id'] ?? null, $tables[$table]);
+        }
+
+        foreach (self::CHILD_TABLES as $table => [$column, $parent]) {
+            if (Schema::hasTable($table) && isset($ids[$parent])) {
+                $tables[$table] = $this->rows($table, $column, array_filter($ids[$parent]));
+            }
+        }
+
+        if (Schema::hasTable('push_subscriptions')) {
+            $tables['push_subscriptions'] = array_map(
+                fn (array $row): array => $this->withoutSecrets('push_subscriptions', $row),
+                array_map(fn (object $row): array => (array) $row, DB::table('push_subscriptions')->where('subscribable_type', $user->getMorphClass())->where('subscribable_id', $user->id)->get()->all()),
+            );
+        }
+
+        ksort($tables);
+
+        return $tables;
+    }
+
+    /**
+     * @param  list<mixed>  $values
+     * @return list<array<string, mixed>>
+     */
+    private function rows(string $table, string $column, array $values): array
+    {
+        if ($values === []) {
+            return [];
+        }
+
+        $query = DB::table($table)->whereIn($column, $values);
+
+        if (Schema::hasColumn($table, 'id')) {
+            $query->orderBy('id');
+        }
+
+        return array_values(array_map(fn (object $row): array => $this->withoutSecrets($table, (array) $row), $query->get()->all()));
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private function withoutSecrets(string $table, array $row): array
+    {
+        return array_diff_key($row, array_flip(self::SECRET_COLUMNS[$table] ?? []));
+    }
+
+    /**
+     * Semicolon separated with a BOM, so Excel opens the accents right.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     */
+    private function csv(string $table, array $rows): string
+    {
+        $handle = fopen('php://temp', 'r+');
+
+        if ($handle === false) {
+            throw new RuntimeException('Could not open a memory stream.');
+        }
+
+        $columns = $rows === [] ? array_values(array_diff(Schema::getColumnListing($table), self::SECRET_COLUMNS[$table] ?? [])) : array_keys($rows[0]);
+        fputcsv($handle, $columns, ';', escape: '');
+
+        foreach ($rows as $row) {
+            fputcsv($handle, array_map(fn (mixed $value): string => is_scalar($value) ? (string) $value : '', array_values($row)), ';', escape: '');
+        }
+
+        rewind($handle);
+        $csv = (string) stream_get_contents($handle);
+        fclose($handle);
+
+        return "\u{FEFF}".$csv;
+    }
+}

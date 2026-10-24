@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ExportUserDataController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->group(function (): void {
@@ -7,6 +8,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::livewire('settings/profile', 'pages::settings.profile')->name('profile.edit');
     Route::livewire('settings/appearance', 'pages::settings.appearance')->name('appearance.edit');
     Route::livewire('settings/security', 'pages::settings.security')->name('security.edit');
+    Route::get('settings/export', ExportUserDataController::class)->middleware('throttle:5,1')->name('export');
     Route::livewire('settings/contact', 'pages::settings.contact')->name('contact');
     Route::livewire('settings/contact/bug', 'pages::settings.feedback')->name('bug-report')->defaults('kind', 'bug');
     Route::livewire('settings/contact/idea', 'pages::settings.feedback')->name('idea')->defaults('kind', 'idea');
