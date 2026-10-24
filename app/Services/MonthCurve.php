@@ -10,9 +10,11 @@ use App\Services\Data\Curve;
  */
 final class MonthCurve
 {
-    private const float TOP = 8.0;
+    /** Room above the top for the "today" label, so a flat line never covers it. */
+    public const float TOP = 30.0;
 
-    private const float BOTTOM = 110.0;
+    /** Room below for the dates, and clear of the card's rounded corners. */
+    private const float BOTTOM = 100.0;
 
     /**
      * @param  list<int>  $dailySpent  spending per day from the period start up to today
@@ -31,7 +33,7 @@ final class MonthCurve
         $low = min(0, $expectedEnd, $plannedEnd, ...$values);
         $scale = (self::BOTTOM - self::TOP) / max(1, $high - $low);
         $y = fn (int $value): float => self::TOP + ($high - $value) * $scale;
-        $step = (Curve::WIDTH - 4) / max(1, $totalDays);
+        $step = (Curve::WIDTH - 14) / max(1, $totalDays);
 
         $points = [];
 

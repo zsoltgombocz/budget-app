@@ -209,7 +209,7 @@ new #[Title('Month')] class extends Component {
             $left = $forecast->expectedLeftover;
             $negative = $left < 0;
             $segments = array_filter([
-                ['value' => $forecast->committed, 'class' => 'bg-[#3D6E52]'],
+                ['value' => $forecast->committed, 'class' => 'bg-hero-mid'],
                 ['value' => $forecast->variableExpected, 'class' => 'bg-hero-soft'],
                 ['value' => max(0, $left), 'class' => 'bg-accent'],
             ], fn ($segment) => $segment['value'] > 0);
@@ -232,7 +232,7 @@ new #[Title('Month')] class extends Component {
 
             <div class="num mt-3.5 text-[15px]">
                 <div class="flex h-[34px] items-center justify-between"><span class="text-hero-soft">{{ __('Income') }}</span><span class="font-semibold text-hero-ink">{{ money_number($forecast->income) }}</span></div>
-                <div class="flex h-[34px] items-center justify-between"><span class="flex items-center gap-2 text-hero-soft"><span class="size-2.5 rounded-[3px] bg-[#3D6E52]"></span>{{ __('Fixed items') }}</span><span class="text-hero-ink">−{{ money_number($forecast->committed) }}</span></div>
+                <div class="flex h-[34px] items-center justify-between"><span class="flex items-center gap-2 text-hero-soft"><span class="size-2.5 rounded-[3px] bg-hero-mid"></span>{{ __('Fixed items') }}</span><span class="text-hero-ink">−{{ money_number($forecast->committed) }}</span></div>
                 <div class="flex h-[34px] items-center justify-between"><span class="flex items-center gap-2 text-hero-soft"><span class="size-2.5 rounded-[3px] bg-hero-soft"></span>{{ __('Budgets') }}</span><span class="text-hero-ink">−{{ money_number($forecast->variableExpected) }}</span></div>
                 <div class="flex h-[34px] items-center justify-between"><span class="flex items-center gap-2 text-hero-soft"><span class="size-2.5 rounded-[3px] bg-accent"></span>{{ __('Left') }}</span><span @class(['font-bold', 'text-accent' => ! $negative, 'text-danger' => $negative])>{{ money_number($left) }}</span></div>
             </div>

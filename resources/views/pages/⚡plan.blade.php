@@ -444,7 +444,7 @@ new #[Title('Plan')] class extends Component {
         $planBudgets = $summary->totalFor(LineType::Variable);
         $planNegative = $summary->leftover < 0;
         $planSegments = array_filter([
-            ['label' => __('Fixed'), 'value' => $planFixed, 'class' => 'bg-[#3D6E52]'],
+            ['label' => __('Fixed'), 'value' => $planFixed, 'class' => 'bg-hero-mid'],
             ['label' => __('Put aside'), 'value' => $planSaving, 'class' => 'bg-warn'],
             ['label' => __('Budgets'), 'value' => $planBudgets, 'class' => 'bg-hero-soft'],
             ['label' => __('Left'), 'value' => max(0, $summary->leftover), 'class' => 'bg-accent'],

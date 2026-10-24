@@ -216,15 +216,15 @@ new #[Title('Today')] class extends Component {
              aria-label="{{ __('Left for the month: :now today, :end at month end', ['now' => money($overview->availableNow()), 'end' => money($forecast->expectedLeftover)]) }}" data-test="month-curve">
             <path d="{{ $curve->area() }}" fill="currentColor" fill-opacity=".14" class="late-in" />
             <line x1="0" y1="{{ $curve->planY }}" x2="{{ $curve::WIDTH }}" y2="{{ $curve->planY }}" stroke="var(--app-hero-sub)" stroke-opacity=".35" stroke-dasharray="2 4" />
-            <text x="6" y="{{ max(12, $curve->planY - 6) }}" fill="var(--app-hero-sub)" font-size="10.5" class="num late-in">{{ __('plan :amount', ['amount' => money_number($forecast->plannedLeftover)]) }}</text>
-            <text x="6" y="114" fill="var(--app-hero-sub)" fill-opacity=".7" font-size="10">{{ \App\Support\Dates::short($period->starts_on) }}</text>
-            <text x="{{ $curve::WIDTH - 6 }}" y="114" text-anchor="end" fill="var(--app-hero-sub)" fill-opacity=".7" font-size="10">{{ \App\Support\Dates::short($period->ends_on) }}</text>
+            <text x="18" y="{{ $curve->planY - \App\Services\MonthCurve::TOP < 18 ? $curve->planY + 14 : $curve->planY - 6 }}" fill="var(--app-hero-sub)" font-size="10.5" class="num late-in">{{ __('plan :amount', ['amount' => money_number($forecast->plannedLeftover)]) }}</text>
+            <text x="18" y="114" fill="var(--app-hero-sub)" fill-opacity=".7" font-size="10">{{ \App\Support\Dates::short($period->starts_on) }}</text>
+            <text x="{{ $curve::WIDTH - 18 }}" y="114" text-anchor="end" fill="var(--app-hero-sub)" fill-opacity=".7" font-size="10">{{ \App\Support\Dates::short($period->ends_on) }}</text>
             <path d="{{ $curve->line() }}" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" class="curve-draw" />
             <path d="M{{ $todayX }},{{ $todayY }} L{{ $curve->endX }},{{ $curve->endY }}" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 5" stroke-linecap="round" class="late-in" />
             <circle cx="{{ $todayX }}" cy="{{ $todayY }}" r="5" fill="currentColor" class="dot-pulse" />
             <circle cx="{{ $todayX }}" cy="{{ $todayY }}" r="5" fill="currentColor" stroke="{{ $negative ? 'var(--app-danger-tint)' : 'var(--app-hero)' }}" stroke-width="2.5" class="late-in" />
             <circle cx="{{ $curve->endX }}" cy="{{ $curve->endY }}" r="4" fill="{{ $negative ? 'var(--app-danger-tint)' : 'var(--app-hero)' }}" stroke="currentColor" stroke-width="2" class="late-in" />
-            <text x="{{ min(max($todayX, 40), $curve::WIDTH - 40) }}" y="{{ max(12, $todayY - 15) }}" text-anchor="middle" fill="var(--app-hero-ink)" font-size="11" font-weight="600" class="num late-in">{{ __('today · :amount', ['amount' => money_number($overview->availableNow())]) }}</text>
+            <text x="{{ min(max($todayX, 52), $curve::WIDTH - 52) }}" y="{{ $todayY - 14 }}" text-anchor="middle" fill="var(--app-hero-ink)" font-size="11" font-weight="600" class="num late-in">{{ __('today · :amount', ['amount' => money_number($overview->availableNow())]) }}</text>
         </svg>
     </section>
 
