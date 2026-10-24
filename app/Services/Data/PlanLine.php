@@ -23,12 +23,21 @@ final readonly class PlanLine
         public ?int $dueDay = null,
         public ?int $pocketId = null,
         public ?int $loanId = null,
+        public bool $skipped = false,
     ) {}
 
     /**
      * The amount the plan counts with, according to the calculation mode.
      */
     public function planned(): int
+    {
+        return $this->skipped ? 0 : $this->regular();
+    }
+
+    /**
+     * The amount by the calculation mode, also for a line left out of this period.
+     */
+    public function regular(): int
     {
         return match ($this->calcMode) {
             CalcMode::Avg => $this->amountAvg ?? $this->amount,
@@ -38,7 +47,7 @@ final readonly class PlanLine
     }
 
     /**
-     * @return array{line_id: int|null, category_id: int, category_name: string, type: string, amount: int, amount_avg: int|null, amount_max: int|null, calc_mode: string, due_day: int|null, pocket_id: int|null, loan_id: int|null, planned: int}
+     * @return array{line_id: int|null, category_id: int, category_name: string, type: string, amount: int, amount_avg: int|null, amount_max: int|null, calc_mode: string, due_day: int|null, pocket_id: int|null, loan_id: int|null, skipped: bool, planned: int}
      */
     public function toArray(): array
     {
@@ -54,6 +63,7 @@ final readonly class PlanLine
             'due_day' => $this->dueDay,
             'pocket_id' => $this->pocketId,
             'loan_id' => $this->loanId,
+            'skipped' => $this->skipped,
             'planned' => $this->planned(),
         ];
     }
@@ -75,11 +85,20 @@ final readonly class PlanLine
             dueDay: self::intOrNull($data['due_day'] ?? null),
             pocketId: self::intOrNull($data['pocket_id'] ?? null),
             loanId: self::intOrNull($data['loan_id'] ?? null),
+            skipped: ($data['skipped'] ?? false) === true,
         );
     }
 
     private static function intOrNull(mixed $value): ?int
     {
         return is_int($value) || (is_string($value) && is_numeric($value)) ? (int) $value : null;
+    }
+
+    /**
+     * The same line, left out of (or back in) one period.
+     */
+    public function withSkipped(bool $skipped): self
+    {
+        return new self($this->lineId, $this->categoryId, $this->categoryName, $this->type, $this->amount, $this->amountAvg, $this->amountMax, $this->calcMode, $this->dueDay, $this->pocketId, $this->loanId, $skipped);
     }
 }

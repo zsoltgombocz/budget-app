@@ -38,7 +38,17 @@ final readonly class Overview
     {
         $until = $this->today->addDays($days);
 
-        return array_values(array_filter($this->fixedItems, fn (FixedItem $item): bool => ! $item->paid && $item->dueOn instanceof CarbonImmutable && ! $item->dueOn->greaterThan($until)));
+        return array_values(array_filter($this->fixedItems, fn (FixedItem $item): bool => ! $item->paid && ! $item->skipped && $item->dueOn instanceof CarbonImmutable && ! $item->dueOn->greaterThan($until)));
+    }
+
+    /**
+     * Fixed items left out of this period.
+     *
+     * @return list<FixedItem>
+     */
+    public function skipped(): array
+    {
+        return array_values(array_filter($this->fixedItems, fn (FixedItem $item): bool => $item->skipped));
     }
 
     /**

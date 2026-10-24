@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Budget\SkipLine;
 use App\Enums\LineType;
 use App\Models\Category;
 use App\Models\Period;
@@ -38,6 +39,17 @@ new #[Title('Month')] class extends Component {
 
         $this->dispatch('budget-updated');
         $this->dispatch('app-toast', title: __('Entry removed.'), icon: 'delete');
+    }
+
+    /**
+     * Take a skipped fixed item back into this month.
+     */
+    public function unskip(int $budgetLineId): void
+    {
+        app(SkipLine::class)->handle($this->user(), $this->period, $budgetLineId, skip: false);
+        $this->refresh();
+
+        $this->dispatch('budget-updated');
     }
 
     public function showPeriod(int $periodId): void
@@ -239,6 +251,19 @@ new #[Title('Month')] class extends Component {
 
             <a href="{{ route('close', $period) }}" wire:navigate class="press mt-3 flex h-12 items-center justify-center rounded-2xl bg-hero-2 text-[15px] font-semibold text-hero-ink" data-test="start-close">{{ __('Close the month') }}</a>
         </section>
+
+        @if ($overview->skipped() !== [])
+            <div class="mx-4 mt-3 rounded-[24px] bg-surface px-4 py-1.5" data-test="skipped-items">
+                <div class="flex h-11 items-center text-base font-semibold">{{ __('Skipped this month') }}</div>
+                @foreach ($overview->skipped() as $item)
+                    <div class="flex min-h-[56px] items-center gap-3 border-t border-line" wire:key="skipped-{{ $item->line->lineId }}">
+                        <span class="min-w-0 flex-1 truncate text-base text-ink-2">{{ $item->line->categoryName }}</span>
+                        <span class="num text-[15px] text-muted line-through">{{ money_number($item->line->regular()) }}</span>
+                        <button type="button" wire:click="unskip({{ (int) $item->line->lineId }})" class="press h-9 shrink-0 rounded-full bg-surface-3 px-3.5 text-sm font-semibold" data-test="unskip">{{ __('Undo') }}</button>
+                    </div>
+                @endforeach
+            </div>
+        @endif
     @elseif ($closeRecord)
         <section class="mx-4 mt-5 rounded-[28px] bg-hero px-5 pt-[22px] pb-5" data-test="close-summary">
             <div class="text-[15px] text-hero-sub">{{ __('Was left') }}</div>

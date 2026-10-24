@@ -1021,5 +1021,10 @@
     "At closing you can still change it.": "Záráskor még módosíthatod.",
     "Saving up to prepay?": "Előtörlesztésre gyűjtenél?",
     "Add a pocket for it and we show when you will be loan-free.": "Hozz létre neki perselyt, és megmutatjuk, mikor leszel hitelmentes.",
-    "Prepayment pocket": "Előtörlesztő persely"
+    "Prepayment pocket": "Előtörlesztő persely",
+    "This period is closed.": "Ez az időszak már le van zárva.",
+    "Skipped this month": "Ebben a hónapban kihagyva",
+    "+:amount left at month end": "+:amount marad a hónap végén",
+    "Not transferring this month": "Most nem utalom el",
+    "Skip this month": "Most kihagyom"
 }

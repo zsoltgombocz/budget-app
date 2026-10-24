@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Budget\MarkNoSpendDay;
+use App\Actions\Budget\SkipLine;
 use App\Actions\Budget\ToggleLinePaid;
 use App\Models\Category;
 use App\Models\User;
@@ -41,6 +42,35 @@ new #[Title('Today')] class extends Component {
     {
         app(ToggleLinePaid::class)->handle($this->user(), $this->overview->period, $budgetLineId);
         unset($this->overview);
+    }
+
+    public function togglePaidFromSheet(int $budgetLineId): void
+    {
+        $this->togglePaid($budgetLineId);
+        $this->dispatch('close-sheet', name: 'due-'.$budgetLineId);
+    }
+
+    /**
+     * Leave a fixed item out of this month: its amount stays in the month-end leftover.
+     */
+    public function skipDue(int $budgetLineId): void
+    {
+        $item = collect($this->overview->fixedItems)->first(fn ($item): bool => $item->line->lineId === $budgetLineId);
+        app(SkipLine::class)->handle($this->user(), $this->overview->period, $budgetLineId);
+        unset($this->overview);
+
+        $this->dispatch('close-sheet', name: 'due-'.$budgetLineId);
+        $this->dispatch('budget-updated');
+        $this->dispatch('app-toast', title: __('Skipped this month'), subtitle: $item ? __('+:amount left at month end', ['amount' => money($item->line->regular())]) : null, icon: 'event_busy', undo: 'undo-skip-due', params: ['budgetLineId' => $budgetLineId]);
+    }
+
+    #[On('undo-skip-due')]
+    public function unskipDue(int $budgetLineId): void
+    {
+        app(SkipLine::class)->handle($this->user(), $this->overview->period, $budgetLineId, skip: false);
+        unset($this->overview);
+
+        $this->dispatch('budget-updated');
     }
 
     public function markNoSpend(): void
@@ -265,6 +295,7 @@ new #[Title('Today')] class extends Component {
                     $isToday = $item->dueOn->isSameDay($overview->today);
                 @endphp
                 <div class="flex min-h-[60px] items-center gap-3 border-t border-line" wire:key="due-{{ $item->line->lineId }}" data-test="due-item">
+                    <button type="button" x-data x-on:click="$dispatch('open-sheet', 'due-{{ $item->line->lineId }}')" class="press flex min-w-0 flex-1 items-center gap-3 text-left" data-test="open-due">
                     <span @class(['flex size-9 shrink-0 items-center justify-center rounded-xl', 'bg-warn-tint text-warn' => $late || $isToday, 'bg-surface-2 text-ink-2' => ! $late && ! $isToday])>
                         <x-ui.icon :name="$this->icons[$item->line->categoryId] ?? 'autorenew'" :size="20" />
                     </span>
@@ -275,10 +306,32 @@ new #[Title('Today')] class extends Component {
                         </div>
                     </div>
                     <x-ui.amount size="sm" :value="$item->line->planned()" class="text-base font-semibold" />
+                    </button>
                     <button type="button" wire:click="togglePaid({{ (int) $item->line->lineId }})" class="press h-9 shrink-0 rounded-full bg-surface-3 px-3.5 text-sm font-semibold" data-test="mark-due-done">{{ $isTransfer ? __('Transferred') : __('Done') }}</button>
                 </div>
             @endforeach
         </div>
+
+        @foreach ($due as $item)
+            @php $isTransfer = in_array($item->line->type, [\App\Enums\LineType::Transfer, \App\Enums\LineType::Sinking], true); @endphp
+            <x-ui.sheet :name="'due-'.$item->line->lineId" wire:key="due-sheet-{{ $item->line->lineId }}">
+                <div class="mt-4 flex items-center gap-3.5">
+                    <span class="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-surface-2 text-ink-2"><x-ui.icon :name="$this->icons[$item->line->categoryId] ?? 'autorenew'" :size="24" /></span>
+                    <div class="min-w-0">
+                        <h2 class="truncate text-xl font-bold tracking-[-0.01em]">{{ $item->line->categoryName }}</h2>
+                        <div class="num text-[15px] text-muted">{{ money($item->line->planned()) }}</div>
+                    </div>
+                </div>
+                <x-ui.button class="mt-5 w-full" icon="check" wire:click="togglePaidFromSheet({{ (int) $item->line->lineId }})">{{ $isTransfer ? __('Transferred') : __('Done') }}</x-ui.button>
+                <button type="button" wire:click="skipDue({{ (int) $item->line->lineId }})" class="press mt-2.5 flex w-full items-center gap-3 rounded-btn bg-surface-2 px-4 py-3.5 text-left" data-test="skip-due">
+                    <x-ui.icon name="event_busy" :size="22" class="text-ink-2" />
+                    <span class="min-w-0 flex-1">
+                        <span class="block text-base font-semibold">{{ $isTransfer ? __('Not transferring this month') : __('Skip this month') }}</span>
+                        <span class="num block text-[13px] text-accent">{{ __('+:amount left at month end', ['amount' => money($item->line->regular())]) }}</span>
+                    </span>
+                </button>
+            </x-ui.sheet>
+        @endforeach
     @endif
 
     <button type="button" x-data x-on:click="$dispatch('open-sheet', 'streak')" class="press mt-3 flex w-full items-center gap-3.5 rounded-[24px] bg-surface p-4 text-left" data-test="weekly-challenge">

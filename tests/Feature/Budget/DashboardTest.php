@@ -1,13 +1,16 @@
 <?php
 
+use App\Actions\Budget\SkipLine;
 use App\Enums\Currency;
 use App\Models\BudgetLine;
 use App\Models\Category;
 use App\Models\DayMark;
 use App\Models\Transaction;
+use App\Services\BudgetCalculator;
 use App\Services\Data\CategoryForecast;
 use App\Services\OverviewService;
 use App\Services\PeriodService;
+use App\Services\PlanService;
 use Carbon\CarbonImmutable;
 use Livewire\Livewire;
 
@@ -160,4 +163,37 @@ it('shows the streak, the weekly challenge and celebrates a new milestone once',
         ->assertDontSee('data-test="milestone-celebration"', false);
 
     Livewire::test('pages::today')->assertDontSee('data-test="milestone-celebration"', false);
+});
+
+it('skips a fixed item for this month so its amount stays in the month-end leftover', function (): void {
+    $rent = BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail();
+    $rent->update(['due_day' => 12]);
+    $before = resolve(OverviewService::class)->forUser($this->user)->forecast->expectedLeftover;
+
+    Livewire::test('pages::today')
+        ->assertSee('data-test="skip-due"', false)
+        ->call('skipDue', $rent->id)
+        ->assertDispatched('app-toast')
+        ->assertDontSee('data-test="due-item"', false);
+
+    $overview = resolve(OverviewService::class)->forUser($this->user);
+    expect($overview->forecast->expectedLeftover)->toBe($before + $rent->amount)
+        ->and($overview->skipped())->toHaveCount(1);
+
+    Livewire::test('pages::month')->assertSee('data-test="skipped-items"', false)->call('unskip', $rent->id);
+
+    expect(resolve(OverviewService::class)->forUser($this->user)->forecast->expectedLeftover)->toBe($before);
+});
+
+it('keeps a skipped item out of the closed period', function (): void {
+    $rent = BudgetLine::query()->whereRelation('category', 'name', 'Rent')->firstOrFail();
+    app(SkipLine::class)->handle($this->user, $this->period, $rent->id);
+
+    $lines = resolve(PlanService::class)->linesFor($this->period->refresh());
+    $snapshot = resolve(BudgetCalculator::class)->fromSnapshot(resolve(BudgetCalculator::class)->snapshot($lines));
+    $restored = collect($snapshot)->firstWhere('lineId', $rent->id);
+
+    expect($restored->skipped)->toBeTrue()
+        ->and($restored->planned())->toBe(0)
+        ->and($restored->regular())->toBe($rent->amount);
 });

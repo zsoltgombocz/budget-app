@@ -47,7 +47,12 @@ final readonly class PlanService
             return $this->calculator->fromSnapshot($period->plan_snapshot);
         }
 
-        return $this->liveLines($period->user_id, $period->starts_on, $period->ends_on);
+        $skipped = $period->lineStatuses()->whereNotNull('skipped_on')->pluck('budget_line_id')->flip();
+
+        return array_map(
+            fn (PlanLine $line): PlanLine => $line->lineId !== null && $skipped->has($line->lineId) ? $line->withSkipped(true) : $line,
+            $this->liveLines($period->user_id, $period->starts_on, $period->ends_on),
+        );
     }
 
     public function summaryFor(Period $period): PlanSummary

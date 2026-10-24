@@ -10,10 +10,11 @@ final readonly class FixedItem
         public PlanLine $line,
         public ?CarbonImmutable $dueOn,
         public bool $paid,
+        public bool $skipped = false,
     ) {}
 
     public function isOverdue(CarbonImmutable $today): bool
     {
-        return ! $this->paid && $this->dueOn instanceof CarbonImmutable && $this->dueOn->lessThanOrEqualTo($today);
+        return ! $this->paid && ! $this->skipped && $this->dueOn instanceof CarbonImmutable && $this->dueOn->lessThanOrEqualTo($today);
     }
 }

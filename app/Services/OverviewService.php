@@ -102,7 +102,7 @@ final readonly class OverviewService
         $items = [];
 
         foreach ($lines as $line) {
-            if ($line->type === LineType::Variable || $line->planned() <= 0) {
+            if ($line->type === LineType::Variable || $line->regular() <= 0) {
                 continue;
             }
 
@@ -110,10 +110,11 @@ final readonly class OverviewService
                 line: $line,
                 dueOn: $this->dueDate($period, $line->dueDay),
                 paid: $line->lineId !== null && $paid->has($line->lineId),
+                skipped: $line->skipped,
             );
         }
 
-        usort($items, fn (FixedItem $a, FixedItem $b): int => [$a->paid, $a->dueOn->timestamp ?? PHP_INT_MAX] <=> [$b->paid, $b->dueOn->timestamp ?? PHP_INT_MAX]);
+        usort($items, fn (FixedItem $a, FixedItem $b): int => [$a->paid || $a->skipped, $a->dueOn->timestamp ?? PHP_INT_MAX] <=> [$b->paid || $b->skipped, $b->dueOn->timestamp ?? PHP_INT_MAX]);
 
         return $items;
     }
