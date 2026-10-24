@@ -353,7 +353,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
             $splitOther = $preview->surplusTarget['name'] ?? __('Stays on the account');
         @endphp
 
-        <div class="flex h-11 items-center px-3 pt-4">
+        <div class="mt-6 flex h-11 items-center px-3">
             <a href="{{ route('month', ['periodus' => $period->id]) }}" wire:navigate class="-ml-1.5 inline-flex items-center gap-1 text-base text-ink-2"><x-ui.icon name="chevron_left" :size="22" />{{ __('Month') }}</a>
         </div>
         <div class="px-4">

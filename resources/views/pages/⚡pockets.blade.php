@@ -468,9 +468,12 @@ new #[Title('Pockets and loans')] class extends Component {
     // ?elotorlesztes=ID opens the prepayment sheet of that loan (from the loan page).
     $prepayQuery = request()->query('elotorlesztes');
     $openPrepay = is_numeric($prepayQuery) && $loans->contains('id', (int) $prepayQuery) ? (int) $prepayQuery : null;
+    // ?uj-persely=ID opens a new prepayment pocket for that loan (from the loan page).
+    $newPocketQuery = request()->query('uj-persely');
+    $newPocketFor = is_numeric($newPocketQuery) && $loans->contains('id', (int) $newPocketQuery) ? (int) $newPocketQuery : null;
     $startTab = request()->query('ful') === 'hitelek' || $openLoan !== null || $openPrepay !== null ? 'loans' : 'pots';
 @endphp
-<div x-data="pocketsPage({ decimals: {{ $decimals }}, locale: @js(str_replace('_', '-', app()->getLocale())), cover: @js($cover), openLoan: @js($openLoan), openPrepayFor: @js($openPrepay), returnTo: @js($returnTo), tab: @js($startTab) })">
+<div x-data="pocketsPage({ decimals: {{ $decimals }}, locale: @js(str_replace('_', '-', app()->getLocale())), cover: @js($cover), openLoan: @js($openLoan), openPrepayFor: @js($openPrepay), newPocketFor: @js($newPocketFor), prepayName: @js(__('Prepayment fund')), prepayStep: @js($this->currency === \App\Enums\Currency::HUF ? '500000' : ''), returnTo: @js($returnTo), tab: @js($startTab) })">
     <div class="flex items-center justify-between px-4 pt-5">
         <h1 class="text-[30px] font-bold tracking-[-0.02em]">{{ __('My money') }}</h1>
         <button type="button" x-on:click="tab === 'loans' ? openLoan(null) : openPocket(null)" class="press flex h-10 items-center gap-1.5 rounded-full bg-surface-2 pr-3.5 pl-2.5 text-sm font-semibold" data-test="add">
@@ -581,11 +584,19 @@ new #[Title('Pockets and loans')] class extends Component {
                     <div>
                         <div class="text-[13px] text-muted">{{ __('Monthly installment') }}</div>
                         <div class="mt-0.5 text-xl font-bold">{{ money_number($loan->monthlyPayment()) }}</div>
-                        @if ($next !== null && $next < $loan->monthlyPayment())
-                            <div class="mt-0.5 flex items-center gap-1 text-[13px] text-accent" data-test="next-installment"><x-ui.icon name="arrow_forward" :size="14" />~{{ money_number($next) }} {{ __('after the next prepayment') }}</div>
-                        @endif
                     </div>
                 </div>
+                @if ($next !== null && $next < $loan->monthlyPayment())
+                    <div class="mt-4 rounded-2xl bg-hero px-4 py-3.5" data-test="next-installment">
+                        <div class="text-[13px] text-hero-soft">{{ __('Expected installment after the next prepayment:') }}</div>
+                        <div class="num mt-1.5 flex items-center gap-2.5">
+                            <span class="text-[15px] text-hero-sub line-through">{{ money_number($loan->monthlyPayment()) }}</span>
+                            <x-ui.icon name="arrow_forward" :size="18" class="text-accent" />
+                            <span class="text-2xl font-bold text-accent">~{{ money_number($next) }} <span class="text-base font-medium">{{ user_currency()->symbol() }}</span></span>
+                        </div>
+                        <div class="mt-1 text-xs text-hero-sub">{{ __('when :pocket reaches :step', ['pocket' => $fund->name, 'step' => money($fund->prepay_step)]) }}</div>
+                    </div>
+                @endif
                 @if ($freeBy !== null)
                     <div class="mt-4 flex h-12 items-center justify-between rounded-2xl bg-hero px-3.5">
                         <span class="text-sm text-hero-soft">{{ __('Loan-free by') }}</span>
@@ -755,7 +766,7 @@ new #[Title('Pockets and loans')] class extends Component {
 
 @script
 <script>
-    Alpine.data('pocketsPage', ({ decimals, locale, cover, openLoan, openPrepayFor, returnTo, tab }) => ({
+    Alpine.data('pocketsPage', ({ decimals, locale, cover, openLoan, openPrepayFor, newPocketFor, prepayName, prepayStep, returnTo, tab }) => ({
         sheet: null,
         tab,
         moveMode: 'deposit',
@@ -788,6 +799,10 @@ new #[Title('Pockets and loans')] class extends Component {
             }
             if (openPrepayFor !== null) {
                 this.openPrepay(openPrepayFor)
+                history.replaceState(null, '', location.pathname)
+            }
+            if (newPocketFor !== null) {
+                this.openPocket(null).then(() => { this.form.name = prepayName; this.form.loanId = newPocketFor; this.fields.step = prepayStep })
                 history.replaceState(null, '', location.pathname)
             }
             if (cover?.pocketId) {

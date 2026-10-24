@@ -81,7 +81,8 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
 
         $items = OnboardingItems::all();
         $this->amounts = array_fill(0, count($items), '');
-        $this->included = array_map(fn (array $entry): bool => ! ($entry['item']['off'] ?? false), $items);
+        // The prepayment fund is a pocket: only created when switched on.
+        $this->included = array_map(fn (array $entry): bool => ! ($entry['item']['off'] ?? false) && ! isset($entry['item']['pocket']['prepay_step']), $items);
     }
 
     public function next(): void
@@ -365,7 +366,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
         },
         apply() { $wire.set(this.field, this.value); this.field = null },
      }">
-    <div class="grid grid-cols-[44px_1fr_44px] items-center px-3 pt-3">
+    <div class="grid grid-cols-[44px_1fr_44px] items-center px-3 pt-6">
         @if ($step > 1)
             <button type="button" wire:click="back" class="flex size-11 items-center justify-center text-ink-2" aria-label="{{ __('Back') }}"><x-ui.icon name="arrow_back" /></button>
         @else

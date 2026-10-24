@@ -1018,5 +1018,8 @@
     "Create": "Létrehozás",
     "The leftover goes": "A maradék útja",
     "To the reserve, until it reaches the target": "Tartalékba, amíg el nem éri a célt",
-    "At closing you can still change it.": "Záráskor még módosíthatod."
+    "At closing you can still change it.": "Záráskor még módosíthatod.",
+    "Saving up to prepay?": "Előtörlesztésre gyűjtenél?",
+    "Add a pocket for it and we show when you will be loan-free.": "Hozz létre neki perselyt, és megmutatjuk, mikor leszel hitelmentes.",
+    "Prepayment pocket": "Előtörlesztő persely"
 }

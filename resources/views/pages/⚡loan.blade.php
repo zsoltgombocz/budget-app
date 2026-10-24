@@ -14,32 +14,21 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 new #[Title('Loan')] class extends Component {
-    public const int SLIDER_MAX = 150_000;
-
-    public const int SLIDER_STEP = 10_000;
-
     public Loan $loan;
-
-    /** What the user would put aside for prepaying each month, in the planner. */
-    public int $monthly = 0;
-
-    public function mount(Loan $loan): void
-    {
-        $this->loan = $loan;
-        $deposit = $this->fund?->budgetLines()->sum('amount') ?? 0;
-        $this->monthly = (int) min(self::SLIDER_MAX, round(((int) $deposit) / self::SLIDER_STEP) * self::SLIDER_STEP);
-    }
-
-    public function updatedMonthly(): void
-    {
-        $this->monthly = max(0, min(self::SLIDER_MAX, $this->monthly));
-        unset($this->plan);
-    }
 
     #[Computed]
     public function fund(): ?Pocket
     {
         return $this->loan->pockets()->whereNotNull('prepay_step')->first();
+    }
+
+    /**
+     * What the plan puts into the prepayment pocket each month.
+     */
+    #[Computed]
+    public function monthlySaving(): int
+    {
+        return (int) ($this->fund?->budgetLines()->sum('amount') ?? 0);
     }
 
     #[Computed]
@@ -65,7 +54,7 @@ new #[Title('Loan')] class extends Component {
             thm: $loan->thm,
             installment: $loan->installment,
             remainingMonths: $loan->remaining_months,
-            monthlySaving: $this->monthly * $this->user()->settings()->currency->minorPerMajor(),
+            monthlySaving: $this->monthlySaving,
             step: (int) ($this->fund->prepay_step ?? 500_000 * $this->user()->settings()->currency->minorPerMajor()),
             mode: $loan->prepay_mode,
             firstMonth: app(PeriodService::class)->today($this->user()->settings())->addMonth(),
@@ -91,7 +80,7 @@ new #[Title('Loan')] class extends Component {
 @endphp
 
 <div class="px-4 pb-10">
-    <a href="{{ route('pockets', ['ful' => 'hitelek']) }}" wire:navigate class="-ml-1.5 inline-flex h-11 items-center gap-1 pt-3 text-base text-ink-2" data-test="back">
+    <a href="{{ route('pockets', ['ful' => 'hitelek']) }}" wire:navigate class="-ml-1.5 mt-6 inline-flex h-11 items-center gap-1 text-base text-ink-2" data-test="back">
         <x-ui.icon name="chevron_left" :size="22" />{{ __('My money') }}
     </a>
     <h1 class="mt-1 text-[28px] font-bold tracking-[-0.02em]">{{ $loan->name }}</h1>
@@ -128,20 +117,14 @@ new #[Title('Loan')] class extends Component {
                     </div>
                 @endif
 
-                @if ($plan !== null)
-                    <div class="mt-[22px] border-t border-hero-soft/12 pt-[18px]">
-                        <div class="flex items-baseline justify-between">
-                            <label for="monthly" class="text-[15px] text-hero-soft">{{ __('I put aside every month') }}</label>
-                            <span class="num text-xl font-bold text-hero-ink">{{ money_number($this->monthly * user_currency()->minorPerMajor()) }} {{ user_currency()->symbol() }}</span>
-                        </div>
-                        <input id="monthly" type="range" min="0" max="{{ $this::SLIDER_MAX }}" step="{{ $this::SLIDER_STEP }}" wire:model.live.debounce.120ms="monthly" class="loan-slider mt-3 w-full" data-test="monthly-slider" />
-                        <div class="num mt-1 flex justify-between text-xs text-hero-sub"><span>0</span><span>{{ money_number($this::SLIDER_MAX * user_currency()->minorPerMajor()) }}</span></div>
+                @if ($plan !== null && $fund)
+                    <div class="mt-[22px] flex items-baseline justify-between border-t border-hero-soft/12 pt-[18px]" data-test="monthly-saving">
+                        <span class="text-[15px] text-hero-soft">{{ __('I put aside every month') }}</span>
+                        <span class="num text-xl font-bold text-hero-ink">{{ money($this->monthlySaving) }}</span>
                     </div>
-                    <div class="num mt-3.5 h-5 text-sm text-hero-soft">
-                        @if ($plan->savedInterest() > 0)
-                            {{ __('about :amount less interest', ['amount' => money((int) (round($plan->savedInterest() / 10_000) * 10_000))]) }}
-                        @endif
-                    </div>
+                    @if ($plan->savedInterest() > 0)
+                        <div class="num mt-2 text-sm text-hero-soft">{{ __('about :amount less interest', ['amount' => money((int) (round($plan->savedInterest() / 10_000) * 10_000))]) }}</div>
+                    @endif
                 @endif
             </section>
         </div>
@@ -170,7 +153,12 @@ new #[Title('Loan')] class extends Component {
             <x-ui.button variant="secondary" :href="route('pockets', ['elotorlesztes' => $loan->id])" wire:navigate class="mt-3.5 w-full !h-12" data-test="record-prepayment">{{ __('I prepaid') }}</x-ui.button>
         </div>
     @else
-        <x-ui.button variant="secondary" :href="route('pockets', ['elotorlesztes' => $loan->id])" wire:navigate class="mt-3 w-full" data-test="record-prepayment">{{ __('I prepaid') }}</x-ui.button>
+        <div class="mt-3 rounded-[24px] bg-surface px-5 py-[18px]" data-test="no-prepay-pocket">
+            <div class="text-base font-semibold">{{ __('Saving up to prepay?') }}</div>
+            <p class="mt-1 text-sm text-muted">{{ __('Add a pocket for it and we show when you will be loan-free.') }}</p>
+            <x-ui.button :href="route('pockets', ['uj-persely' => $loan->id])" wire:navigate icon="add" class="mt-3.5 w-full !h-12" data-test="add-prepay-pocket">{{ __('Prepayment pocket') }}</x-ui.button>
+            <x-ui.button variant="secondary" :href="route('pockets', ['elotorlesztes' => $loan->id])" wire:navigate class="mt-2 w-full !h-12" data-test="record-prepayment">{{ __('I prepaid') }}</x-ui.button>
+        </div>
     @endif
 
     <div class="num mt-3 rounded-[24px] bg-surface px-5 py-1">

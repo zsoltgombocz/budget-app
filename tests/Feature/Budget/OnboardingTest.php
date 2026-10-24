@@ -29,7 +29,7 @@ it('builds a combined plan from the answers: shared costs and a loan in one pass
         ->assertSet('step', 4)
         ->set('amounts.0', '180000')->call('next')
         ->set('shared', true)->set('amounts.6', '120000')->call('next')
-        ->set('hasLoan', true)->set('amounts.8', '87549')->call('next')
+        ->set('hasLoan', true)->set('amounts.8', '87549')->set('included.9', true)->call('next')
         ->set('amounts.10', '90000')->call('next')
         ->assertSet('step', 8)
         ->set('amounts.14', '20000')
@@ -53,6 +53,25 @@ it('builds a combined plan from the answers: shared costs and a loan in one pass
         ->and($user->loans()->value('installment'))->toBe(87_549)
         ->and($user->pockets()->where('is_reserve', true)->value('target_amount'))->toBe(300_000)
         ->and($user->periods()->count())->toBe(1);
+});
+
+it('creates no prepayment pocket for a loan unless it is switched on', function (): void {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test('pages::onboarding')
+        ->set('income', '500000')->call('next')
+        ->set('periodMode', 'calendar')->call('next')
+        ->call('next')
+        ->call('next')
+        ->set('shared', false)->call('next')
+        ->set('hasLoan', true)->set('amounts.8', '80000')->call('next')
+        ->call('next')
+        ->call('finish')
+        ->assertHasNoErrors();
+
+    expect($user->loans()->count())->toBe(1)
+        ->and($user->pockets()->whereNotNull('prepay_step')->count())->toBe(0);
 });
 
 it('leaves out the groups answered with no', function (): void {
