@@ -4,9 +4,7 @@ use App\Enums\LineType;
 use App\Models\Category;
 use App\Models\Period;
 use App\Models\User;
-use App\Services\Data\ClosePreview;
 use App\Services\OverviewService;
-use App\Services\PeriodCloser;
 use App\Services\PeriodService;
 use App\Support\Dates;
 use App\Support\Icons;
@@ -53,7 +51,7 @@ new #[Title('Month')] class extends Component {
     #[On('budget-updated')]
     public function refresh(): void
     {
-        unset($this->period, $this->days, $this->overview, $this->neighbours, $this->closePreview);
+        unset($this->period, $this->days, $this->overview, $this->neighbours, $this->noSpendDays);
     }
 
     #[Computed]
@@ -68,15 +66,6 @@ new #[Title('Month')] class extends Component {
         $today = app(PeriodService::class)->today($this->user()->settings());
 
         return app(OverviewService::class)->forPeriod($this->user(), $this->period, $today);
-    }
-
-    /**
-     * What the closing wizard would show if the period were closed today.
-     */
-    #[Computed]
-    public function closePreview(): ClosePreview
-    {
-        return app(PeriodCloser::class)->preview($this->user(), $this->period);
     }
 
     /**
@@ -155,6 +144,21 @@ new #[Title('Month')] class extends Component {
         return array_values($days);
     }
 
+    /**
+     * The days of the period marked "Ma nem költöttem", as 0-based day indexes.
+     *
+     * @return list<int>
+     */
+    #[Computed]
+    public function noSpendDays(): array
+    {
+        $period = $this->period;
+
+        return $this->user()->dayMarks()
+            ->whereDate('date', '>=', $period->starts_on->toDateString())->whereDate('date', '<=', $period->ends_on->toDateString())
+            ->get()->map(fn (\App\Models\DayMark $mark): int => (int) $period->starts_on->diffInDays($mark->date))->values()->all();
+    }
+
     #[Computed]
     public function category(): ?Category
     {
@@ -200,45 +204,87 @@ new #[Title('Month')] class extends Component {
         </div>
     </div>
 
-    <x-ui.card class="mx-4 mb-1 mt-[18px] rounded-[22px] px-[18px] py-4">
-        @if ($period->isOpen())
-            @php
-                $closeLeftover = $this->closePreview->leftover();
-                $closeDiff = $closeLeftover - $this->closePreview->plannedLeftover();
-            @endphp
-            <div class="mb-3.5 border-b border-line pb-3.5" data-test="close-now">
-                <div class="num flex items-baseline justify-between text-[13px] text-muted">
-                    <span>{{ __('If you closed today') }}</span>
-                    <span>{{ __('vs. the plan') }}</span>
-                </div>
-                <div class="mt-1 flex items-baseline justify-between gap-3">
-                    <x-ui.amount :value="$closeLeftover" size="lg" :tone="$closeLeftover >= 0 ? 'accent' : 'danger'" class="[&>span:first-child]:text-[26px]" />
-                    <span @class(['num text-[17px] font-semibold', 'text-accent' => $closeDiff > 0, 'text-danger' => $closeDiff < 0, 'text-muted' => $closeDiff === 0])>{{ $closeDiff > 0 ? '+' : '' }}{{ money($closeDiff) }}</span>
-                </div>
-                <div class="mt-1.5 text-xs text-pretty text-muted">{{ __('Based on your spending so far: what you have not spent yet counts as leftover.') }}</div>
+    @if ($period->isOpen())
+        @php
+            $left = $forecast->expectedLeftover;
+            $negative = $left < 0;
+            $segments = array_filter([
+                ['value' => $forecast->committed, 'class' => 'bg-[#3D6E52]'],
+                ['value' => $forecast->variableExpected, 'class' => 'bg-hero-soft'],
+                ['value' => max(0, $left), 'class' => 'bg-accent'],
+            ], fn ($segment) => $segment['value'] > 0);
+        @endphp
+        <section @class(['mx-4 mt-5 rounded-[28px] px-5 pt-[22px] pb-5', 'bg-hero' => ! $negative, 'bg-danger-tint' => $negative]) data-test="month-end">
+            <div @class(['text-[15px]', 'text-hero-sub' => ! $negative, 'text-danger-soft' => $negative])>{{ __('Left at month end') }}</div>
+            <div class="num mt-1 flex items-baseline gap-1.5">
+                <span @class(['text-5xl leading-none font-extrabold tracking-[-0.04em]', 'text-hero-ink' => ! $negative, 'text-danger' => $negative])>{{ money_number($left) }}</span>
+                <span @class(['text-xl', 'text-hero-sub' => ! $negative, 'text-danger-soft' => $negative])>{{ user_currency()->symbol() }}</span>
             </div>
-        @endif
 
-        <div class="num flex items-baseline justify-between text-[13px] text-muted">
-            <span>{{ __('Variable spending so far') }}</span>
-            <span>{{ __('budget :amount', ['amount' => money($forecast->variablePlanned)]) }}</span>
-        </div>
-        <x-ui.amount :value="$forecast->variableSpent" class="mt-1" />
-        <x-ui.bar :value="$forecast->variablePlanned > 0 ? $forecast->variableSpent / $forecast->variablePlanned : 0" :tone="$forecast->variableSpent > $forecast->variablePlanned ? 'danger' : ($forecast->variablePlanned > 0 && $forecast->variableSpent / $forecast->variablePlanned >= 0.8 ? 'warn' : 'accent')" class="mt-2.5" />
+            @if ($segments !== [])
+                <div class="mt-5 flex h-4 gap-[3px] overflow-hidden rounded-lg" role="img" data-test="month-split"
+                     aria-label="{{ __('Income split: fixed :fixed, budgets :budgets, left :left', ['fixed' => money($forecast->committed), 'budgets' => money($forecast->variableExpected), 'left' => money($left)]) }}">
+                    @foreach ($segments as $segment)
+                        <span class="tile-grow {{ $segment['class'] }} rounded-[3px]" style="flex: {{ $segment['value'] }}"></span>
+                    @endforeach
+                </div>
+            @endif
 
-        @if ($period->isOpen())
-            <a href="{{ route('close', $period) }}" wire:navigate class="mt-3.5 flex h-12 items-center justify-center gap-2 rounded-2xl bg-surface-2 text-[15px] font-semibold" data-test="start-close">
-                <x-ui.icon name="task_alt" :size="20" class="text-accent" />{{ __('Close the month') }}
-            </a>
-        @elseif ($closeRecord)
-            <a href="{{ route('close', $period) }}" wire:navigate class="mt-3.5 grid grid-cols-3 gap-2 rounded-2xl bg-surface-2 px-3 py-2.5 text-xs" data-test="close-summary">
-                <span><span class="block text-muted">{{ __('Leftover') }}</span><span class="num block text-sm font-semibold">{{ money($closeRecord->leftover) }}</span></span>
-                <span><span class="block text-muted">{{ __('To the reserve') }}</span><span class="num block text-sm">{{ money($closeRecord->to_reserve) }}</span></span>
-                <span><span class="block text-muted">{{ __('Rest') }}</span><span class="num block text-sm">{{ money($closeRecord->to_invest) }}</span></span>
-            </a>
+            <div class="num mt-3.5 text-[15px]">
+                <div class="flex h-[34px] items-center justify-between"><span class="text-hero-soft">{{ __('Income') }}</span><span class="font-semibold text-hero-ink">{{ money_number($forecast->income) }}</span></div>
+                <div class="flex h-[34px] items-center justify-between"><span class="flex items-center gap-2 text-hero-soft"><span class="size-2.5 rounded-[3px] bg-[#3D6E52]"></span>{{ __('Fixed items') }}</span><span class="text-hero-ink">−{{ money_number($forecast->committed) }}</span></div>
+                <div class="flex h-[34px] items-center justify-between"><span class="flex items-center gap-2 text-hero-soft"><span class="size-2.5 rounded-[3px] bg-hero-soft"></span>{{ __('Budgets') }}</span><span class="text-hero-ink">−{{ money_number($forecast->variableExpected) }}</span></div>
+                <div class="flex h-[34px] items-center justify-between"><span class="flex items-center gap-2 text-hero-soft"><span class="size-2.5 rounded-[3px] bg-accent"></span>{{ __('Left') }}</span><span @class(['font-bold', 'text-accent' => ! $negative, 'text-danger' => $negative])>{{ money_number($left) }}</span></div>
+            </div>
+
+            <a href="{{ route('close', $period) }}" wire:navigate class="press mt-3 flex h-12 items-center justify-center rounded-2xl bg-hero-2 text-[15px] font-semibold text-hero-ink" data-test="start-close">{{ __('Close the month') }}</a>
+        </section>
+    @elseif ($closeRecord)
+        <section class="mx-4 mt-5 rounded-[28px] bg-hero px-5 pt-[22px] pb-5" data-test="close-summary">
+            <div class="text-[15px] text-hero-sub">{{ __('Was left') }}</div>
+            <div class="num mt-1 flex items-baseline gap-1.5">
+                <span class="text-5xl leading-none font-extrabold tracking-[-0.04em] text-hero-ink">{{ money_number($closeRecord->leftover) }}</span>
+                <span class="text-xl text-hero-sub">{{ user_currency()->symbol() }}</span>
+            </div>
+            <div class="num mt-3.5 text-[15px]">
+                <div class="flex h-[34px] items-center justify-between"><span class="text-hero-soft">{{ __('To the reserve') }}</span><span class="text-hero-ink">{{ money_number($closeRecord->to_reserve) }}</span></div>
+                <div class="flex h-[34px] items-center justify-between"><span class="text-hero-soft">{{ __('Rest') }}</span><span class="text-hero-ink">{{ money_number($closeRecord->to_invest) }}</span></div>
+            </div>
             <livewire:reopen-closing :period-id="$period->id" :key="'reopen-'.$period->id" />
-        @endif
-    </x-ui.card>
+        </section>
+    @endif
+
+    @php
+        $chart = app(\App\Services\DailyChart::class);
+        $noSpendDays = $this->noSpendDays;
+        $bars = $chart->bars($overview->dailySpent, $noSpendDays, $period->totalDays(), $period->contains($today));
+    @endphp
+    @if ($overview->dailySpent !== [])
+        <div class="mx-4 mt-3 rounded-[24px] bg-surface px-4 pt-4 pb-3.5" data-test="daily-chart">
+            <div class="flex items-baseline justify-between">
+                <h2 class="text-base font-semibold">{{ __('Daily spending') }}</h2>
+                <span class="num text-[13px] text-muted">{{ __('average :amount / day', ['amount' => money_number($chart->average($overview->dailySpent))]) }}</span>
+            </div>
+            <svg viewBox="0 0 {{ $chart::WIDTH }} {{ $chart::HEIGHT }}" class="mt-3.5 block h-auto w-full" aria-hidden="true">
+                @foreach ($bars as $bar)
+                    @if ($bar->kind === 'no_spend')
+                        <circle cx="{{ $bar->x + 3 }}" cy="{{ $chart::HEIGHT - 3 }}" r="3" fill="var(--app-accent)" />
+                    @elseif ($bar->kind === 'spent' || $bar->kind === 'today')
+                        <rect x="{{ $bar->x }}" y="{{ $bar->y }}" width="6" height="{{ $bar->height }}" rx="2" fill="{{ $bar->kind === 'today' ? 'var(--app-accent)' : 'var(--app-ink-2)' }}" class="tile-rise" />
+                    @else
+                        <rect x="{{ $bar->x }}" y="{{ $chart::HEIGHT - 2 }}" width="6" height="2" rx="1" fill="var(--app-surface-3)" />
+                    @endif
+                @endforeach
+            </svg>
+            <div class="mt-2 flex justify-between text-xs text-muted">
+                <span>{{ Dates::short($period->starts_on) }}</span>
+                @if ($noSpendDays !== [])
+                    <span class="flex items-center gap-1.5"><span class="size-1.5 rounded-full bg-accent"></span>{{ trans_choice('{1} :count no-spend day|[2,*] :count no-spend days', count($noSpendDays), ['count' => count($noSpendDays)]) }}</span>
+                @endif
+                <span>{{ Dates::short($period->ends_on) }}</span>
+            </div>
+        </div>
+    @endif
 
     @if ($this->category)
         <div class="mx-4 mt-3 flex">

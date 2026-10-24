@@ -933,5 +933,9 @@
     "The dashed part assumes you spend what is still in the budgets.": "A szaggatott rész úgy számol, hogy a keretekből elköltöd, ami még bennük van.",
     "Got it": "Értem",
     "since :date": ":date óta",
-    "My money": "Pénzeim"
+    "My money": "Pénzeim",
+    "Income split: fixed :fixed, budgets :budgets, left :left": "A bevétel felosztása: fix kiadások :fixed, keretek :budgets, marad :left",
+    "Daily spending": "Napi költés",
+    "average :amount / day": "átlag :amount / nap",
+    "Was left": "Maradt"
 }

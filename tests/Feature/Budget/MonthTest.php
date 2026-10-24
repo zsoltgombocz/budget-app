@@ -48,22 +48,20 @@ it('shows the payday and no-spend days in the timeline', function (): void {
     $this->get(route('month'))->assertSee('Salary')->assertSee("Didn't spend");
 });
 
-it('shows what the month would close with today, against the plan', function (): void {
+it('shows the month-end leftover the same way as Today, split into fixed items, budgets and what is left', function (): void {
     Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 75_000]);
 
-    $preview = resolve(PeriodCloser::class)->preview($this->user, $this->period);
-
-    expect($preview->leftover() - $preview->plannedLeftover())->toBe(-75_000 + 60_000 + 90_000);
-
+    // Income 500 000, fixed 200 000, budgets: fuel 75 000 (over its 60 000) and groceries 90 000.
     $this->get(route('month'))
         ->assertOk()
-        ->assertSeeInOrder(['data-test="close-now"', 'If you closed today', 'vs. the plan', money_number($preview->leftover()), '+'.money(75_000), 'Variable spending so far'], false);
+        ->assertSeeInOrder(['data-test="month-end"', money_number(135_000), money_number(500_000), money_number(200_000), money_number(165_000), money_number(135_000), 'data-test="start-close"', 'data-test="daily-chart"'], false);
 });
 
-it('does not show the close-now figures for a closed period', function (): void {
+it('shows what was left and where it went for a closed period', function (): void {
     resolve(PeriodCloser::class)->close($this->user, $this->period, $this->period->income());
 
     Livewire::withQueryParams(['periodus' => $this->period->id])
         ->test('pages::month')
-        ->assertDontSee('data-test="close-now"', false);
+        ->assertDontSee('data-test="month-end"', false)
+        ->assertSee('data-test="close-summary"', false);
 });
