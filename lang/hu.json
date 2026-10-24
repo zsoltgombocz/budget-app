@@ -937,5 +937,7 @@
     "Income split: fixed :fixed, budgets :budgets, left :left": "A bevétel felosztása: fix kiadások :fixed, keretek :budgets, marad :left",
     "Daily spending": "Napi költés",
     "average :amount / day": "átlag :amount / nap",
-    "Was left": "Maradt"
+    "Was left": "Maradt",
+    "If everything goes to plan, left": "Ha minden a terv szerint megy, marad",
+    "Put aside": "Félretétel"
 }

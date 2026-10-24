@@ -438,13 +438,41 @@ new #[Title('Plan')] class extends Component {
         </x-slot>
     </x-ui.page-header>
 
-    <div class="sticky top-[var(--safe-top)] z-10 bg-bg px-4 pb-1 pt-3.5">
-        <div class="grid grid-cols-3 gap-2 rounded-[22px] border border-ink/7 bg-surface-2 px-[18px] py-3.5" data-test="plan-summary">
-            <div><div class="text-xs text-muted">{{ __('Income') }}</div><div class="num mt-[3px] text-base font-semibold">{{ money_number($summary->income) }}</div></div>
-            <div><div class="text-xs text-muted">{{ __('Expenses') }}</div><div class="num mt-[3px] text-base font-semibold">{{ money_number($summary->totalExpenses) }}</div></div>
-            <div class="text-right"><div class="text-xs text-muted">{{ __('Left') }}</div><div @class(['num mt-[3px] text-base font-bold', 'text-accent' => $summary->leftover >= 0, 'text-danger' => $summary->leftover < 0])>{{ money_number($summary->leftover) }}</div></div>
+    @php
+        $planFixed = $summary->totalFor(LineType::Fixed) + $summary->totalFor(LineType::Loan);
+        $planSaving = $summary->totalFor(LineType::Transfer) + $summary->totalFor(LineType::Sinking);
+        $planBudgets = $summary->totalFor(LineType::Variable);
+        $planNegative = $summary->leftover < 0;
+        $planSegments = array_filter([
+            ['label' => __('Fixed'), 'value' => $planFixed, 'class' => 'bg-[#3D6E52]'],
+            ['label' => __('Put aside'), 'value' => $planSaving, 'class' => 'bg-warn'],
+            ['label' => __('Budgets'), 'value' => $planBudgets, 'class' => 'bg-hero-soft'],
+            ['label' => __('Left'), 'value' => max(0, $summary->leftover), 'class' => 'bg-accent'],
+        ], fn ($segment) => $segment['value'] > 0);
+    @endphp
+    <section @class(['mx-4 mt-3.5 rounded-[28px] px-5 pt-[22px] pb-5', 'bg-hero' => ! $planNegative, 'bg-danger-tint' => $planNegative]) data-test="plan-summary">
+        <div @class(['text-[15px]', 'text-hero-sub' => ! $planNegative, 'text-danger-soft' => $planNegative])>{{ __('If everything goes to plan, left') }}</div>
+        <div class="num mt-1 flex items-baseline gap-1.5">
+            <span @class(['text-5xl leading-none font-extrabold tracking-[-0.04em]', 'text-hero-ink' => ! $planNegative, 'text-danger' => $planNegative])>{{ money_number($summary->leftover) }}</span>
+            <span @class(['text-xl', 'text-hero-sub' => ! $planNegative, 'text-danger-soft' => $planNegative])>{{ user_currency()->symbol() }}</span>
         </div>
-    </div>
+        @if ($planSegments !== [])
+            <div class="mt-5 flex h-4 gap-[3px] overflow-hidden rounded-lg" role="img"
+                 aria-label="{{ implode(', ', array_map(fn ($segment) => $segment['label'].' '.money($segment['value']), $planSegments)) }}">
+                @foreach ($planSegments as $segment)
+                    <span class="tile-grow {{ $segment['class'] }} rounded-[3px]" style="flex: {{ $segment['value'] }}"></span>
+                @endforeach
+            </div>
+            <div class="num mt-3.5 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                @foreach ($planSegments as $segment)
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="flex items-center gap-2 text-hero-soft"><span class="size-2.5 rounded-[3px] {{ $segment['class'] }}"></span>{{ $segment['label'] }}</span>
+                        <span class="text-hero-ink">{{ money_number($segment['value']) }}</span>
+                    </div>
+                @endforeach
+            </div>
+        @endif
+    </section>
 
     <button type="button" x-on:click="openIncome(@js(Money::toInput($settings->income, $this->currency)))" class="mx-4 mt-3.5 flex w-[calc(100%-2rem)] items-center justify-between rounded-[22px] bg-surface px-[18px] py-4 text-left" data-test="income">
         <span class="flex items-center gap-3">
