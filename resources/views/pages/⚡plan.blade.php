@@ -529,13 +529,13 @@ new #[Title('Plan')] class extends Component {
                             };
                         @endphp
                         <div wire:key="line-{{ $line->id }}" @if ($editing) wire:sort:item="{{ $line->category_id }}" @endif
-                             @class(['py-[13px]', 'border-b border-line' => true]) data-test="plan-line">
+                             @class(['py-[13px]', 'border-b border-line' => true, 'pointer-events-none' => $locked]) @if ($locked) inert @endif data-test="plan-line">
                             <div class="flex items-center gap-3">
                                 @if ($editing)
                                     <span wire:sort:handle class="cursor-grab touch-none text-faint" aria-label="{{ __('Drag to reorder') }}"><x-ui.icon name="drag_indicator" :size="20" /></span>
                                 @endif
                                 <x-ui.icon-tile :icon="Icons::forCategory($line->category?->icon)" :size="36" data-test="line-icon" />
-                                @if ($type === LineType::Loan && $line->loan_id !== null && ! $editing)
+                                @if ($type === LineType::Loan && $line->loan_id !== null && ! $editing && $plusz)
                                     {{-- A repayment follows its loan, so it opens the loan itself. --}}
                                     <a href="{{ route('pockets', ['hitel' => $line->loan_id, 'vissza' => 'terv']) }}" wire:navigate class="flex min-w-0 flex-1 items-center justify-between gap-3 text-left" data-test="open-loan-{{ $line->loan_id }}">
                                         <span class="min-w-0">
@@ -571,7 +571,7 @@ new #[Title('Plan')] class extends Component {
                     <a href="{{ route('pockets', ['hitel' => 'uj', 'vissza' => 'terv']) }}" wire:navigate class="flex w-full items-center gap-2 border-b border-line py-[13px] text-[15px] font-medium text-accent" data-test="add-loan">
                         <x-ui.icon name="add" :size="20" />{{ __('New loan') }}
                     </a>
-                @elseif ($editing)
+                @elseif ($editing && in_array($type, $editorTypes, true))
                     <button type="button" x-on:click="openNew(@js($type->value))" class="flex w-full items-center gap-2 border-b border-line py-[13px] text-[15px] font-medium text-accent" data-test="add-{{ $type->value }}">
                         <x-ui.icon name="add" :size="20" />{{ __('New item') }}
                     </button>

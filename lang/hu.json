@@ -1140,5 +1140,7 @@
     "Terms of service": "ÁSZF",
     "Privacy policy": "Adatkezelési tájékoztató",
     "the terms (link)": "ÁSZF-et",
-    "the privacy notice (link)": "Adatkezelési tájékoztatót"
+    "the privacy notice (link)": "Adatkezelési tájékoztatót",
+    "On Alap your savings (:amount) do not count in the month.": "Alapban a félretételeid (:amount) nem számítanak bele a hónapba.",
+    "The leftover stays on your account; nothing moves.": "A maradék a számládon marad, semmi nem mozdul."
 }

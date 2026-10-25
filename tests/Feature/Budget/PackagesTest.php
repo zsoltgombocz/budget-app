@@ -149,3 +149,12 @@ it('removes the subscription rows, push subscriptions and sessions with the acco
     expect(Subscription::query()->whereKey($subscription->id)->exists())->toBeFalse()
         ->and(DB::table('sessions')->where('user_id', $this->user->id)->exists())->toBeFalse();
 });
+
+it('tells on Today that savings do not count on Alap, and closes with the leftover staying', function (): void {
+    $category = Category::factory()->for($this->user)->create(['type' => 'sinking']);
+    BudgetLine::factory()->for($this->user)->for($category)->create(['amount' => 30_000]);
+    $this->travel(15)->days();
+    $this->actingAs($this->user);
+
+    $this->get(route('dashboard'))->assertSee('data-test="locked-savings"', false)->assertSee(money(30_000));
+});

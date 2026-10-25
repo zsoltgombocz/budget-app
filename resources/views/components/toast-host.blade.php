@@ -37,7 +37,7 @@
         <div x-transition:enter="transition duration-200" x-transition:enter-start="translate-y-3 opacity-0"
              class="pointer-events-auto relative flex h-[58px] items-center gap-3 overflow-hidden rounded-btn bg-surface-3 pl-4 pr-2 text-ink shadow-[0_14px_34px_rgba(0,0,0,0.5)]"
              x-on:pointerenter="hold()" x-on:pointerleave="restart()" x-on:focusin="hold()" x-on:focusout="restart()" data-test="toast">
-            <span class="ms ms-fill text-accent" style="font-size:22px;width:22px;height:22px" aria-hidden="true" x-text="toast.icon ?? 'check_circle'"></span>
+            <span class="ms ms-fill" :class="['error', 'wifi_off'].includes(toast.icon) ? 'text-danger' : 'text-accent'" style="font-size:22px;width:22px;height:22px" aria-hidden="true" x-text="toast.icon ?? 'check_circle'"></span>
             <div class="min-w-0 flex-1">
                 <div class="num truncate text-sm font-medium" x-text="toast.title"></div>
                 <div class="num truncate text-xs text-muted" x-show="toast.subtitle" x-text="toast.subtitle"></div>

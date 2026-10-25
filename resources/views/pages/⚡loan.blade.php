@@ -87,7 +87,7 @@ new #[Title('Loan')] class extends Component {
     <div class="num mt-0.5 text-sm text-muted">{{ __(':owed owed · :installment / month', ['owed' => money_number($loan->principal_balance), 'installment' => money_number($loan->monthlyPayment())]) }}</div>
 
     <div class="relative">
-        <div @class(['pointer-events-none select-none opacity-45 blur-[5px] grayscale' => ! $this->plusz]) @if (! $this->plusz) aria-hidden="true" @endif>
+        <div @class(['pointer-events-none select-none opacity-45 blur-[5px] grayscale' => ! $this->plusz]) @if (! $this->plusz) aria-hidden="true" inert @endif>
             <section class="mt-[18px] rounded-[28px] bg-hero px-5 pt-[22px] pb-5" data-test="loan-planner">
                 @if ($plan === null)
                     <div class="text-[15px] text-hero-sub">{{ __('Loan-free by') }}</div>
@@ -141,7 +141,9 @@ new #[Title('Loan')] class extends Component {
         @endunless
     </div>
 
-    @if ($fund)
+    @if (! $this->plusz)
+        {{-- On Alap the loan is kept but not changed: no prepayment or editing here. --}}
+    @elseif ($fund)
         <div class="mt-3 rounded-[24px] bg-surface px-5 py-[18px]" data-test="next-prepayment">
             <div class="flex items-baseline justify-between">
                 <span class="text-base font-semibold">{{ __('Next prepayment') }}</span>
@@ -167,6 +169,8 @@ new #[Title('Loan')] class extends Component {
         <div class="flex h-[52px] items-center justify-between text-[15px]"><span class="text-ink-2">{{ __('APR') }}</span><span>{{ $loan->thm !== null ? number_format($loan->thm, 1, ',', ' ').'%' : '–' }}</span></div>
         <div class="flex h-[52px] items-center justify-between border-t border-line text-[15px]"><span class="text-ink-2">{{ __('Months left') }}</span><span>{{ $loan->remaining_months ?? '–' }}</span></div>
         <div class="flex h-[52px] items-center justify-between border-t border-line text-[15px]"><span class="text-ink-2">{{ __('Last prepayment') }}</span><span>{{ $term ? __('term got shorter') : __('installment got lower') }}</span></div>
-        <a href="{{ route('pockets', ['hitel' => $loan->id]) }}" wire:navigate class="flex h-[52px] items-center justify-between border-t border-line text-[15px] text-accent" data-test="edit-loan">{{ __('Edit loan') }}<x-ui.icon name="chevron_right" :size="20" /></a>
+        @if ($this->plusz)
+            <a href="{{ route('pockets', ['hitel' => $loan->id]) }}" wire:navigate class="flex h-[52px] items-center justify-between border-t border-line text-[15px] text-accent" data-test="edit-loan">{{ __('Edit loan') }}<x-ui.icon name="chevron_right" :size="20" /></a>
+        @endif
     </div>
 </div>

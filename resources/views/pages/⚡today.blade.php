@@ -230,6 +230,8 @@ new #[Title('Today')] class extends Component {
     $streak = $this->streak;
     $challenge = $this->challenge;
     $user = auth()->user();
+    // On Alap the savings lines stay in the plan but do not count: say so, with their total.
+    $lockedSavings = $user->hasPlusz() ? 0 : array_sum(array_map(fn ($line) => $line->planned(), array_filter(app(\App\Services\PlanService::class)->liveLines($user), fn ($line) => in_array($line->type, [\App\Enums\LineType::Transfer, \App\Enums\LineType::Sinking], true))));
     $trialDaysLeft = $user->currentPlan() === \App\Enums\Plan::PlusTrial ? (int) ceil(now()->diffInDays(app(\App\Services\Plans::class)->trialEndsAt($user))) : null;
 @endphp
 
@@ -276,6 +278,14 @@ new #[Title('Today')] class extends Component {
             <text x="{{ min(max($todayX, 52), $curve::WIDTH - 52) }}" y="{{ $todayY - 14 }}" text-anchor="middle" fill="var(--app-hero-ink)" font-size="11" font-weight="600" class="num late-in">{{ __('today · :amount', ['amount' => money_number($overview->availableNow())]) }}</text>
         </svg>
     </section>
+
+    @if ($lockedSavings > 0)
+        <a href="{{ route('subscription') }}" wire:navigate class="press mt-3 flex items-center gap-3 rounded-[24px] bg-surface px-4 py-3.5" data-test="locked-savings">
+            <x-ui.icon name="lock" :size="20" class="text-warn" />
+            <span class="num min-w-0 flex-1 text-sm text-ink-2">{{ __('On Alap your savings (:amount) do not count in the month.', ['amount' => money($lockedSavings)]) }}</span>
+            <x-ui.icon name="chevron_right" :size="20" class="text-faint" />
+        </a>
+    @endif
 
     @if ($trialDaysLeft !== null && $trialDaysLeft <= 3)
         <a href="{{ route('subscription') }}" wire:navigate class="press mt-3 flex items-center gap-3 rounded-[24px] bg-surface px-4 py-3.5" data-test="trial-ending">

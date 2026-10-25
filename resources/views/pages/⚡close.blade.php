@@ -399,7 +399,9 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
                 </div>
             @endif
 
-            @if ($leftover > 0)
+            @if ($leftover > 0 && array_keys($options) === ['stays'])
+                <div class="mt-3 rounded-[20px] bg-surface px-4 py-3.5 text-[15px] text-ink-2" data-test="close-stays">{{ __('The leftover stays on your account; nothing moves.') }}</div>
+            @elseif ($leftover > 0)
                 <h2 class="mx-1 mt-4 mb-2 text-[17px] font-semibold">{{ __('Where should it go?') }}</h2>
                 <div class="flex flex-col gap-1.5" role="radiogroup" aria-label="{{ __('Where should it go?') }}" data-test="leftover-options">
                     @foreach ($options as $key => [$title, $idle, $picked])
