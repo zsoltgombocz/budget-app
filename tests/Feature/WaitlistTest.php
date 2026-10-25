@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 
 it('shows the landing page to guests and sends signed-in users to the app', function (): void {
-    $this->get(route('home'))->assertOk()->assertSee('Ennyi marad', false)->assertSee('id="varolista"', false);
+    $this->get(route('home'))->assertOk()->assertSee('Ne a hónap végén tudd meg.', false)->assertSee('id="varolista"', false);
 
     $this->actingAs(onboardedUser())->get(route('home'))->assertRedirect(route('dashboard'));
 });
