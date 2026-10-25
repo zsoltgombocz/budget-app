@@ -324,3 +324,16 @@ it('has Hungarian text for every line it offers', function (): void {
 
     expect($missing)->toBe([]);
 });
+
+it('keeps the wizard answers after a refresh', function (): void {
+    $this->actingAs(User::factory()->create());
+
+    Livewire::test('pages::onboarding')
+        ->set('income', '480000')->call('next')
+        ->set('periodMode', 'calendar')->call('next')
+        ->assertSet('step', 3);
+
+    Livewire::test('pages::onboarding')
+        ->assertSet('step', 3)
+        ->assertSet('income', '480000');
+});

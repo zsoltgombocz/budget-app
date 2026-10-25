@@ -3,7 +3,10 @@
 namespace App\Services;
 
 use App\Enums\PrepayMode;
+use App\Models\Loan;
+use App\Models\Pocket;
 use App\Services\Data\LoanPlan;
+use App\Services\Data\LoanState;
 use Carbon\CarbonImmutable;
 
 /**
@@ -16,6 +19,26 @@ final readonly class LoanPlanner
     private const int MAX_MONTHS = 600;
 
     public function __construct(private LoanCalculator $calculator) {}
+
+    /**
+     * The installment (with insurance) right after prepaying one step of the pocket today, the bank
+     * lowering the installment. The loan card and the loan page both show this one number.
+     */
+    public function nextInstallment(Loan $loan, Pocket $pocket): ?int
+    {
+        if ($pocket->prepay_step === null || $loan->principal_balance <= 0 || $loan->installment <= 0) {
+            return null;
+        }
+
+        $after = $this->calculator->afterPrepayment(
+            new LoanState($loan->principal_balance, $loan->installment, $loan->remaining_months),
+            min($pocket->prepay_step, $loan->principal_balance),
+            PrepayMode::ReduceInstallment,
+            $loan->thm,
+        );
+
+        return $after->installment + $loan->insurance;
+    }
 
     /**
      * @param  CarbonImmutable  $firstMonth  the month of the next installment

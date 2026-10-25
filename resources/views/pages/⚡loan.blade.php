@@ -109,8 +109,9 @@ new #[Title('Loan')] class extends Component {
                         <span class="text-lg text-hero-sub">{{ __(':currency/mo', ['currency' => user_currency()->symbol()]) }}</span>
                     </div>
                     <div class="num mt-2 h-5 text-[15px] font-semibold text-accent">
-                        @if ($plan->installmentAfterFirst !== null && $plan->prepayments !== [])
-                            {{ __('already ~:amount from :date', ['amount' => money($plan->installmentAfterFirst + $loan->insurance), 'date' => Dates::short($plan->prepayments[0])]) }}
+                        @php $next = $fund ? app(LoanPlanner::class)->nextInstallment($loan, $fund) : null; @endphp
+                        @if ($next !== null && $plan->prepayments !== [])
+                            {{ __('already ~:amount from :date', ['amount' => money($next), 'date' => Dates::monthYear($plan->prepayments[0])]) }}
                         @else
                             {{ __('As the bank says') }}
                         @endif

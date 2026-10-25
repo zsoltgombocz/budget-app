@@ -349,7 +349,8 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
                     $options['prepay'] = [__('To the prepayment'), __(':amount now', ['amount' => money_number($prepayNow)]), money_number($prepayNow).' → '.money_number($after).($prepayPocket->prepay_step && $prepayNow < $prepayPocket->prepay_step && $after >= $prepayPocket->prepay_step ? ' · '.__(':step is there!', ['step' => money_number($prepayPocket->prepay_step)]) : '')];
                 }
                 if (auth()->user()?->hasPlusz() && ! in_array($defaultTarget, ['none', $prepayPocket ? 'pocket:'.$prepayPocket->id : ''], true) && $targetName) {
-                    $options['target'] = [$targetName, __('we remind you to transfer it'), __('we remind you to transfer it')];
+                    $targetHint = str_starts_with($defaultTarget, 'pocket:') ? __('into the pocket in the app') : __('we remind you to transfer it');
+                    $options['target'] = [$targetName, $targetHint, $targetHint];
                 }
                 $options['stays'] = [__('Stays on the account'), __('nothing moves'), __('nothing moves')];
                 if ($hasReserve && count($options) > 2) {

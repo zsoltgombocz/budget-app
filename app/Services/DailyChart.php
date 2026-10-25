@@ -54,6 +54,11 @@ final class DailyChart
      */
     public function average(array $dailySpent): int
     {
+        // Days before the first spending (e.g. signing up mid-month) do not pull the average down.
+        while ($dailySpent !== [] && $dailySpent[0] === 0) {
+            array_shift($dailySpent);
+        }
+
         return $dailySpent === [] ? 0 : intdiv(array_sum($dailySpent), count($dailySpent));
     }
 }

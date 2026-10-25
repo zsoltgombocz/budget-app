@@ -393,18 +393,7 @@ new #[Title('Pockets and loans')] class extends Component {
      */
     public function nextInstallment(Loan $loan, Pocket $pocket): ?int
     {
-        if ($pocket->prepay_step === null || $loan->principal_balance <= 0 || $loan->installment <= 0) {
-            return null;
-        }
-
-        $after = app(LoanCalculator::class)->afterPrepayment(
-            new LoanState($loan->principal_balance, $loan->installment, $loan->remaining_months),
-            min($pocket->prepay_step, $loan->principal_balance),
-            PrepayMode::ReduceInstallment,
-            $loan->thm,
-        );
-
-        return $after->installment + $loan->insurance;
+        return app(\App\Services\LoanPlanner::class)->nextInstallment($loan, $pocket);
     }
 
     /**
@@ -583,7 +572,8 @@ new #[Title('Pockets and loans')] class extends Component {
                 <x-ui.icon-tile icon="shield" />
                 <div>
                     <div class="text-[15px] font-semibold">{{ $reserve->name }}</div>
-                    <div class="mt-0.5 text-xs text-muted">{{ __('filled from the month-end leftover') }}</div>
+                    @php $reserveMonthly = $this->monthlyDeposit($reserve); @endphp
+                    <div class="num mt-0.5 text-xs text-muted">{{ $reserveMonthly > 0 ? __(':amount a month and from the month-end leftover', ['amount' => money_number($reserveMonthly)]) : __('filled from the month-end leftover') }}</div>
                 </div>
             </div>
             <div class="num mt-[18px] flex items-baseline gap-1.5">
@@ -705,7 +695,7 @@ new #[Title('Pockets and loans')] class extends Component {
                 <div class="p-3">
                     <x-ui.segmented model="moveMode" :options="['deposit' => __('Deposit'), 'budget' => __('To the budget'), 'spend' => __('Pay a spending')]" />
                     <p class="mt-2.5 px-0.5 text-xs leading-snug text-muted" x-show="moveMode === 'deposit'">{{ __('Money into the pocket. The budget does not change.') }}</p>
-                    <p class="mt-2.5 px-0.5 text-xs leading-snug text-muted" x-show="moveMode === 'budget'">{{ __('Added to this period’s budget; the daily budget grows.') }}</p>
+                    <p class="mt-2.5 px-0.5 text-xs leading-snug text-muted" x-show="moveMode === 'budget'">{{ __('Added to this month’s budget, the month-end leftover grows.') }}</p>
                     <p class="mt-2.5 px-0.5 text-xs leading-snug text-muted" x-show="moveMode === 'spend'">{{ __('A spending paid by the pocket; it does not use up the budget.') }}</p>
                 </div>
             </x-ui.form-group>

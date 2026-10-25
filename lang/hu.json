@@ -1077,5 +1077,19 @@
     "Try again when you are online.": "Próbáld újra, ha van internet.",
     "You already have a subscription.": "Már van előfizetésed.",
     "You can close the month in its last week, from :date.": "A hónapot az utolsó hetében zárhatod le, ekkortól: :date.",
-    "You cannot record a future day.": "Jövőbeli napra nem rögzíthetsz."
+    "You cannot record a future day.": "Jövőbeli napra nem rögzíthetsz.",
+    ":amount a month and from the month-end leftover": "havonta :amount, és a hó végi maradékból",
+    "Add your salary and fixed costs in the Plan, then write down what you spend.": "Add meg a fizetésed és a fix kiadásaidat a Tervben, utána írd fel, mire költesz.",
+    "Added to this month’s budget, the month-end leftover grows.": "Hozzáadódik a havi keretedhez, a hó végi maradék nő.",
+    "Budgets, expected": "Keretek, várhatóan",
+    "Edit spending": "Költés szerkesztése",
+    "Entry updated.": "Tétel módosítva.",
+    "From pockets to the budget": "Perselyből a keretbe",
+    "It does not connect to your bank and never moves money.": "Nem kapcsolódik a bankodhoz, és soha nem mozgat pénzt.",
+    "Nothing moves. You can change it at every closing.": "Semmi nem mozdul. Minden zárásnál módosíthatod.",
+    "changes count from this month": "a változás már ebben a hónapban számít",
+    "into the pocket in the app": "az appbeli perselybe kerül",
+    "over · budget :amount": "túllépés · keret :amount",
+    "spent / budget": "elköltve / keret",
+    "{0} The Plusz trial ends today|{1} The Plusz trial ends tomorrow|[2,*] :count days left of the Plusz trial": "{0} Ma jár le a Plusz próba|{1} Holnap jár le a Plusz próba|[2,*] Még :count nap a Plusz próbából"
 }

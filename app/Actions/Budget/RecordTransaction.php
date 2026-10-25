@@ -4,6 +4,7 @@ namespace App\Actions\Budget;
 
 use App\Enums\TransactionSource;
 use App\Models\Category;
+use App\Models\Period;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Services\BudgetAlerts;
@@ -48,26 +49,8 @@ final readonly class RecordTransaction
             throw ValidationException::withMessages(['category' => __('Choose a category.')]);
         }
 
-        $today = $this->periods->today($user->settings());
-        $date ??= $today;
-
-        if ($date->greaterThan($today)) {
-            throw ValidationException::withMessages(['date' => __('You cannot record a future day.')]);
-        }
-
-        $current = $this->periods->current($user);
-        // Only the current period is opened on demand; an earlier day must fall into a period that exists.
-        $period = $date->greaterThanOrEqualTo($current->starts_on)
-            ? $this->periods->forDate($user, $date)
-            : $user->periods()->whereDate('starts_on', '<=', $date->toDateString())->whereDate('ends_on', '>=', $date->toDateString())->latest('starts_on')->first();
-
-        if ($period === null) {
-            throw ValidationException::withMessages(['date' => __('That day is before your first month in the app.')]);
-        }
-
-        if (! $period->isOpen()) {
-            throw ValidationException::withMessages(['date' => __('That period is already closed.')]);
-        }
+        $date ??= $this->periods->today($user->settings());
+        $period = $this->openPeriodFor($user, $date);
 
         $transaction = $user->transactions()->create([
             'period_id' => $period->id,
@@ -85,5 +68,31 @@ final readonly class RecordTransaction
         $this->alerts->afterSpending($user, $period, $category->id, $amount);
 
         return $transaction;
+    }
+
+    /**
+     * The open period a spending on the day belongs to. Only the current period is opened on
+     * demand; an earlier day must fall into a period that exists and is still open.
+     */
+    public function openPeriodFor(User $user, CarbonImmutable $date): Period
+    {
+        if ($date->greaterThan($this->periods->today($user->settings()))) {
+            throw ValidationException::withMessages(['date' => __('You cannot record a future day.')]);
+        }
+
+        $current = $this->periods->current($user);
+        $period = $date->greaterThanOrEqualTo($current->starts_on)
+            ? $this->periods->forDate($user, $date)
+            : $user->periods()->whereDate('starts_on', '<=', $date->toDateString())->whereDate('ends_on', '>=', $date->toDateString())->latest('starts_on')->first();
+
+        if ($period === null) {
+            throw ValidationException::withMessages(['date' => __('That day is before your first month in the app.')]);
+        }
+
+        if (! $period->isOpen()) {
+            throw ValidationException::withMessages(['date' => __('That period is already closed.')]);
+        }
+
+        return $period;
     }
 }

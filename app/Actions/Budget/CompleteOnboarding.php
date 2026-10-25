@@ -21,7 +21,7 @@ final readonly class CompleteOnboarding
      * Build the user's plan from the wizard answers and open the first period.
      *
      * @param  array<int, int>  $amounts  template item index => planned amount
-     * @param  'investment'|'pocket'  $surplusTarget
+     * @param  'investment'|'pocket'|'none'  $surplusTarget
      * @param  list<int>|null  $included  template item indexes to create, null for all
      * @param  array{principal?: int|null, thm?: float|null, months?: int|null}  $loanDetails  optional details of the loan line's loan
      * @param  int|null  $reserveFixed  a fixed amount of the leftover for the reserve instead of the share
@@ -79,7 +79,7 @@ final readonly class CompleteOnboarding
                     'type' => AccountType::Investment,
                     'currency' => $currency,
                 ])->id;
-            } else {
+            } elseif ($surplusTarget === 'pocket') {
                 $surplusPocketId = $user->pockets()->create(['name' => __('Savings')])->id;
             }
 

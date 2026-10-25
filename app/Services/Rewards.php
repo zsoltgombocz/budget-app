@@ -141,8 +141,11 @@ final readonly class Rewards
         $kinds = self::challengeKinds();
         $kind = array_keys($kinds)[$weekStart->weekOfYear % count($kinds)];
 
+        // A week that starts after today's Monday (signed up mid-week) asks only for what still fits in it.
+        $daysLeft = (int) $today->startOfDay()->diffInDays($weekStart->addDays(6)) + 1;
+
         return $user->challenges()->whereDate('week_start', $weekStart->toDateString())->first()
-            ?? $user->challenges()->create(['week_start' => $weekStart->toDateString(), 'kind' => $kind, 'target' => $kinds[$kind], 'accepted_at' => now()]);
+            ?? $user->challenges()->create(['week_start' => $weekStart->toDateString(), 'kind' => $kind, 'target' => max(1, min($kinds[$kind], $daysLeft)), 'accepted_at' => now()]);
     }
 
     public function weeklyChallenge(User $user, CarbonImmutable $today): WeeklyChallenge

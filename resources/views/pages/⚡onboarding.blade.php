@@ -28,6 +28,8 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
     /**
      * Wizard step => the group of plan lines it asks about.
      */
+    private const string DRAFT_KEY = 'onboarding.draft';
+
     public const array GROUP_STEPS = [4 => 'fixed', 5 => 'shared', 6 => 'loan', 7 => 'daily', 8 => 'reserve'];
 
     public int $step = 1;
@@ -69,7 +71,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
 
     public string $reserveFixed = '';
 
-    public string $surplusTarget = 'investment';
+    public string $surplusTarget = 'none';
 
     public function mount(): void
     {
@@ -83,6 +85,17 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
         $this->amounts = array_fill(0, count($items), '');
         // The prepayment fund is a pocket: only created when switched on.
         $this->included = array_map(fn (array $entry): bool => ! ($entry['item']['off'] ?? false) && ! isset($entry['item']['pocket']['prepay_step']), $items);
+
+        // A refresh or a closed app picks up where the wizard was left.
+        $draft = session(self::DRAFT_KEY);
+
+        if (is_array($draft)) {
+            foreach ($draft as $property => $value) {
+                if (property_exists($this, $property) && gettype($this->{$property}) === gettype($value)) {
+                    $this->{$property} = $value;
+                }
+            }
+        }
     }
 
     public function next(): void
@@ -90,11 +103,18 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
         $this->validateStep();
 
         $this->step = min(self::STEPS, $this->step + 1);
+        $this->saveDraft();
     }
 
     public function back(): void
     {
         $this->step = max(1, $this->step - 1);
+        $this->saveDraft();
+    }
+
+    private function saveDraft(): void
+    {
+        session([self::DRAFT_KEY => $this->all()]);
     }
 
     public function finish(CompleteOnboarding $completeOnboarding): void
@@ -229,7 +249,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
             // Without a reserve pocket there is no target and no share of the leftover for it.
             reserveTarget: ! $withReserve || $this->reserveTarget === '' ? null : Money::parse($this->reserveTarget, $currency),
             reservePct: $this->reservePct,
-            surplusTarget: $this->surplusTarget === 'pocket' ? 'pocket' : 'investment',
+            surplusTarget: in_array($this->surplusTarget, ['pocket', 'investment'], true) ? $this->surplusTarget : 'none',
             included: $includedIndexes,
             reserveFixed: $withReserve && $this->reserveMode === 'fixed' ? (Money::parse($this->reserveFixed === '' ? '0' : $this->reserveFixed, $currency) ?? 0) : null,
             loanDetails: $withLoan ? [
@@ -239,6 +259,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
             ] : [],
         );
 
+        session()->forget(self::DRAFT_KEY);
         $this->redirectRoute('notifications.onboarding', navigate: true);
     }
 
@@ -293,7 +314,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                 'reservePct' => ['required', 'integer', 'between:0,100'],
                 'reserveMode' => ['required', Rule::in(['pct', 'fixed'])],
                 'reserveFixed' => ['nullable', $money],
-                'surplusTarget' => ['required', Rule::in(['investment', 'pocket'])],
+                'surplusTarget' => ['required', Rule::in(['none', 'investment', 'pocket'])],
             ],
             default => $amountRules,
         };
@@ -570,6 +591,10 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                     <div class="text-[13px] text-muted">{{ __('All of it goes to:') }}</div>
                 @endif
                 <div class="mt-2 grid gap-2" data-test="surplus-options">
+                    <x-ui.choice :selected="$surplusTarget === 'none'" wire:click="$set('surplusTarget', 'none')" class="rounded-btn px-4 py-3 text-left">
+                        <span class="block text-[15px] font-semibold">{{ __('Stays on the account') }}</span>
+                        <span class="mt-1 block text-[13px] font-normal leading-snug text-muted">{{ __('Nothing moves. You can change it at every closing.') }}</span>
+                    </x-ui.choice>
                     <x-ui.choice :selected="$surplusTarget === 'investment'" wire:click="$set('surplusTarget', 'investment')" class="rounded-btn px-4 py-3 text-left">
                         <span class="block text-[15px] font-semibold">{{ __('Investment account') }}</span>
                         <span class="mt-1 block text-[13px] font-normal leading-snug text-muted">{{ __('At closing the rest is listed as a manual transfer and we remind you to move it to your broker or investment account. The app does not track its balance (yet).') }}</span>
@@ -597,7 +622,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
                         @if ($preview['reserveOn'])
                             <div class="flex justify-between py-1"><span class="text-muted">{{ __('Reserve: :fixed fixed + :share from the leftover', ['fixed' => money($preview['reserveMonthly'], $currency), 'share' => money($preview['toReserve'], $currency)]) }}</span><span class="font-semibold">{{ money($preview['reserveMonthly'] + $preview['toReserve'], $currency) }}</span></div>
                         @endif
-                        <div class="flex justify-between py-1"><span class="text-muted">{{ $surplusTarget === 'pocket' ? __('Savings pocket') : __('Investment account') }}</span><span class="font-semibold">{{ money($preview['toSurplus'], $currency) }}</span></div>
+                        <div class="flex justify-between py-1"><span class="text-muted">{{ match ($surplusTarget) { 'pocket' => __('Savings pocket'), 'investment' => __('Investment account'), default => __('Stays on the account') } }}</span><span class="font-semibold">{{ money($preview['toSurplus'], $currency) }}</span></div>
                     </div>
                 @elseif ($preview['leftover'] === 0)
                     <p class="mt-2 text-[13px] leading-relaxed text-ink-2">{{ __('Your plan uses up the whole income, so nothing is left to share out.') }}</p>

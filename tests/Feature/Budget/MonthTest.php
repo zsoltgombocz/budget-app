@@ -57,11 +57,32 @@ it('shows the month-end leftover the same way as Today, split into fixed items, 
         ->assertSeeInOrder(['data-test="month-end"', money_number(135_000), money_number(500_000), money_number(200_000), money_number(165_000), money_number(135_000), 'data-test="start-close"', 'data-test="daily-chart"'], false);
 });
 
-it('shows what was left and where it went for a closed period', function (): void {
+it('shows what was left, where it went and the budgets against the plan for a closed period', function (): void {
+    $this->travelTo($this->period->ends_on->setTime(12, 0));
+    Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 70_000, 'occurred_on' => $this->period->ends_on]);
     resolve(PeriodCloser::class)->close($this->user, $this->period, $this->period->income());
 
     Livewire::withQueryParams(['periodus' => $this->period->id])
         ->test('pages::month')
         ->assertDontSee('data-test="month-end"', false)
-        ->assertSee('data-test="close-summary"', false);
+        ->assertSee('data-test="close-summary"', false)
+        ->assertSee('data-test="plan-vs-actual"', false)
+        ->assertSee(money_number(70_000));
+});
+
+it('edits a spending and puts back a deleted one with undo', function (): void {
+    $transaction = Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 12_000, 'occurred_on' => now()->toDateString()]);
+    $groceries = Category::query()->where('name', 'Groceries')->firstOrFail();
+
+    Livewire::test('entry-sheet')
+        ->call('update', $transaction->id, $groceries->id, 15_000, now()->toDateString(), 'pék')
+        ->assertReturned(true);
+
+    expect($transaction->fresh())->amount->toBe(15_000)->category_id->toBe($groceries->id)->note->toBe('pék');
+
+    $month = Livewire::test('pages::month')->call('delete', $transaction->id)->assertDispatched('app-toast', undo: 'undo-delete-transaction');
+    expect(Transaction::query()->count())->toBe(0);
+
+    $month->call('restore', ['period_id' => $this->period->id, 'category_id' => $groceries->id, 'amount' => 15_000, 'note' => 'pék', 'occurred_on' => now()->toDateString()]);
+    expect(Transaction::query()->sole()->amount)->toBe(15_000);
 });

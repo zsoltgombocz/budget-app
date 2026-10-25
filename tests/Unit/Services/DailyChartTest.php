@@ -21,5 +21,6 @@ it('does not mark a last day as today in a past period', function (): void {
 
 it('averages the days so far', function (): void {
     expect(new DailyChart()->average([10_000, 0, 5_000]))->toBe(5_000)
-        ->and(new DailyChart()->average([]))->toBe(0);
+        ->and(new DailyChart()->average([]))->toBe(0)
+        ->and(new DailyChart()->average([0, 0, 0, 6_000, 0]))->toBe(3_000);
 });

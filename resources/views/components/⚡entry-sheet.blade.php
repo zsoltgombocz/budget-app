@@ -21,10 +21,14 @@ new class extends Component {
 
     public bool $noSpendMarked = false;
 
+    /** Whether something is recorded today: then "I didn't spend today" makes no sense. */
+    public bool $spentToday = false;
+
     public function mount(): void
     {
         $this->options = $this->loadOptions();
         $this->noSpendMarked = app(MarkNoSpendDay::class)->isMarked($this->user());
+        $this->spentToday = $this->hasSpendingToday();
     }
 
     /**
@@ -63,6 +67,7 @@ new class extends Component {
 
         $this->options = $this->loadOptions();
         $this->noSpendMarked = app(MarkNoSpendDay::class)->isMarked($user);
+        $this->spentToday = true;
         $category = collect($this->options)->firstWhere('id', $transaction->category_id);
 
         $this->dispatch('budget-updated');
@@ -80,6 +85,56 @@ new class extends Component {
         return true;
     }
 
+    /**
+     * Correct a recorded spending (amount, category, day, note) while its period is open.
+     *
+     * @return bool whether it was saved
+     */
+    public function update(int $transactionId, int $categoryId, int $amount, string $date, ?string $note): bool
+    {
+        $validated = validator(
+            ['category' => $categoryId, 'amount' => $amount, 'date' => $date, 'note' => $note],
+            [
+                'category' => ['required', 'integer'],
+                'amount' => ['required', 'integer', 'min:1', 'max:1000000000'],
+                'date' => ['required', 'date_format:Y-m-d', 'before_or_equal:'.$this->today],
+                'note' => ['nullable', 'string', 'max:255'],
+            ],
+        )->validate();
+
+        $user = $this->user();
+        $transaction = $user->transactions()->whereKey($transactionId)->whereRelation('period', 'status', 'open')->first();
+        $category = $user->categories()->find($validated['category']);
+
+        try {
+            abort_if($transaction === null, 404);
+
+            if ($category === null) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['category' => __('Choose a category.')]);
+            }
+
+            $period = app(RecordTransaction::class)->openPeriodFor($user, CarbonImmutable::parse($validated['date']));
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            $this->dispatch('app-toast', title: (string) collect($exception->errors())->flatten()->first(), icon: 'error');
+
+            return false;
+        }
+
+        $transaction->update([
+            'period_id' => $period->id,
+            'category_id' => $category->id,
+            'amount' => $validated['amount'] * $user->settings()->currency->minorPerMajor(),
+            'occurred_on' => $validated['date'],
+            'note' => filled($validated['note']) ? $validated['note'] : null,
+        ]);
+
+        $this->options = $this->loadOptions();
+        $this->dispatch('budget-updated');
+        $this->dispatch('app-toast', title: __('Entry updated.'), icon: 'check');
+
+        return true;
+    }
+
     #[On('undo-transaction')]
     public function undoTransaction(int $id): void
     {
@@ -93,6 +148,10 @@ new class extends Component {
     public function toggleNoSpend(): void
     {
         $action = app(MarkNoSpendDay::class);
+
+        if (! $action->isMarked($this->user()) && $this->hasSpendingToday()) {
+            return;
+        }
 
         if ($action->isMarked($this->user())) {
             $this->undoNoSpend();
@@ -122,11 +181,19 @@ new class extends Component {
         $this->dispatch('app-toast', title: __('No-spend mark removed.'), icon: 'undo');
     }
 
+    private function hasSpendingToday(): bool
+    {
+        $today = app(\App\Services\PeriodService::class)->today($this->user()->settings());
+
+        return $this->user()->transactions()->whereDate('occurred_on', $today->toDateString())->exists();
+    }
+
     #[On('budget-updated')]
     public function refresh(): void
     {
         $this->options = $this->loadOptions();
         $this->noSpendMarked = app(MarkNoSpendDay::class)->isMarked($this->user());
+        $this->spentToday = $this->hasSpendingToday();
     }
 
     /**
@@ -184,6 +251,7 @@ new class extends Component {
         },
     })"
      x-on:open-entry.window="show()"
+     x-on:edit-entry.window="edit($event.detail)"
      x-on:keydown.window="onKey($event)"
      x-effect="document.documentElement.classList.toggle('overflow-hidden', open)"
      data-test="entry-sheet">
@@ -197,7 +265,7 @@ new class extends Component {
             <div class="mx-auto h-[5px] w-9 shrink-0 rounded-full bg-ink/18"></div>
             <div class="mt-1 grid h-11 shrink-0 grid-cols-[72px_1fr_72px] items-center">
                 <button type="button" class="text-left text-[15px] text-muted" x-on:click="close()">{{ __('Cancel') }}</button>
-                <div class="text-center text-base font-semibold">{{ __('New spending') }}</div>
+                <div class="text-center text-base font-semibold" x-text="editId ? @js(__('Edit spending')) : @js(__('New spending'))">{{ __('New spending') }}</div>
                 <span></span>
             </div>
 
@@ -255,7 +323,7 @@ new class extends Component {
                 </div>
 
                 <div class="mt-3 flex shrink-0 items-center gap-3">
-                    <button type="button" x-on:click="noSpend()" class="flex h-14 items-center gap-1 px-1.5 text-sm font-medium underline decoration-ink/25 underline-offset-[3px]"
+                    <button type="button" x-on:click="noSpend()" x-show="! digits && ! $wire.spentToday" class="flex h-14 items-center gap-1 px-1.5 text-sm font-medium underline decoration-ink/25 underline-offset-[3px]"
                             :class="$wire.noSpendMarked ? 'text-accent' : 'text-ink-2'" data-test="no-spend">
                         <span x-show="$wire.noSpendMarked" class="ms" style="font-size:18px;width:18px;height:18px" aria-hidden="true">check</span>
                         <span x-text="$wire.noSpendMarked ? @js(__('Marked · undo')) : @js(__("I didn't spend today"))"></span>
@@ -276,6 +344,7 @@ new class extends Component {
         get categories() { return $wire.options },
         categoryId: null,
         digits: '',
+        editId: null,
         date: today,
         today,
         note: '',
@@ -296,16 +365,26 @@ new class extends Component {
         },
 
         ensureCategory() {
-            if (this.categories.some(c => c.id === this.categoryId)) return
+            if (this.editId || this.categories.some(c => c.id === this.categoryId)) return
             let remembered = null
             try { remembered = parseInt(localStorage.getItem('entry-category'), 10) } catch (e) {}
             this.categoryId = (this.categories.find(c => c.id === remembered) ?? this.categories[0])?.id ?? null
         },
 
         show() {
+            this.editId = null
             this.digits = ''
             this.note = ''
             this.date = this.today
+            this.open = true
+        },
+
+        edit(entry) {
+            this.editId = entry.id
+            this.digits = String(entry.amount)
+            this.categoryId = entry.categoryId
+            this.note = entry.note ?? ''
+            this.date = entry.date
             this.open = true
         },
 
@@ -387,7 +466,9 @@ new class extends Component {
             this.saving = true
             try {
                 if (! navigator.onLine) throw new Error('offline')
-                const saved = await $wire.save(this.categoryId, this.amount(), this.date, this.note || null, this.uuid())
+                const saved = this.editId
+                    ? await $wire.update(this.editId, this.categoryId, this.amount(), this.date, this.note || null)
+                    : await $wire.save(this.categoryId, this.amount(), this.date, this.note || null, this.uuid())
                 if (saved !== true) return
                 navigator.vibrate?.(30)
                 this.close()

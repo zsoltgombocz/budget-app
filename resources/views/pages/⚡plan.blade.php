@@ -448,7 +448,7 @@ new #[Title('Plan')] class extends Component {
     $lockedTypes = app(\App\Services\Plans::class)->lockedLineTypes($this->user());
     // On Alap new lines are fixed items or budgets; putting aside and loans are Plusz.
     $editorTypes = $plusz ? $types : [LineType::Fixed, LineType::Variable];
-    $copyNote = $settings->period_mode === PeriodMode::Payday ? __('copied on every payday') : __('copied every month');
+    $copyNote = __('changes count from this month');
 @endphp
 
 <div x-data="planPage({ decimals: {{ $this->currency->decimals() }}, locale: @js(str_replace('_', '-', app()->getLocale())) })">

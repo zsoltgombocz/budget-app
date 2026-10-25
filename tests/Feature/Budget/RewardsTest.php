@@ -102,3 +102,9 @@ it('offers a new challenge each week, taking turns', function (): void {
     expect($first->kind)->not->toBe($next->kind)
         ->and($rewards->challenge($this->user, CarbonImmutable::parse('2026-10-16'))->id)->toBe($first->id);
 });
+
+it('asks only for what still fits in a week started on its last days', function (): void {
+    $challenge = resolve(Rewards::class)->challenge($this->user, CarbonImmutable::parse('2026-10-18'));
+
+    expect($challenge->target)->toBe(1);
+});

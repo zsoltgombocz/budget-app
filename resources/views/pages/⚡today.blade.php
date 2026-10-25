@@ -40,8 +40,24 @@ new #[Title('Today')] class extends Component {
 
     public function togglePaid(int $budgetLineId): void
     {
-        app(ToggleLinePaid::class)->handle($this->user(), $this->overview->period, $budgetLineId);
+        $item = collect($this->overview->fixedItems)->first(fn ($item): bool => $item->line->lineId === $budgetLineId);
+        $paid = app(ToggleLinePaid::class)->handle($this->user(), $this->overview->period, $budgetLineId);
         unset($this->overview);
+
+        if ($paid) {
+            $this->dispatch('app-toast', title: __('Done').' · '.($item->line->categoryName ?? ''), icon: 'check', undo: 'undo-paid', params: ['budgetLineId' => $budgetLineId]);
+        }
+    }
+
+    #[On('undo-paid')]
+    public function undoPaid(int $budgetLineId): void
+    {
+        $status = $this->overview->period->lineStatuses()->where('budget_line_id', $budgetLineId)->whereNotNull('paid_on')->first();
+
+        if ($status !== null) {
+            app(ToggleLinePaid::class)->handle($this->user(), $this->overview->period, $budgetLineId);
+            unset($this->overview);
+        }
     }
 
     public function togglePaidFromSheet(int $budgetLineId): void
@@ -213,6 +229,8 @@ new #[Title('Today')] class extends Component {
     [$todayX, $todayY] = $curve->today();
     $streak = $this->streak;
     $challenge = $this->challenge;
+    $user = auth()->user();
+    $trialDaysLeft = $user->currentPlan() === \App\Enums\Plan::PlusTrial ? (int) ceil(now()->diffInDays(app(\App\Services\Plans::class)->trialEndsAt($user))) : null;
 @endphp
 
 <div class="min-h-dvh px-4 pb-6">
@@ -258,6 +276,14 @@ new #[Title('Today')] class extends Component {
         </svg>
     </section>
 
+    @if ($trialDaysLeft !== null && $trialDaysLeft <= 3)
+        <a href="{{ route('subscription') }}" wire:navigate class="press mt-3 flex items-center gap-3 rounded-[24px] bg-surface px-4 py-3.5" data-test="trial-ending">
+            <x-ui.icon name="workspace_premium" :size="22" class="text-accent" />
+            <span class="min-w-0 flex-1 text-sm text-ink-2">{{ trans_choice('{0} The Plusz trial ends today|{1} The Plusz trial ends tomorrow|[2,*] :count days left of the Plusz trial', $trialDaysLeft, ['count' => $trialDaysLeft]) }}</span>
+            <x-ui.icon name="chevron_right" :size="20" class="text-faint" />
+        </a>
+    @endif
+
     @if ($negative)
         <div class="mt-3 flex items-center gap-3 rounded-[24px] bg-surface px-4 py-3.5" data-test="negative-alert">
             <div class="min-w-0 flex-1 text-sm leading-[1.4] text-ink-2">
@@ -267,7 +293,6 @@ new #[Title('Today')] class extends Component {
                     {{ __(':amount over the plan.', ['amount' => money($forecast->plannedLeftover - $forecast->expectedLeftover)]) }}
                 @endif
             </div>
-            <x-ui.button variant="light" size="sm" :href="route('pockets', ['fedezes' => max(0, -$forecast->expectedLeftover)])" wire:navigate data-test="cover-from-reserve">{{ __('Cover from the reserve') }}</x-ui.button>
         </div>
     @endif
 
@@ -314,7 +339,8 @@ new #[Title('Today')] class extends Component {
 
         @foreach ($due as $item)
             @php $isTransfer = in_array($item->line->type, [\App\Enums\LineType::Transfer, \App\Enums\LineType::Sinking], true); @endphp
-            <x-ui.sheet :name="'due-'.$item->line->lineId" wire:key="due-sheet-{{ $item->line->lineId }}">
+            <div wire:key="due-sheet-{{ $item->line->lineId }}">
+            <x-ui.sheet :name="'due-'.$item->line->lineId">
                 <div class="mt-4 flex items-center gap-3.5">
                     <span class="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-surface-2 text-ink-2"><x-ui.icon :name="$this->icons[$item->line->categoryId] ?? 'autorenew'" :size="24" /></span>
                     <div class="min-w-0">
@@ -331,6 +357,7 @@ new #[Title('Today')] class extends Component {
                     </span>
                 </button>
             </x-ui.sheet>
+            </div>
         @endforeach
     @endif
 
@@ -352,7 +379,11 @@ new #[Title('Today')] class extends Component {
 
     @if (! $this->hasSpending)
         <x-ui.empty-state icon="receipt_long" :title="__('No spending recorded yet')" class="mt-3" data-test="empty-state">
-            {{ __('Your income and fixed items are already in. You only need to write down the variable spending – or tap once if you did not spend today.') }}
+            @if ($forecast->income > 0)
+                {{ __('Your income and fixed items are already in. You only need to write down the variable spending – or tap once if you did not spend today.') }}
+            @else
+                {{ __('Add your salary and fixed costs in the Plan, then write down what you spend.') }}
+            @endif
             <x-slot name="actions">
                 <x-no-spend-button :marked="$overview->noSpendMarked" />
             </x-slot>
@@ -388,8 +419,8 @@ new #[Title('Today')] class extends Component {
                         </span>
                         <span class="flex-1"></span>
                         @if ($isOver)
-                            <span class="num text-2xl font-bold tracking-[-0.02em] text-danger">+{{ money_number($category->spent - $category->planned) }}</span>
-                            <span class="num text-[13px] text-danger-soft">{{ __('budget :amount', ['amount' => money_number($category->planned)]) }}</span>
+                            <span class="num text-2xl font-bold tracking-[-0.02em] text-danger">−{{ money_number($category->spent - $category->planned) }}</span>
+                            <span class="num text-[13px] text-danger-soft">{{ __('over · budget :amount', ['amount' => money_number($category->planned)]) }}</span>
                         @else
                             <span class="num text-2xl font-bold tracking-[-0.02em]">{{ money_number($category->planned - $category->spent) }}</span>
                             <span class="num text-[13px] text-hero-sub">{{ __('left of :amount', ['amount' => money_number($category->planned), 'suffix' => \App\Support\Hungarian::suffix((int) round($category->planned / user_currency()->minorPerMajor()), 'ból', 'ből')]) }}</span>
