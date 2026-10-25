@@ -31,6 +31,7 @@ new #[Title('Settings')] class extends Component {
             ['route' => 'install', 'icon' => 'install_mobile', 'title' => __('Install the app'), 'subtitle' => __('Steps for your phone and browser')],
             ['route' => 'contact', 'icon' => 'mail', 'title' => __('Contact'), 'subtitle' => __('E-mail, bug reports and ideas')],
             ['route' => 'changelog', 'icon' => 'celebration', 'title' => __('What’s new'), 'subtitle' => __('Version :version', ['version' => config('app.version')])],
+            ['route' => 'legal', 'params' => 'aszf', 'icon' => 'gavel', 'title' => __('Legal documents'), 'subtitle' => __('Terms, privacy notice, imprint'), 'external' => true],
         ],
     ];
 @endphp
@@ -52,7 +53,7 @@ new #[Title('Settings')] class extends Component {
     @foreach ($groups as $group)
         <div class="mx-4 mt-3 overflow-hidden rounded-card bg-surface">
             @foreach ($group as $item)
-                <a href="{{ route($item['route']) }}" @if ($item['download'] ?? false) download @else wire:navigate @endif @class(['flex items-center gap-3 px-[18px] py-3.5 transition active:bg-ink/4', 'border-b border-line' => ! $loop->last]) data-test="settings-{{ $item['route'] }}">
+                <a href="{{ route($item['route'], $item['params'] ?? []) }}" @if ($item['download'] ?? false) download @elseif ($item['external'] ?? false) target="_blank" @else wire:navigate @endif @class(['flex items-center gap-3 px-[18px] py-3.5 transition active:bg-ink/4', 'border-b border-line' => ! $loop->last]) data-test="settings-{{ $item['route'] }}">
                     <x-ui.icon-tile :icon="$item['icon']" :size="36" />
                     <span class="min-w-0 flex-1">
                         <span class="block text-[15px] font-medium">{{ $item['title'] }}</span>

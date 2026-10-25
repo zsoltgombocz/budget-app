@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DevGateController;
+use App\Http\Controllers\LegalController;
 use App\Http\Controllers\MagicLinkController;
 use App\Http\Controllers\NoSpendFromNotificationController;
 use App\Http\Controllers\PushSubscriptionController;
@@ -17,6 +18,9 @@ Route::middleware('guest')->group(function (): void {
     Route::get('belepes/{token}', [MagicLinkController::class, 'show'])->name('magic-link.show');
     Route::post('belepes/{token}', [MagicLinkController::class, 'login'])->middleware('throttle:10,1')->name('magic-link.login');
 });
+
+// Public legal pages: ÁSZF, privacy notice, imprint, cookies.
+Route::get('{page}', LegalController::class)->whereIn('page', array_keys(LegalController::PAGES))->name('legal');
 
 // Public install guide: shows the steps for the visitor's phone and browser.
 Route::view('telepites', 'install')->name('install');

@@ -128,6 +128,7 @@ new #[Title('Loan')] class extends Component {
                     @endif
                 @endif
             </section>
+            <p class="mt-2 px-1.5 text-xs text-muted" data-test="loan-estimate">{{ __('An estimate from your numbers, not financial advice. Your bank\'s statement is what counts.') }}</p>
         </div>
 
         @unless ($this->plusz)

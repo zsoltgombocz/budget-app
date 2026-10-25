@@ -1,6 +1,8 @@
 <?php
 
 use App\Enums\Plan;
+use App\Notifications\SubscriptionCancelled;
+use App\Notifications\SubscriptionWithdrawn;
 use App\Models\User;
 use App\Services\Plans;
 use Illuminate\Support\Facades\Auth;
@@ -45,10 +47,20 @@ new #[Title('Subscription')] class extends Component {
                 return;
             }
 
-            $checkout = $this->user()->newSubscription(Plans::SUBSCRIPTION, $price)->checkout([
+            $builder = $this->user()->newSubscription(Plans::SUBSCRIPTION, $price);
+            $trialEnd = $this->trialCarriesOver();
+
+            // Buying during the trial keeps its days: the first charge is when the trial ends.
+            if ($trialEnd !== null) {
+                $builder->trialUntil($trialEnd);
+            }
+
+            $checkout = $builder->checkout([
                 'success_url' => route('subscription', ['fizetes' => 'ok']),
                 'cancel_url' => route('subscription'),
                 'locale' => 'hu',
+                'billing_address_collection' => 'required',
+                'custom_text' => ['submit' => ['message' => __('By paying you order Plusz with an obligation to pay and accept the Terms (:url). It renews automatically until you cancel it; within :days days you can withdraw with a full refund.', ['url' => route('legal', 'aszf'), 'days' => config('budget.withdrawal_days')])]],
             ]);
         } catch (Throwable $exception) {
             Log::warning('Stripe checkout failed', ['user' => $this->user()->id, 'error' => $exception->getMessage()]);
@@ -65,7 +77,32 @@ new #[Title('Subscription')] class extends Component {
      */
     public function cancel(): void
     {
-        $this->changeSubscription(fn (Subscription $subscription) => $subscription->cancel(), __('Plusz cancelled'));
+        if ($this->changeSubscription(fn (Subscription $subscription) => $subscription->cancel(), __('Plusz cancelled'))) {
+            $this->user()->notify(new SubscriptionCancelled($this->user()->subscription(Plans::SUBSCRIPTION)?->ends_at));
+        }
+    }
+
+    /**
+     * "Elállás": within the withdrawal days the subscription ends now and what was paid comes back.
+     */
+    public function withdraw(): void
+    {
+        $subscription = $this->subscription;
+        abort_unless($subscription instanceof Subscription && $this->canWithdraw, 403);
+
+        try {
+            $refund = $this->refundLastCharge();
+            $subscription->cancelNow();
+        } catch (Throwable $exception) {
+            Log::warning('Stripe withdrawal failed', ['user' => $this->user()->id, 'error' => $exception->getMessage()]);
+            $this->dispatch('app-toast', title: __('Payment is not available right now.'), subtitle: __('Write to us and we sort it out: :email', ['email' => config('budget.operator.email')]), icon: 'error');
+
+            return;
+        }
+
+        $this->user()->notify(new SubscriptionWithdrawn(now(), $refund));
+        unset($this->subscription, $this->nextPayment, $this->canWithdraw);
+        $this->dispatch('app-toast', title: __('Withdrawal done'), subtitle: $refund !== null ? __(':amount comes back to your card.', ['amount' => $refund]) : null);
     }
 
     public function resume(): void
@@ -84,6 +121,31 @@ new #[Title('Subscription')] class extends Component {
             Log::warning('Stripe billing portal failed', ['user' => $this->user()->id, 'error' => $exception->getMessage()]);
             $this->dispatch('app-toast', title: __('Payment is not available right now.'), icon: 'error');
         }
+    }
+
+    /**
+     * Withdrawal is offered for the first days after the subscription started.
+     */
+    #[Computed]
+    public function canWithdraw(): bool
+    {
+        $subscription = $this->subscription;
+
+        return $subscription instanceof Subscription && ! $subscription->onGracePeriod()
+            && $this->withdrawalEndsAt($subscription)?->isFuture() === true;
+    }
+
+    /**
+     * The withdrawal days run from the start of the contract, or from the first charge when it was
+     * bought during the trial (the more generous of the two).
+     */
+    public function withdrawalEndsAt(Subscription $subscription): ?\Carbon\CarbonInterface
+    {
+        $start = $subscription->trial_ends_at !== null && $subscription->created_at !== null && $subscription->trial_ends_at->greaterThan($subscription->created_at)
+            ? $subscription->trial_ends_at
+            : $subscription->created_at;
+
+        return $start?->copy()->addDays(config()->integer('budget.withdrawal_days'));
     }
 
     #[Computed]
@@ -138,6 +200,41 @@ new #[Title('Subscription')] class extends Component {
     }
 
     /**
+     * The end of a running trial, when it is far enough ahead for Stripe (at least two days).
+     */
+    private function trialCarriesOver(): ?\Carbon\CarbonImmutable
+    {
+        if ($this->user()->currentPlan() !== Plan::PlusTrial) {
+            return null;
+        }
+
+        $end = resolve(Plans::class)->trialEndsAt($this->user());
+
+        return $end->greaterThan(now()->addDays(2)) ? $end : null;
+    }
+
+    /**
+     * Refunds the latest successful card payment of the customer; null when nothing was paid yet.
+     */
+    private function refundLastCharge(): ?string
+    {
+        if (! $this->user()->hasStripeId()) {
+            return null;
+        }
+
+        $charges = $this->user()->stripe()->charges->all(['customer' => $this->user()->stripe_id, 'limit' => 1]);
+        $charge = $charges->data[0] ?? null;
+
+        if ($charge === null || ! $charge->paid || $charge->refunded) {
+            return null;
+        }
+
+        $this->user()->stripe()->refunds->create(['charge' => $charge->id, 'reason' => 'requested_by_customer']);
+
+        return \Laravel\Cashier\Cashier::formatAmount($charge->amount - $charge->amount_refunded, $charge->currency);
+    }
+
+    /**
      * A subscription Stripe already knows about (e.g. its webhook has not arrived yet), so a
      * second Checkout would charge twice.
      */
@@ -161,7 +258,7 @@ new #[Title('Subscription')] class extends Component {
     /**
      * @param  callable(Subscription): mixed  $change
      */
-    private function changeSubscription(callable $change, string $done): void
+    private function changeSubscription(callable $change, string $done): bool
     {
         $subscription = $this->subscription;
         abort_unless($subscription instanceof Subscription, 404);
@@ -172,11 +269,13 @@ new #[Title('Subscription')] class extends Component {
             Log::warning('Stripe subscription change failed', ['user' => $this->user()->id, 'error' => $exception->getMessage()]);
             $this->dispatch('app-toast', title: __('Payment is not available right now.'), icon: 'error');
 
-            return;
+            return false;
         }
 
         unset($this->subscription, $this->nextPayment);
         $this->dispatch('app-toast', title: $done);
+
+        return true;
     }
 
     private function user(): User
@@ -213,6 +312,8 @@ new #[Title('Subscription')] class extends Component {
         [__('Putting aside'), __('transfers and monthly saving in the plan')],
     ];
     $soon = [__('Couple mode – a shared budget for two'), __('Bank statement import'), __('Analysis: months side by side, trends, spotting subscriptions')];
+    $chosenPrice = $prices[$interval === 'month' ? 'month' : 'year'];
+    $trialEnd = $plan === Plan::PlusTrial ? $plans->trialEndsAt($user) : null;
 @endphp
 
 <x-pages::settings.layout :heading="__('Subscription')">
@@ -226,17 +327,33 @@ new #[Title('Subscription')] class extends Component {
     </section>
 
     @if ($canBuy)
-        <div class="mt-3 grid grid-cols-2 gap-2" role="radiogroup" data-test="prices">
-            @foreach (['month' => [__('Monthly'), $prices['month'], null], 'year' => [__('Yearly'), $prices['year'], '−'.(int) round(100 - $prices['year'] / ($prices['month'] * 12) * 100).'%']] as $key => [$label, $price, $badge])
+        <div class="mt-3 grid grid-cols-2 gap-2" role="radiogroup" aria-label="{{ __('Billing period') }}" data-test="prices">
+            @foreach (['month' => [__('Monthly'), $prices['month'], __('/ month'), null], 'year' => [__('Yearly'), $prices['year'], __('/ year'), __(':amount a month', ['amount' => money((int) round($prices['year'] / 12), $huf)])]] as $key => [$label, $price, $unit, $equivalent])
                 <button type="button" role="radio" aria-checked="{{ $interval === $key ? 'true' : 'false' }}" wire:click="$set('interval', '{{ $key }}')"
                         @class(['press rounded-[20px] border-[1.5px] p-4 text-left', 'border-accent bg-picked' => $interval === $key, 'border-surface bg-surface' => $interval !== $key]) data-test="interval-{{ $key }}">
-                    <span class="flex items-center justify-between text-[13px] text-muted">{{ $label }}@if ($badge)<span class="rounded-full bg-accent/16 px-2 py-0.5 text-xs font-semibold text-accent">{{ $badge }}</span>@endif</span>
-                    <span class="num mt-1 block text-xl font-bold">{{ money($price, $huf) }}</span>
+                    <span class="block text-[13px] text-muted">{{ $label }}</span>
+                    <span class="num mt-1 block text-xl font-bold">{{ money($price, $huf) }} <span class="text-[13px] font-medium text-muted">{{ $unit }}</span></span>
+                    @if ($equivalent)<span class="num mt-0.5 block text-xs text-accent">{{ $equivalent }}</span>@endif
                 </button>
             @endforeach
         </div>
-        <x-ui.button wire:click="subscribe" wire:loading.attr="disabled" class="mt-3 w-full" data-test="subscribe">{{ __('Switch to Plusz') }}</x-ui.button>
-        <p class="mt-2 px-1.5 text-xs text-muted">{{ __('Card payment through Stripe. You can cancel any time; Plusz stays until the end of the paid time.') }}</p>
+
+        <div class="num mt-3 rounded-[20px] bg-surface px-4 py-3.5 text-[13px] leading-[1.5] text-ink-2" data-test="subscription-summary">
+            <div class="text-[15px] font-semibold text-ink">{{ __('MoneySight Plusz · :price :unit', ['price' => money($chosenPrice, $huf), 'unit' => $interval === 'month' ? __('/ month') : __('/ year')]) }}</div>
+            <ul class="mt-1.5 grid gap-1">
+                <li>{{ __('Renews automatically every :period until you cancel it.', ['period' => $interval === 'month' ? __('month') : __('year')]) }}</li>
+                @if ($trialEnd !== null && $trialEnd->greaterThan(now()->addDays(2)))
+                    <li>{{ __('Your trial days stay: the first payment is on :date.', ['date' => $date($trialEnd)]) }}</li>
+                @endif
+                <li>{{ __('Cancel any time here; Plusz stays until the end of the paid time.') }}</li>
+                <li>{{ __('Within :days days you can withdraw and get the full amount back.', ['days' => config('budget.withdrawal_days')]) }}</li>
+                <li>{{ config('budget.operator.vat_note') }}</li>
+            </ul>
+            <div class="mt-2"><a href="{{ route('legal', 'aszf') }}" target="_blank" class="text-accent underline underline-offset-2">{{ __('Terms of service') }}</a> · <a href="{{ route('legal', 'adatvedelem') }}" target="_blank" class="text-accent underline underline-offset-2">{{ __('Privacy policy') }}</a></div>
+        </div>
+
+        <x-ui.button wire:click="subscribe" wire:loading.attr="disabled" class="mt-3 w-full" data-test="subscribe">{{ __('Subscribe – with an obligation to pay') }}</x-ui.button>
+        <p class="mt-2 px-1.5 text-xs text-muted">{{ __('Card payment through Stripe.') }}</p>
     @endif
 
     <x-ui.section-label class="mt-5" :label="__('What is in Plusz?')" />
@@ -249,13 +366,17 @@ new #[Title('Subscription')] class extends Component {
                 </div>
             @endforeach
         </div>
-        <div class="mt-4 text-[13px] font-semibold text-muted">{{ __('Coming soon') }}</div>
-        <ul class="mt-2 grid gap-1.5 text-sm text-ink-2">
+    </x-ui.card>
+
+    <div class="mt-4 px-1.5" data-test="coming-soon">
+        <div class="text-[13px] font-semibold text-muted">{{ __('Coming soon') }}</div>
+        <ul class="mt-1.5 grid gap-1 text-[13px] text-muted">
             @foreach ($soon as $item)
-                <li class="flex items-start gap-2"><span class="mt-[7px] size-1.5 shrink-0 rounded-full bg-faint"></span>{{ $item }}</li>
+                <li class="flex items-start gap-2"><span class="mt-[7px] size-1 shrink-0 rounded-full bg-faint"></span>{{ $item }}</li>
             @endforeach
         </ul>
-    </x-ui.card>
+        <p class="mt-1.5 text-xs text-faint">{{ __('These are plans, not part of the subscription today.') }}</p>
+    </div>
 
     @if ($this->invoices !== [])
         <x-ui.section-label class="mt-5" :label="__('Invoices')" />
@@ -278,6 +399,13 @@ new #[Title('Subscription')] class extends Component {
             <button type="button" wire:click="billingPortal" class="flex h-[52px] w-full items-center justify-between text-left text-[15px]" data-test="billing-portal">
                 {{ __('Card and billing details') }}<x-ui.icon name="open_in_new" :size="18" class="text-faint" />
             </button>
+            @if ($this->canWithdraw)
+                <button type="button" class="flex min-h-[52px] w-full flex-col justify-center border-t border-line py-2 text-left text-[15px]" data-test="withdraw"
+                        x-data x-on:click="if (await window.appConfirm({ title: @js(__('Withdraw from the subscription?')), body: @js(__('Plusz ends now and you get back what you paid. Alap stays, nothing is deleted.')), confirm: @js(__('Withdraw')), danger: true })) $wire.withdraw()">
+                    <span>{{ __('Withdrawal') }}</span>
+                    <span class="text-xs text-muted">{{ __('until :date, with a full refund', ['date' => $date($this->withdrawalEndsAt($subscription))]) }}</span>
+                </button>
+            @endif
             @unless ($grace)
                 <button type="button" class="flex h-[52px] w-full items-center border-t border-line text-left text-[15px] text-danger" data-test="cancel"
                         x-data x-on:click="if (await window.appConfirm({ title: @js(__('Cancel Plusz?')), body: @js($next ? __('Plusz stays until :date, then Alap comes back. Nothing is deleted.', ['date' => $date($next['date'])]) : __('Plusz stays until the end of the paid time, then Alap comes back. Nothing is deleted.')), confirm: @js(__('Cancel Plusz')), danger: true })) $wire.cancel()">

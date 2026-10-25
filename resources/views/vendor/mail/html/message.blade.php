@@ -22,7 +22,8 @@
 <x-slot:footer>
 <x-mail::footer>
 {{ __('You get this email because you have a :app account.', ['app' => config('app.name')]) }}  
-© {{ date('Y') }} {{ config('app.name') }}
+© {{ date('Y') }} {{ config('app.name') }}@if (filled(config('budget.operator.name'))) · {{ config('budget.operator.name') }}, {{ config('budget.operator.address') }}@endif  
+[{{ __('Terms of service') }}]({{ route('legal', 'aszf') }}) · [{{ __('Privacy policy') }}]({{ route('legal', 'adatvedelem') }}) · [{{ __('Imprint') }}]({{ route('legal', 'impresszum') }})
 </x-mail::footer>
 </x-slot:footer>
 </x-mail::layout>

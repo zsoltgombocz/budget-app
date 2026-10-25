@@ -30,6 +30,8 @@ if [ -n "$(docker compose ps --status running -q mariadb)" ]; then
     (umask 077 && docker compose exec -T mariadb sh -c 'exec mariadb-dump --single-transaction -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" "$MARIADB_DATABASE"' | gzip > "$backup")
     echo "Database backup: $backup"
     ls -1t backups/db-*.sql.gz | tail -n +15 | xargs -r rm --
+    # Deleted accounts must not live on in old dumps: none is kept longer than 30 days.
+    find backups -name 'db-*.sql.gz' -mtime +30 -delete
 fi
 
 docker compose pull app queue scheduler pulse

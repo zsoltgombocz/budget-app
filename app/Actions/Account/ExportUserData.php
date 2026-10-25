@@ -53,9 +53,36 @@ final class ExportUserData
             $zip->addFromString($table.'.csv', $this->csv($table, $rows));
         }
 
+        $zip->addFromString('OLVASSEL.txt', $this->readme($user));
+
         $zip->close();
 
         return $path;
+    }
+
+    /**
+     * What the files are, so the export is understandable without the app.
+     */
+    private function readme(User $user): string
+    {
+        $currency = $user->settings()->currency;
+
+        return implode("\r\n", [
+            'MoneySight – az adataid ('.now()->format('Y-m-d H:i').')',
+            '',
+            'Minden táblázat egy CSV fájl (pontosvesszővel elválasztva, UTF-8). Minden sor a te adatod.',
+            'Összegek: egész számok a pénznem legkisebb egységében ('.$currency->value.', 1 '.$currency->symbol().' = '.$currency->minorPerMajor().' egység).',
+            '',
+            'transactions.csv – a rögzített költéseid (category_id: a categories.csv sorai)',
+            'categories.csv – a kategóriáid',
+            'budget_lines.csv – a terved sorai (fix tételek, keretek, félretételek)',
+            'periods.csv, period_closes.csv – a hónapjaid és a zárások',
+            'pockets.csv, pocket_movements.csv – a perselyek és a mozgásaik',
+            'loans.csv, loan_events.csv – a hiteleid és az előtörlesztések',
+            'budget_settings.csv – a beállításaid',
+            'users.csv – a fiókod (a belépési titkok, pl. kulcsok, nincsenek benne)',
+            'a többi fájl: értesítések, munkamenetek, előfizetés, sorozat és mérföldkövek',
+        ])."\r\n";
     }
 
     /**

@@ -128,7 +128,7 @@ new #[Title('Contact')] class extends Component {
                 </div>
             </x-ui.card>
 
-            <div class="px-1.5 text-xs text-pretty text-muted">{{ $idea ? __('Sent with it: your e-mail address, so we can write back. Nothing from your budget.') : __('Sent with it: your e-mail address, the page you came from, the app version and your browser. Nothing from your budget.') }}</div>
+            <div class="px-1.5 text-xs text-pretty text-muted">{{ $idea ? __('Sent with it: your e-mail address, so we can write back. From your budget only what an attached screenshot shows.') : __('Sent with it: your e-mail address, the page you came from, the app version and your browser. From your budget only what an attached screenshot shows.') }}</div>
 
             <x-ui.button type="submit" :icon="$idea ? 'lightbulb' : 'bug_report'" class="w-full" wire:loading.attr="disabled" wire:target="send,screenshot" data-test="bug-report-send">{{ $idea ? __('Send idea') : __('Send report') }}</x-ui.button>
         </form>

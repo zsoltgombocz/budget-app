@@ -2,6 +2,7 @@
 
 use App\Actions\Account\ExportUserData;
 use App\Models\Transaction;
+use App\Models\User;
 use App\Services\PeriodService;
 
 it('downloads everything stored about the user as CSV files, without secrets or other users', function (): void {
@@ -20,4 +21,26 @@ it('downloads everything stored about the user as CSV files, without secrets or 
     $this->actingAs($user)->get(route('export'))
         ->assertOk()
         ->assertDownload('moneysight-adatok-'.now()->format('Y-m-d').'.zip');
+});
+
+it('removes sign-ups that never confirmed their address after a week, but not invited ones', function (): void {
+    $stale = User::factory()->create(['email_verified_at' => null, 'created_at' => now()->subDays(8)]);
+    $invited = User::factory()->create(['email_verified_at' => null, 'invited_at' => now()->subDays(8), 'created_at' => now()->subDays(8)]);
+    $fresh = User::factory()->create(['email_verified_at' => null]);
+
+    $this->artisan('model:prune', ['--model' => [User::class]])->assertSuccessful();
+
+    expect(User::query()->whereKey($stale->id)->exists())->toBeFalse()
+        ->and(User::query()->whereKey($invited->id)->exists())->toBeTrue()
+        ->and(User::query()->whereKey($fresh->id)->exists())->toBeTrue();
+});
+
+it('shows the legal pages without signing in', function (): void {
+    foreach (['aszf', 'adatvedelem', 'impresszum', 'sutik'] as $page) {
+        if (is_file(resource_path("legal/{$page}.md"))) {
+            $this->get(route('legal', $page))->assertOk()->assertSee('data-test="legal-'.$page.'"', false)->assertDontSee('{{operator_email}}', false);
+        }
+    }
+
+    $this->get('/register-nope')->assertNotFound();
 });

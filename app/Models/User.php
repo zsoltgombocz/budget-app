@@ -10,7 +10,9 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Prunable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -49,7 +51,7 @@ use NotificationChannels\WebPush\HasPushSubscriptions;
 class User extends Authenticatable implements HasLocalePreference, MustVerifyEmail, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
-    use Billable, HasFactory, HasPushSubscriptions, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
+    use Billable, HasFactory, HasPushSubscriptions, Notifiable, PasskeyAuthenticatable, Prunable, TwoFactorAuthenticatable;
 
     /**
      * @var array<string, mixed>
@@ -102,6 +104,17 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
             $user->pushSubscriptions()->delete();
             DB::table('sessions')->where('user_id', $user->id)->delete();
         });
+    }
+
+    /**
+     * Sign-ups that never confirmed their address (never signed in) are removed after 7 days.
+     * Invited accounts wait for their invite.
+     *
+     * @return Builder<static>
+     */
+    public function prunable(): Builder
+    {
+        return static::query()->whereNull('email_verified_at')->whereNull('invited_at')->where('created_at', '<', now()->subDays(7));
     }
 
     /**

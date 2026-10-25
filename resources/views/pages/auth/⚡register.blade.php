@@ -19,6 +19,13 @@ new #[Title('Register')] #[Layout('layouts::auth')] class extends Component {
 
     <livewire:auth.magic-link-form :register="true" />
 
+    <p class="text-center text-[13px] leading-snug text-muted" data-test="register-legal">
+        {!! __('By signing up you accept the :terms and acknowledge the :privacy.', [
+            'terms' => '<a href="'.e(route('legal', 'aszf')).'" class="text-accent underline underline-offset-2" target="_blank">'.e(__('the terms (link)')).'</a>',
+            'privacy' => '<a href="'.e(route('legal', 'adatvedelem')).'" class="text-accent underline underline-offset-2" target="_blank">'.e(__('the privacy notice (link)')).'</a>',
+        ]) !!}
+    </p>
+
     <div class="text-center text-sm text-muted">
         {{ __('Already have an account?') }}
         <a href="{{ route('login') }}" wire:navigate class="font-medium text-accent">{{ __('Log in') }}</a>

@@ -20,5 +20,6 @@
         <p class="flex items-center justify-center gap-1.5 text-center text-[13px] text-muted" data-test="trust">
             <x-ui.icon name="shield" :size="16" />{{ __('It does not connect to your bank and never moves money.') }}
         </p>
+        <x-legal-links />
     </div>
 </x-layouts::auth>

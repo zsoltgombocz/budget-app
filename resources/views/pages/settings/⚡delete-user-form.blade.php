@@ -26,7 +26,7 @@ new class extends Component {
 
 <div x-data="{ open: false }" class="mt-6 rounded-card border border-danger/28 bg-danger/8 p-[18px]">
     <div class="text-[15px] font-semibold">{{ __('Delete account') }}</div>
-    <div class="mt-1 text-[13px] leading-snug text-muted">{{ __('Deletes your account and every budget data for good.') }}</div>
+    <div class="mt-1 text-[13px] leading-snug text-muted">{{ __('Deletes your account and every budget data for good. A running Plusz subscription ends right away; the paid time is not refunded (except within the withdrawal days).') }}</div>
 
     <x-ui.button x-show="! open" variant="danger" size="md" icon="delete" x-on:click="open = true" class="mt-3" data-test="delete-user-button">{{ __('Delete account') }}</x-ui.button>
 

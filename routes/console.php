@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\NotificationLog;
+use App\Models\User;
 use Illuminate\Support\Facades\Schedule;
 
 // The scheduler's overlap locks live in the container's file cache: one scheduler, and the
@@ -8,4 +9,4 @@ use Illuminate\Support\Facades\Schedule;
 Schedule::useCache('file');
 
 Schedule::command('budget:notify')->everyMinute()->withoutOverlapping();
-Schedule::command('model:prune', ['--model' => [NotificationLog::class]])->dailyAt('03:30');
+Schedule::command('model:prune', ['--model' => [NotificationLog::class, User::class]])->dailyAt('03:30');
