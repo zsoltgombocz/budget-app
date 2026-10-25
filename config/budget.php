@@ -36,6 +36,12 @@ return [
     ],
 
     /*
+     * A separate host that always shows the landing page (dev: dev-landing.moneysight.app).
+     * Without it the landing page is the main domain's front page for guests.
+     */
+    'landing_domain' => env('LANDING_DOMAIN'),
+
+    /*
      * The operator shown in the legal pages, the imprint and the e-mail footer. Placeholders until
      * the operator is registered; the legal pages say so when a value is missing.
      */

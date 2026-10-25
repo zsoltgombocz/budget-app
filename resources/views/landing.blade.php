@@ -54,7 +54,7 @@
                 <nav aria-label="Oldal">
                     <a href="#hogyan" class="link optional">Hogyan működik</a>
                     <a href="#arak" class="link optional">Árak</a>
-                    <a href="{{ route('login') }}" class="link">Belépés</a>
+                    <a href="{{ rtrim(config('app.url'), '/').route('login', [], false) }}" class="link">Belépés</a>
                 </nav>
             </div>
 

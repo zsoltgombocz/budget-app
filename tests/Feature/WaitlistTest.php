@@ -73,3 +73,9 @@ it('deletes unconfirmed sign-ups after 30 days', function (): void {
 
     expect(WaitlistSignup::query()->pluck('id')->all())->toBe([$confirmed->id]);
 });
+
+it('shows the landing page on its own host even when signed in', function (): void {
+    config(['budget.landing_domain' => 'landing.test']);
+
+    $this->actingAs(onboardedUser())->get('http://landing.test/')->assertOk()->assertSee('id="varolista"', false);
+});

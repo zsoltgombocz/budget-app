@@ -6,10 +6,16 @@ use App\Http\Controllers\MagicLinkController;
 use App\Http\Controllers\NoSpendFromNotificationController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\WaitlistController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-// Guests see the landing page with the 2.0 waitlist; signed-in users go straight to the app.
-Route::get('/', fn () => auth()->check() ? to_route('dashboard') : view('landing'))->name('home');
+// The landing host always shows the landing page; on the app's own host guests see it and
+// signed-in users go straight to the app.
+Route::get('/', function (Request $request) {
+    $onLandingHost = filled(config('budget.landing_domain')) && $request->getHost() === config('budget.landing_domain');
+
+    return $onLandingHost || ! auth()->check() ? view('landing') : to_route('dashboard');
+})->name('home');
 Route::post('varolista', [WaitlistController::class, 'store'])->middleware('throttle:6,1')->name('waitlist.store');
 Route::get('varolista/megerosites/{token}', [WaitlistController::class, 'confirm'])->name('waitlist.confirm');
 Route::get('varolista/leiratkozas/{token}', [WaitlistController::class, 'unsubscribe'])->name('waitlist.unsubscribe');
