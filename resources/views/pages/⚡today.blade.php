@@ -234,6 +234,7 @@ new #[Title('Today')] class extends Component {
 @endphp
 
 <div class="min-h-dvh px-4 pb-6">
+    <h1 class="sr-only">{{ __('Today') }}</h1>
     <div class="flex h-9 items-center justify-between pt-6 pb-1">
         <span class="num text-sm text-muted" data-test="period-chip">{{ \App\Support\Dates::range($period->starts_on, $period->ends_on) }} · {{ __(':day. day', ['day' => max(1, $period->elapsedDays($overview->today))]) }}</span>
         <button type="button" x-data x-on:click="$dispatch('open-sheet', 'streak')"
@@ -249,7 +250,7 @@ new #[Title('Today')] class extends Component {
             <div class="flex items-center justify-between">
                 <span @class(['text-[15px]', 'text-hero-sub' => ! $negative, 'text-danger-soft' => $negative])>{{ __('Left at month end') }}</span>
                 <button type="button" x-data x-on:click="$dispatch('open-sheet', 'curve-info')"
-                        @class(['press -my-1.5 -mr-2 flex size-8 items-center justify-center rounded-full', 'bg-hero-2 text-hero-sub' => ! $negative, 'bg-danger/16 text-danger-soft' => $negative])
+                        @class(['press hit -my-1.5 -mr-2 flex size-8 items-center justify-center rounded-full', 'bg-hero-2 text-hero-sub' => ! $negative, 'bg-danger/16 text-danger-soft' => $negative])
                         aria-label="{{ __('What does the curve show?') }}" data-test="curve-info">
                     <x-ui.icon name="info" :size="18" />
                 </button>
@@ -332,7 +333,7 @@ new #[Title('Today')] class extends Component {
                     </div>
                     <x-ui.amount size="sm" :value="$item->line->planned()" class="text-base font-semibold" />
                     </button>
-                    <button type="button" wire:click="togglePaid({{ (int) $item->line->lineId }})" class="press h-9 shrink-0 rounded-full bg-surface-3 px-3.5 text-sm font-semibold" data-test="mark-due-done">{{ $isTransfer ? __('Transferred') : __('Done') }}</button>
+                    <button type="button" wire:click="togglePaid({{ (int) $item->line->lineId }})" class="press hit h-9 shrink-0 rounded-full bg-surface-3 px-3.5 text-sm font-semibold" aria-label="{{ ($isTransfer ? __('Transferred') : __('Done')).': '.$item->line->categoryName }}" data-test="mark-due-done">{{ $isTransfer ? __('Transferred') : __('Done') }}</button>
                 </div>
             @endforeach
         </div>
@@ -410,7 +411,7 @@ new #[Title('Today')] class extends Component {
                     @if ($isOver)
                         <span class="tile-rise absolute inset-0 bg-danger-tint" style="animation-delay: {{ $loop->index * 60 }}ms"></span>
                     @elseif ($left > 0)
-                        <span class="tile-rise absolute inset-x-0 bottom-0 border-t-2 border-accent bg-fill" style="height: {{ round($left * 100) }}%; animation-delay: {{ $loop->index * 60 }}ms"></span>
+                        <span class="tile-rise absolute inset-x-0 bottom-0 bg-fill" style="height: {{ round($left * 100) }}%; animation-delay: {{ $loop->index * 60 }}ms"></span>
                     @endif
                     <span class="relative flex h-full flex-col p-3.5">
                         <span class="flex items-center justify-between gap-2">

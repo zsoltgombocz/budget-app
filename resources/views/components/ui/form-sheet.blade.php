@@ -6,7 +6,7 @@
     (one line that says what the sheet does), action (header right), footer (sticky save button)
     and pad (an x-ui.amount-pad that slides over the footer).
 --}}
-<div x-show="{{ $show }}" x-cloak class="fixed inset-0 z-50" role="dialog" aria-modal="true">
+<div x-show="{{ $show }}" x-cloak x-trap.inert="{{ $show }}" x-on:keydown.escape.window="if ({{ $show }}) { {{ $close }} }" class="fixed inset-0 z-50" role="dialog" aria-modal="true" @if ($label) aria-label="{{ $label }}" @endif>
     <div x-show="{{ $show }}" x-transition.opacity class="absolute inset-0 bg-black/55" x-on:click="{{ $close }}"></div>
     <div x-show="{{ $show }}"
          x-transition:enter="transition duration-300 ease-out" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"

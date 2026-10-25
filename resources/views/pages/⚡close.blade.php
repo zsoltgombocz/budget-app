@@ -467,7 +467,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
     </x-ui.action-bar>
 
     {{-- Amount editor: actual income and the two sides of the leftover split --}}
-    <div x-show="editorOpen" x-cloak class="fixed inset-0 z-50" role="dialog" aria-modal="true">
+    <div x-show="editorOpen" x-cloak x-trap.inert="editorOpen" class="fixed inset-0 z-50" role="dialog" aria-modal="true">
         <div x-show="editorOpen" x-transition.opacity class="absolute inset-0 bg-black/55" x-on:click="editorOpen = false"></div>
         <div class="absolute inset-x-0 bottom-0 mx-auto max-w-lg rounded-t-[30px] bg-surface px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2" x-show="editorOpen" x-transition:enter="transition duration-300 ease-out" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0" x-transition:leave="transition duration-200 ease-in" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full">
             <div class="mx-auto h-[5px] w-9 rounded-full bg-ink/18"></div>

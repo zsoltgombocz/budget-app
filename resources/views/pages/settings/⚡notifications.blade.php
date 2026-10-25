@@ -171,9 +171,15 @@ new #[Title('Notifications')] class extends Component {
                 ];
                 $timezone = auth()->user()->settings()->timezone;
             @endphp
-            <x-ui.card class="p-[18px]" wire:poll.10s data-test="notification-log">
-                <div class="text-[15px] font-semibold">{{ __('Recent notifications') }}</div>
-                <div class="mt-0.5 text-xs text-muted">{{ __('What the app sent or skipped, and whether the push service accepted it.') }}</div>
+            <details class="group rounded-card bg-surface px-[18px]" wire:poll.10s data-test="notification-log">
+                <summary class="flex min-h-[56px] cursor-pointer list-none items-center justify-between gap-3 py-3">
+                    <span>
+                        <span class="block text-[15px] font-semibold">{{ __('Recent notifications') }}</span>
+                        <span class="block text-xs text-muted">{{ __('What the app sent or skipped, and whether the push service accepted it.') }}</span>
+                    </span>
+                    <x-ui.icon name="expand_more" :size="22" class="shrink-0 text-faint transition group-open:rotate-180" />
+                </summary>
+                <div class="pb-3">
                 @forelse ($this->logs as $log)
                     <div wire:key="log-{{ $log->id }}" @class(['flex items-start gap-3 py-2.5', 'border-b border-line' => ! $loop->last, 'mt-2' => $loop->first])>
                         <span @class(['mt-1.5 size-2 shrink-0 rounded-full', 'bg-accent' => $log->status === 'sent', 'bg-danger' => $log->status === 'failed', 'bg-warn' => $log->status === 'queued', 'bg-faint' => $log->status === 'skipped'])></span>
@@ -193,7 +199,8 @@ new #[Title('Notifications')] class extends Component {
                 @empty
                     <div class="mt-3 text-sm text-muted">{{ __('Nothing yet.') }}</div>
                 @endforelse
-            </x-ui.card>
+                </div>
+            </details>
 
     </div>
 </x-pages::settings.layout>

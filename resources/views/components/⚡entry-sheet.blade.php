@@ -255,13 +255,13 @@ new class extends Component {
      x-on:keydown.window="onKey($event)"
      x-effect="document.documentElement.classList.toggle('overflow-hidden', open)"
      data-test="entry-sheet">
-    <div x-show="open" x-cloak class="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="{{ __('New spending') }}">
+    <div x-show="open" x-cloak x-trap.inert="open" class="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="{{ __('New spending') }}">
         <div x-show="open" x-transition.opacity class="absolute inset-0 bg-black/55" x-on:click="close()"></div>
 
         <div x-show="open"
              x-transition:enter="transition duration-300 ease-out" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
              x-transition:leave="transition duration-200 ease-in" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full"
-             class="absolute inset-x-0 bottom-0 top-[max(5rem,calc(var(--safe-top)+4rem))] mx-auto flex max-w-lg flex-col rounded-t-[30px] bg-surface px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2">
+             class="absolute inset-x-0 bottom-0 top-[max(5rem,calc(var(--safe-top)+4rem))] mx-auto flex [@media(max-height:700px)]:top-[max(0.75rem,var(--safe-top))] max-w-lg flex-col rounded-t-[30px] bg-surface px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2">
             <div class="mx-auto h-[5px] w-9 shrink-0 rounded-full bg-ink/18"></div>
             <div class="mt-1 grid h-11 shrink-0 grid-cols-[72px_1fr_72px] items-center">
                 <button type="button" class="text-left text-[15px] text-muted" x-on:click="close()">{{ __('Cancel') }}</button>
@@ -281,17 +281,17 @@ new class extends Component {
             @else
                 <div class="shrink-0 pb-1 pt-2.5 text-center">
                     <div class="num flex items-baseline justify-center gap-2">
-                        <span class="text-[60px] font-semibold leading-[1.05] tracking-[-0.045em]" :class="digits ? 'text-ink' : 'text-faint'" x-text="formatted()" aria-live="polite"></span>
+                        <span class="text-[60px] font-semibold leading-[1.05] tracking-[-0.045em] [@media(max-height:700px)]:text-[44px]" :class="digits ? 'text-ink' : 'text-faint'" x-text="formatted()" aria-live="polite"></span>
                         <span class="text-[26px] font-medium text-muted">{{ $currency->symbol() }}</span>
                     </div>
                     <div class="num mt-1.5 text-[13px]" :class="hintClass()" x-text="hint()"></div>
                 </div>
 
                 {{-- Three a row with the name on up to two lines; more than two rows scroll inside. --}}
-                <div class="no-scrollbar mt-3.5 grid max-h-[156px] shrink-0 grid-cols-3 gap-2 overflow-y-auto" data-test="category-grid">
+                <div class="no-scrollbar mt-3.5 grid max-h-[156px] shrink-0 grid-cols-3 gap-2 overflow-y-auto [@media(max-height:700px)]:mt-2 [@media(max-height:700px)]:max-h-[64px]" data-test="category-grid">
                     <template x-for="category in categories" :key="category.id">
                         <button type="button" x-on:click="pick(category.id)"
-                                class="flex h-[74px] flex-col items-center justify-center gap-1 rounded-btn border-[1.5px] px-1.5 transition active:scale-95"
+                                class="flex h-[74px] flex-col items-center justify-center gap-1 rounded-btn [@media(max-height:700px)]:h-[64px] border-[1.5px] px-1.5 transition active:scale-95"
                                 :class="category.id === categoryId ? 'border-accent bg-accent/14 text-accent' : 'border-transparent bg-surface-2 text-ink-2'">
                             <span class="ms shrink-0" style="font-size:24px;width:24px;height:24px" x-text="category.icon" aria-hidden="true"></span>
                             <span class="line-clamp-2 max-w-full text-center text-xs leading-tight font-medium" x-text="category.name"></span>
@@ -314,7 +314,7 @@ new class extends Component {
                 <div class="mt-3 grid min-h-0 flex-1 grid-cols-3 gap-1.5">
                     <template x-for="key in ['1','2','3','4','5','6','7','8','9','000','0','del']" :key="key">
                         <button type="button" x-on:click="press(key)" :data-key="key"
-                                class="num flex min-h-[50px] items-center justify-center rounded-2xl bg-ink/4 text-[26px] font-medium transition active:bg-ink/12"
+                                class="num flex min-h-[50px] items-center justify-center rounded-2xl [@media(max-height:700px)]:min-h-[40px] bg-ink/4 text-[26px] font-medium transition active:bg-ink/12"
                                 :aria-label="key === 'del' ? @js(__('Delete')) : key">
                             <span x-show="key !== 'del'" x-text="key"></span>
                             <span x-show="key === 'del'" class="ms" style="font-size:24px;width:24px;height:24px" aria-hidden="true">backspace</span>

@@ -10,7 +10,7 @@
      x-on:keydown.escape.window="open = false"
      x-effect="document.documentElement.classList.toggle('overflow-hidden', open)"
      x-cloak>
-    <div x-show="open" class="fixed inset-0 z-50" role="dialog" aria-modal="true" @if ($title) aria-label="{{ $title }}" @endif>
+    <div x-show="open" x-trap.inert="open" class="fixed inset-0 z-50" role="dialog" aria-modal="true" @if ($title) aria-label="{{ $title }}" @endif>
             <div x-show="open" x-transition.opacity class="absolute inset-0 bg-black/55" x-on:click="open = false"></div>
             <div x-show="open"
                  x-transition:enter="transition duration-300 ease-out" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"

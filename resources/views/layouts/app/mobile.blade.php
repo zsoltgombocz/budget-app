@@ -13,7 +13,8 @@
         <div class="mx-auto min-h-dvh w-full max-w-lg">
             <main @class([
                 'pt-[var(--safe-top)]',
-                'pb-[calc(118px+env(safe-area-inset-bottom))]' => $tabs,
+                // Room for the tab bar and the floating + button, so the last row is never under them.
+                'pb-[calc(156px+env(safe-area-inset-bottom))]' => $tabs,
                 'pb-[env(safe-area-inset-bottom)]' => ! $tabs,
             ])>
                 <div class="page-enter">

@@ -466,7 +466,7 @@ new #[Title('Plan')] class extends Component {
         $planSegments = array_filter([
             ['label' => __('Fixed'), 'value' => $planFixed, 'class' => 'bg-hero-mid'],
             ['label' => __('Put aside'), 'value' => $planSaving, 'class' => 'bg-warn'],
-            ['label' => __('Budgets'), 'value' => $planBudgets, 'class' => 'bg-hero-soft'],
+            ['label' => __('Budgets'), 'value' => $planBudgets, 'class' => 'bg-hero-bar'],
             ['label' => __('Left'), 'value' => max(0, $summary->leftover), 'class' => 'bg-accent'],
         ], fn ($segment) => $segment['value'] > 0);
     @endphp

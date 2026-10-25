@@ -547,7 +547,7 @@ new #[Title('Pockets and loans')] class extends Component {
         @endphp
         <button type="button" x-on:click="openPocket({{ $featured->id }})" class="press mx-4 mt-4 block w-[calc(100%-2rem)] rounded-[28px] bg-hero p-5 text-left" data-test="pocket-{{ $featured->id }}">
             <div class="flex items-center gap-2.5">
-                <x-ui.icon name="trending_up" :size="20" class="text-accent" />
+                <x-ui.icon name="trending_down" :size="20" class="text-accent" />
                 <span class="min-w-0">
                     <span class="block truncate text-base font-semibold text-hero-ink">{{ $featured->name }}</span>
                     @if ($deposit > 0)<span class="num block text-[13px] text-hero-sub">+{{ money_number($deposit) }} {{ $perPeriod }}</span>@endif

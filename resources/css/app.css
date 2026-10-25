@@ -47,6 +47,7 @@
     --color-hero-sub: var(--app-hero-sub);
     --color-hero-soft: var(--app-hero-soft);
     --color-hero-mid: var(--app-hero-mid);
+    --color-hero-bar: var(--app-hero-bar);
     --color-warn-tint: var(--app-warn-tint);
     --color-danger-tint: var(--app-danger-tint);
     --color-danger-soft: var(--app-danger-soft);
@@ -94,7 +95,11 @@
         --app-hero-ink: #072414;
         --app-hero-sub: #2D6A46;
         --app-hero-soft: #3F7A57;
-        --app-hero-mid: #3D6E52;
+        --app-hero-mid: #245C3D;
+        --app-hero-bar: #9FD4B4;
+        --app-accent-text: #0B7A3B;
+        --app-warn-text: #9A5A00;
+        --app-danger-text: #B4232A;
         --app-warn-tint: #FBEBD3;
         --app-danger-tint: #FBE1E2;
         --app-danger-soft: #C2373C;
@@ -123,6 +128,7 @@
         --app-hero-sub: #9FD9B6;
         --app-hero-soft: #CFE9D9;
         --app-hero-mid: #3D6E52;
+        --app-hero-bar: #CFE9D9;
         --app-warn-tint: #2B2213;
         --app-danger-tint: #351A1C;
         --app-danger-soft: #FF9EA1;
@@ -152,7 +158,9 @@
         --app-hero-ink: #071633;
         --app-hero-sub: #2B4C8C;
         --app-hero-soft: #3D5E9E;
-        --app-hero-mid: #3D5A8E;
+        --app-hero-mid: #26457A;
+        --app-hero-bar: #A9C4F2;
+        --app-accent-text: #1D4ED8;
         --app-picked: #E3ECFD;
         --app-fill: #D2E1FB;
     }
@@ -168,6 +176,7 @@
         --app-hero-sub: #9FBDEB;
         --app-hero-soft: #CFDDF5;
         --app-hero-mid: #3D5A8E;
+        --app-hero-bar: #CFDDF5;
         --app-picked: #121C2E;
         --app-fill: #152440;
     }
@@ -695,5 +704,41 @@ html.navigating main {
     border-left: 3px solid var(--app-line);
     padding-left: 12px;
     color: var(--app-muted);
+}
+
+/* ── Light theme text contrast: the bright accent, warn and danger fills stay, their text is darker (WCAG AA). ── */
+
+html:not(.dark) .text-accent {
+    color: var(--app-accent-text);
+}
+
+html:not(.dark) .text-warn {
+    color: var(--app-warn-text);
+}
+
+html:not(.dark) .text-danger {
+    color: var(--app-danger-text);
+}
+
+/* Visible keyboard focus everywhere, also on inputs styled without an outline. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--app-accent);
+    outline-offset: 2px;
+}
+
+/* Small controls get a 44px touch area without growing visually (a layer, so `absolute` still wins). */
+@layer components {
+    .hit {
+        position: relative;
+    }
+
+    .hit::after {
+        content: '';
+        position: absolute;
+        inset: 50% auto auto 50%;
+        width: max(100%, 44px);
+        height: max(100%, 44px);
+        transform: translate(-50%, -50%);
+    }
 }
 

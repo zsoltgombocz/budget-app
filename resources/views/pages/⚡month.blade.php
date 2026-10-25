@@ -262,7 +262,7 @@ new #[Title('Month')] class extends Component {
             $negative = $left < 0;
             $segments = array_filter([
                 ['value' => $forecast->committed, 'class' => 'bg-hero-mid'],
-                ['value' => $forecast->variableExpected, 'class' => 'bg-hero-soft'],
+                ['value' => $forecast->variableExpected, 'class' => 'bg-hero-bar'],
                 ['value' => max(0, $left), 'class' => 'bg-accent'],
             ], fn ($segment) => $segment['value'] > 0);
         @endphp
@@ -289,7 +289,7 @@ new #[Title('Month')] class extends Component {
                     <div class="flex h-[34px] items-center justify-between"><span class="text-hero-soft">{{ __('From pockets to the budget') }}</span><span class="text-hero-ink">+{{ money_number($topUps) }}</span></div>
                 @endif
                 <div class="flex h-[34px] items-center justify-between"><span class="flex items-center gap-2 text-hero-soft"><span class="size-2.5 rounded-[3px] bg-hero-mid"></span>{{ __('Fixed items') }}</span><span class="text-hero-ink">−{{ money_number($forecast->committed) }}</span></div>
-                <div class="flex h-[34px] items-center justify-between"><span class="flex items-center gap-2 text-hero-soft"><span class="size-2.5 rounded-[3px] bg-hero-soft"></span>{{ __('Budgets, expected') }}</span><span class="text-hero-ink">−{{ money_number($forecast->variableExpected) }}</span></div>
+                <div class="flex h-[34px] items-center justify-between"><span class="flex items-center gap-2 text-hero-soft"><span class="size-2.5 rounded-[3px] bg-hero-bar"></span>{{ __('Budgets, expected') }}</span><span class="text-hero-ink">−{{ money_number($forecast->variableExpected) }}</span></div>
                 <div class="flex h-[34px] items-center justify-between"><span class="flex items-center gap-2 text-hero-soft"><span class="size-2.5 rounded-[3px] bg-accent"></span>{{ __('Left') }}</span><span @class(['font-bold', 'text-accent' => ! $negative, 'text-danger' => $negative])>{{ money_number($left) }}</span></div>
             </div>
 
@@ -440,7 +440,7 @@ new #[Title('Month')] class extends Component {
     @endif
 
     {{-- Transaction actions --}}
-    <div x-show="selected" x-cloak class="fixed inset-0 z-50" role="dialog" aria-modal="true">
+    <div x-show="selected" x-cloak x-trap.inert="selected" class="fixed inset-0 z-50" role="dialog" aria-modal="true">
         <div x-show="selected" x-transition.opacity class="absolute inset-0 bg-black/55" x-on:click="selected = null"></div>
         <div class="absolute inset-x-0 bottom-0 mx-auto max-w-lg rounded-t-[30px] bg-surface px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-2" x-show="selected" x-transition:enter="transition duration-300 ease-out" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0" x-transition:leave="transition duration-200 ease-in" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full">
             <div class="mx-auto h-[5px] w-9 rounded-full bg-ink/18"></div>
