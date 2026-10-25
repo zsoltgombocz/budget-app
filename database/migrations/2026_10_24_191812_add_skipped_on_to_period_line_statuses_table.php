@@ -11,6 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // The dev database was converted by the 2.0 build, which already added it.
+        if (Schema::hasColumn('period_line_statuses', 'skipped_on')) {
+            return;
+        }
+
         Schema::table('period_line_statuses', function (Blueprint $table): void {
             $table->date('skipped_on')->nullable()->after('paid_on');
         });

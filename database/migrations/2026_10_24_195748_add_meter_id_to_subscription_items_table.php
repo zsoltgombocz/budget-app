@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasColumn('subscription_items', 'meter_id')) {
+            return;
+        }
+
         Schema::table('subscription_items', function (Blueprint $table): void {
             $table->string('meter_id')->nullable()->after('stripe_price');
         });
