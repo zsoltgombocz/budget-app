@@ -22,8 +22,6 @@ final class SaveLoan
     public function handle(User $user, array $data, ?Loan $loan = null, ?int $dueDay = null): Loan
     {
         return DB::transaction(function () use ($user, $data, $loan, $dueDay): Loan {
-            $previousName = $loan?->name;
-
             if ($loan instanceof Loan) {
                 $loan->update($data);
             } else {
@@ -37,12 +35,11 @@ final class SaveLoan
             // The installment's due day lives on the plan line (it drives the due-day reminder).
             $loan->budgetLines()->update(['amount' => $loan->monthlyPayment(), 'due_day' => $dueDay]);
 
-            if ($previousName !== null && $previousName !== $loan->name) {
-                $user->categories()
-                    ->whereIn('id', $loan->budgetLines()->select('category_id'))
-                    ->where('name', $previousName)
-                    ->update(['name' => $loan->name]);
-            }
+            // The loan and its plan line always carry the same name.
+            $user->categories()
+                ->whereIn('id', $loan->budgetLines()->select('category_id'))
+                ->where('name', '!=', $loan->name)
+                ->update(['name' => $loan->name]);
 
             return $loan;
         });

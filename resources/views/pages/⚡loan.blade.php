@@ -80,11 +80,7 @@ new #[Title('Loan')] class extends Component {
 @endphp
 
 <div class="px-4 pb-10">
-    <a href="{{ route('pockets', ['ful' => 'hitelek']) }}" wire:navigate class="-ml-1.5 mt-6 inline-flex h-11 items-center gap-1 text-base text-ink-2" data-test="back">
-        <x-ui.icon name="chevron_left" :size="22" />{{ __('My money') }}
-    </a>
-    <h1 class="mt-1 text-[28px] font-bold tracking-[-0.02em]">{{ $loan->name }}</h1>
-    <div class="num mt-0.5 text-sm text-muted">{{ __(':owed owed · :installment / month', ['owed' => money_number($loan->principal_balance), 'installment' => money_number($loan->monthlyPayment())]) }}</div>
+    <x-ui.back-header :href="route('pockets', ['ful' => 'hitelek'])" :label="__('My money')" :title="$loan->name" :subtitle="__(':owed owed · :installment / month', ['owed' => money_number($loan->principal_balance), 'installment' => money_number($loan->monthlyPayment())])" />
 
     <div class="relative">
         <div @class(['pointer-events-none select-none opacity-45 blur-[5px] grayscale' => ! $this->plusz]) @if (! $this->plusz) aria-hidden="true" inert @endif>

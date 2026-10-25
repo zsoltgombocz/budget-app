@@ -15,7 +15,7 @@ it('opens a settings menu that links every section', function (): void {
 it('gives every section a way back to the menu', function (string $route): void {
     $this->actingAs(onboardedUser());
 
-    $this->get(route($route))->assertOk()->assertSee('data-test="settings-back"', false)->assertSee(route('settings'));
+    $this->get(route($route))->assertOk()->assertSee('data-test="back"', false)->assertSee(route('settings'));
 })->with(['budget.edit', 'notifications.edit', 'appearance.edit', 'profile.edit', 'security.edit']);
 
 it('saves notification settings right away', function (): void {

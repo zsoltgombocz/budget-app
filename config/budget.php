@@ -47,7 +47,7 @@ return [
         'email' => env('OPERATOR_EMAIL', 'hello@moneysight.app'),
         'phone' => env('OPERATOR_PHONE'),
         'conciliation_body' => env('OPERATOR_CONCILIATION_BODY'),
-        'vat_note' => env('OPERATOR_VAT_NOTE', 'Az árak bruttó árak.'),
+        'vat_note' => env('OPERATOR_VAT_NOTE', 'Az árak végösszegek: alanyi adómentes vállalkozásként ÁFA-t nem számítunk fel.'),
     ],
 
     'legal' => [

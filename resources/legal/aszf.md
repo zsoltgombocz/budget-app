@@ -6,10 +6,10 @@ Ez az ÁSZF a MoneySight személyes költségvetés-követő alkalmazás (https:
 
 ## 1. A Szolgáltató
 
-- Név: {{operator_name}}
+- Név: {{operator_name}} egyéni vállalkozó
 - Székhely, postacím: {{operator_address}}
-- Nyilvántartási szám: {{operator_registration}}
-- Adószám: {{operator_tax_number}}
+- Egyéni vállalkozói nyilvántartási szám: {{operator_registration}}
+- Adószám: {{operator_tax_number}} (átalányadózó, alanyi adómentes)
 - E-mail (ügyfélszolgálat, panaszkezelés, elállás): {{operator_email}}
 - Telefon: {{operator_phone}}
 - Tárhelyszolgáltató: Contabo GmbH, Aschauer Straße 32a, 81549 München, Németország

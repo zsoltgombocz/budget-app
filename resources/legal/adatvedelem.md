@@ -13,9 +13,9 @@ Ez a tájékoztató az (EU) 2016/679 általános adatvédelmi rendelet (GDPR) 13
 
 ## 1. Az adatkezelő
 
-- Név: {{operator_name}}
+- Név: {{operator_name}} egyéni vállalkozó
 - Székhely: {{operator_address}}
-- Nyilvántartási szám: {{operator_registration}}
+- Egyéni vállalkozói nyilvántartási szám: {{operator_registration}}
 - Adószám: {{operator_tax_number}}
 - E-mail (adatvédelmi kérdések is): {{operator_email}}
 - Telefon: {{operator_phone}}
@@ -38,6 +38,7 @@ Adatvédelmi tisztviselőt nem neveztünk ki, mert erre a GDPR 37. cikke szerint
 | Szerződési nyilatkozatok | az ÁSZF elfogadása és verziója, lemondás, elállás, időbélyeggel | az appból |
 | Hibaadatok | hibaüzenet, technikai környezet (böngésző, oldal), fiókazonosító | az appból |
 | Hibabejelentés, levelezés | az általad írt szöveg, e-mail-cím, név, a nem kötelező képernyőkép (ami az akkor látott adataidat is mutathatja) | tőled |
+| Várólista (a nyitóoldalon) | e-mail-cím, a feliratkozás és a megerősítés ideje | tőled |
 
 A költésekhez fűzött megjegyzés szabad szöveg. Kérjük, ne írj bele egészségügyi vagy más különleges adatot.
 
@@ -58,6 +59,7 @@ A költésekhez fűzött megjegyzés szabad szöveg. Kérjük, ne írj bele egé
 | Hibabejelentés, ügyfélszolgálat | hibabejelentés, levelezés | jogos érdek: a kérés kezelése (6. cikk (1) f)) |
 | Panaszkezelés | név, elérhetőség, a panasz és a válasz | jogi kötelezettség (6. cikk (1) c)), Fgytv. 17/A. § |
 | Biztonsági mentés | minden tárolt adat | jogos érdek: adatvesztés elleni védelem (6. cikk (1) f)) |
+| Várólista: értesítés az indulásról | e-mail-cím, időpontok | hozzájárulás (6. cikk (1) a)), amelyet a megerősítő levélben lévő linkkel adsz meg, és bármikor visszavonhatsz |
 
 **Profilalkotás, automatizált döntés:** a számokat az app a te adataidból, a te kérésedre számolja ki. Rólad joghatással járó automatizált döntést nem hozunk, és marketingprofilt sem készítünk.
 
@@ -79,6 +81,7 @@ A költésekhez fűzött megjegyzés szabad szöveg. Kérjük, ne írj bele egé
 | Hibabejelentés, levelezés | az ügy lezárása után 1 év |
 | Panasz és válasz | 3 év (Fgytv. 17/A. §) |
 | Biztonsági mentések | legfeljebb 30 nap |
+| Várólista | a leiratkozásig, legfeljebb az indulás után 6 hónapig; a meg nem erősített feliratkozást 30 nap után töröljük |
 
 A fiók törlésekor az adatokat az élő adatbázisból azonnal töröljük. A biztonsági mentésekből legkésőbb 30 nap alatt tűnnek el.
 
@@ -91,9 +94,9 @@ Az adataidhoz a Szolgáltató részéről csak az üzemeltetéshez szükséges s
 | Contabo GmbH, Aschauer Straße 32a, 81549 München, Németország | szerver, adatbázis, mentések | minden tárolt adat | EU (Németország) |
 | Cloudflare, Inc., 101 Townsend St., San Francisco, CA 94107, USA | DNS, proxy, titkosított kapcsolat, támadások elleni védelem | IP-cím, kérésadatok, a forgalom átvitel közben | USA, globális hálózat; EU–USA adatvédelmi keretrendszer (DPF) és általános szerződési feltételek (SCC) |
 | Resend (Plus Five Five, Inc.), USA | e-mailek kiküldése (belépés, értesítések, visszaigazolások) | e-mail-cím, név, a levél tartalma, kézbesítési napló | USA; DPF, illetve SCC |
-| Functional Software, Inc. (Sentry), 45 Fremont St., San Francisco, CA 94105, USA | hibakövetés, hibabejelentések fogadása | hibaadatok, hibabejelentés, képernyőkép | adattárolás az EU-ban vagy az USA-ban, általános szerződési feltételekkel (SCC) |
+| Functional Software, Inc. (Sentry), 45 Fremont St., San Francisco, CA 94105, USA | hibakövetés, hibabejelentések fogadása | hibaadatok, hibabejelentés, képernyőkép | az adatok az EU-ban (Frankfurt, Németország) tárolódnak; amerikai hozzáférés esetén DPF, illetve SCC |
 | Stripe Payments Europe, Limited, 1 Grand Canal Street Lower, Dublin 2, Írország (és kapcsolt vállalkozásai, pl. Stripe, Inc., USA) | fizetés, előfizetés kezelése; a fizetésnél, csalásmegelőzésnél és a pénzmosás elleni kötelezettségeinél önálló adatkezelő | név, e-mail-cím, kártyaadatok, számlázási cím, IP-cím, eszközadatok, tranzakciók | EU és USA; DPF és SCC; stripe.com/privacy |
-| Online számlázó rendszer üzemeltetője | számla kiállítása, NAV-adatszolgáltatás | számlázási adatok | Magyarország / EU |
+| Billingo Technologies Zrt. (online számlázó) | számla kiállítása, NAV-adatszolgáltatás | számlázási adatok | Magyarország |
 | A Szolgáltató könyvelője | könyvelés | számlázási adatok | Magyarország |
 | Apple Inc. és Google LLC push-szolgáltatása (a készülékedtől függően) | push értesítések kézbesítése | csak a készülék push-azonosítója és az értesítés szövege | USA / globális; a szolgáltatók saját feltételei szerint |
 | Hatóságok (pl. NAV, bíróság) | jogszabályi kötelezettség teljesítése | a megkeresésben kért adatok | Magyarország |
@@ -103,6 +106,10 @@ Az árfolyamokat a Magyar Nemzeti Bank nyilvános szolgáltatásából, személy
 ## 6. Továbbítás az EGT-n kívülre
 
 Ha egy szolgáltató az Európai Gazdasági Térségen kívül (jellemzően az USA-ban) fér hozzá adathoz, ez az Európai Bizottság megfelelőségi határozata (EU–USA adatvédelmi keretrendszer, a tanúsított cégeknél, GDPR 45. cikk) vagy az általános adatvédelmi kikötések (SCC, GDPR 46. cikk) alapján történik. A garanciák másolatát kérésre elküldjük.
+
+### A várólista
+
+A nyitóoldalon megadhatod az e-mail-címed, hogy szóljunk, amikor a MoneySight fizetős változata indul. A címet csak a megerősítő levélben lévő link megnyitása után vesszük fel; csak az indulásról írunk, legfeljebb néhány levelet. Minden levélben van leiratkozó link: leiratkozáskor a címet véglegesen töröljük. A hozzájárulás visszavonása nem érinti a korábbi adatkezelés jogszerűségét.
 
 ## 7. A jogaid
 

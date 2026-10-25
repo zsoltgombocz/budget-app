@@ -9,7 +9,7 @@ test('security settings open without a password and list passkeys', function ():
     $this->get(route('security.edit'))
         ->assertOk()
         ->assertSee('data-test="passkeys"', false)
-        ->assertSee('data-test="settings-back"', false)
+        ->assertSee('data-test="back"', false)
         ->assertDontSee('type="password"', false);
 });
 

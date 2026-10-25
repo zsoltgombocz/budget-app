@@ -37,10 +37,7 @@ new #[Title('Settings')] class extends Component {
 @endphp
 
 <div class="pb-6">
-    <div class="flex items-center gap-3 px-4 pt-8">
-        <x-ui.icon-button icon="arrow_back" :href="route('dashboard')" wire:navigate :label="__('Back')" />
-        <h1 class="text-[30px] font-semibold tracking-[-0.03em]">{{ __('Settings') }}</h1>
-    </div>
+    <x-ui.back-header class="px-4" :href="route('dashboard')" :title="__('Settings')" />
 
     <div class="mx-4 mt-5 flex items-center gap-3 rounded-card bg-surface px-[18px] py-4">
         <span class="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent/14 text-[15px] font-semibold text-accent">{{ $user->initials() }}</span>

@@ -360,11 +360,8 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
             $splitOther = $preview->surplusTarget['name'] ?? __('Stays on the account');
         @endphp
 
-        <div class="mt-6 flex h-11 items-center px-3">
-            <a href="{{ route('month', ['periodus' => $period->id]) }}" wire:navigate class="-ml-1.5 inline-flex items-center gap-1 text-base text-ink-2"><x-ui.icon name="chevron_left" :size="22" />{{ __('Month') }}</a>
-        </div>
         <div class="px-4">
-            <h1 class="mt-3 text-[28px] font-bold tracking-[-0.02em]">{{ __(':month closing', ['month' => $month]) }}</h1>
+            <x-ui.back-header :href="route('month', ['periodus' => $period->id])" :label="__('Month')" :title="__(':month closing', ['month' => $month])" />
             @if (! $this->canClose)
                 <p class="mt-1 text-[13px] text-warn" data-test="close-not-yet">{{ __('You can close the month in its last week, from :date.', ['date' => Dates::short(app(PeriodCloser::class)->closableFrom($period))]) }}</p>
             @elseif ($this->isEarly)

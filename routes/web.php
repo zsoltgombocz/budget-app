@@ -5,9 +5,14 @@ use App\Http\Controllers\LegalController;
 use App\Http\Controllers\MagicLinkController;
 use App\Http\Controllers\NoSpendFromNotificationController;
 use App\Http\Controllers\PushSubscriptionController;
+use App\Http\Controllers\WaitlistController;
 use Illuminate\Support\Facades\Route;
 
-Route::redirect('/', '/ma')->name('home');
+// Guests see the landing page with the 2.0 waitlist; signed-in users go straight to the app.
+Route::get('/', fn () => auth()->check() ? to_route('dashboard') : view('landing'))->name('home');
+Route::post('varolista', [WaitlistController::class, 'store'])->middleware('throttle:6,1')->name('waitlist.store');
+Route::get('varolista/megerosites/{token}', [WaitlistController::class, 'confirm'])->name('waitlist.confirm');
+Route::get('varolista/leiratkozas/{token}', [WaitlistController::class, 'unsubscribe'])->name('waitlist.unsubscribe');
 
 // Shared password page of the dev stack (see the DevGate middleware).
 Route::get('dev', [DevGateController::class, 'show'])->name('dev-gate');

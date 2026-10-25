@@ -8,10 +8,12 @@ Az elektronikus kereskedelmi szolgáltatásokról szóló 2001. évi CVIII. tör
 
 | | |
 |---|---|
-| Név | {{operator_name}} |
+| Név | {{operator_name}} egyéni vállalkozó |
 | Székhely, postacím | {{operator_address}} |
-| Nyilvántartási szám | {{operator_registration}} |
+| Egyéni vállalkozói nyilvántartási szám | {{operator_registration}} |
+| Nyilvántartó | Belügyminisztérium, egyéni vállalkozók nyilvántartása |
 | Adószám | {{operator_tax_number}} |
+| Adózás | átalányadózó, alanyi adómentes |
 | E-mail | {{operator_email}} |
 | Telefon | {{operator_phone}} |
 | Weboldal, alkalmazás | https://moneysight.app |

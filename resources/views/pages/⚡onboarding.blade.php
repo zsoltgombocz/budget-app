@@ -389,7 +389,7 @@ new #[Title('Set up your budget')] #[Layout('layouts::app', ['tabs' => false])] 
      }">
     <div class="grid grid-cols-[44px_1fr_44px] items-center px-3 pt-6">
         @if ($step > 1)
-            <button type="button" wire:click="back" class="flex size-11 items-center justify-center text-ink-2" aria-label="{{ __('Back') }}"><x-ui.icon name="arrow_back" /></button>
+            <x-ui.icon-button icon="arrow_back" wire:click="back" :label="__('Back')" data-test="back" />
         @else
             <span></span>
         @endif
