@@ -39,6 +39,12 @@ new #[Title('Subscription')] class extends Component {
         }
 
         try {
+            if ($this->hasStripeSubscription()) {
+                $this->dispatch('app-toast', title: __('You already have a subscription.'), subtitle: __('It shows here in a few seconds.'), icon: 'info');
+
+                return;
+            }
+
             $checkout = $this->user()->newSubscription(Plans::SUBSCRIPTION, $price)->checkout([
                 'success_url' => route('subscription', ['fizetes' => 'ok']),
                 'cancel_url' => route('subscription'),
@@ -129,6 +135,27 @@ new #[Title('Subscription')] class extends Component {
         } catch (Throwable) {
             return [];
         }
+    }
+
+    /**
+     * A subscription Stripe already knows about (e.g. its webhook has not arrived yet), so a
+     * second Checkout would charge twice.
+     */
+    private function hasStripeSubscription(): bool
+    {
+        if (! $this->user()->hasStripeId()) {
+            return false;
+        }
+
+        $subscriptions = $this->user()->stripe()->subscriptions->all(['customer' => $this->user()->stripe_id, 'status' => 'all', 'limit' => 20]);
+
+        foreach ($subscriptions->data as $subscription) {
+            if (in_array($subscription->status, ['active', 'trialing', 'past_due', 'incomplete', 'unpaid'], true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

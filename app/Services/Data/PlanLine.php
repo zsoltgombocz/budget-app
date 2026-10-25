@@ -95,6 +95,14 @@ final readonly class PlanLine
     }
 
     /**
+     * The same line with a fixed amount for one period (e.g. this month's installment before a prepayment).
+     */
+    public function withAmount(int $amount): self
+    {
+        return new self($this->lineId, $this->categoryId, $this->categoryName, $this->type, $amount, null, null, CalcMode::Fixed, $this->dueDay, $this->pocketId, $this->loanId, $this->skipped);
+    }
+
+    /**
      * The same line, left out of (or back in) one period.
      */
     public function withSkipped(bool $skipped): self

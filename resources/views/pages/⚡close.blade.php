@@ -36,9 +36,6 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
 
     public bool $saveTargetAsDefault = false;
 
-    /** Take a deficit from the reserve pocket; the user decides on the split step. */
-    public bool $coverDeficit = true;
-
     /** @var list<int> pockets whose prepayment was recorded after closing */
     public array $prepaid = [];
 
@@ -167,7 +164,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
     public function close(PeriodCloser $closer): void
     {
         $user = $this->user();
-        $closer->close($user, $this->period, $this->incomeActual, $this->toReserve, $this->surplusTarget, $this->coverDeficit);
+        $closer->close($user, $this->period, $this->incomeActual, $this->toReserve, $this->surplusTarget);
 
         if ($this->saveTargetAsDefault && $this->surplusTarget !== null) {
             [$type, $id] = array_pad(explode(':', $this->surplusTarget, 2), 2, null);
@@ -191,12 +188,13 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
     public function prepay(int $pocketId, RecordPrepayment $recordPrepayment): void
     {
         $user = $this->user();
+        abort_unless($user->hasPlusz(), 403);
         $pocket = $user->pockets()->findOrFail($pocketId);
         $loan = $pocket->loan_id !== null ? $user->loans()->find($pocket->loan_id) : null;
 
         abort_if($loan === null || $pocket->prepay_step === null, 404);
 
-        $recordPrepayment->handle($user, $loan, min($pocket->prepay_step, $pocket->balance), $pocket);
+        $recordPrepayment->handle($user, $loan, min($pocket->prepay_step, $pocket->balance, $loan->principal_balance), $pocket);
         $this->prepaid[] = $pocket->id;
 
         $this->dispatch('app-toast', title: __('Prepayment recorded.'), subtitle: __('New installment: :amount', ['amount' => money($loan->refresh()->monthlyPayment())]));
@@ -211,7 +209,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
     #[Computed]
     public function preview(): ClosePreview
     {
-        return app(PeriodCloser::class)->preview($this->user(), $this->period, $this->incomeActual, $this->toReserve, $this->surplusTarget, $this->coverDeficit);
+        return app(PeriodCloser::class)->preview($this->user(), $this->period, $this->incomeActual, $this->toReserve, $this->surplusTarget);
     }
 
     #[Computed]
@@ -291,6 +289,12 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
     }
 
     #[Computed]
+    public function canClose(): bool
+    {
+        return app(PeriodCloser::class)->canClose($this->user(), $this->period);
+    }
+
+    #[Computed]
     public function isEarly(): bool
     {
         return app(PeriodService::class)->today($this->user()->settings())->lessThan($this->period->ends_on);
@@ -329,7 +333,9 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
             $prepayPocket = $this->prepayPocket;
             $deposits = collect($preview->pocketDeposits)->pluck('amount', 'pocket_id');
             $chosen = $this->chosen($preview);
-            $reserveNow = $this->reserveBalance;
+            $reserveNow = $this->reserveBalance + (int) ($hasReserve ? ($deposits[$preview->reservePocketId] ?? 0) : 0);
+            // What the budgets did not use up: it is part of what was left.
+            $unspent = array_sum(array_map(fn (array $row): int => $row['type'] === 'variable' ? max(0, $row['planned'] - $row['actual']) : 0, $preview->categories));
             $prepayNow = $prepayPocket ? $prepayPocket->balance + (int) ($deposits[$prepayPocket->id] ?? 0) : 0;
             $defaultTarget = $this->defaultTarget;
             $targetName = $this->targets[$defaultTarget] ?? null;
@@ -358,7 +364,9 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         </div>
         <div class="px-4">
             <h1 class="mt-3 text-[28px] font-bold tracking-[-0.02em]">{{ __(':month closing', ['month' => $month]) }}</h1>
-            @if ($this->isEarly)
+            @if (! $this->canClose)
+                <p class="mt-1 text-[13px] text-warn" data-test="close-not-yet">{{ __('You can close the month in its last week, from :date.', ['date' => Dates::short(app(PeriodCloser::class)->closableFrom($period))]) }}</p>
+            @elseif ($this->isEarly)
                 <p class="mt-1 text-[13px] text-muted">{{ __('The month has not ended yet: the new one starts today.') }}</p>
             @endif
 
@@ -373,7 +381,22 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
                     <button type="button" x-on:click="edit('income', @js(str_replace('.', ',', Money::toInput($incomeActual, $currency))), @js(__('Actual income')))"
                             @class(['press h-[30px] rounded-full px-3 text-[13px] font-semibold', 'bg-hero-2 text-hero-ink' => $leftover >= 0, 'bg-danger/16 text-ink' => $leftover < 0]) data-test="income-actual">{{ __('Was it different?') }}</button>
                 </div>
+                @if ($leftover > 0 && $unspent > 0)
+                    <div class="num mt-1.5 text-[13px] text-hero-sub" data-test="close-unspent">{{ __(':amount of it is what the budgets did not use up', ['amount' => money_number($unspent)]) }}</div>
+                @endif
             </section>
+
+            @if ($preview->pocketDeposits !== [])
+                <div class="num mt-3 rounded-[20px] bg-surface px-4 py-1.5" data-test="close-deposits">
+                    <div class="flex h-10 items-center text-[13px] text-muted">{{ __('The monthly saving in the plan also moves') }}</div>
+                    @foreach ($preview->pocketDeposits as $deposit)
+                        <div class="flex h-11 items-center justify-between border-t border-line text-[15px]" wire:key="deposit-{{ $deposit['pocket_id'] }}">
+                            <span class="truncate pr-3 text-ink-2">{{ $deposit['name'] }}</span>
+                            <span class="font-semibold">+{{ money_number($deposit['amount']) }}</span>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
 
             @if ($leftover > 0)
                 <h2 class="mx-1 mt-4 mb-2 text-[17px] font-semibold">{{ __('Where should it go?') }}</h2>
@@ -403,18 +426,8 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
                         </div>
                     </div>
                 @endif
-            @elseif ($leftover < 0 && $hasReserve)
-                <h2 class="mx-1 mt-4 mb-2 text-[17px] font-semibold">{{ __('You spent more than came in. Do you take the gap from the reserve?') }}</h2>
-                <div class="flex flex-col gap-1.5" role="radiogroup" data-test="cover-deficit">
-                    @foreach ([true => [__('Yes, take it from the reserve'), __(':amount from the reserve', ['amount' => money_number(min(-$leftover, max(0, $reserveNow)))])], false => [__('No, leave the reserve alone'), __('nothing moves')]] as $value => [$title, $hint])
-                        @php $on = $coverDeficit === (bool) $value; @endphp
-                        <button type="button" role="radio" aria-checked="{{ $on ? 'true' : 'false' }}" wire:click="$set('coverDeficit', {{ $value ? 'true' : 'false' }})"
-                                @class(['press flex min-h-[60px] items-center gap-3.5 rounded-[20px] border-[1.5px] px-4 py-2 text-left', 'border-accent bg-picked' => $on, 'border-surface bg-surface' => ! $on]) data-test="cover-{{ $value ? 'yes' : 'no' }}">
-                            <span @class(['flex size-[22px] shrink-0 items-center justify-center rounded-full border-2', 'border-accent' => $on, 'border-surface-3' => ! $on])><span @class(['size-2.5 rounded-full', 'bg-accent' => $on])></span></span>
-                            <span class="min-w-0 flex-1"><span class="block text-base font-semibold">{{ $title }}</span><span class="num mt-0.5 block text-[13px] text-muted">{{ $hint }}</span></span>
-                        </button>
-                    @endforeach
-                </div>
+            @elseif ($leftover < 0)
+                <div class="mt-3 rounded-[20px] bg-surface px-4 py-3.5 text-[15px] text-ink-2" data-test="close-deficit">{{ __('There is nothing to split this time. Nothing moves; you settle the gap in your bank.') }}</div>
             @endif
         </div>
     @else
@@ -446,7 +459,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
 
     <x-ui.action-bar>
         @if ($step <= 3)
-            <x-ui.button class="flex-1" wire:click="close" wire:loading.attr="disabled" data-test="close-confirm">{{ __('Close it') }}</x-ui.button>
+            <x-ui.button class="flex-1" wire:click="close" wire:loading.attr="disabled" :disabled="! $this->canClose" data-test="close-confirm">{{ __('Close it') }}</x-ui.button>
         @else
             <x-ui.button class="flex-1" :href="route('dashboard')" wire:navigate>{{ __('To the new period') }}</x-ui.button>
         @endif

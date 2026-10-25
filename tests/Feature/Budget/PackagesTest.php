@@ -16,6 +16,8 @@ use App\Services\Plans;
 use App\Services\PlanService;
 use Carbon\CarbonImmutable;
 use Filament\Facades\Filament;
+use Illuminate\Support\Facades\DB;
+use Laravel\Cashier\Subscription;
 use Livewire\Livewire;
 
 beforeEach(function (): void {
@@ -118,4 +120,32 @@ it('leaves the savings lines out of the month on Alap', function (): void {
     $this->travel(15)->days();
 
     expect($planned())->toBe($withPlusz - 30_000);
+});
+
+it('keeps Plusz for a paid subscription even when an admin set Alap', function (): void {
+    $this->travel(30)->days();
+    $this->user->forceFill(['plan' => Plan::Basic])->save();
+    $this->user->subscriptions()->create(['type' => 'default', 'stripe_id' => 'sub_2', 'stripe_status' => 'active', 'stripe_price' => 'price_1', 'quantity' => 1]);
+
+    expect($this->user->fresh()->currentPlan())->toBe(Plan::Plus);
+});
+
+it('gives users from before paid Plusz their trial from the release', function (): void {
+    $this->travel(60)->days();
+    $this->user->forceFill(['plus_offer_until' => now()->addDays(14)])->save();
+
+    expect($this->user->fresh()->currentPlan())->toBe(Plan::PlusTrial);
+
+    $this->travel(15)->days();
+    expect($this->user->fresh()->currentPlan())->toBe(Plan::Basic);
+});
+
+it('removes the subscription rows, push subscriptions and sessions with the account', function (): void {
+    $subscription = $this->user->subscriptions()->create(['type' => 'default', 'stripe_id' => 'sub_3', 'stripe_status' => 'canceled', 'stripe_price' => 'price_1', 'quantity' => 1]);
+    DB::table('sessions')->insert(['id' => 'abc', 'user_id' => $this->user->id, 'payload' => '', 'last_activity' => time()]);
+
+    $this->user->delete();
+
+    expect(Subscription::query()->whereKey($subscription->id)->exists())->toBeFalse()
+        ->and(DB::table('sessions')->where('user_id', $this->user->id)->exists())->toBeFalse();
 });

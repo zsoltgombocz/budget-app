@@ -16,8 +16,10 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Laravel\Cashier\Billable;
+use Laravel\Cashier\Subscription;
 use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
@@ -78,6 +80,28 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
             'plus_offer_until' => 'immutable_datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Deleting an account stops its paid subscription at Stripe right away, so the card is not
+     * charged again, and removes what has no foreign key to cascade: subscriptions, push
+     * subscriptions and sessions.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (User $user): void {
+            foreach (Subscription::query()->where('user_id', $user->id)->get() as $subscription) {
+                if ($subscription->valid() && filled(config('cashier.secret'))) {
+                    $subscription->cancelNow();
+                }
+
+                $subscription->items()->delete();
+                $subscription->delete();
+            }
+
+            $user->pushSubscriptions()->delete();
+            DB::table('sessions')->where('user_id', $user->id)->delete();
+        });
     }
 
     /**

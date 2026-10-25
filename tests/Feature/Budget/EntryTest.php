@@ -81,7 +81,21 @@ it('rejects another user\'s category', function (): void {
 
     Livewire::test('entry-sheet')
         ->call('save', $foreign->id, 1_000, now()->toDateString(), null, (string) Str::uuid())
-        ->assertHasErrors('category');
+        ->assertReturned(false)
+        ->assertDispatched('app-toast', title: 'Choose a category.');
+
+    expect(Transaction::query()->count())->toBe(0);
+});
+
+it('refuses a day before the first month instead of opening a month for it', function (): void {
+    $fuel = Category::query()->where('name', 'Fuel')->value('id');
+
+    Livewire::test('entry-sheet')
+        ->call('save', $fuel, 1_000, now()->subMonths(3)->toDateString(), null, (string) Str::uuid())
+        ->assertReturned(false)
+        ->assertDispatched('app-toast', title: 'That day is before your first month in the app.');
+
+    expect(auth()->user()->periods()->count())->toBe(1);
 });
 
 it('toggles "I didn\'t spend today" and can undo it', function (): void {

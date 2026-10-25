@@ -13,6 +13,8 @@ use Stringable;
  */
 final readonly class Money implements JsonSerializable, Stringable
 {
+    public const int MAX_MAJOR_DIGITS = 9;
+
     public function __construct(
         public int $amount,
         public Currency $currency,
@@ -45,6 +47,11 @@ final readonly class Money implements JsonSerializable, Stringable
         }
 
         [$major, $minor] = array_pad(explode('.', $normalized, 2), 2, '');
+
+        // At most 999 999 999 in major units: anything longer is a typo and would overflow the sums.
+        if (strlen(ltrim($major, '0')) > self::MAX_MAJOR_DIGITS) {
+            return null;
+        }
 
         if (strlen($minor) > $currency->decimals()) {
             return null;

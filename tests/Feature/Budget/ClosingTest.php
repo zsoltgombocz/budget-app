@@ -71,16 +71,16 @@ it('closes the period, updates pockets and opens the next one', function (): voi
         ->and($this->user->periods()->whereDate('starts_on', '2026-11-01')->value('status'))->toBe(PeriodStatus::Open);
 });
 
-it('covers a deficit from the reserve', function (): void {
+it('splits nothing from a deficit and leaves the reserve alone', function (): void {
     spend($this->user, $this->period, $this->fuel, 400_000);
 
     $close = resolve(PeriodCloser::class)->close($this->user, $this->period);
 
-    // 500 000 income − (200 000 rent + 400 000 fuel) = −100 000; the reserve has 80 000.
+    // 500 000 income − (200 000 rent + 400 000 fuel) = −100 000; the user settles it in the bank.
     expect($close->leftover)->toBe(-100_000)
-        ->and($close->from_reserve)->toBe(80_000)
-        ->and($close->breakdown['allocation']['uncovered'])->toBe(20_000)
-        ->and($this->reserve->refresh()->balance)->toBe(0);
+        ->and($close->from_reserve)->toBe(0)
+        ->and($close->breakdown['allocation']['uncovered'])->toBe(100_000)
+        ->and($this->reserve->refresh()->balance)->toBe(80_000);
 });
 
 it('puts a fixed amount of the leftover into the reserve when the rule is a fixed amount', function (): void {
@@ -92,27 +92,34 @@ it('puts a fixed amount of the leftover into the reserve when the rule is a fixe
     expect($close->to_reserve)->toBe(30_000);
 });
 
-it('leaves the reserve alone when the user chooses not to cover the deficit', function (): void {
-    spend($this->user, $this->period, $this->fuel, 400_000);
-
-    $close = resolve(PeriodCloser::class)->close($this->user, $this->period, coverDeficit: false);
-
-    expect($close->leftover)->toBe(-100_000)
-        ->and($close->from_reserve)->toBe(0)
-        ->and($close->breakdown['allocation']['uncovered'])->toBe(100_000)
-        ->and($this->reserve->refresh()->balance)->toBe(80_000);
-});
-
-it('asks on the closing screen whether to take the deficit from the reserve', function (): void {
+it('says on the closing screen that a deficit leaves nothing to split', function (): void {
     spend($this->user, $this->period, $this->fuel, 400_000);
 
     Livewire::test('pages::close', ['period' => $this->period->id])
-        ->set('step', 2)
-        ->assertSee(__('You spent more than came in. Do you take the gap from the reserve?'))
-        ->set('coverDeficit', false)
+        ->assertSee('data-test="close-deficit"', false)
+        ->assertDontSee('data-test="leftover-options"', false)
         ->call('close');
 
     expect($this->reserve->refresh()->balance)->toBe(80_000);
+});
+
+it('closes only in the last week of the period', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-20 12:00', 'Europe/Budapest'));
+
+    Livewire::test('pages::close', ['period' => $this->period->id])
+        ->assertSee('data-test="close-not-yet"', false)
+        ->call('close')
+        ->assertHasErrors('period');
+
+    expect($this->period->refresh()->isOpen())->toBeTrue();
+    $this->get(route('month'))->assertSee('data-test="close-later"', false);
+});
+
+it('shows the monthly pocket savings that move at closing', function (): void {
+    $category = Category::factory()->for($this->user)->create(['name' => 'Holiday', 'type' => 'sinking']);
+    BudgetLine::factory()->for($this->user)->for($category)->create(['amount' => 25_000, 'pocket_id' => $this->savings->id]);
+
+    Livewire::test('pages::close', ['period' => $this->period->id])->assertSee('data-test="close-deposits"', false);
 });
 
 it('moves planned pocket savings into their pockets', function (): void {
@@ -322,16 +329,16 @@ it('sends the leftover to the prepayment pocket when chosen', function (): void 
 });
 
 it('starts the new month on the day of an early closing', function (): void {
-    $this->travelTo(CarbonImmutable::parse('2026-10-08 18:00', 'Europe/Budapest'));
+    $this->travelTo(CarbonImmutable::parse('2026-10-28 18:00', 'Europe/Budapest'));
     spend($this->user, $this->period, $this->fuel, 10_000);
 
     resolve(PeriodCloser::class)->close($this->user, $this->period);
 
     $next = resolve(PeriodService::class)->current($this->user);
 
-    expect($this->period->refresh()->ends_on->toDateString())->toBe('2026-10-08')
+    expect($this->period->refresh()->ends_on->toDateString())->toBe('2026-10-28')
         ->and($this->period->status)->toBe(PeriodStatus::Closed)
-        ->and($next->starts_on->toDateString())->toBe('2026-10-08')
+        ->and($next->starts_on->toDateString())->toBe('2026-10-28')
         ->and($next->ends_on->toDateString())->toBe('2026-11-30')
         ->and($next->isOpen())->toBeTrue()
         ->and($next->nameDate()->month)->toBe(11)

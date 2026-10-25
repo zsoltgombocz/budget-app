@@ -2,6 +2,7 @@
 
 namespace App\Actions\Budget;
 
+use App\Enums\LineType;
 use App\Models\Period;
 use App\Models\PeriodLineStatus;
 use App\Models\User;
@@ -22,7 +23,11 @@ final readonly class SkipLine
             throw ValidationException::withMessages(['period' => __('This period is closed.')]);
         }
 
-        $line = $user->budgetLines()->findOrFail($budgetLineId);
+        $line = $user->budgetLines()->with('category')->findOrFail($budgetLineId);
+
+        if ($skip && $line->category?->type === LineType::Variable) {
+            throw ValidationException::withMessages(['line' => __('Only fixed items can be skipped.')]);
+        }
         $status = $period->lineStatuses()->where('budget_line_id', $line->id)->first();
 
         if ($status === null) {

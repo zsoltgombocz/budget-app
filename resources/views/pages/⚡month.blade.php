@@ -249,7 +249,14 @@ new #[Title('Month')] class extends Component {
                 <div class="flex h-[34px] items-center justify-between"><span class="flex items-center gap-2 text-hero-soft"><span class="size-2.5 rounded-[3px] bg-accent"></span>{{ __('Left') }}</span><span @class(['font-bold', 'text-accent' => ! $negative, 'text-danger' => $negative])>{{ money_number($left) }}</span></div>
             </div>
 
-            <a href="{{ route('close', $period) }}" wire:navigate class="press mt-3 flex h-12 items-center justify-center rounded-2xl bg-hero-2 text-[15px] font-semibold text-hero-ink" data-test="start-close">{{ __('Close the month') }}</a>
+            @php $closer = app(\App\Services\PeriodCloser::class); @endphp
+            @if ($closer->canClose(auth()->user(), $period))
+                <a href="{{ route('close', $period) }}" wire:navigate class="press mt-3 flex h-12 items-center justify-center rounded-2xl bg-hero-2 text-[15px] font-semibold text-hero-ink" data-test="start-close">{{ __('Close the month') }}</a>
+            @else
+                <div class="num mt-3 flex h-12 items-center justify-center gap-2 rounded-2xl border border-hero-2 text-sm text-hero-sub" data-test="close-later">
+                    <x-ui.icon name="event_available" :size="18" />{{ __('Closing from :date', ['date' => Dates::short($closer->closableFrom($period))]) }}
+                </div>
+            @endif
         </section>
 
         @if ($overview->skipped() !== [])

@@ -96,7 +96,7 @@ class UserResource extends Resource
                     Action::make('plan')
                         ->label(__('Set the plan'))
                         ->icon(Heroicon::OutlinedSparkles)
-                        ->modalDescription(__('Automatic: the 30-day trial, then Alap. A plan set here wins until its end (empty: no end). Every change is logged.'))
+                        ->modalDescription(__('Automatic: Plusz for a paid subscription or the 14-day trial, otherwise Alap. A plan set here wins until its end (empty: no end); setting Alap does not end a paid subscription. Every change is logged.'))
                         ->fillForm(fn (User $record): array => ['plan' => $record->plan->value ?? 'auto', 'plan_until' => $record->plan_until?->toDateString()])
                         ->schema([
                             Select::make('plan')->label(__('Package'))->required()->native(false)

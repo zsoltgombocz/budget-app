@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Laravel\Cashier\Cashier;
 use Livewire\Blaze\Blaze;
 use Livewire\Livewire;
 
@@ -24,6 +25,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // Without a signing secret Cashier would accept unsigned webhooks: then there is no webhook route at all.
+        if (blank(config('cashier.webhook.secret'))) {
+            Cashier::ignoreRoutes();
+        }
+
         $this->app->bind(ExchangeRateSource::class, fn (): MnbExchangeRates => new MnbExchangeRates(config()->string('services.mnb.url')));
     }
 

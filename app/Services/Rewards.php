@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\Data\Milestone;
 use App\Services\Data\WeeklyChallenge;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\UniqueConstraintViolationException;
 
 /**
  * The small playful part: milestones and the weekly challenge. Everything is worked out from what
@@ -73,8 +74,13 @@ final readonly class Rewards
                 continue;
             }
 
-            $user->achievements()->create(['key' => $key, 'achieved_at' => now()]);
-            $new[] = $key;
+            // Two tabs can sync at once: the unique key decides, the loser just skips it.
+            try {
+                $user->achievements()->create(['key' => $key, 'achieved_at' => now()]);
+                $new[] = $key;
+            } catch (UniqueConstraintViolationException) {
+                continue;
+            }
         }
 
         $challenge = $this->challenge($user, $today);

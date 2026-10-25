@@ -21,7 +21,7 @@ use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 
 beforeEach(function (): void {
-    $this->travelTo(CarbonImmutable::parse('2026-10-08 18:00', 'Europe/Budapest'));
+    $this->travelTo(CarbonImmutable::parse('2026-10-28 18:00', 'Europe/Budapest'));
     $this->user = onboardedUser();
     $this->actingAs($this->user);
     $this->period = resolve(PeriodService::class)->current($this->user);
@@ -84,11 +84,11 @@ it('can close the month again after undoing the closing', function (): void {
         ->and($this->user->periods()->count())->toBe(2);
 });
 
-it('gives back a deficit taken from the reserve', function (): void {
+it('reopens a closing with a deficit, which moved nothing', function (): void {
     Transaction::factory()->for($this->user)->for($this->period)->for($this->fuel)->create(['amount' => 350_000, 'occurred_on' => '2026-10-06']);
     closeEarly();
 
-    expect($this->reserve->refresh()->balance)->toBe(20_000);
+    expect($this->reserve->refresh()->balance)->toBe(80_000);
 
     resolve(ReopenPeriod::class)->handle($this->user, $this->period->refresh());
 
@@ -160,7 +160,7 @@ it('refuses a legacy closing whose movements do not add up', function (): void {
 
 it('refuses when the period is not the latest closed one', function (): void {
     closeEarly();
-    $this->travelTo(CarbonImmutable::parse('2026-10-09 18:00', 'Europe/Budapest'));
+    $this->travelTo(CarbonImmutable::parse('2026-11-26 18:00', 'Europe/Budapest'));
     resolve(PeriodCloser::class)->close($this->user, resolve(PeriodService::class)->current($this->user));
 
     expect(resolve(ReopenPeriod::class)->isOffered($this->user, $this->period->refresh()))->toBeFalse();

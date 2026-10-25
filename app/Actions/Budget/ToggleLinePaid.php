@@ -28,7 +28,8 @@ final readonly class ToggleLinePaid
         $paidOn = $this->periods->today($user->settings())->toDateString();
 
         if ($status !== null) {
-            $status->update(['paid_on' => $paidOn]);
+            // Done means it was paid after all: it is no longer skipped.
+            $status->update(['paid_on' => $paidOn, 'skipped_on' => null]);
         } else {
             $status = new PeriodLineStatus(['budget_line_id' => $line->id, 'paid_on' => $paidOn]);
             $status->user_id = $user->id;

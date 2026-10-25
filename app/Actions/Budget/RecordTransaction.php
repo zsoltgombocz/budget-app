@@ -48,8 +48,22 @@ final readonly class RecordTransaction
             throw ValidationException::withMessages(['category' => __('Choose a category.')]);
         }
 
-        $date ??= $this->periods->today($user->settings());
-        $period = $this->periods->forDate($user, $date);
+        $today = $this->periods->today($user->settings());
+        $date ??= $today;
+
+        if ($date->greaterThan($today)) {
+            throw ValidationException::withMessages(['date' => __('You cannot record a future day.')]);
+        }
+
+        $current = $this->periods->current($user);
+        // Only the current period is opened on demand; an earlier day must fall into a period that exists.
+        $period = $date->greaterThanOrEqualTo($current->starts_on)
+            ? $this->periods->forDate($user, $date)
+            : $user->periods()->whereDate('starts_on', '<=', $date->toDateString())->whereDate('ends_on', '>=', $date->toDateString())->latest('starts_on')->first();
+
+        if ($period === null) {
+            throw ValidationException::withMessages(['date' => __('That day is before your first month in the app.')]);
+        }
 
         if (! $period->isOpen()) {
             throw ValidationException::withMessages(['date' => __('That period is already closed.')]);

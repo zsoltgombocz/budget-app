@@ -1062,5 +1062,20 @@
     "Pockets and loans are in Plusz": "A perselyek és a hitelek a Plusz részei",
     "Your pockets and loans are kept, nothing is deleted.": "A perselyeid és a hiteleid megmaradnak, semmi nem törlődik.",
     "Download my data": "Adataim letöltése",
-    "Everything stored about you, in CSV files": "Minden, amit rólad tárolunk, CSV fájlokban"
+    "Everything stored about you, in CSV files": "Minden, amit rólad tárolunk, CSV fájlokban",
+    ":amount of it is what the budgets did not use up": "ebből :amount a keretekből maradt meg",
+    "At most the amount owed: :amount.": "Legfeljebb a tartozás összege: :amount.",
+    "Automatic: Plusz for a paid subscription or the 14-day trial, otherwise Alap. A plan set here wins until its end (empty: no end); setting Alap does not end a paid subscription. Every change is logged.": "Automatikus: fizetett előfizetésnél vagy a 14 napos próba alatt Plusz, egyébként Alap. Az itt beállított csomag a lejáratáig érvényes (üresen: lejárat nélkül); az Alap beállítása nem szünteti meg a fizetett előfizetést. Minden változás naplózva van.",
+    "Closing from :date": "Zárás ekkortól: :date",
+    "It shows here in a few seconds.": "Pár másodperc múlva itt is megjelenik.",
+    "Not saved: no connection.": "Nem mentettük: nincs kapcsolat.",
+    "Only fixed items can be skipped.": "Csak fix tételt lehet kihagyni.",
+    "That day is before your first month in the app.": "Ez a nap az első hónapod előtt van.",
+    "The month can be closed in its last week.": "A hónapot az utolsó hetében lehet lezárni.",
+    "The monthly saving in the plan also moves": "A tervben lévő havi gyűjtés is átkerül",
+    "There is nothing to split this time. Nothing moves; you settle the gap in your bank.": "Most nincs mit szétosztani. Semmi nem mozdul, a hiányt a bankodban rendezed.",
+    "Try again when you are online.": "Próbáld újra, ha van internet.",
+    "You already have a subscription.": "Már van előfizetésed.",
+    "You can close the month in its last week, from :date.": "A hónapot az utolsó hetében zárhatod le, ekkortól: :date.",
+    "You cannot record a future day.": "Jövőbeli napra nem rögzíthetsz."
 }

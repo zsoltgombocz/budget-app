@@ -33,6 +33,10 @@ final readonly class RecordPrepayment
             throw ValidationException::withMessages(['amount' => __('The amount must be greater than zero.')]);
         }
 
+        if ($amount > $loan->principal_balance) {
+            throw ValidationException::withMessages(['amount' => __('At most the amount owed: :amount.', ['amount' => money($loan->principal_balance)])]);
+        }
+
         if ($pocket instanceof Pocket && $pocket->balance < $amount) {
             throw ValidationException::withMessages(['amount' => __('The pocket does not have enough money.')]);
         }
@@ -48,6 +52,15 @@ final readonly class RecordPrepayment
             );
 
             $today = $this->periods->today($user->settings());
+            $period = $this->periods->forDate($user, $today);
+
+            // This month's installment is already set: the new one starts with the next period.
+            foreach ($loan->budgetLines()->get() as $line) {
+                $status = $period->lineStatuses()->firstOrNew(['budget_line_id' => $line->id]);
+                $status->user_id = $user->id;
+                $status->amount_actual ??= $line->amount;
+                $status->save();
+            }
 
             $loan->update([
                 'principal_balance' => $after->principal,

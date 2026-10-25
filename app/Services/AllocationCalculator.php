@@ -13,8 +13,7 @@ final class AllocationCalculator
     /**
      * Split a period's leftover.
      *
-     * Negative leftover is covered from the reserve pocket (never from an overdraft);
-     * whatever the reserve cannot cover is reported as uncovered.
+     * A negative leftover leaves nothing to split: nothing moves, the gap is only reported.
      * Positive leftover goes to the reserve first: min(leftover × pct, room to target), or
      * min(fixed amount, leftover, room to target) when a fixed amount is set; the rest goes to
      * the user's surplus target (investment account or pocket).
@@ -30,15 +29,12 @@ final class AllocationCalculator
         }
 
         if ($leftover < 0) {
-            $deficit = -$leftover;
-            $fromReserve = $hasReserve ? min($deficit, max(0, $reserveBalance)) : 0;
-
             return new Allocation(
                 leftover: $leftover,
                 toReserve: 0,
                 toSurplus: 0,
-                fromReserve: $fromReserve,
-                uncovered: $deficit - $fromReserve,
+                fromReserve: 0,
+                uncovered: -$leftover,
             );
         }
 

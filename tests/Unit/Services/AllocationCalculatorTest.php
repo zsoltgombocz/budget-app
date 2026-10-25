@@ -33,11 +33,11 @@ it('sends everything to the surplus target once the reserve is full', function (
         ->and($allocation->toSurplus)->toBe(40_000);
 });
 
-it('covers a deficit from the reserve, never from an overdraft', function (): void {
+it('splits nothing from a deficit: nothing is taken from the reserve', function (): void {
     $allocation = new AllocationCalculator()->allocate(-30_000, 100, true, reserveBalance: 20_000);
 
-    expect($allocation->fromReserve)->toBe(20_000)
-        ->and($allocation->uncovered)->toBe(10_000)
+    expect($allocation->fromReserve)->toBe(0)
+        ->and($allocation->uncovered)->toBe(30_000)
         ->and($allocation->toReserve)->toBe(0)
         ->and($allocation->toSurplus)->toBe(0);
 });

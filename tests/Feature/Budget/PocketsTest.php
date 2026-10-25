@@ -17,6 +17,7 @@ use App\Models\Transaction;
 use App\Services\OverviewService;
 use App\Services\PeriodCloser;
 use App\Services\PeriodService;
+use App\Services\PlanService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Livewire\Livewire;
@@ -229,6 +230,29 @@ it('refuses a prepayment larger than the pocket', function (): void {
     $result = ($this->page)()->prepay($loan->id, '5000', $pocket->id, resolve(RecordPrepayment::class));
 
     expect($result['ok'])->toBeFalse()->and($result['errors'])->toHaveKey('prepay');
+});
+
+it('refuses a prepayment larger than what is owed, so no money disappears from the pocket', function (): void {
+    $loan = Loan::factory()->for($this->user)->create(['principal_balance' => 100_000]);
+    $pocket = Pocket::factory()->for($this->user)->create(['balance' => 200_000, 'loan_id' => $loan->id]);
+
+    $result = ($this->page)()->prepay($loan->id, '150000', $pocket->id, resolve(RecordPrepayment::class));
+
+    expect($result['ok'])->toBeFalse()
+        ->and($pocket->fresh()->balance)->toBe(200_000)
+        ->and($loan->fresh()->principal_balance)->toBe(100_000);
+});
+
+it('keeps this month\'s installment after a prepayment, the lower one starts next month', function (): void {
+    $loan = Loan::factory()->for($this->user)->create(['principal_balance' => 4_000_000, 'installment' => 88_978, 'insurance' => 0, 'thm' => 12.0, 'remaining_months' => 60, 'prepay_mode' => PrepayMode::ReduceInstallment]);
+    SaveLoan::addPlanLine($this->user, $loan);
+    $period = resolve(PeriodService::class)->current($this->user);
+    $planned = fn (): int => collect(resolve(PlanService::class)->linesFor($period))->firstWhere('loanId', $loan->id)->planned();
+
+    resolve(RecordPrepayment::class)->handle($this->user, $loan, 500_000);
+
+    expect($planned())->toBe(88_978)
+        ->and($loan->fresh()->installment)->toBeLessThan(88_978);
 });
 
 it('previews the installment after the next prepayment', function (): void {

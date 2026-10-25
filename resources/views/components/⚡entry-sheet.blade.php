@@ -27,7 +27,10 @@ new class extends Component {
         $this->noSpendMarked = app(MarkNoSpendDay::class)->isMarked($this->user());
     }
 
-    public function save(int $categoryId, int $amount, string $date, ?string $note, string $clientUuid): void
+    /**
+     * @return bool whether it was saved; on false the sheet stays open and a toast says why
+     */
+    public function save(int $categoryId, int $amount, string $date, ?string $note, string $clientUuid): bool
     {
         $validated = validator(
             ['category' => $categoryId, 'amount' => $amount, 'date' => $date, 'note' => $note, 'client_uuid' => $clientUuid],
@@ -43,14 +46,20 @@ new class extends Component {
         $user = $this->user();
         $currency = $user->settings()->currency;
 
-        $transaction = app(RecordTransaction::class)->handle(
-            $user,
-            $validated['category'],
-            $validated['amount'] * $currency->minorPerMajor(),
-            CarbonImmutable::parse($validated['date']),
-            $validated['note'],
-            $validated['client_uuid'],
-        );
+        try {
+            $transaction = app(RecordTransaction::class)->handle(
+                $user,
+                $validated['category'],
+                $validated['amount'] * $currency->minorPerMajor(),
+                CarbonImmutable::parse($validated['date']),
+                $validated['note'],
+                $validated['client_uuid'],
+            );
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            $this->dispatch('app-toast', title: (string) collect($exception->errors())->flatten()->first(), icon: 'error');
+
+            return false;
+        }
 
         $this->options = $this->loadOptions();
         $this->noSpendMarked = app(MarkNoSpendDay::class)->isMarked($user);
@@ -67,6 +76,8 @@ new class extends Component {
             undo: 'undo-transaction',
             params: ['id' => $transaction->id],
         );
+
+        return true;
     }
 
     #[On('undo-transaction')]
@@ -375,9 +386,13 @@ new class extends Component {
             if (! this.digits || this.saving || ! this.categoryId) return
             this.saving = true
             try {
-                await $wire.save(this.categoryId, this.amount(), this.date, this.note || null, this.uuid())
+                if (! navigator.onLine) throw new Error('offline')
+                const saved = await $wire.save(this.categoryId, this.amount(), this.date, this.note || null, this.uuid())
+                if (saved !== true) return
                 navigator.vibrate?.(30)
                 this.close()
+            } catch (error) {
+                window.dispatchEvent(new CustomEvent('app-toast', { detail: { title: @js(__('Not saved: no connection.')), subtitle: @js(__('Try again when you are online.')), icon: 'wifi_off' } }))
             } finally {
                 this.saving = false
             }

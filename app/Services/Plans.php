@@ -26,9 +26,13 @@ final class Plans
     {
         $now ??= CarbonImmutable::now();
 
+        $setPlan = $user->plan !== null && ($user->plan_until === null || ! $user->plan_until->endOfDay()->isPast()) ? $user->plan : null;
+
+        // A paid subscription is never taken away by an admin setting Alap.
         return match (true) {
-            $user->plan !== null && ($user->plan_until === null || ! $user->plan_until->endOfDay()->isPast()) => $user->plan,
+            $setPlan === Plan::Plus => Plan::Plus,
             $this->subscribed($user) => Plan::Plus,
+            $setPlan === Plan::Basic => Plan::Basic,
             $this->trialEndsAt($user)->greaterThan($now) => Plan::PlusTrial,
             default => Plan::Basic,
         };
@@ -46,9 +50,14 @@ final class Plans
         return $subscription instanceof Subscription && $subscription->valid();
     }
 
+    /**
+     * 14 days from signing up; users who were here before paid Plusz started got theirs from the release.
+     */
     public function trialEndsAt(User $user): CarbonImmutable
     {
-        return CarbonImmutable::parse($user->created_at ?? 'now')->addDays(self::TRIAL_DAYS);
+        $fromSignUp = CarbonImmutable::parse($user->created_at ?? 'now')->addDays(self::TRIAL_DAYS);
+
+        return $user->plus_offer_until !== null && $user->plus_offer_until->greaterThan($fromSignUp) ? $user->plus_offer_until : $fromSignUp;
     }
 
     /**

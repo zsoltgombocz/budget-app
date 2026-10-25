@@ -47,14 +47,22 @@ final readonly class PlanService
             return $this->calculator->fromSnapshot($period->plan_snapshot);
         }
 
-        $skipped = $period->lineStatuses()->whereNotNull('skipped_on')->pluck('budget_line_id')->flip();
+        $statuses = $period->lineStatuses()->where(fn ($query) => $query->whereNotNull('skipped_on')->orWhereNotNull('amount_actual'))->get();
+        $skipped = $statuses->whereNotNull('skipped_on')->pluck('budget_line_id')->flip();
+        $amounts = $statuses->whereNotNull('amount_actual')->pluck('amount_actual', 'budget_line_id');
         $user = User::query()->find($period->user_id);
         $lines = $user instanceof User ? $this->withoutLocked($user, $this->liveLines($user, $period->starts_on, $period->ends_on)) : [];
 
-        return array_map(
-            fn (PlanLine $line): PlanLine => $line->lineId !== null && $skipped->has($line->lineId) ? $line->withSkipped(true) : $line,
-            $lines,
-        );
+        return array_map(function (PlanLine $line) use ($skipped, $amounts): PlanLine {
+            if ($line->lineId === null) {
+                return $line;
+            }
+
+            $amount = $amounts->get($line->lineId);
+            $line = is_int($amount) ? $line->withAmount($amount) : $line;
+
+            return $skipped->has($line->lineId) ? $line->withSkipped(true) : $line;
+        }, $lines);
     }
 
     /**

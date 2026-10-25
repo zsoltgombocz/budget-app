@@ -38,6 +38,22 @@ final readonly class PeriodCloser
         private PeriodService $periods,
     ) {}
 
+    /** How many days before its end a period can be closed. */
+    public const int CLOSE_WINDOW_DAYS = 7;
+
+    /**
+     * The first day the period can be closed: its last week. Earlier the budgets are still running.
+     */
+    public function closableFrom(Period $period): CarbonImmutable
+    {
+        return $period->ends_on->subDays(self::CLOSE_WINDOW_DAYS - 1);
+    }
+
+    public function canClose(User $user, Period $period): bool
+    {
+        return $period->isOpen() && ! $this->periods->today($user->settings())->lessThan($this->closableFrom($period));
+    }
+
     /**
      * Start and end of the period that follows the closing. Closed before its last day, the next
      * period starts on the closing day (what is recorded after closing goes there)
@@ -79,11 +95,7 @@ final readonly class PeriodCloser
      * @param  int|null  $toReserve  manual split of a positive leftover; the rest goes to the surplus target
      * @param  string|null  $surplusTarget  'account:ID', 'pocket:ID' or 'none' for this closing only; null uses the settings
      */
-    /**
-     * A deficit is taken from the reserve only when $coverDeficit is true (the user's choice on
-     * the closing screen); otherwise it stays uncovered and nothing moves.
-     */
-    public function preview(User $user, Period $period, ?int $incomeActual = null, ?int $toReserve = null, ?string $surplusTarget = null, bool $coverDeficit = true): ClosePreview
+    public function preview(User $user, Period $period, ?int $incomeActual = null, ?int $toReserve = null, ?string $surplusTarget = null): ClosePreview
     {
         $lines = $this->plans->linesFor($period);
         $settings = $user->settings();
@@ -91,7 +103,7 @@ final readonly class PeriodCloser
 
         // On Alap there are no pockets or accounts to move money to: the leftover stays.
         if (! $plusz) {
-            [$toReserve, $surplusTarget, $coverDeficit] = [null, 'none', false];
+            [$toReserve, $surplusTarget] = [null, 'none'];
         }
 
         $topUps = $this->periods->topUps($period);
@@ -121,16 +133,6 @@ final readonly class PeriodCloser
             reserveTarget: $reserve?->target_amount,
             reserveFixed: $settings->reserve_fixed,
         );
-
-        if (! $coverDeficit && $allocation->leftover < 0) {
-            $allocation = new Allocation(
-                leftover: $allocation->leftover,
-                toReserve: 0,
-                toSurplus: 0,
-                fromReserve: 0,
-                uncovered: -$allocation->leftover,
-            );
-        }
 
         if ($toReserve !== null && $reserve !== null && $allocation->leftover > 0) {
             $toReserve = max(0, min($toReserve, $allocation->leftover));
@@ -195,15 +197,19 @@ final readonly class PeriodCloser
         );
     }
 
-    public function close(User $user, Period $period, ?int $incomeActual = null, ?int $toReserve = null, ?string $surplusTarget = null, bool $coverDeficit = true): PeriodClose
+    public function close(User $user, Period $period, ?int $incomeActual = null, ?int $toReserve = null, ?string $surplusTarget = null): PeriodClose
     {
         if (! $period->isOpen()) {
             throw ValidationException::withMessages(['period' => __('This period is already closed.')]);
         }
 
-        $close = DB::transaction(function () use ($user, $period, $incomeActual, $toReserve, $surplusTarget, $coverDeficit): PeriodClose {
+        if (! $this->canClose($user, $period)) {
+            throw ValidationException::withMessages(['period' => __('The month can be closed in its last week.')]);
+        }
+
+        $close = DB::transaction(function () use ($user, $period, $incomeActual, $toReserve, $surplusTarget): PeriodClose {
             $lines = $this->plans->linesFor($period);
-            $preview = $this->preview($user, $period, $incomeActual, $toReserve, $surplusTarget, $coverDeficit);
+            $preview = $this->preview($user, $period, $incomeActual, $toReserve, $surplusTarget);
             [$nextStart, $nextEnd] = $this->nextBounds($user, $period);
             $closesEarly = $nextStart->lessThan($period->ends_on);
             $closedOn = ($closesEarly ? $nextStart : $period->ends_on)->toDateString();
@@ -219,10 +225,6 @@ final readonly class PeriodCloser
 
             if ($preview->reservePocketId !== null && $allocation->toReserve > 0) {
                 $movementIds[] = $this->move($user, $preview->reservePocketId, $period, $allocation->toReserve, PocketMovementType::Deposit, $closedOn, __('Leftover'));
-            }
-
-            if ($preview->reservePocketId !== null && $allocation->fromReserve > 0) {
-                $movementIds[] = $this->move($user, $preview->reservePocketId, $period, -$allocation->fromReserve, PocketMovementType::Withdraw, $closedOn, __('Covering the deficit'));
             }
 
             if ($preview->surplusTarget['type'] === 'new-pocket' && $allocation->toSurplus > 0) {
