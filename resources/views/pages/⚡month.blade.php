@@ -236,7 +236,7 @@ new #[Title('Month')] class extends Component {
 @endphp
 
 <div x-data="{ selected: null }">
-    <div class="flex items-end justify-between gap-2 px-6 pt-3.5">
+    <div class="flex items-end justify-between gap-2 px-6 pt-6">
         <div class="min-w-0">
             <h1 class="truncate text-[30px] font-semibold tracking-[-0.03em]">{{ Dates::monthName($period->nameDate()) }}</h1>
             <div class="num mt-0.5 text-[13px] text-muted">

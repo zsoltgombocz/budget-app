@@ -44,3 +44,19 @@ it('shows the legal pages without signing in', function (): void {
 
     $this->get('/register-nope')->assertNotFound();
 });
+
+it('leads back from the legal pages to where the reader came from, also after switching documents', function (): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->get(route('legal', 'aszf'), ['referer' => route('subscription')])
+        ->assertSee('href="'.route('subscription').'"', false);
+
+    $this->actingAs($user)->get(route('legal', 'impresszum'), ['referer' => route('legal', 'aszf')])
+        ->assertSee('href="'.route('subscription').'"', false);
+});
+
+it('leads back from the legal pages to settings or the landing page when the origin is unknown', function (): void {
+    $this->get(route('legal', 'aszf'), ['referer' => 'https://example.com/'])->assertSee('href="'.url('/').'"', false);
+
+    $this->actingAs(User::factory()->create())->get(route('legal', 'aszf'))->assertSee('href="'.route('settings').'"', false);
+});

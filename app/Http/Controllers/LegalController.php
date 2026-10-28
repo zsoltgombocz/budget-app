@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 /**
@@ -14,16 +15,39 @@ class LegalController extends Controller
     /** URL slug => file name. */
     public const array PAGES = ['aszf' => 'aszf', 'adatvedelem' => 'adatvedelem', 'impresszum' => 'impresszum', 'sutik' => 'sutik'];
 
-    public function __invoke(string $page): View
+    public function __invoke(Request $request, string $page): View
     {
         $path = resource_path('legal/'.self::PAGES[$page].'.md');
         abort_unless(is_file($path), 404);
 
         $markdown = strtr((string) file_get_contents($path), self::placeholders());
-        $html = Str::markdown($markdown, ['html_input' => 'escape', 'allow_unsafe_links' => false]);
         preg_match('/^#\s+(.+)$/m', $markdown, $title);
+        // The title goes into the page header, so the document starts with its date line.
+        $body = (string) preg_replace('/^#\s+.+$/m', '', $markdown, 1);
+        $html = Str::markdown($body, ['html_input' => 'escape', 'allow_unsafe_links' => false]);
 
-        return view('legal', ['html' => $html, 'title' => $title[1] ?? config('app.name'), 'page' => $page]);
+        return view('legal', ['html' => $html, 'title' => $title[1] ?? config('app.name'), 'page' => $page, 'back' => $this->backUrl($request)]);
+    }
+
+    /**
+     * Where the back button leads: the page the reader came from (kept while they switch between
+     * the documents), else the app's settings or the landing page. The installed app opens these
+     * pages in its own window, where there is no browser back button.
+     */
+    private function backUrl(Request $request): string
+    {
+        $referer = (string) $request->headers->get('referer');
+        $hosts = array_filter([$request->getHost(), config('budget.landing_domain')]);
+        $fromLegal = in_array(trim((string) parse_url($referer, PHP_URL_PATH), '/'), array_keys(self::PAGES), true);
+
+        if ($referer !== '' && in_array(parse_url($referer, PHP_URL_HOST), $hosts, true) && ! $fromLegal) {
+            $request->session()->put('legal_back', $referer);
+        }
+
+        $fallback = $request->user() !== null ? route('settings') : url('/');
+        $back = $request->session()->get('legal_back');
+
+        return is_string($back) ? $back : $fallback;
     }
 
     /**

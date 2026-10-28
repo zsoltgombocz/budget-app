@@ -500,7 +500,7 @@ new #[Title('Pockets and loans')] class extends Component {
     $startTab = request()->query('ful') === 'hitelek' || $openLoan !== null || $openPrepay !== null ? 'loans' : 'pots';
 @endphp
 <div x-data="pocketsPage({ decimals: {{ $decimals }}, locale: @js(str_replace('_', '-', app()->getLocale())), cover: @js($cover), openLoan: @js($openLoan), openPrepayFor: @js($openPrepay), newPocketFor: @js($newPocketFor), prepayName: @js(__('Prepayment fund')), prepayStep: @js($this->currency === \App\Enums\Currency::HUF ? '500000' : ''), returnTo: @js($returnTo), tab: @js($startTab) })">
-    <div class="flex items-center justify-between px-4 pt-5">
+    <div class="flex items-center justify-between px-4 pt-6">
         <h1 class="text-[30px] font-bold tracking-[-0.02em]">{{ __('My money') }}</h1>
         @if ($this->plusz)
         <button type="button" x-on:click="tab === 'loans' ? openLoan(null) : openPocket(null)" class="press flex h-10 items-center gap-1.5 rounded-full bg-surface-2 pr-3.5 pl-2.5 text-sm font-semibold" data-test="add">

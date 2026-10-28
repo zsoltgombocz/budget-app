@@ -1,6 +1,6 @@
 @props(['title', 'subtitle' => null])
 
-<div {{ $attributes->class(['flex items-end justify-between gap-3 px-6 pt-3.5']) }}>
+<div {{ $attributes->class(['flex items-end justify-between gap-3 px-6 pt-6']) }}>
     <div class="min-w-0">
         <h1 class="truncate text-[30px] font-semibold tracking-[-0.03em]">{{ $title }}</h1>
         @if ($subtitle)

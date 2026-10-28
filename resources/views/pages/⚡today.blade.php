@@ -237,7 +237,7 @@ new #[Title('Today')] class extends Component {
 
 <div class="min-h-dvh px-4 pb-6">
     <h1 class="sr-only">{{ __('Today') }}</h1>
-    <div class="flex h-9 items-center justify-between pt-6 pb-1">
+    <div class="flex items-center justify-between pt-6">
         <span class="num text-sm text-muted" data-test="period-chip">{{ \App\Support\Dates::range($period->starts_on, $period->ends_on) }} · {{ __(':day. day', ['day' => max(1, $period->elapsedDays($overview->today))]) }}</span>
         <button type="button" x-data x-on:click="$dispatch('open-sheet', 'streak')"
                 class="press flex h-9 items-center gap-1.5 rounded-full bg-warn-tint px-3 text-[15px] font-bold text-warn"

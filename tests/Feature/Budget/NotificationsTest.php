@@ -52,6 +52,21 @@ it('skips the reminder when something was recorded or the day was marked', funct
     Notification::assertNothingSent();
 });
 
+it('says in the daily reminder when the streak ends tonight, but not while a rest day would keep it', function (): void {
+    foreach (['2026-10-10', '2026-10-11', '2026-10-12', '2026-10-13'] as $date) {
+        $this->user->dayMarks()->create(['date' => $date]);
+    }
+
+    $this->scheduler->run($this->user, budapest('2026-10-14 21:00'));
+
+    Notification::assertSentTo($this->user, DailyReminder::class, fn (DailyReminder $n): bool => $n->streakAtRisk === 0);
+
+    // 14 October was the rest day, so missing the 15th too would end the streak.
+    $this->scheduler->run($this->user, budapest('2026-10-15 21:00'));
+
+    Notification::assertSentTo($this->user, DailyReminder::class, fn (DailyReminder $n): bool => $n->date === '2026-10-15' && $n->streakAtRisk === 4);
+});
+
 it('respects a disabled reminder', function (): void {
     $this->user->settings()->update(['reminder_enabled' => false]);
 

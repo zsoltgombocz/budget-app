@@ -10,7 +10,10 @@ use NotificationChannels\WebPush\WebPushMessage;
 
 class DailyReminder extends BudgetPushNotification
 {
-    public function __construct(public string $date) {}
+    /**
+     * @param  int  $streakAtRisk  the streak that ends tonight if nothing is recorded (no rest day left), else 0
+     */
+    public function __construct(public string $date, public int $streakAtRisk = 0) {}
 
     public function toWebPush(User $notifiable, Notification $notification): WebPushMessage
     {
@@ -21,8 +24,12 @@ class DailyReminder extends BudgetPushNotification
         );
 
         return $this->message(
-            title: __('Did you record today\'s spending?'),
-            body: __('One tap and you are done.'),
+            title: $this->streakAtRisk > 1
+                ? __('Your :count-day streak ends tonight', ['count' => $this->streakAtRisk])
+                : __('Did you record today\'s spending?'),
+            body: $this->streakAtRisk > 1
+                ? __('Record a spending or mark that you spent nothing today.')
+                : __('One tap and you are done.'),
             url: route('entry', absolute: false),
             tag: 'daily-reminder',
         )

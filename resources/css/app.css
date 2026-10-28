@@ -617,16 +617,9 @@ html.navigating main {
     color: var(--app-ink-2);
 }
 
-.legal h1 {
-    color: var(--app-ink);
-    font-size: 28px;
-    font-weight: 700;
-    line-height: 1.2;
-    letter-spacing: -0.02em;
-}
-
-.legal h1 + p {
-    margin-top: 6px;
+/* The title sits in the page header; the document opens with its date and version. */
+.legal > p:first-child {
+    margin-top: 0;
     color: var(--app-muted);
     font-size: 13px;
 }
@@ -688,10 +681,19 @@ html.navigating main {
 
 .legal th,
 .legal td {
-    border: 1px solid var(--app-line);
-    padding: 8px 10px;
+    border-bottom: 1px solid var(--app-line);
+    padding: 10px 12px 10px 0;
     text-align: left;
     vertical-align: top;
+}
+
+.legal td:first-child {
+    color: var(--app-muted);
+}
+
+/* Key-value tables in Markdown need an empty header row; it is not shown. */
+.legal thead:not(:has(th:not(:empty))) {
+    display: none;
 }
 
 .legal th {

@@ -1165,5 +1165,7 @@
     "We will not write to you.": "Nem írunk neked.",
     "This link no longer works": "Ez a link már nem működik",
     "Sign up again on the main page if you want to hear about the launch.": "Ha szeretnéd, hogy szóljunk az indulásról, iratkozz fel újra a nyitóoldalon.",
-    "Back to the main page": "Vissza a nyitóoldalra"
+    "Back to the main page": "Vissza a nyitóoldalra",
+    "Your :count-day streak ends tonight": "Ma éjfélkor véget ér a :count napos sorozatod",
+    "Record a spending or mark that you spent nothing today.": "Írj fel egy költést, vagy jelöld, hogy ma nem költöttél."
 }

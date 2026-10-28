@@ -171,7 +171,8 @@ new #[Title('Notifications')] class extends Component {
                 ];
                 $timezone = auth()->user()->settings()->timezone;
             @endphp
-            <details class="group rounded-card bg-surface px-[18px]" wire:poll.10s data-test="notification-log">
+            {{-- wire:ignore.self keeps the list open while the rows below refresh. --}}
+            <details class="group rounded-card bg-surface px-[18px]" wire:ignore.self data-test="notification-log">
                 <summary class="flex min-h-[56px] cursor-pointer list-none items-center justify-between gap-3 py-3">
                     <span>
                         <span class="block text-[15px] font-semibold">{{ __('Recent notifications') }}</span>
@@ -179,7 +180,7 @@ new #[Title('Notifications')] class extends Component {
                     </span>
                     <x-ui.icon name="expand_more" :size="22" class="shrink-0 text-faint transition group-open:rotate-180" />
                 </summary>
-                <div class="pb-3">
+                <div class="pb-3" wire:poll.10s>
                 @forelse ($this->logs as $log)
                     <div wire:key="log-{{ $log->id }}" @class(['flex items-start gap-3 py-2.5', 'border-b border-line' => ! $loop->last, 'mt-2' => $loop->first])>
                         <span @class(['mt-1.5 size-2 shrink-0 rounded-full', 'bg-accent' => $log->status === 'sent', 'bg-danger' => $log->status === 'failed', 'bg-warn' => $log->status === 'queued', 'bg-faint' => $log->status === 'skipped'])></span>

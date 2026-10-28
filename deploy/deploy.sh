@@ -34,6 +34,10 @@ if [ -n "$(docker compose ps --status running -q mariadb)" ]; then
     find backups -name 'db-*.sql.gz' -mtime +30 -delete
 fi
 
+# The queue, scheduler and pulse containers run as www-data and read the mounted .env; an editor
+# that saves it as 0600 leaves them on the default sqlite connection, crashing in a loop.
+chmod 644 .env
+
 docker compose pull app queue scheduler pulse
 docker compose up -d --remove-orphans
 docker compose exec -T app php artisan migrate --force

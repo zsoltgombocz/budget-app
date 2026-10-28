@@ -33,6 +33,7 @@ final readonly class NotificationScheduler
         private PeriodService $periods,
         private OverviewService $overviews,
         private NotificationLogger $logger,
+        private Streak $streak,
     ) {}
 
     /**
@@ -60,7 +61,8 @@ final readonly class NotificationScheduler
             } elseif ($user->dayMarks()->whereDate('date', $today->toDateString())->exists()) {
                 $this->logger->skipped($user, 'daily-reminder', 'no-spend-today');
             } else {
-                $this->send($user, new DailyReminder($today->toDateString()));
+                $streak = $this->streak->stateForUser($user, $today);
+                $this->send($user, new DailyReminder($today->toDateString(), $streak->restAvailable ? 0 : $streak->current));
                 $sent[] = 'daily';
             }
         }
