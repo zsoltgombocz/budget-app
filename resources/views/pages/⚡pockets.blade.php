@@ -530,7 +530,7 @@ new #[Title('Pockets and loans')] class extends Component {
     }
     $startTab = request()->query('ful') === 'hitelek' || $openLoan !== null || $openPrepay !== null ? 'loans' : 'pots';
 @endphp
-<div x-data="pocketsPage({ decimals: {{ $decimals }}, locale: @js(str_replace('_', '-', app()->getLocale())), cover: @js($cover), openLoan: @js($openLoan), openPrepayFor: @js($openPrepay), newPocketFor: @js($newPocketFor), prepayName: @js(__('Prepayment fund')), prepayStep: @js($this->currency === \App\Enums\Currency::HUF ? '500000' : ''), returnTo: @js($returnTo), tab: @js($startTab) })">
+<div x-on:pad-done="$event.detail === 'balance' && saveBalance()" x-data="pocketsPage({ decimals: {{ $decimals }}, locale: @js(str_replace('_', '-', app()->getLocale())), cover: @js($cover), openLoan: @js($openLoan), openPrepayFor: @js($openPrepay), newPocketFor: @js($newPocketFor), prepayName: @js(__('Prepayment fund')), prepayStep: @js($this->currency === \App\Enums\Currency::HUF ? '500000' : ''), returnTo: @js($returnTo), tab: @js($startTab) })">
     <div class="flex items-center justify-between px-4 pt-6">
         <h1 class="text-[30px] font-bold tracking-[-0.02em]">{{ __('My money') }}</h1>
         @if ($this->plusz)
@@ -938,16 +938,16 @@ new #[Title('Pockets and loans')] class extends Component {
             this.fields.balance = ''
             this.errors = {}
             this.focus('balance', @js(__('How much is in it now?')))
-            const stop = this.$watch('active', async (value) => {
-                stop?.()
-                if (value !== null || ! this.filled('balance')) return
-                const result = await $wire.setPocketBalance(this.form.id, this.fields.balance)
-                this.errors = result.errors
-                if (! result.ok) return
-                const data = await $wire.pocketData(this.form.id)
-                this.form.balance = data.balance
-                this.form.movements = data.movements
-            })
+        },
+        // Only "Done" saves the new balance; tapping outside the numpad drops it.
+        async saveBalance() {
+            if (! this.filled('balance')) return
+            const result = await $wire.setPocketBalance(this.form.id, this.fields.balance)
+            this.errors = result.errors
+            if (! result.ok) return
+            const data = await $wire.pocketData(this.form.id)
+            this.form.balance = data.balance
+            this.form.movements = data.movements
         },
         async move() {
             const amount = this.fields.move || ''
