@@ -716,6 +716,7 @@ new #[Title('Pockets and loans')] class extends Component {
                     <div class="text-xs font-semibold uppercase tracking-[0.06em] text-muted">{{ __('Balance') }}</div>
                     <div class="num mt-1 text-[34px] font-semibold tracking-[-0.03em]" x-text="money(form.balance)"></div>
                     <div class="num mt-0.5 text-xs text-muted" x-show="form.target" x-text="@js(__('Target')) + ': ' + money(form.target)"></div>
+                    <button type="button" x-on:click="moveMode = 'balance'; pocketTab = 'money'" x-show="moveMode !== 'balance'" class="press mt-2.5 h-8 rounded-full bg-surface-2 px-3 text-[13px] font-medium text-ink-2" data-test="edit-balance">{{ __('Correct the balance') }}</button>
                 </div>
                 <x-ui.segmented model="pocketTab" :options="['money' => __('Move money'), 'settings' => __('Settings')]" class="mt-3" />
             </div>
@@ -724,8 +725,9 @@ new #[Title('Pockets and loans')] class extends Component {
         <div x-show="form.id && pocketTab === 'money'" class="pt-3">
             <x-ui.form-group :title="__('What do you want to do?')">
                 <div class="p-3">
-                    <x-ui.segmented model="moveMode" :options="['balance' => __('Balance'), 'budget' => __('Into the month'), 'spend' => __('Pay a spending')]" />
+                    <x-ui.segmented model="moveMode" :options="['deposit' => __('Deposit'), 'budget' => __('Withdraw'), 'spend' => __('Pay a spending')]" />
                     <p class="mt-2.5 px-0.5 text-xs leading-snug text-muted" x-show="moveMode === 'balance'">{{ __('Enter how much is in it now. Only the pocket changes, this month does not.') }}</p>
+                    <p class="mt-2.5 px-0.5 text-xs leading-snug text-muted" x-show="moveMode === 'deposit'">{{ __('Money into the pocket. The budget does not change.') }}</p>
                     <p class="mt-2.5 px-0.5 text-xs leading-snug text-muted" x-show="moveMode === 'budget'">{{ __('Taken out and counted as extra income this month: the month-end leftover grows by this much. Category budgets stay as they are.') }}</p>
                     <p class="mt-2.5 px-0.5 text-xs leading-snug text-muted" x-show="moveMode === 'spend'">{{ __('A spending paid by the pocket; it does not use up the budget.') }}</p>
                 </div>
@@ -773,7 +775,7 @@ new #[Title('Pockets and loans')] class extends Component {
 
         <x-slot:footer>
             <x-ui.button x-show="form.id && pocketTab === 'money'" x-on:click="move()" ::disabled="saving" class="w-full" data-test="pocket-move">
-                <span x-text="{ balance: @js(__('Save balance')), budget: @js(__('Take out into the month')), spend: @js(__('Pay from the pocket')) }[moveMode]"></span>
+                <span x-text="{ balance: @js(__('Save balance')), deposit: @js(__('Deposit')), budget: @js(__('Withdraw')), spend: @js(__('Pay from the pocket')) }[moveMode]"></span>
             </x-ui.button>
             <x-ui.button x-show="! form.id || pocketTab === 'settings'" x-on:click="submit()" ::disabled="saving" class="w-full" data-test="sheet-save">{{ __('Save') }}</x-ui.button>
         </x-slot:footer>
@@ -842,7 +844,7 @@ new #[Title('Pockets and loans')] class extends Component {
     Alpine.data('pocketsPage', ({ decimals, locale, cover, openLoan, openPrepayFor, newPocketFor, prepayName, prepayStep, returnTo, tab }) => ({
         sheet: null,
         tab,
-        moveMode: 'balance',
+        moveMode: 'deposit',
         pocketTab: 'money',
         activeLabel: '',
         spendCategory: '',
@@ -928,7 +930,7 @@ new #[Title('Pockets and loans')] class extends Component {
             this.errors = {}
             this.sheet = sheet
         },
-        async openPocket(id) { const data = await $wire.pocketData(id); this.moveMode = 'balance'; this.pocketTab = 'money'; this.open('pocket', data, null) },
+        async openPocket(id) { const data = await $wire.pocketData(id); this.moveMode = 'deposit'; this.pocketTab = 'money'; this.open('pocket', data, null) },
         async openLoan(id) { const data = await $wire.loanData(id); this.open('loan', data, null) },
         async openPrepay(id) { const data = await $wire.prepayData(id); this.open('prepay', data, 'prepay') },
 
@@ -938,7 +940,7 @@ new #[Title('Pockets and loans')] class extends Component {
                 ? await $wire.payFromPocket(this.form.id, amount, this.spendCategory || null, this.spendNote || null)
                 : this.moveMode === 'balance'
                     ? await $wire.setPocketBalance(this.form.id, amount)
-                    : await $wire.movePocketMoney(this.form.id, -1, amount, null, true)
+                    : await $wire.movePocketMoney(this.form.id, this.moveMode === 'deposit' ? 1 : -1, amount, null, true)
             this.errors = result.errors
             if (result.ok) { this.sheet = null; this.spendNote = ''; this.spendCategory = '' }
         },

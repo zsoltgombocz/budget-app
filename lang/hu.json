@@ -575,7 +575,7 @@
     "Which currency?": "Milyen devizában?",
     "Whoops!": "Hoppá!",
     "With a loan": "Hitellel",
-    "Withdraw": "Kivét",
+    "Withdraw": "Kivétel",
     "Withdraw to the budget": "Kivét a keretbe",
     "Withdrawal": "Kivét",
     "Withdrawn: :amount": "Kivéve: :amount",
@@ -1171,11 +1171,10 @@
     "This is its balance already.": "Ennyi van benne most is.",
     "Balance corrected": "Egyenleg igazítva",
     "Only the pocket changed, this month did not.": "Csak a persely változott, a hónapod nem.",
-    "Into the month": "A hónapba",
     "Enter how much is in it now. Only the pocket changes, this month does not.": "Írd be, mennyi van most benne. Csak a persely változik, a hónapod nem.",
     "Taken out and counted as extra income this month: the month-end leftover grows by this much. Category budgets stay as they are.": "Kiveszed, és ebben a hónapban plusz bevételnek számít: a hó végi maradék ennyivel nő. A kategóriák keretei nem változnak.",
     "Save balance": "Egyenleg mentése",
-    "Take out into the month": "Kivét a hónapba",
     "Income next month": "Jövő havi fizetés",
-    "Saved in the plan too.": "A tervbe is bekerül."
+    "Saved in the plan too.": "A tervbe is bekerül.",
+    "Correct the balance": "Egyenleg átírása"
 }
