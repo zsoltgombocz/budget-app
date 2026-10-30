@@ -163,13 +163,13 @@ new #[Title('Pockets and loans')] class extends Component {
         $value = $this->parse($amount);
 
         if ($value === null || $value < 0) {
-            return ['ok' => false, 'errors' => ['move' => __('Enter a valid amount.')]];
+            return ['ok' => false, 'errors' => ['balance' => __('Enter a valid amount.')]];
         }
 
         $pocket = $this->user()->pockets()->findOrFail($pocketId);
 
         if ($value === $pocket->balance) {
-            return ['ok' => false, 'errors' => ['move' => __('This is its balance already.')]];
+            return ['ok' => true, 'errors' => []];
         }
 
         $movePocketMoney->handle($this->user(), $pocket, $value - $pocket->balance, __('Balance corrected'));
@@ -712,12 +712,13 @@ new #[Title('Pockets and loans')] class extends Component {
 
         <template x-if="form.id">
             <div>
-                <div class="rounded-2xl bg-bg px-4 py-4 text-center">
+                <button type="button" x-on:click="editBalance()" class="block w-full rounded-2xl bg-bg px-4 py-4 text-center" data-test="edit-balance">
                     <div class="text-xs font-semibold uppercase tracking-[0.06em] text-muted">{{ __('Balance') }}</div>
-                    <div class="num mt-1 text-[34px] font-semibold tracking-[-0.03em]" x-text="money(form.balance)"></div>
+                    <div class="num mt-1 text-[34px] font-semibold tracking-[-0.03em]" :class="active === 'balance' && 'text-accent'" x-text="active === 'balance' && filled('balance') ? display('balance') : money(form.balance)"></div>
                     <div class="num mt-0.5 text-xs text-muted" x-show="form.target" x-text="@js(__('Target')) + ': ' + money(form.target)"></div>
-                    <button type="button" x-on:click="moveMode = 'balance'; pocketTab = 'money'" x-show="moveMode !== 'balance'" class="press mt-2.5 h-8 rounded-full bg-surface-2 px-3 text-[13px] font-medium text-ink-2" data-test="edit-balance">{{ __('Correct the balance') }}</button>
-                </div>
+                    <span class="mt-2.5 inline-flex h-8 items-center gap-1 rounded-full bg-surface-2 px-3 text-[13px] font-medium text-ink-2"><x-ui.icon name="edit" :size="14" />{{ __('Correct the balance') }}</span>
+                    <span class="mt-2 block text-xs text-danger" x-show="errors.balance" x-text="errors.balance"></span>
+                </button>
                 <x-ui.segmented model="pocketTab" :options="['money' => __('Move money'), 'settings' => __('Settings')]" class="mt-3" />
             </div>
         </template>
@@ -726,7 +727,6 @@ new #[Title('Pockets and loans')] class extends Component {
             <x-ui.form-group :title="__('What do you want to do?')">
                 <div class="p-3">
                     <x-ui.segmented model="moveMode" :options="['deposit' => __('Deposit'), 'budget' => __('Withdraw'), 'spend' => __('Pay a spending')]" />
-                    <p class="mt-2.5 px-0.5 text-xs leading-snug text-muted" x-show="moveMode === 'balance'">{{ __('Enter how much is in it now. Only the pocket changes, this month does not.') }}</p>
                     <p class="mt-2.5 px-0.5 text-xs leading-snug text-muted" x-show="moveMode === 'deposit'">{{ __('Money into the pocket. The budget does not change.') }}</p>
                     <p class="mt-2.5 px-0.5 text-xs leading-snug text-muted" x-show="moveMode === 'budget'">{{ __('Taken out and counted as extra income this month: the month-end leftover grows by this much. Category budgets stay as they are.') }}</p>
                     <p class="mt-2.5 px-0.5 text-xs leading-snug text-muted" x-show="moveMode === 'spend'">{{ __('A spending paid by the pocket; it does not use up the budget.') }}</p>
@@ -775,7 +775,7 @@ new #[Title('Pockets and loans')] class extends Component {
 
         <x-slot:footer>
             <x-ui.button x-show="form.id && pocketTab === 'money'" x-on:click="move()" ::disabled="saving" class="w-full" data-test="pocket-move">
-                <span x-text="{ balance: @js(__('Save balance')), deposit: @js(__('Deposit')), budget: @js(__('Withdraw')), spend: @js(__('Pay from the pocket')) }[moveMode]"></span>
+                <span x-text="{ deposit: @js(__('Deposit')), budget: @js(__('Withdraw')), spend: @js(__('Pay from the pocket')) }[moveMode]"></span>
             </x-ui.button>
             <x-ui.button x-show="! form.id || pocketTab === 'settings'" x-on:click="submit()" ::disabled="saving" class="w-full" data-test="sheet-save">{{ __('Save') }}</x-ui.button>
         </x-slot:footer>
@@ -934,13 +934,26 @@ new #[Title('Pockets and loans')] class extends Component {
         async openLoan(id) { const data = await $wire.loanData(id); this.open('loan', data, null) },
         async openPrepay(id) { const data = await $wire.prepayData(id); this.open('prepay', data, 'prepay') },
 
+        editBalance() {
+            this.fields.balance = ''
+            this.errors = {}
+            this.focus('balance', @js(__('How much is in it now?')))
+            const stop = this.$watch('active', async (value) => {
+                stop?.()
+                if (value !== null || ! this.filled('balance')) return
+                const result = await $wire.setPocketBalance(this.form.id, this.fields.balance)
+                this.errors = result.errors
+                if (! result.ok) return
+                const data = await $wire.pocketData(this.form.id)
+                this.form.balance = data.balance
+                this.form.movements = data.movements
+            })
+        },
         async move() {
             const amount = this.fields.move || ''
             const result = this.moveMode === 'spend'
                 ? await $wire.payFromPocket(this.form.id, amount, this.spendCategory || null, this.spendNote || null)
-                : this.moveMode === 'balance'
-                    ? await $wire.setPocketBalance(this.form.id, amount)
-                    : await $wire.movePocketMoney(this.form.id, this.moveMode === 'deposit' ? 1 : -1, amount, null, true)
+                : await $wire.movePocketMoney(this.form.id, this.moveMode === 'deposit' ? 1 : -1, amount, null, true)
             this.errors = result.errors
             if (result.ok) { this.sheet = null; this.spendNote = ''; this.spendCategory = '' }
         },

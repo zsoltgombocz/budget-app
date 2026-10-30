@@ -57,7 +57,9 @@ it('sets a pocket to what is really in it without touching the month', function 
         ->and($pocket->refresh()->balance)->toBe(95_000)
         ->and($pocket->movements()->sole()->amount)->toBe(-25_000)
         ->and(resolve(PeriodService::class)->availableIncome($period))->toBe($before)
-        ->and(($this->page)()->setPocketBalance($pocket->id, '95000', resolve(MovePocketMoney::class))['ok'])->toBeFalse();
+        ->and(($this->page)()->setPocketBalance($pocket->id, '95000', resolve(MovePocketMoney::class))['ok'])->toBeTrue()
+        ->and($pocket->movements()->count())->toBe(1)
+        ->and(($this->page)()->setPocketBalance($pocket->id, '-5', resolve(MovePocketMoney::class))['errors'])->toHaveKey('balance');
 
     ($this->page)()->setPocketBalance($pocket->id, '100000', resolve(MovePocketMoney::class));
 
