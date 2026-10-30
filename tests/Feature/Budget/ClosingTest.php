@@ -199,6 +199,24 @@ it('closes the month on one screen, with a different income entered at closing',
     $this->get(route('month', ['periodus' => $this->period->id]))->assertSee('data-test="close-summary"', false);
 });
 
+it('takes next month\'s income at closing and saves it in the plan and the new period', function (): void {
+    $planned = $this->user->settings()->income;
+
+    Livewire::test('pages::close', ['period' => $this->period->id])
+        ->assertSet('nextIncome', $planned)
+        ->assertSee('data-test="close-next-income"', false)
+        ->call('setNextIncome', '-1')
+        ->assertSet('nextIncome', $planned)
+        ->call('setNextIncome', '612000')
+        ->call('close');
+
+    $next = resolve(PeriodService::class)->forDate($this->user, CarbonImmutable::parse('2026-11-02'));
+
+    expect($this->user->settings()->refresh()->income)->toBe(612_000)
+        ->and($next->income_planned)->toBe(612_000)
+        ->and($this->period->refresh()->income_actual)->toBe($planned);
+});
+
 it('offers the prepayment right after closing', function (): void {
     $loan = $this->user->loans()->create(['name' => 'Car', 'principal_balance' => 1_000_000, 'installment' => 30_000, 'prepay_mode' => PrepayMode::ReduceInstallment]);
     $fund = Pocket::factory()->for($this->user)->create(['name' => 'Car fund', 'balance' => 600_000, 'prepay_step' => 500_000, 'loan_id' => $loan->id]);

@@ -417,7 +417,8 @@ html.splash.splash-out #app-splash {
     pointer-events: none;
 }
 
-html.navigating #nav-progress {
+html.navigating #nav-progress,
+html.busy #nav-progress {
     opacity: 1;
     animation: nav-progress 1.6s cubic-bezier(0.1, 0.6, 0.2, 1) forwards;
 }
@@ -429,7 +430,8 @@ html.navigating main {
 
 @media (prefers-reduced-motion: reduce) {
     .step-enter,
-    html.navigating #nav-progress {
+    html.navigating #nav-progress,
+    html.busy #nav-progress {
         animation: none !important;
     }
 }

@@ -48,6 +48,22 @@ it('creates a pocket and moves money in and out', function (): void {
         ->and($pocket->movements()->count())->toBe(2);
 });
 
+it('sets a pocket to what is really in it without touching the month', function (): void {
+    $pocket = Pocket::factory()->for($this->user)->create(['balance' => 120_000]);
+    $period = resolve(PeriodService::class)->current($this->user);
+    $before = resolve(PeriodService::class)->availableIncome($period);
+
+    expect(($this->page)()->setPocketBalance($pocket->id, '95000', resolve(MovePocketMoney::class))['ok'])->toBeTrue()
+        ->and($pocket->refresh()->balance)->toBe(95_000)
+        ->and($pocket->movements()->sole()->amount)->toBe(-25_000)
+        ->and(resolve(PeriodService::class)->availableIncome($period))->toBe($before)
+        ->and(($this->page)()->setPocketBalance($pocket->id, '95000', resolve(MovePocketMoney::class))['ok'])->toBeFalse();
+
+    ($this->page)()->setPocketBalance($pocket->id, '100000', resolve(MovePocketMoney::class));
+
+    expect($pocket->refresh()->balance)->toBe(100_000);
+});
+
 it('rejects an empty pocket name', function (): void {
     $result = ($this->page)()->savePocket(($this->page)()->pocketData());
 

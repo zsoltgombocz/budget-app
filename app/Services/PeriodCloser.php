@@ -197,7 +197,10 @@ final readonly class PeriodCloser
         );
     }
 
-    public function close(User $user, Period $period, ?int $incomeActual = null, ?int $toReserve = null, ?string $surplusTarget = null): PeriodClose
+    /**
+     * @param  int|null  $nextIncome  the income for the coming months: saved in the plan and given to the next period
+     */
+    public function close(User $user, Period $period, ?int $incomeActual = null, ?int $toReserve = null, ?string $surplusTarget = null, ?int $nextIncome = null): PeriodClose
     {
         if (! $period->isOpen()) {
             throw ValidationException::withMessages(['period' => __('This period is already closed.')]);
@@ -207,7 +210,11 @@ final readonly class PeriodCloser
             throw ValidationException::withMessages(['period' => __('The month can be closed in its last week.')]);
         }
 
-        $close = DB::transaction(function () use ($user, $period, $incomeActual, $toReserve, $surplusTarget): PeriodClose {
+        if ($nextIncome !== null && $nextIncome < 0) {
+            throw ValidationException::withMessages(['income' => __('Enter a valid amount.')]);
+        }
+
+        $close = DB::transaction(function () use ($user, $period, $incomeActual, $toReserve, $surplusTarget, $nextIncome): PeriodClose {
             $lines = $this->plans->linesFor($period);
             $preview = $this->preview($user, $period, $incomeActual, $toReserve, $surplusTarget);
             [$nextStart, $nextEnd] = $this->nextBounds($user, $period);
@@ -265,10 +272,18 @@ final readonly class PeriodCloser
             $close->user_id = $user->id;
             $close->save();
 
+            if ($nextIncome !== null) {
+                $user->settings()->update(['income' => $nextIncome]);
+            }
+
             if ($closesEarly) {
                 $this->openEarly($user, $nextStart, $nextEnd);
             } else {
                 $this->periods->forDate($user, $nextStart);
+            }
+
+            if ($nextIncome !== null) {
+                $this->periods->forDate($user, $nextStart)->update(['income_planned' => $nextIncome]);
             }
 
             return $close;

@@ -36,6 +36,9 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
 
     public bool $saveTargetAsDefault = false;
 
+    /** Income for the next period and the plan, in the smallest unit. */
+    public int $nextIncome = 0;
+
     /** @var list<int> pockets whose prepayment was recorded after closing */
     public array $prepaid = [];
 
@@ -44,6 +47,7 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         $model = $this->user()->periods()->findOrFail($period);
         $this->periodId = $model->id;
         $this->incomeActual = $model->income();
+        $this->nextIncome = $this->user()->settings()->income;
         $this->step = $model->isOpen() ? 1 : 4;
     }
 
@@ -161,10 +165,26 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         return ['ok' => true, 'error' => null];
     }
 
+    /**
+     * @return array{ok: bool, error: string|null}
+     */
+    public function setNextIncome(string $value): array
+    {
+        $income = Money::parse($value, user_currency());
+
+        if ($income === null || $income < 0) {
+            return ['ok' => false, 'error' => __('Enter a valid amount.')];
+        }
+
+        $this->nextIncome = $income;
+
+        return ['ok' => true, 'error' => null];
+    }
+
     public function close(PeriodCloser $closer): void
     {
         $user = $this->user();
-        $closer->close($user, $this->period, $this->incomeActual, $this->toReserve, $this->surplusTarget);
+        $closer->close($user, $this->period, $this->incomeActual, $this->toReserve, $this->surplusTarget, $this->nextIncome);
 
         if ($this->saveTargetAsDefault && $this->surplusTarget !== null) {
             [$type, $id] = array_pad(explode(':', $this->surplusTarget, 2), 2, null);
@@ -429,6 +449,16 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
             @elseif ($leftover < 0)
                 <div class="mt-3 rounded-[20px] bg-surface px-4 py-3.5 text-[15px] text-ink-2" data-test="close-deficit">{{ __('There is nothing to split this time. Nothing moves; you settle the gap in your bank.') }}</div>
             @endif
+
+            <div class="mt-3 rounded-[20px] bg-surface px-4 py-3" data-test="close-next-income">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="min-w-0">
+                        <div class="text-[15px] font-medium">{{ __('Income next month') }}</div>
+                        <div class="text-xs text-muted">{{ __('Saved in the plan too.') }}</div>
+                    </div>
+                    <button type="button" x-on:click="edit('next', @js(str_replace('.', ',', Money::toInput($nextIncome, $currency))), @js(__('Income next month')))" class="num h-10 min-w-[120px] rounded-xl bg-surface-2 px-3 text-right text-[17px] font-semibold" data-test="edit-next-income">{{ money_number($nextIncome) }}</button>
+                </div>
+            </div>
         </div>
     @else
         @php $record = $this->closeRecord; @endphp
@@ -509,7 +539,9 @@ new #[Title('Close the month')] #[Layout('layouts::app', ['tabs' => false])] cla
         edit(field, value, title) { this.field = field; this.value = value; this.editorTitle = title; this.editorError = null; this.editorOpen = true },
         async save() {
             const value = this.value || '0'
-            const result = this.field === 'income' ? await $wire.setIncome(value) : await $wire.setSplit(this.field, value)
+            const result = this.field === 'income'
+                ? await $wire.setIncome(value)
+                : this.field === 'next' ? await $wire.setNextIncome(value) : await $wire.setSplit(this.field, value)
             this.editorError = result.error
             if (result.ok) this.editorOpen = false
         },
