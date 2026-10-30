@@ -197,3 +197,11 @@ it('keeps a skipped item out of the closed period', function (): void {
         ->and($restored->planned())->toBe(0)
         ->and($restored->regular())->toBe($rent->amount);
 });
+
+it('says when the plan itself is short instead of a zero overspend', function (): void {
+    $this->period->update(['income_planned' => 100_000]);
+
+    $this->get(route('dashboard'))->assertSee('data-test="negative-alert"', false)
+        ->assertSee('The plan itself spends more than comes in.')
+        ->assertDontSee('over the plan');
+});

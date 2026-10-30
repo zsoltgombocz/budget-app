@@ -295,16 +295,18 @@ new #[Title('Today')] class extends Component {
         </a>
     @endif
 
-    @if ($negative)
+    {{-- Only what the number above does not say: which budgets ran over, or that the plan itself is short. --}}
+    @if ($negative && $over !== [])
         <div class="mt-3 flex items-center gap-3 rounded-[24px] bg-surface px-4 py-3.5" data-test="negative-alert">
             <div class="min-w-0 flex-1 text-sm leading-[1.4] text-ink-2">
-                @if ($over !== [])
-                    {{ trans_choice('{1} Over budget: :names|[2,*] Over budget: :names', count($over), ['names' => implode(', ', array_map(fn ($c) => $c->categoryName, $over))]) }}
-                @else
-                    {{ __(':amount over the plan.', ['amount' => money($forecast->plannedLeftover - $forecast->expectedLeftover)]) }}
-                @endif
+                {{ trans_choice('{1} Over budget: :names|[2,*] Over budget: :names', count($over), ['names' => implode(', ', array_map(fn ($c) => $c->categoryName, $over))]) }}
             </div>
         </div>
+    @elseif ($negative && $forecast->plannedLeftover < 0)
+        <a href="{{ route('plan') }}" wire:navigate class="press mt-3 flex items-center gap-3 rounded-[24px] bg-surface px-4 py-3.5" data-test="negative-alert">
+            <span class="min-w-0 flex-1 text-sm leading-[1.4] text-ink-2">{{ __('The plan itself spends more than comes in. Check it in the Plan.') }}</span>
+            <x-ui.icon name="chevron_right" :size="20" class="text-faint" />
+        </a>
     @endif
 
     @foreach ($this->pendingTransfers as $close)

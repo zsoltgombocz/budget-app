@@ -63,7 +63,6 @@
     ":amount left in the budget": "Keretből marad :amount",
     ":amount over the :category budget": ":amount-tal túllépi a(z) :category keretet",
     ":amount over the budget": ":amount-tal a keret felett",
-    ":amount over the plan.": ":amount-tal a terv felett vagy.",
     ":amount to go": "Még :amount",
     ":category budget left: :amount": ":category keretből marad: :amount",
     ":category reached :percent% of its budget": ":category elérte a keret :percent%-át",
@@ -1174,5 +1173,6 @@
     "Income next month": "Jövő havi fizetés",
     "Saved in the plan too.": "A tervbe is bekerül.",
     "Correct the balance": "Egyenleg átírása",
-    "How much is in it now?": "Mennyi van most benne?"
+    "How much is in it now?": "Mennyi van most benne?",
+    "The plan itself spends more than comes in. Check it in the Plan.": "Már a terv is többet költ, mint amennyi bejön. Nézd át a Tervben."
 }
