@@ -669,6 +669,34 @@ html.navigating main {
     text-underline-offset: 3px;
 }
 
+/* A list of nothing but links (the imprint's documents): one tappable row each. */
+.legal .legal-links {
+    list-style: none;
+    padding-left: 0;
+}
+
+.legal .legal-links li + li {
+    margin-top: 0;
+}
+
+.legal .legal-links a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 52px;
+    border-bottom: 1px solid var(--app-line);
+    color: var(--app-ink);
+    text-decoration: none;
+}
+
+.legal .legal-links a::after {
+    content: '›';
+    color: var(--app-faint);
+    font-size: 22px;
+    line-height: 1;
+}
+
 .legal strong {
     color: var(--app-ink);
     font-weight: 600;
@@ -724,8 +752,12 @@ html:not(.dark) .text-danger {
     color: var(--app-danger-text);
 }
 
-/* Visible keyboard focus everywhere, also on inputs styled without an outline. */
-:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+/*
+ * Visible keyboard focus on links and controls. Text fields show their caret (and their row's own
+ * focus style) instead: a second frame inside the row looked broken.
+ */
+:where(a, button, [tabindex]):focus-visible,
+:where(input[type='checkbox'], input[type='radio']):focus-visible {
     outline: 2px solid var(--app-accent);
     outline-offset: 2px;
 }

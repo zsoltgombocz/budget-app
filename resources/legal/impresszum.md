@@ -35,7 +35,7 @@ A szolgáltató tevékenysége nem engedélyköteles, és nem tartozik szabályo
 
 ## Dokumentumok
 
-- Általános Szerződési Feltételek: moneysight.app/aszf
-- Adatkezelési tájékoztató: moneysight.app/adatvedelem
-- Süti és helyi tárolás tájékoztató: moneysight.app/sutik
-- Panaszkezelés és békéltető testület: az ÁSZF 15. pontja
+- [Általános Szerződési Feltételek](/aszf)
+- [Adatkezelési tájékoztató](/adatvedelem)
+- [Süti és helyi tárolás tájékoztató](/sutik)
+- [Panaszkezelés és békéltető testület (ÁSZF 15. pont)](/aszf)

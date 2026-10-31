@@ -228,7 +228,7 @@ A fiók törlése az ingyenes felhasználási szerződést is megszünteti.
 
 ## 14. Adatvédelem és kommunikáció
 
-A személyes adatok kezeléséről az **Adatkezelési tájékoztató** (moneysight.app/adatvedelem), a sütikről a **Süti és helyi tárolás tájékoztató** (moneysight.app/sutik) szól.
+A személyes adatok kezeléséről az [Adatkezelési tájékoztató](/adatvedelem), a sütikről a [Süti és helyi tárolás tájékoztató](/sutik) szól.
 
 A szerződéssel kapcsolatos értesítéseket (visszaigazolás, számla, megújítási emlékeztető, díj- vagy ÁSZF-változás) e-mailben küldjük a fiókhoz tartozó címre. Reklámlevelet csak külön, kifejezett hozzájárulásoddal küldünk.
 

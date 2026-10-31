@@ -25,6 +25,8 @@ class LegalController extends Controller
         // The title goes into the page header, so the document starts with its date line.
         $body = (string) preg_replace('/^#\s+.+$/m', '', $markdown, 1);
         $html = Str::markdown($body, ['html_input' => 'escape', 'allow_unsafe_links' => false]);
+        // A list of nothing but links (the imprint's documents) is shown as tappable rows.
+        $html = (string) preg_replace('#<ul>(?=(?:\s*<li><a [^>]*>[^<]*</a></li>)+\s*</ul>)#', '<ul class="legal-links">', $html);
 
         return view('legal', ['html' => $html, 'title' => $title[1] ?? config('app.name'), 'page' => $page, 'back' => $this->backUrl($request)]);
     }
