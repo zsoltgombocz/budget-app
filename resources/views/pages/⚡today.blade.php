@@ -45,7 +45,10 @@ new #[Title('Today')] class extends Component {
         unset($this->overview);
 
         if ($paid) {
-            $this->dispatch('app-toast', title: __('Done').' · '.($item->line->categoryName ?? ''), icon: 'check', undo: 'undo-paid', params: ['budgetLineId' => $budgetLineId]);
+            $depositedInto = $this->overview->period->lineStatuses()->where('budget_line_id', $budgetLineId)->whereNotNull('pocket_movement_id')->exists()
+                ? $this->user()->pockets()->whereKey($item?->line->pocketId)->value('name')
+                : null;
+            $this->dispatch('app-toast', title: __('Done').' · '.($item->line->categoryName ?? ''), subtitle: $depositedInto !== null ? __('In the pocket: :pocket', ['pocket' => $depositedInto]) : null, icon: 'check', undo: 'undo-paid', params: ['budgetLineId' => $budgetLineId]);
         }
     }
 

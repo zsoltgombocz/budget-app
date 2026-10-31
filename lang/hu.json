@@ -672,7 +672,6 @@
     "Same amount every month.": "Minden hónapban ugyanannyi.",
     "Put aside monthly for a later goal.": "Havonta félreteszel egy későbbi célra.",
     "Everyday spending you record.": "Napi költés, amit rögzítesz.",
-    "At closing the monthly amount goes into the pocket.": "Záráskor a havi összeg a perselybe kerül.",
     "Optional.": "Nem kötelező.",
     "Monthly, after tax.": "Havonta, adózás után.",
     "No account for this address yet": "Ehhez a címhez még nincs fiók",
@@ -1172,5 +1171,9 @@
     "How much is in it now?": "Mennyi van most benne?",
     "The plan itself spends more than comes in. Check it in the Plan.": "Már a terv is többet költ, mint amennyi bejön. Nézd át a Tervben.",
     "Sent to another account every month, e.g. the shared one. Counts as a fixed cost.": "Havonta más számlára utalod, pl. a közösre. Fix kiadásnak számít.",
-    "today": "ma"
+    "today": "ma",
+    "It goes into the pocket when you tick it off as transferred, at closing at the latest.": "Akkor kerül a perselybe, amikor átutaltnak jelölöd, legkésőbb a záráskor.",
+    "In the pocket: :pocket": "Bekerült ide: :pocket",
+    "Marked transferred": "Átutalva",
+    "Marked paid": "Kifizetve"
 }

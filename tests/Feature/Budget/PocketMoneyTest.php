@@ -2,10 +2,13 @@
 
 use App\Actions\Budget\MovePocketMoney;
 use App\Actions\Budget\PayFromPocket;
+use App\Actions\Budget\ToggleLinePaid;
+use App\Models\BudgetLine;
 use App\Models\Category;
 use App\Models\Pocket;
 use App\Models\Transaction;
 use App\Services\OverviewService;
+use App\Services\PeriodCloser;
 use App\Services\PeriodService;
 use Carbon\CarbonImmutable;
 use Illuminate\Validation\ValidationException;
@@ -80,4 +83,42 @@ it('does not offer to cover a negative month from the reserve', function (): voi
         ->create(['amount' => 400_000, 'occurred_on' => '2026-10-05']);
 
     $this->get(route('dashboard'))->assertSee('data-test="negative-alert"', false)->assertDontSee('fedezes=', false);
+});
+
+it('puts a monthly saving into its pocket when ticked off, takes it back when unticked, and closing does not move it again', function (): void {
+    $saving = Category::factory()->for($this->user)->create(['name' => 'Holiday saving', 'type' => 'sinking']);
+    $line = BudgetLine::factory()->for($this->user)->for($saving)->create(['amount' => 40_000, 'pocket_id' => $this->reserve->id, 'due_day' => 5]);
+    $period = resolve(PeriodService::class)->current($this->user);
+    $toggle = resolve(ToggleLinePaid::class);
+
+    $toggle->handle($this->user, $period, $line->id);
+    expect($this->reserve->refresh()->balance)->toBe(140_000);
+
+    $toggle->handle($this->user, $period, $line->id);
+    expect($this->reserve->refresh()->balance)->toBe(100_000)
+        ->and($this->reserve->movements()->count())->toBe(0);
+
+    $toggle->handle($this->user, $period, $line->id);
+    $deposits = resolve(PeriodCloser::class)->preview($this->user, $period)->pocketDeposits;
+
+    expect($this->reserve->refresh()->balance)->toBe(140_000)
+        ->and(collect($deposits)->firstWhere('pocket_id', $this->reserve->id))->toBeNull();
+
+    $this->get(route('month'))->assertSee('data-test="paid-item"', false)->assertSee('Holiday saving');
+});
+
+it('puts monthly savings ticked off before the change into their pockets once', function (): void {
+    $saving = Category::factory()->for($this->user)->create(['type' => 'sinking']);
+    $line = BudgetLine::factory()->for($this->user)->for($saving)->create(['amount' => 40_000, 'pocket_id' => $this->reserve->id]);
+    $period = resolve(PeriodService::class)->current($this->user);
+    $status = $period->lineStatuses()->make(['budget_line_id' => $line->id, 'paid_on' => '2026-10-05']);
+    $status->user_id = $this->user->id;
+    $status->save();
+
+    $migration = include database_path('migrations/2026_10_31_212348_deposit_ticked_monthly_savings.php');
+    $migration->up();
+    $migration->up();
+
+    expect($this->reserve->refresh()->balance)->toBe(140_000)
+        ->and($status->refresh()->pocket_movement_id)->not->toBeNull();
 });

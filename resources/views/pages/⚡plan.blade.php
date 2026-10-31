@@ -716,7 +716,7 @@ new #[Title('Plan')] class extends Component {
         </template>
 
         <template x-if="line.type === 'sinking'">
-            <x-ui.form-group :hint="__('At closing the monthly amount goes into the pocket.')">
+            <x-ui.form-group :hint="__('It goes into the pocket when you tick it off as transferred, at closing at the latest.')">
                 <x-ui.select-row :label="__('Into pocket')" x-model.number="line.pocketId">
                     <option value="">{{ __('None') }}</option>
                     @foreach ($this->pockets as $pocket)<option value="{{ $pocket->id }}">{{ $pocket->name }}</option>@endforeach

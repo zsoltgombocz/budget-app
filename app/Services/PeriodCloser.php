@@ -7,6 +7,7 @@ use App\Enums\PeriodStatus;
 use App\Enums\PocketMovementType;
 use App\Models\Period;
 use App\Models\PeriodClose;
+use App\Models\PeriodLineStatus;
 use App\Models\Pocket;
 use App\Models\User;
 use App\Notifications\SurplusTransferReminder;
@@ -120,7 +121,9 @@ final readonly class PeriodCloser
         $actualTotal = array_sum(array_column($categories, 'actual'));
 
         $pockets = $plusz ? $user->pockets()->get()->keyBy('id') : $user->pockets()->whereRaw('1 = 0')->get();
-        $deposits = $this->pocketDeposits($lines, $pockets->all());
+        // Monthly savings ticked off as transferred are in their pockets already.
+        $deposited = $period->lineStatuses()->whereNotNull('pocket_movement_id')->get(['budget_line_id'])->map(fn (PeriodLineStatus $status): int => $status->budget_line_id)->all();
+        $deposits = $this->pocketDeposits(array_values(array_filter($lines, fn (PlanLine $line): bool => ! in_array($line->lineId, $deposited, true))), $pockets->all());
 
         $reserve = $pockets->first(fn (Pocket $pocket): bool => $pocket->is_reserve);
         $reserveBalanceAfterDeposits = $reserve === null ? 0 : $reserve->balance + ($deposits[$reserve->id]['amount'] ?? 0);

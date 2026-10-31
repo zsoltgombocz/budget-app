@@ -179,9 +179,31 @@ new #[Title('Month')] class extends Component {
                 $days[$key]['rows'][] = ['kind' => 'no-spend', 'markedAt' => $mark->created_at?->setTimezone($this->user()->settings()->timezone)->format('H:i')];
             }
 
+            // Fixed items ticked off show on the day they were ticked, one row each.
+            $paidOn = $period->lineStatuses()->whereNotNull('paid_on')->pluck('paid_on', 'budget_line_id');
+            $icons = $this->user()->categories()->withTrashed()->pluck('icon', 'id');
+
+            foreach ($this->overview->fixedItems as $item) {
+                $date = $paidOn[$item->line->lineId] ?? null;
+
+                if ($item->skipped || ! $date instanceof CarbonImmutable) {
+                    continue;
+                }
+
+                $key = $date->toDateString();
+                $days[$key] ??= ['date' => $date, 'total' => 0, 'payday' => false, 'rows' => []];
+                $days[$key]['rows'][] = [
+                    'kind' => 'paid',
+                    'icon' => Icons::forCategory($icons[$item->line->categoryId] ?? null),
+                    'title' => $item->line->categoryName,
+                    'transfer' => in_array($item->line->type, [LineType::Transfer, LineType::Sinking], true),
+                    'amount' => $item->line->planned(),
+                ];
+            }
+
             if (! $period->starts_on->greaterThan($today)) {
                 $key = $period->starts_on->toDateString();
-                $fixed = array_values(array_filter($this->overview->fixedItems, fn ($item) => ! $item->skipped));
+                $fixed = array_values(array_filter($this->overview->fixedItems, fn ($item) => ! $item->skipped && ! isset($paidOn[$item->line->lineId])));
                 $days[$key] ??= ['date' => $period->starts_on, 'total' => 0, 'payday' => true, 'rows' => []];
                 $days[$key]['payday'] = true;
                 $days[$key]['rows'][] = ['kind' => 'income', 'amount' => $period->income()];
@@ -418,6 +440,12 @@ new #[Title('Month')] class extends Component {
                             <x-ui.icon-tile icon="payments" tone="accent" :size="36" />
                             <span class="text-[15px]">{{ __('Salary') }}</span>
                             <x-ui.amount size="sm" :value="$row['amount']" signed class="text-[15px] font-medium text-accent" />
+                        </div>
+                    @elseif ($row['kind'] === 'paid')
+                        <div @class(['grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-[11px]', 'border-b border-line' => $border]) data-test="paid-item">
+                            <x-ui.icon-tile :icon="$row['icon']" :size="36" />
+                            <span class="min-w-0"><span class="block truncate text-[15px]">{{ $row['title'] }}</span><span class="mt-0.5 block text-xs text-muted">{{ $row['transfer'] ? __('Marked transferred') : __('Marked paid') }}</span></span>
+                            <x-ui.amount size="sm" :value="$row['amount']" class="text-[15px] font-medium" />
                         </div>
                     @else
                         <div @class(['grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-[11px]', 'border-b border-line' => $border])>
