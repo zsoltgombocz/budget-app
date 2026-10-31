@@ -113,8 +113,8 @@ new #[Title('Plan')] class extends Component {
 
         $line = $this->form->lineId !== null ? $this->lines->firstWhere('id', $this->form->lineId) : null;
 
-        // On Alap only fixed items and budgets can be added; an existing line keeps its kind.
-        if (! $this->user()->hasPlusz() && ! in_array($this->form->type, [LineType::Fixed->value, LineType::Variable->value], true) && ($line instanceof BudgetLine ? $line->category?->type->value : null) !== $this->form->type) {
+        // On Alap transfers, fixed items and budgets can be added; an existing line keeps its kind.
+        if (! $this->user()->hasPlusz() && ! in_array($this->form->type, [LineType::Transfer->value, LineType::Fixed->value, LineType::Variable->value], true) && ($line instanceof BudgetLine ? $line->category?->type->value : null) !== $this->form->type) {
             return ['ok' => false, 'errors' => ['form.type' => __('Putting aside and loans are in Plusz.')]];
         }
 
@@ -447,7 +447,7 @@ new #[Title('Plan')] class extends Component {
     $plusz = $this->user()->hasPlusz();
     $lockedTypes = app(\App\Services\Plans::class)->lockedLineTypes($this->user());
     // On Alap new lines are fixed items or budgets; putting aside and loans are Plusz.
-    $editorTypes = $plusz ? $types : [LineType::Fixed, LineType::Variable];
+    $editorTypes = $plusz ? $types : [LineType::Transfer, LineType::Fixed, LineType::Variable];
     $copyNote = __('changes count from this month');
 @endphp
 
@@ -459,8 +459,9 @@ new #[Title('Plan')] class extends Component {
     </x-ui.page-header>
 
     @php
-        $planFixed = $summary->totalFor(LineType::Fixed) + $summary->totalFor(LineType::Loan);
-        $planSaving = $summary->totalFor(LineType::Transfer) + $summary->totalFor(LineType::Sinking);
+        // A transfer to another account is a fixed outgoing payment; only pockets are putting aside.
+        $planFixed = $summary->totalFor(LineType::Transfer) + $summary->totalFor(LineType::Fixed) + $summary->totalFor(LineType::Loan);
+        $planSaving = $summary->totalFor(LineType::Sinking);
         $planBudgets = $summary->totalFor(LineType::Variable);
         $planNegative = $summary->leftover < 0;
         $planSegments = array_filter([
@@ -678,7 +679,7 @@ new #[Title('Plan')] class extends Component {
                 </div>
                 @foreach ($types as $type)
                     <p class="mt-2.5 px-0.5 text-xs leading-snug text-muted" x-show="line.type === @js($type->value)">{{ match ($type) {
-                        LineType::Transfer => __('Moved to another account, e.g. the shared one.'),
+                        LineType::Transfer => __('Sent to another account every month, e.g. the shared one. Counts as a fixed cost.'),
                         LineType::Loan => __('The monthly installment of a loan.'),
                         LineType::Fixed => __('Same amount every month.'),
                         LineType::Sinking => __('Put aside monthly for a later goal.'),
@@ -714,7 +715,7 @@ new #[Title('Plan')] class extends Component {
             </x-ui.form-group>
         </template>
 
-        <template x-if="line.type === 'transfer' || line.type === 'sinking'">
+        <template x-if="line.type === 'sinking'">
             <x-ui.form-group :hint="__('At closing the monthly amount goes into the pocket.')">
                 <x-ui.select-row :label="__('Into pocket')" x-model.number="line.pocketId">
                     <option value="">{{ __('None') }}</option>

@@ -118,12 +118,12 @@ it('lists fixed items due in the next few days or overdue until they are done', 
     Livewire::test('pages::today')->assertDontSee('data-test="due-item"', false);
 
     $rent->update(['due_day' => 13]);
-    Livewire::test('pages::today')->assertSee('data-test="due-item"', false)->assertSee('due');
+    Livewire::test('pages::today')->assertSee('data-test="due-item"', false)->assertSee('Due');
 
     $rent->update(['due_day' => 11]);
     Livewire::test('pages::today')
         ->assertSee('data-test="due-item"', false)
-        ->assertSee('Due today')
+        ->assertSee('today')
         ->call('togglePaid', $rent->id)
         ->assertDontSee('data-test="due-item"', false);
 });

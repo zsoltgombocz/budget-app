@@ -50,10 +50,10 @@ it('gives Plusz with a paid subscription, also on its paid time after cancelling
     expect($this->user->fresh()->currentPlan())->toBe(Plan::Basic);
 });
 
-it('does not count putting money aside in the month on Alap, but keeps the lines', function (): void {
+it('does not count saving into pockets on Alap, but keeps the lines; a transfer to another account still counts', function (): void {
     $this->travel(15)->days();
 
-    expect(resolve(Plans::class)->lockedLineTypes($this->user))->toBe([LineType::Transfer, LineType::Sinking]);
+    expect(resolve(Plans::class)->lockedLineTypes($this->user))->toBe([LineType::Sinking]);
 });
 
 it('lets an admin set Plusz until a day, logged, then it ends', function (): void {

@@ -61,13 +61,14 @@ final class Plans
     }
 
     /**
-     * Plan lines that only Plusz counts: putting money aside (into a pocket or an account).
+     * Plan lines that only Plusz counts: money put aside into pockets. A transfer to another
+     * account (e.g. the shared one) is a fixed outgoing payment and counts on Alap too.
      *
      * @return list<LineType>
      */
     public function lockedLineTypes(User $user): array
     {
-        return $user->hasPlusz() ? [] : [LineType::Transfer, LineType::Sinking];
+        return $user->hasPlusz() ? [] : [LineType::Sinking];
     }
 
     /**

@@ -51,8 +51,6 @@
     "Uploading…": "Feltöltés…",
     "Sent with it: your e-mail address, the page you came from, the app version and your browser. Nothing from your budget.": "Vele együtt elküldjük: az e-mail címed, az oldalt, ahonnan jöttél, az app verzióját és a böngésződet. A költségvetésedből semmit.",
     "Send report": "Bejelentés küldése",
-    "Transfer due today": "Ma esedékes utalás",
-    "Due today": "Ma esedékes",
     "The period has not ended yet. If you close it now, today is its last day and the new month starts today: what you record after closing goes there.": "A periódus még nem ért véget. Ha most zárod, a mai nap lesz az utolsó napja, és az új hónap már ma indul: amit zárás után rögzítesz, az oda kerül.",
     "Enter an amount between 0 and :max.": "Adj meg egy összeget 0 és :max között.",
     "The monthly amounts the Plan puts into pockets. Closing adds them to the pockets’ balances.": "A Tervben perselyekbe tett havi összegek. A zárás ennyivel növeli a perselyek egyenlegét.",
@@ -603,7 +601,6 @@
     "copied on every payday": "minden fizetésnapon másolódik",
     "days left": "nap van hátra",
     "done": "teljesítve",
-    "due :date": "esedékes: :date",
     "due on day :day": "esedékes: minden hó :day.",
     "e.g., MacBook Pro, iPhone": "pl. MacBook Pro, iPhone",
     "filled from the month-end leftover": "hó végi maradékból töltődik",
@@ -672,7 +669,6 @@
     "Money into the pocket. The budget does not change.": "Pénz a perselybe. A költségvetés nem változik.",
     "Added to this period’s budget; the daily budget grows.": "Hozzáadódik az időszak költségvetéséhez; nő a napi keret.",
     "A spending paid by the pocket; it does not use up the budget.": "A persely fizeti a költést, nem fogy tőle a keret.",
-    "Moved to another account, e.g. the shared one.": "Másik számlára megy, pl. a közösre.",
     "Same amount every month.": "Minden hónapban ugyanannyi.",
     "Put aside monthly for a later goal.": "Havonta félreteszel egy későbbi célra.",
     "Everyday spending you record.": "Napi költés, amit rögzítesz.",
@@ -1174,5 +1170,7 @@
     "Saved in the plan too.": "A tervbe is bekerül.",
     "Correct the balance": "Egyenleg átírása",
     "How much is in it now?": "Mennyi van most benne?",
-    "The plan itself spends more than comes in. Check it in the Plan.": "Már a terv is többet költ, mint amennyi bejön. Nézd át a Tervben."
+    "The plan itself spends more than comes in. Check it in the Plan.": "Már a terv is többet költ, mint amennyi bejön. Nézd át a Tervben.",
+    "Sent to another account every month, e.g. the shared one. Counts as a fixed cost.": "Havonta más számlára utalod, pl. a közösre. Fix kiadásnak számít.",
+    "today": "ma"
 }

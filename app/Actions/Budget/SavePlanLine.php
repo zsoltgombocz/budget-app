@@ -46,7 +46,7 @@ final class SavePlanLine
                 'amount_max' => $type === LineType::Variable ? ($data['amount_max'] ?? null) : null,
                 'calc_mode' => $calcMode,
                 'due_day' => $type === LineType::Variable ? null : ($data['due_day'] ?? null),
-                'pocket_id' => in_array($type, [LineType::Transfer, LineType::Sinking], true) ? ($data['pocket_id'] ?? null) : null,
+                'pocket_id' => $type === LineType::Sinking ? ($data['pocket_id'] ?? null) : null,
                 'loan_id' => $type === LineType::Loan ? ($data['loan_id'] ?? null) : null,
                 'orig_amount' => $data['orig_amount'] ?? null,
                 'orig_currency' => $data['orig_currency'] ?? null,

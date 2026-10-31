@@ -3,9 +3,11 @@
 use App\Actions\Budget\SaveLoan;
 use App\Actions\Budget\SavePlanLine;
 use App\Enums\CalcMode;
+use App\Enums\LineType;
 use App\Models\BudgetLine;
 use App\Models\Category;
 use App\Models\Loan;
+use App\Models\Pocket;
 use Livewire\Livewire;
 
 beforeEach(function (): void {
@@ -169,4 +171,18 @@ it('opens the loan itself from its repayment line', function (): void {
 
 it('shows each line with its category icon', function (): void {
     $this->get(route('plan'))->assertOk()->assertSee('data-test="line-icon"', false);
+});
+
+it('keeps transfers to another account apart from pockets: no pocket on a transfer, old pocket transfers become monthly savings', function (): void {
+    $pocket = Pocket::factory()->for($this->user)->create();
+
+    $transfer = resolve(SavePlanLine::class)->handle($this->user, ['name' => 'Shared', 'type' => LineType::Transfer, 'amount' => 150_000, 'pocket_id' => $pocket->id]);
+    expect($transfer->pocket_id)->toBeNull();
+
+    $old = Category::factory()->for($this->user)->create(['type' => 'transfer']);
+    BudgetLine::factory()->for($this->user)->for($old)->create(['pocket_id' => $pocket->id]);
+    (include database_path('migrations/2026_10_31_055216_move_pocket_transfers_to_monthly_saving.php'))->up();
+
+    expect($old->refresh()->type)->toBe(LineType::Sinking)
+        ->and($transfer->category->refresh()->type)->toBe(LineType::Transfer);
 });

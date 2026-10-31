@@ -231,7 +231,7 @@ new #[Title('Today')] class extends Component {
     $challenge = $this->challenge;
     $user = auth()->user();
     // On Alap the savings lines stay in the plan but do not count: say so, with their total.
-    $lockedSavings = $user->hasPlusz() ? 0 : array_sum(array_map(fn ($line) => $line->planned(), array_filter(app(\App\Services\PlanService::class)->liveLines($user), fn ($line) => in_array($line->type, [\App\Enums\LineType::Transfer, \App\Enums\LineType::Sinking], true))));
+    $lockedSavings = $user->hasPlusz() ? 0 : array_sum(array_map(fn ($line) => $line->planned(), array_filter(app(\App\Services\PlanService::class)->liveLines($user), fn ($line) => $line->type === \App\Enums\LineType::Sinking)));
     $trialDaysLeft = $user->currentPlan() === \App\Enums\Plan::PlusTrial ? (int) ceil(now()->diffInDays(app(\App\Services\Plans::class)->trialEndsAt($user))) : null;
 @endphp
 
@@ -321,9 +321,14 @@ new #[Title('Today')] class extends Component {
     @endforeach
 
     @if ($due !== [])
-        <div class="mt-3 rounded-[24px] bg-surface px-4 py-1.5" data-test="due-items">
-            <div class="flex h-11 items-center justify-between">
-                <span class="text-base font-semibold">{{ __('Due') }}</span>
+        @php
+            // One date for all of them (the usual first of the month): said once, in the header.
+            $dueDates = array_unique(array_map(fn ($item) => $item->dueOn->toDateString(), $due));
+            $oneDate = count($dueDates) === 1 ? $due[0]->dueOn : null;
+        @endphp
+        <div class="mt-3 rounded-[24px] bg-surface px-4 py-1" data-test="due-items">
+            <div class="flex h-11 items-center justify-between gap-3">
+                <span class="text-base font-semibold">{{ __('Due') }}@if ($oneDate)<span @class(['font-normal', 'text-warn' => $oneDate->lessThanOrEqualTo($overview->today), 'text-muted' => $oneDate->greaterThan($overview->today)])> · {{ $oneDate->isSameDay($overview->today) ? __('today') : ($oneDate->lessThan($overview->today) ? __('since :date', ['date' => \App\Support\Dates::short($oneDate)]) : \App\Support\Dates::short($oneDate)) }}</span>@endif</span>
                 <span class="num text-sm text-muted">{{ money(array_sum(array_map(fn ($item) => $item->line->planned(), $due))) }}</span>
             </div>
             @foreach ($due as $item)
@@ -332,20 +337,19 @@ new #[Title('Today')] class extends Component {
                     $late = $item->dueOn->lessThan($overview->today);
                     $isToday = $item->dueOn->isSameDay($overview->today);
                 @endphp
-                <div class="flex min-h-[60px] items-center gap-3 border-t border-line" wire:key="due-{{ $item->line->lineId }}" data-test="due-item">
+                <div class="flex min-h-[52px] items-center gap-3 border-t border-line py-1.5" wire:key="due-{{ $item->line->lineId }}" data-test="due-item">
                     <button type="button" x-data x-on:click="$dispatch('open-sheet', 'due-{{ $item->line->lineId }}')" class="press flex min-w-0 flex-1 items-center gap-3 text-left" data-test="open-due">
-                    <span @class(['flex size-9 shrink-0 items-center justify-center rounded-xl', 'bg-warn-tint text-warn' => $late || $isToday, 'bg-surface-2 text-ink-2' => ! $late && ! $isToday])>
-                        <x-ui.icon :name="$this->icons[$item->line->categoryId] ?? 'autorenew'" :size="20" />
-                    </span>
-                    <div class="min-w-0 flex-1">
-                        <div class="truncate text-base">{{ $item->line->categoryName }}</div>
-                        <div @class(['text-[13px]', 'text-warn' => $late || $isToday, 'text-muted' => ! $late && ! $isToday])>
-                            {{ $late ? __('since :date', ['date' => \App\Support\Dates::short($item->dueOn)]) : ($isToday ? ($isTransfer ? __('Transfer due today') : __('Due today')) : __('due :date', ['date' => \App\Support\Dates::short($item->dueOn)])) }}
-                        </div>
-                    </div>
-                    <x-ui.amount size="sm" :value="$item->line->planned()" class="text-base font-semibold" />
+                        <span class="min-w-0 flex-1">
+                            <span class="line-clamp-2 text-[15px] leading-snug break-words">{{ $item->line->categoryName }}</span>
+                            @unless ($oneDate)
+                                <span @class(['block text-xs', 'text-warn' => $late || $isToday, 'text-muted' => ! $late && ! $isToday])>
+                                    {{ $late ? __('since :date', ['date' => \App\Support\Dates::short($item->dueOn)]) : ($isToday ? __('today') : \App\Support\Dates::short($item->dueOn)) }}
+                                </span>
+                            @endunless
+                        </span>
+                        <span class="num shrink-0 text-[15px] font-semibold">{{ money($item->line->planned()) }}</span>
                     </button>
-                    <button type="button" wire:click="togglePaid({{ (int) $item->line->lineId }})" class="press hit h-9 shrink-0 rounded-full bg-surface-3 px-3.5 text-sm font-semibold" aria-label="{{ ($isTransfer ? __('Transferred') : __('Done')).': '.$item->line->categoryName }}" data-test="mark-due-done">{{ $isTransfer ? __('Transferred') : __('Done') }}</button>
+                    <button type="button" wire:click="togglePaid({{ (int) $item->line->lineId }})" class="press hit flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-3 text-ink-2" aria-label="{{ ($isTransfer ? __('Transferred') : __('Done')).': '.$item->line->categoryName }}" data-test="mark-due-done"><x-ui.icon name="check" :size="20" /></button>
                 </div>
             @endforeach
         </div>
