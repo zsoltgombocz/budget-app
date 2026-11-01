@@ -1212,7 +1212,6 @@
     "Investments": "Befektetések",
     "Account": "Számla",
     "Interactive Brokers": "Interactive Brokers",
-    "Any broker": "Bármelyik szolgáltató",
     "You type in the value": "Az értéket te írod be",
     "Updates itself every morning": "Minden reggel magától frissül",
     "e.g. ActivTrades": "pl. ActivTrades",
@@ -1224,5 +1223,7 @@
     "Format: XML. Period: Last 365 Calendar Days. Leave the date format as it is. Save it, then type its number here.": "Formátum: XML. Időszak: Last 365 Calendar Days. A dátumformátumot hagyd, ahogy van. Mentsd el, és írd ide a számát.",
     "Make a token": "Kérj egy tokent",
     "Under Flex Web Service, turn it on and generate a token. It can only read reports: it cannot trade or move money.": "A Flex Web Service résznél kapcsold be, és generálj tokent. Csak kimutatást tud olvasni, kereskedni és pénzt mozgatni nem.",
-    "Connect": "Összekapcsolás"
+    "Connect": "Összekapcsolás",
+    "You have no investment account yet.": "Még nincs befektetési számlád.",
+    "Manual": "Manuális"
 }

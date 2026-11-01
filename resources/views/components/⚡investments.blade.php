@@ -306,11 +306,16 @@ new class extends Component {
         </button>
     @endforeach
 
-    @if ($accounts->isNotEmpty())
+    @if ($accounts->isEmpty())
+        <div class="flex flex-col items-center px-8 pt-16 text-center" data-test="investments-empty">
+            <p class="text-[15px] text-muted">{{ __('You have no investment account yet.') }}</p>
+            <x-ui.button class="mt-4" icon="add" x-on:click="openAccount(null)" data-test="add-investment">{{ __('Account') }}</x-ui.button>
+        </div>
+    @else
         <p class="mx-6 mt-3 text-xs leading-snug text-muted">{{ __('Investments are not part of the month: the month-end leftover does not count them. Converted at today\'s MNB rate.') }}</p>
     @endif
 
-    <x-ui.form-sheet show="sheet" close="sheet = false" title="title()" :full="false" data-test="investment-sheet">
+    <x-ui.form-sheet show="sheet" close="sheet = false" title="title()" :full="false" x-bind:class="active && 'min-h-[min(600px,calc(100dvh-var(--safe-top)-0.75rem))]'" data-test="investment-sheet">
         <x-slot:action>
             <button type="button" x-show="step === 'edit'" x-on:click="remove()" class="text-danger" aria-label="{{ __('Delete') }}"><x-ui.icon name="delete" :size="22" /></button>
         </x-slot:action>
@@ -319,7 +324,7 @@ new class extends Component {
         <div x-show="step === 'type'" class="divide-y divide-line overflow-hidden rounded-2xl bg-surface-2" data-test="investment-types">
             <button type="button" x-on:click="choose('manual')" class="flex w-full items-center gap-3 px-4 py-3.5 text-left active:bg-ink/4" data-test="type-manual">
                 <x-ui.icon-tile icon="edit" :size="40" />
-                <span class="min-w-0 flex-1"><span class="block text-[15px] font-medium">{{ __('Any broker') }}</span><span class="block text-xs text-muted">{{ __('You type in the value') }}</span></span>
+                <span class="min-w-0 flex-1"><span class="block text-[15px] font-medium">{{ __('Manual') }}</span><span class="block text-xs text-muted">{{ __('You type in the value') }}</span></span>
                 <x-ui.icon name="chevron_right" :size="22" class="text-faint" />
             </button>
             <button type="button" x-on:click="choose('ibkr')" class="flex w-full items-center gap-3 px-4 py-3.5 text-left active:bg-ink/4" data-test="type-ibkr">

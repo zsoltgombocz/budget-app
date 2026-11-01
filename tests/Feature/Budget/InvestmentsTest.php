@@ -160,5 +160,6 @@ it('keeps one value a day when it is typed in again', function (): void {
 it('leaves the investment account picked at setup off the tab until it is tracked', function (): void {
     $target = Account::factory()->investment()->for($this->user)->create(['name' => 'Closing target']);
 
-    Livewire::test('investments')->assertDontSee('Closing target')->assertDontSee('data-test="investment-'.$target->id.'"', false);
+    Livewire::test('investments')->assertDontSee('Closing target')->assertDontSee('data-test="investment-'.$target->id.'"', false)
+        ->assertSee('data-test="investments-empty"', false)->assertSee('You have no investment account yet.');
 });
