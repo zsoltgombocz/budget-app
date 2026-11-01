@@ -23,6 +23,7 @@ final class ExportUserData
         'passkeys' => ['credential', 'credential_id'],
         'push_subscriptions' => ['public_key', 'auth_token'],
         'sessions' => ['payload'],
+        'accounts' => ['credentials'],
     ];
 
     /**
@@ -79,6 +80,7 @@ final class ExportUserData
             'periods.csv, period_closes.csv – a hónapjaid és a zárások',
             'pockets.csv, pocket_movements.csv – a perselyek és a mozgásaik',
             'loans.csv, loan_events.csv – a hiteleid és az előtörlesztések',
+            'accounts.csv, account_values.csv – a számláid, a befektetési számlák napi értéke (a szolgáltatói token nincs benne)',
             'budget_settings.csv – a beállításaid',
             'users.csv – a fiókod (a belépési titkok, pl. kulcsok, nincsenek benne)',
             'a többi fájl: értesítések, munkamenetek, előfizetés, sorozat és mérföldkövek',

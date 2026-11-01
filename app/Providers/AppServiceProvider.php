@@ -6,6 +6,7 @@ use App\Livewire\Pulse\SecurityEvents;
 use App\Models\Admin;
 use App\Services\ExchangeRates\ExchangeRateSource;
 use App\Services\ExchangeRates\MnbExchangeRates;
+use App\Services\Investments\IbkrFlex;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
@@ -31,6 +32,7 @@ class AppServiceProvider extends ServiceProvider
         }
 
         $this->app->bind(ExchangeRateSource::class, fn (): MnbExchangeRates => new MnbExchangeRates(config()->string('services.mnb.url')));
+        $this->app->bind(IbkrFlex::class, fn (): IbkrFlex => new IbkrFlex(config()->string('services.ibkr.flex_url')));
     }
 
     /**

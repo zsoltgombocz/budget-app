@@ -42,10 +42,12 @@ A MoneySight segít átlátni a havi pénzügyeidet. Megadod a fizetésedet, a f
 A MoneySight nyilvántartó és számoló eszköz, nem bank és nem pénzügyi szolgáltató:
 
 - nem mozgat pénzt, nem indít és nem fogad utalást, nem kezel számlát a nevedben;
-- nem kapcsolódik a bankodhoz, minden szám azon alapul, amit te beírsz;
+- nem kapcsolódik a bankodhoz, minden szám azon alapul, amit te beírsz; kivétel, ha egy befektetési számlát te magad kötsz be a szolgáltatód csak olvasó kulcsával (4.2. pont), ekkor annak értékét a szolgáltatótól olvassuk le;
 - nem ad befektetési, hitel-, biztosítási, adó- vagy más pénzügyi tanácsot, és nem közvetít pénzügyi terméket.
 
 A „perselyek” és a „félretétel” a te tervezésedet segítő nyilvántartások. Az app ilyenkor sem mozgat pénzt.
+
+A befektetési számlák értéke és trendje tájékoztató jellegű: a szolgáltató által átadott vagy általad beírt adatot mutatja, a forintos összeg a napi MNB-árfolyamon számolt becslés. Nem befektetési tanács, és nem helyettesíti a szolgáltatód kimutatását.
 
 ### 3.3. Technikai feltételek
 
@@ -81,7 +83,8 @@ A Plusz az Alap mindent tartalmaz, és ezen felül:
 
 - perselyek;
 - hitelek nyilvántartása és a hiteltervező;
-- félretétel (megtakarítási és céltartalék-sorok a havi tervben).
+- félretétel (megtakarítási és céltartalék-sorok a havi tervben);
+- befektetési számlák értéke és trendje, kézzel vagy az Interactive Brokers csak olvasó Flex kulcsával naponta frissítve.
 
 | Csomag | Díj | Megújulás |
 |---|---|---|

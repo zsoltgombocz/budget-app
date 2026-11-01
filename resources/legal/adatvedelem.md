@@ -39,6 +39,7 @@ Adatvédelmi tisztviselőt nem neveztünk ki, mert erre a GDPR 37. cikke szerint
 | Hibaadatok | hibaüzenet, technikai környezet (böngésző, oldal), fiókazonosító | az appból |
 | Hibabejelentés, levelezés | az általad írt szöveg, e-mail-cím, név, a nem kötelező képernyőkép (ami az akkor látott adataidat is mutathatja) | tőled |
 | Várólista (a nyitóoldalon) | e-mail-cím, a feliratkozás és a megerősítés ideje | tőled |
+| Befektetési számlák (Plusz, ha felveszel ilyet) | a számla neve, pénzneme, napi értéke; Interactive Brokers bekötésekor a csak olvasó Flex token és a lekérdezés azonosítója (titkosítva tárolva) | tőled; bekötés esetén naponta az Interactive Brokerstől, a te tokeneddel |
 
 A költésekhez fűzött megjegyzés szabad szöveg. Kérjük, ne írj bele egészségügyi vagy más különleges adatot.
 
@@ -142,6 +143,7 @@ Kérelmedet a {{operator_email}} címre küldheted, lehetőleg a fiókhoz tartoz
 - A szerver EU-s adatközpontban van, az adatbázis az internet felől nem érhető el.
 - Minden lekérdezés a bejelentkezett felhasználóra szűr, így senki nem láthatja más adatait.
 - A kártyaadatok soha nem érik el a szerverünket, azokat a Stripe kezeli.
+- A befektetési szolgáltatóhoz megadott tokent titkosítva tároljuk, és csak a számlaérték lekérdezésére használjuk. Csak olvasó: kereskedni vagy pénzt mozgatni nem lehet vele, és a szolgáltatónál bármikor visszavonhatod. A felületen nem jelenítjük meg újra, és az adatexportba sem kerül bele.
 - A hibakövetőbe alapból nem küldünk személyes adatot (IP-címet sem).
 - Rendszeres, hozzáférés-korlátozott biztonsági mentés.
 

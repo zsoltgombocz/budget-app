@@ -27,4 +27,9 @@ class AccountFactory extends Factory
             'currency' => Currency::HUF,
         ];
     }
+
+    public function investment(): static
+    {
+        return $this->state(['type' => AccountType::Investment, 'currency' => Currency::USD]);
+    }
 }

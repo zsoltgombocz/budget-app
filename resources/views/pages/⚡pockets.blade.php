@@ -452,6 +452,15 @@ new #[Title('Pockets and loans')] class extends Component {
         )->endWith;
     }
 
+    /**
+     * All investment accounts in the base currency at today's rate; null without any value.
+     */
+    #[Computed]
+    public function investmentsTotal(): ?int
+    {
+        return app(\App\Services\InvestmentTotal::class)->forUser($this->user());
+    }
+
     #[Computed]
     public function plusz(): bool
     {
@@ -528,15 +537,19 @@ new #[Title('Pockets and loans')] class extends Component {
     if (! $this->plusz) {
         [$openLoan, $openPrepay, $newPocketFor, $cover, $returnTo] = [null, null, null, null, null];
     }
-    $startTab = request()->query('ful') === 'hitelek' || $openLoan !== null || $openPrepay !== null ? 'loans' : 'pots';
+    $startTab = match (true) {
+        request()->query('ful') === 'hitelek' || $openLoan !== null || $openPrepay !== null => 'loans',
+        request()->query('ful') === 'befektetesek' => 'investments',
+        default => 'pots',
+    };
 @endphp
 <div x-on:pad-done="$event.detail === 'balance' && saveBalance()" x-data="pocketsPage({ decimals: {{ $decimals }}, locale: @js(str_replace('_', '-', app()->getLocale())), cover: @js($cover), openLoan: @js($openLoan), openPrepayFor: @js($openPrepay), newPocketFor: @js($newPocketFor), prepayName: @js(__('Prepayment fund')), prepayStep: @js($this->currency === \App\Enums\Currency::HUF ? '500000' : ''), returnTo: @js($returnTo), tab: @js($startTab) })">
     <div class="flex items-center justify-between px-4 pt-6">
         <h1 class="text-[30px] font-bold tracking-[-0.02em]">{{ __('My money') }}</h1>
         @if ($this->plusz)
-        <button type="button" x-on:click="tab === 'loans' ? openLoan(null) : openPocket(null)" class="press flex h-10 items-center gap-1.5 rounded-full bg-surface-2 pr-3.5 pl-2.5 text-sm font-semibold" data-test="add">
+        <button type="button" x-on:click="tab === 'investments' ? $dispatch('add-investment') : (tab === 'loans' ? openLoan(null) : openPocket(null))" class="press flex h-10 items-center gap-1.5 rounded-full bg-surface-2 pr-3.5 pl-2.5 text-sm font-semibold" data-test="add">
             <x-ui.icon name="add" :size="18" />
-            <span x-text="tab === 'loans' ? @js(__('Loan')) : @js(__('Pocket'))">{{ __('Pocket') }}</span>
+            <span x-text="{ loans: @js(__('Loan')), investments: @js(__('Account')) }[tab] ?? @js(__('Pocket'))">{{ __('Pocket') }}</span>
         </button>
         @endif
     </div>
@@ -552,15 +565,25 @@ new #[Title('Pockets and loans')] class extends Component {
     @endunless
     <div @class(['pointer-events-none select-none opacity-45 blur-[5px] grayscale' => ! $this->plusz]) @if (! $this->plusz) aria-hidden="true" inert @endif>
 
-    <div role="tablist" aria-label="{{ __('Pockets or loans') }}" class="num mx-4 mt-4 grid grid-cols-2 gap-1 rounded-[20px] bg-surface p-1">
-        <button type="button" role="tab" x-on:click="tab = 'pots'" :aria-selected="tab === 'pots'" :class="tab === 'pots' ? 'bg-surface-3' : ''" class="h-14 rounded-2xl px-3.5 text-left" data-test="tab-pots">
-            <span class="block text-[13px]" :class="tab === 'pots' ? 'text-ink-2' : 'text-muted'">{{ __('Pockets') }}</span>
-            <span class="mt-px block text-[17px] font-bold">{{ money_number((int) $pockets->sum('balance')) }}</span>
+    <div role="tablist" aria-label="{{ __('Pockets, loans or investments') }}" class="num mx-4 mt-4 grid grid-cols-3 gap-1 rounded-[20px] bg-surface p-1">
+        <button type="button" role="tab" x-on:click="tab = 'pots'" :aria-selected="tab === 'pots'" :class="tab === 'pots' ? 'bg-surface-3' : ''" class="h-14 min-w-0 rounded-2xl px-3 text-left" data-test="tab-pots">
+            <span class="block truncate text-[13px]" :class="tab === 'pots' ? 'text-ink-2' : 'text-muted'">{{ __('Pockets') }}</span>
+            <span class="mt-px block truncate text-[16px] font-bold">{{ money_number((int) $pockets->sum('balance')) }}</span>
         </button>
-        <button type="button" role="tab" x-on:click="tab = 'loans'" :aria-selected="tab === 'loans'" :class="tab === 'loans' ? 'bg-surface-3' : ''" class="h-14 rounded-2xl px-3.5 text-left" data-test="tab-loans">
-            <span class="block text-[13px]" :class="tab === 'loans' ? 'text-ink-2' : 'text-muted'">{{ __('Loans') }}</span>
-            <span class="mt-px block text-[17px] font-bold">{{ money_number((int) $loans->sum('principal_balance')) }}</span>
+        <button type="button" role="tab" x-on:click="tab = 'loans'" :aria-selected="tab === 'loans'" :class="tab === 'loans' ? 'bg-surface-3' : ''" class="h-14 min-w-0 rounded-2xl px-3 text-left" data-test="tab-loans">
+            <span class="block truncate text-[13px]" :class="tab === 'loans' ? 'text-ink-2' : 'text-muted'">{{ __('Loans') }}</span>
+            <span class="mt-px block truncate text-[16px] font-bold">{{ money_number((int) $loans->sum('principal_balance')) }}</span>
         </button>
+        <button type="button" role="tab" x-on:click="tab = 'investments'" :aria-selected="tab === 'investments'" :class="tab === 'investments' ? 'bg-surface-3' : ''" class="h-14 min-w-0 rounded-2xl px-3 text-left" data-test="tab-investments">
+            <span class="block truncate text-[13px]" :class="tab === 'investments' ? 'text-ink-2' : 'text-muted'">{{ __('Investments') }}</span>
+            <span class="mt-px block truncate text-[16px] font-bold" x-data="{ total: @js($this->investmentsTotal !== null ? money_number($this->investmentsTotal) : '–') }" x-on:investments-total.window="total = $event.detail.total" x-text="total"></span>
+        </button>
+    </div>
+
+    <div x-show="tab === 'investments'" x-cloak>
+        @if ($this->plusz)
+            <livewire:investments />
+        @endif
     </div>
 
     <div x-show="tab === 'pots'" data-test="pots">

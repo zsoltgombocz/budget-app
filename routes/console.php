@@ -10,4 +10,6 @@ use Illuminate\Support\Facades\Schedule;
 Schedule::useCache('file');
 
 Schedule::command('budget:notify')->everyMinute()->withoutOverlapping();
+// Broker reports are made overnight; read them in the morning.
+Schedule::command('investments:sync')->dailyAt('07:10')->timezone('Europe/Budapest')->withoutOverlapping();
 Schedule::command('model:prune', ['--model' => [NotificationLog::class, User::class, WaitlistSignup::class]])->dailyAt('03:30');

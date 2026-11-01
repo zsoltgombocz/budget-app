@@ -33,6 +33,11 @@ return [
         'dsn' => env('BUG_REPORT_DSN', env('SENTRY_LARAVEL_DSN')),
     ],
 
+    'ibkr' => [
+        // Interactive Brokers Flex Web Service: read-only reports with the user's own token.
+        'flex_url' => env('IBKR_FLEX_URL', 'https://ndcdyn.interactivebrokers.com/AccountManagement/FlexWebService'),
+    ],
+
     'mnb' => [
         // Official MNB exchange rates (SOAP). The service only answers over plain HTTP.
         'url' => env('MNB_RATES_URL', 'http://www.mnb.hu/arfolyamok.asmx'),
