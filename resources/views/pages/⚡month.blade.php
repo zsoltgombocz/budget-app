@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Budget\SkipLine;
+use App\Actions\Budget\ToggleLinePaid;
 use App\Enums\LineType;
 use App\Models\Category;
 use App\Models\Period;
@@ -88,6 +89,24 @@ new #[Title('Month')] class extends Component {
         $this->refresh();
 
         $this->dispatch('budget-updated');
+    }
+
+    /**
+     * Take back a tick: the item is due again, and a monthly saving comes out of its pocket.
+     */
+    public function unpay(int $budgetLineId, ToggleLinePaid $toggleLinePaid): void
+    {
+        $period = $this->period;
+
+        if (! $period->isOpen() || ! $period->lineStatuses()->where('budget_line_id', $budgetLineId)->whereNotNull('paid_on')->exists()) {
+            return;
+        }
+
+        $toggleLinePaid->handle($this->user(), $period, $budgetLineId);
+        $this->refresh();
+
+        $this->dispatch('budget-updated');
+        $this->dispatch('app-toast', title: __('Not done after all'), subtitle: __('It is due again.'));
     }
 
     public function showPeriod(int $periodId): void
@@ -196,6 +215,7 @@ new #[Title('Month')] class extends Component {
                     'kind' => 'paid',
                     'icon' => Icons::forCategory($icons[$item->line->categoryId] ?? null),
                     'title' => $item->line->categoryName,
+                    'lineId' => $item->line->lineId,
                     'transfer' => in_array($item->line->type, [LineType::Transfer, LineType::Sinking], true),
                     'amount' => $item->line->planned(),
                 ];
@@ -442,11 +462,12 @@ new #[Title('Month')] class extends Component {
                             <x-ui.amount size="sm" :value="$row['amount']" signed class="text-[15px] font-medium text-accent" />
                         </div>
                     @elseif ($row['kind'] === 'paid')
-                        <div @class(['grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-[11px]', 'border-b border-line' => $border]) data-test="paid-item">
+                        <button type="button" x-on:click="selected = @js(['title' => $row['title'], 'amount' => money($row['amount']), 'note' => $row['transfer'] ? __('Marked transferred') : __('Marked paid'), 'paidLineId' => $row['lineId']])"
+                                @class(['grid w-full grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-[11px] text-left', 'border-b border-line' => $border]) data-test="paid-item">
                             <x-ui.icon-tile :icon="$row['icon']" :size="36" />
                             <span class="min-w-0"><span class="block truncate text-[15px]">{{ $row['title'] }}</span><span class="mt-0.5 block text-xs text-muted">{{ $row['transfer'] ? __('Marked transferred') : __('Marked paid') }}</span></span>
                             <x-ui.amount size="sm" :value="$row['amount']" class="text-[15px] font-medium" />
-                        </div>
+                        </button>
                     @else
                         <div @class(['grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-[11px]', 'border-b border-line' => $border])>
                             <x-ui.icon-tile icon="autorenew" tone="muted" :size="36" />
@@ -479,7 +500,8 @@ new #[Title('Month')] class extends Component {
             </div>
             @if ($period->isOpen())
                 <x-ui.button icon="edit" class="w-full" x-show="selected?.edit" x-on:click="$dispatch('edit-entry', selected.edit); selected = null" data-test="edit-transaction">{{ __('Edit') }}</x-ui.button>
-                <x-ui.button variant="danger" icon="delete" class="mt-2 w-full" x-on:click="$wire.delete(selected.id); selected = null" data-test="delete-transaction">{{ __('Delete entry') }}</x-ui.button>
+                <x-ui.button variant="danger" icon="delete" class="mt-2 w-full" x-show="selected?.id" x-on:click="$wire.delete(selected.id); selected = null" data-test="delete-transaction">{{ __('Delete entry') }}</x-ui.button>
+                <x-ui.button variant="secondary" icon="undo" class="w-full" x-show="selected?.paidLineId" x-on:click="$wire.unpay(selected.paidLineId); selected = null" data-test="unpay">{{ __('Not done after all') }}</x-ui.button>
             @endif
             <x-ui.button variant="ghost" class="mt-1 w-full" x-on:click="selected = null">{{ __('Close') }}</x-ui.button>
         </div>

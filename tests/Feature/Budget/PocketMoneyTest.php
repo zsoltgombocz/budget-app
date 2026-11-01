@@ -105,6 +105,14 @@ it('puts a monthly saving into its pocket when ticked off, takes it back when un
         ->and(collect($deposits)->firstWhere('pocket_id', $this->reserve->id))->toBeNull();
 
     $this->get(route('month'))->assertSee('data-test="paid-item"', false)->assertSee('Holiday saving');
+
+    Livewire::test('pages::month')->call('unpay', $line->id)->assertDontSee('data-test="paid-item"', false);
+
+    expect($this->reserve->refresh()->balance)->toBe(100_000)
+        ->and($period->lineStatuses()->where('budget_line_id', $line->id)->value('paid_on'))->toBeNull();
+
+    Livewire::test('pages::month')->call('unpay', $line->id);
+    expect($this->reserve->refresh()->balance)->toBe(100_000);
 });
 
 it('puts monthly savings ticked off before the change into their pockets once', function (): void {

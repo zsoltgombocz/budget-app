@@ -1175,5 +1175,7 @@
     "It goes into the pocket when you tick it off as transferred, at closing at the latest.": "Akkor kerül a perselybe, amikor átutaltnak jelölöd, legkésőbb a záráskor.",
     "In the pocket: :pocket": "Bekerült ide: :pocket",
     "Marked transferred": "Átutalva",
-    "Marked paid": "Kifizetve"
+    "Marked paid": "Kifizetve",
+    "Not done after all": "Mégsem kész",
+    "It is due again.": "Újra esedékes."
 }
