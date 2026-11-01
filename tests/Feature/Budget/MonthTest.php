@@ -4,9 +4,12 @@ use App\Models\Category;
 use App\Models\Transaction;
 use App\Services\PeriodCloser;
 use App\Services\PeriodService;
+use Carbon\CarbonImmutable;
 use Livewire\Livewire;
 
 beforeEach(function (): void {
+    // In the period's last week, so closing is offered (the tests used to follow the real date).
+    $this->travelTo(CarbonImmutable::parse('2026-10-28 12:00', 'Europe/Budapest'));
     $this->user = onboardedUser();
     $this->actingAs($this->user);
     $this->period = resolve(PeriodService::class)->current($this->user);
