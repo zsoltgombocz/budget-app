@@ -247,7 +247,7 @@ new class extends Component {
 @endphp
 
 <div x-data="investments({ locale: @js(str_replace('_', '-', app()->getLocale())), decimals: @js(collect(Currency::cases())->mapWithKeys(fn ($c) => [$c->value => $c->decimals()])) })"
-     x-on:add-investment.window="openAccount(null)" @if ($refreshing !== []) wire:poll.4s @endif data-test="investments">
+     x-on:add-investment.window="openAccount(null)" x-init="$watch('tab', (tab) => tab === 'investments' && replay())" @if ($refreshing !== []) wire:poll.4s @endif data-test="investments">
     @foreach ($accounts as $account)
         @php
             $values = $account->values->pluck('value')->all();
@@ -282,10 +282,10 @@ new class extends Component {
             @if ($curve)
                 <svg viewBox="0 0 {{ $curve::WIDTH }} {{ $curve::HEIGHT }}" role="img" @class(['mt-2 block h-auto w-full', 'text-accent' => ($change ?? 0) >= 0, 'text-danger' => ($change ?? 0) < 0])
                      aria-label="{{ __('From :from to :to', ['from' => money($first ?? 0, $account->currency), 'to' => money((int) $account->value, $account->currency)]) }}" data-test="investment-trend">
-                    <path d="{{ $curve->area() }}" fill="currentColor" fill-opacity=".14" />
+                    <path d="{{ $curve->area() }}" fill="currentColor" fill-opacity=".14" class="late-in" />
                     <line x1="0" y1="{{ $curve->planY }}" x2="{{ $curve::WIDTH }}" y2="{{ $curve->planY }}" stroke="var(--app-hero-sub)" stroke-opacity=".35" stroke-dasharray="2 4" />
-                    <path d="{{ $curve->line() }}" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" class="curve-draw" />
-                    <circle cx="{{ $curve->endX }}" cy="{{ $curve->endY }}" r="4" fill="var(--app-hero)" stroke="currentColor" stroke-width="2" />
+                    <path d="{{ $curve->line() }}" pathLength="600" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" class="curve-draw" />
+                    <circle cx="{{ $curve->endX }}" cy="{{ $curve->endY }}" r="4" fill="var(--app-hero)" stroke="currentColor" stroke-width="2" class="late-in" />
                     <text x="18" y="114" fill="var(--app-hero-sub)" fill-opacity=".7" font-size="10">{{ \App\Support\Dates::short($account->values->first()->date) }}</text>
                     <text x="{{ $curve::WIDTH - 18 }}" y="114" text-anchor="end" fill="var(--app-hero-sub)" fill-opacity=".7" font-size="10">{{ \App\Support\Dates::short($account->values->last()->date) }}</text>
                 </svg>
@@ -462,6 +462,14 @@ new class extends Component {
             this.step = 'type'
         },
         tokenPlaceholder() { return this.form.hasToken ? @js(__('Saved, leave empty')) : @js(__('Paste it here')) },
+        // The tab is hidden on first load, so the curves draw again when it opens.
+        replay() {
+            this.$el.querySelectorAll('.curve-draw, .late-in').forEach((element) => {
+                element.style.animation = 'none'
+                element.getBoundingClientRect()
+                element.style.animation = ''
+            })
+        },
         title() { return this.step === 'edit' ? this.form.name : @js(__('New investment account')) },
         focus(name, label = '') { this.active = name; this.activeLabel = label },
         press(key) {
