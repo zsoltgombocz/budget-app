@@ -363,7 +363,7 @@ new class extends Component {
                 2 => [__('Add one section'), __('Choose "Net Asset Value (NAV) in Base" and select all its fields.')],
                 3 => [__('Set it up like this, then save'), null],
                 4 => [__('Copy the Query ID'), __('Next to the saved query, tap the (i) button: it shows the Query ID.')],
-                5 => [__('Make a token'), __('Under Flex Web Service, turn it on and generate a token. It can only read reports: it cannot trade or move money.')],
+                5 => [__('Make a token'), __('Open the Flex Web Service setting, turn it on and generate a token. It can only read reports: it cannot trade or move money.')],
             ] as $number => [$heading, $body])
                 <div x-show="ibkrStep === {{ $number }}" class="px-2 pt-6" data-test="ibkr-step-{{ $number }}">
                     <h3 class="text-[24px] font-semibold leading-tight tracking-[-0.02em]">{{ $heading }}</h3>
@@ -383,6 +383,11 @@ new class extends Component {
                 </x-ui.form-group>
             </div>
             <div x-show="ibkrStep === 5">
+                {{-- Another site: the installed app opens it in the browser, the setup stays where it was. --}}
+                <a href="https://www.interactivebrokers.com/AccountManagement/amAuthentication?action=AccountSetting&config=FlexWebService" target="_blank" rel="noopener noreferrer"
+                   class="press mx-2 mt-4 flex h-11 items-center justify-center gap-1.5 rounded-btn bg-surface-2 text-[15px] font-semibold" data-test="ibkr-flex-web-service">
+                    {{ __('Open Flex Web Service') }}<x-ui.icon name="open_in_new" :size="18" />
+                </a>
                 <x-ui.form-group class="!mt-5">
                     <x-ui.text-row :label="__('Token')" x-model="form.token" autocomplete="off" :placeholder="__('Paste it here')" error="token" data-test="investment-token" />
                     <x-ui.text-row :label="__('Name')" x-model="form.name" maxlength="80" error="name" data-test="investment-ibkr-name" />

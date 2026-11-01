@@ -1220,7 +1220,6 @@
     "Add one section": "Adj hozzá egy szekciót",
     "Choose \"Net Asset Value (NAV) in Base\" and select all its fields.": "Válaszd a „Net Asset Value (NAV) in Base” szekciót, és jelöld be az összes mezőjét.",
     "Make a token": "Kérj egy tokent",
-    "Under Flex Web Service, turn it on and generate a token. It can only read reports: it cannot trade or move money.": "A Flex Web Service résznél kapcsold be, és generálj tokent. Csak kimutatást tud olvasni, kereskedni és pénzt mozgatni nem.",
     "Connect": "Összekapcsolás",
     "You have no investment account yet.": "Még nincs befektetési számlád.",
     "Manual": "Manuális",
@@ -1230,5 +1229,7 @@
     "IBKR: Query Name": "Query Name",
     "IBKR: Format": "Format",
     "IBKR: Period": "Period",
-    "IBKR: Date Format": "Date Format"
+    "IBKR: Date Format": "Date Format",
+    "Open the Flex Web Service setting, turn it on and generate a token. It can only read reports: it cannot trade or move money.": "Nyisd meg a Flex Web Service beállítást, kapcsold be, és generálj tokent. Csak kimutatást tud olvasni, kereskedni és pénzt mozgatni nem.",
+    "Open Flex Web Service": "Flex Web Service megnyitása"
 }
