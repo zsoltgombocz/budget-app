@@ -85,6 +85,7 @@ new class extends Component {
             'queryId' => $account->credentials['query_id'] ?? '',
             'hasToken' => filled($account->credentials['token'] ?? null),
             'token' => '',
+            'current' => $account?->value !== null ? money_number($account->value, $account->currency) : null,
             'amounts' => ['value' => ''],
         ];
     }
@@ -298,7 +299,7 @@ new class extends Component {
                     <x-ui.icon name="error" :size="16" class="shrink-0 text-danger-soft" />
                     <span class="min-w-0 text-danger-soft" data-test="investment-error">{{ $account->sync_error }}</span>
                 @elseif ($account->valued_on)
-                    <span class="text-hero-sub">{{ $account->provider === InvestmentProvider::Ibkr ? __('Value on :date, read every morning', ['date' => \App\Support\Dates::short($account->valued_on)]) : __('Value on :date', ['date' => \App\Support\Dates::short($account->valued_on)]) }}</span>
+                    <span class="text-hero-sub">{{ __('Last updated: :date', ['date' => \App\Support\Dates::short($account->valued_on)]) }}</span>
                 @else
                     <span class="text-hero-sub">{{ __('Reading the account…') }}</span>
                 @endif
@@ -315,7 +316,7 @@ new class extends Component {
         <p class="mx-6 mt-3 text-xs leading-snug text-muted">{{ __('Investments are not part of the month: the month-end leftover does not count them. Converted at today\'s MNB rate.') }}</p>
     @endif
 
-    <x-ui.form-sheet show="sheet" close="sheet = false" title="title()" :full="false" x-bind:class="active && 'min-h-[min(600px,calc(100dvh-var(--safe-top)-0.75rem))]'" data-test="investment-sheet">
+    <x-ui.form-sheet show="sheet" close="sheet = false" title="title()" :full="false" data-test="investment-sheet">
         <x-slot:action>
             <button type="button" x-show="step === 'edit'" x-on:click="remove()" class="text-danger" aria-label="{{ __('Delete') }}"><x-ui.icon name="delete" :size="22" /></button>
         </x-slot:action>
@@ -324,18 +325,26 @@ new class extends Component {
         <div x-show="step === 'type'" class="divide-y divide-line overflow-hidden rounded-2xl bg-surface-2" data-test="investment-types">
             <button type="button" x-on:click="choose('manual')" class="flex w-full items-center gap-3 px-4 py-3.5 text-left active:bg-ink/4" data-test="type-manual">
                 <x-ui.icon-tile icon="edit" :size="40" />
-                <span class="min-w-0 flex-1"><span class="block text-[15px] font-medium">{{ __('Manual') }}</span><span class="block text-xs text-muted">{{ __('You type in the value') }}</span></span>
+                <span class="min-w-0 flex-1 text-[15px] font-medium">{{ __('Manual') }}</span>
                 <x-ui.icon name="chevron_right" :size="22" class="text-faint" />
             </button>
             <button type="button" x-on:click="choose('ibkr')" class="flex w-full items-center gap-3 px-4 py-3.5 text-left active:bg-ink/4" data-test="type-ibkr">
                 <x-ui.icon-tile icon="show_chart" tone="accent" :size="40" />
-                <span class="min-w-0 flex-1"><span class="block text-[15px] font-medium">{{ __('Interactive Brokers') }}</span><span class="block text-xs text-muted">{{ __('Updates itself every morning') }}</span></span>
+                <span class="min-w-0 flex-1 text-[15px] font-medium">{{ __('Interactive Brokers') }}</span>
                 <x-ui.icon name="chevron_right" :size="22" class="text-faint" />
             </button>
         </div>
 
-        {{-- 2a. Typed in by hand, and editing any account: just the fields. --}}
+        {{-- 2a. Typed in by hand (and editing any account): the value on top, typed on the numpad below, like a spending. --}}
         <div x-show="step === 'manual' || step === 'edit'">
+            <template x-if="form.provider === 'manual'">
+                <div class="pb-3 pt-2 text-center" data-test="investment-value">
+                    <div class="num text-[44px] font-semibold tracking-[-0.03em]" :class="filled('value') ? '' : 'text-faint'">
+                        <span x-text="display('value', form.current || '0')"></span> <span class="text-[22px] text-muted" x-text="form.currency"></span>
+                    </div>
+                    <p class="text-xs text-danger" x-show="errors.value" x-text="errors.value"></p>
+                </div>
+            </template>
             <x-ui.form-group>
                 <x-ui.text-row :label="__('Name')" x-model="form.name" maxlength="80" :placeholder="__('e.g. ActivTrades')" error="name" data-test="investment-name" />
                 <div x-show="form.provider === 'manual'">
@@ -343,7 +352,6 @@ new class extends Component {
                         @foreach (Currency::cases() as $currency)<option value="{{ $currency->value }}">{{ $currency->value }}</option>@endforeach
                     </x-ui.select-row>
                 </div>
-                <x-ui.amount-row name="value" :label="__('Value now')" x-show="form.provider === 'manual'" error="value" data-test="investment-value" />
                 <template x-if="form.provider === 'ibkr'">
                     <div class="divide-y divide-line">
                         <x-ui.text-row :label="__('Query ID')" x-model="form.queryId" inputmode="numeric" error="queryId" />
@@ -351,6 +359,9 @@ new class extends Component {
                     </div>
                 </template>
             </x-ui.form-group>
+            <template x-if="form.provider === 'manual'">
+                <x-ui.numpad :decimal="true" class="mt-4" data-test="investment-numpad" />
+            </template>
         </div>
 
         {{-- 2b. Interactive Brokers, one step at a time. --}}
@@ -403,7 +414,6 @@ new class extends Component {
                 <x-ui.button x-show="step !== 'ibkr' || ibkrStep === 5" x-on:click="submit()" ::disabled="saving" class="flex-1" data-test="investment-save"><span x-text="step === 'ibkr' ? @js(__('Connect')) : @js(__('Save'))"></span></x-ui.button>
             </div>
         </x-slot:footer>
-        <x-slot:pad><x-ui.amount-pad :decimal="true" /></x-slot:pad>
     </x-ui.form-sheet>
 </div>
 
@@ -455,9 +465,9 @@ new class extends Component {
         title() { return this.step === 'edit' ? this.form.name : @js(__('New investment account')) },
         focus(name, label = '') { this.active = name; this.activeLabel = label },
         press(key) {
-            if (! this.active) return
+            const field = this.active ?? 'value'
             const places = decimals[this.form.currency] ?? 0
-            let value = String(this.fields[this.active] ?? '')
+            let value = String(this.fields[field] ?? '')
             if (key === 'del') value = value.slice(0, -1)
             else if (key === ',') { if (places > 0 && ! value.includes(',')) value = (value || '0') + ',' }
             else if (key === '000') { if (value && ! value.includes(',')) value += '000' }
@@ -467,7 +477,7 @@ new class extends Component {
                 if (value === '0') value = ''
                 value += key
             }
-            this.fields[this.active] = value.slice(0, 15)
+            this.fields[field] = value.slice(0, 15)
         },
         display(name, fallback = '–') {
             const value = String(this.fields[name] ?? '')
