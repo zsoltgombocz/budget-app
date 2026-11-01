@@ -356,25 +356,33 @@ new class extends Component {
         {{-- 2b. Interactive Brokers, one step at a time. --}}
         <div x-show="step === 'ibkr'" data-test="ibkr-steps">
             <div class="flex gap-1.5 px-1 pt-1" aria-hidden="true">
-                <template x-for="i in 4"><span class="h-1 flex-1 rounded-full" :class="i <= ibkrStep ? 'bg-accent' : 'bg-surface-3'"></span></template>
+                <template x-for="i in 5"><span class="h-1 flex-1 rounded-full" :class="i <= ibkrStep ? 'bg-accent' : 'bg-surface-3'"></span></template>
             </div>
             @foreach ([
                 1 => [__('Open Flex Queries'), __('In the IBKR Client Portal: Performance & Reports → Flex Queries. Next to Activity Flex Query, tap +.')],
                 2 => [__('Add one section'), __('Choose "Net Asset Value (NAV) in Base" and select all its fields.')],
-                3 => [__('Save the query'), __('Format: XML. Period: Last 365 Calendar Days. Leave the date format as it is. Save it, then type its number here.')],
-                4 => [__('Make a token'), __('Under Flex Web Service, turn it on and generate a token. It can only read reports: it cannot trade or move money.')],
+                3 => [__('Set it up like this, then save'), null],
+                4 => [__('Copy the Query ID'), __('Next to the saved query, tap the (i) button: it shows the Query ID.')],
+                5 => [__('Make a token'), __('Under Flex Web Service, turn it on and generate a token. It can only read reports: it cannot trade or move money.')],
             ] as $number => [$heading, $body])
                 <div x-show="ibkrStep === {{ $number }}" class="px-2 pt-6" data-test="ibkr-step-{{ $number }}">
                     <h3 class="text-[24px] font-semibold leading-tight tracking-[-0.02em]">{{ $heading }}</h3>
-                    <p class="mt-2 text-[15px] leading-normal text-ink-2">{{ $body }}</p>
+                    @if ($body)<p class="mt-2 text-[15px] leading-normal text-ink-2">{{ $body }}</p>@endif
                 </div>
             @endforeach
             <div x-show="ibkrStep === 3">
                 <x-ui.form-group class="!mt-5">
-                    <x-ui.text-row :label="__('Query ID')" x-model="form.queryId" inputmode="numeric" :placeholder="__('e.g. 123456')" error="queryId" data-test="investment-query" />
+                    @foreach ([__('IBKR: Query Name') => 'MoneySight', __('IBKR: Format') => 'XML', __('IBKR: Period') => 'Last 365 Calendar Days', __('IBKR: Date Format') => 'yyyyMMdd'] as $setting => $value)
+                        <div class="flex min-h-[52px] items-center justify-between gap-3 px-4 py-2.5"><span class="text-[15px] text-ink-2">{{ $setting }}</span><span class="num text-right text-[15px] font-semibold">{{ $value }}</span></div>
+                    @endforeach
                 </x-ui.form-group>
             </div>
             <div x-show="ibkrStep === 4">
+                <x-ui.form-group class="!mt-5">
+                    <x-ui.text-row :label="__('Query ID')" x-model="form.queryId" inputmode="numeric" :placeholder="__('e.g. 123456')" error="queryId" data-test="investment-query" />
+                </x-ui.form-group>
+            </div>
+            <div x-show="ibkrStep === 5">
                 <x-ui.form-group class="!mt-5">
                     <x-ui.text-row :label="__('Token')" x-model="form.token" autocomplete="off" :placeholder="__('Paste it here')" error="token" data-test="investment-token" />
                     <x-ui.text-row :label="__('Name')" x-model="form.name" maxlength="80" error="name" data-test="investment-ibkr-name" />
@@ -386,8 +394,8 @@ new class extends Component {
             <div class="flex gap-2" x-show="step !== 'type'">
                 <x-ui.button variant="secondary" x-show="step === 'manual' || (step === 'ibkr')" x-on:click="back()" data-test="investment-back">{{ __('Back') }}</x-ui.button>
                 <x-ui.button variant="secondary" x-show="step === 'edit' && form.provider === 'ibkr'" x-on:click="$wire.refresh(form.id); sheet = false" icon="refresh" data-test="investment-refresh">{{ __('Refresh') }}</x-ui.button>
-                <x-ui.button x-show="step === 'ibkr' && ibkrStep < 4" x-on:click="next()" class="flex-1" data-test="investment-next">{{ __('Next') }}</x-ui.button>
-                <x-ui.button x-show="step !== 'ibkr' || ibkrStep === 4" x-on:click="submit()" ::disabled="saving" class="flex-1" data-test="investment-save"><span x-text="step === 'ibkr' ? @js(__('Connect')) : @js(__('Save'))"></span></x-ui.button>
+                <x-ui.button x-show="step === 'ibkr' && ibkrStep < 5" x-on:click="next()" class="flex-1" data-test="investment-next">{{ __('Next') }}</x-ui.button>
+                <x-ui.button x-show="step !== 'ibkr' || ibkrStep === 5" x-on:click="submit()" ::disabled="saving" class="flex-1" data-test="investment-save"><span x-text="step === 'ibkr' ? @js(__('Connect')) : @js(__('Save'))"></span></x-ui.button>
             </div>
         </x-slot:footer>
         <x-slot:pad><x-ui.amount-pad :decimal="true" /></x-slot:pad>
@@ -426,7 +434,7 @@ new class extends Component {
             this.ibkrStep = 1
         },
         next() {
-            if (this.ibkrStep === 3 && ! /^\d{3,12}$/.test(String(this.form.queryId || '').trim())) {
+            if (this.ibkrStep === 4 && ! /^\d{3,12}$/.test(String(this.form.queryId || '').trim())) {
                 this.errors = { queryId: @js(__('The Query ID is a number, e.g. 123456.')) }
                 return
             }
@@ -468,7 +476,7 @@ new class extends Component {
             try {
                 const result = await $wire.save({ ...this.form, amounts: { ...this.fields } })
                 this.errors = result.errors
-                if (this.step === 'ibkr' && result.errors.queryId) this.ibkrStep = 3
+                if (this.step === 'ibkr' && result.errors.queryId) this.ibkrStep = 4
                 if (result.ok) this.sheet = false
             } finally {
                 this.saving = false

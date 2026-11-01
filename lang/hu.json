@@ -1219,11 +1219,16 @@
     "In the IBKR Client Portal: Performance & Reports → Flex Queries. Next to Activity Flex Query, tap +.": "Az IBKR kliensportálon: Performance & Reports → Flex Queries. Az Activity Flex Query mellett nyomj a + jelre.",
     "Add one section": "Adj hozzá egy szekciót",
     "Choose \"Net Asset Value (NAV) in Base\" and select all its fields.": "Válaszd a „Net Asset Value (NAV) in Base” szekciót, és jelöld be az összes mezőjét.",
-    "Save the query": "Mentsd el a lekérdezést",
-    "Format: XML. Period: Last 365 Calendar Days. Leave the date format as it is. Save it, then type its number here.": "Formátum: XML. Időszak: Last 365 Calendar Days. A dátumformátumot hagyd, ahogy van. Mentsd el, és írd ide a számát.",
     "Make a token": "Kérj egy tokent",
     "Under Flex Web Service, turn it on and generate a token. It can only read reports: it cannot trade or move money.": "A Flex Web Service résznél kapcsold be, és generálj tokent. Csak kimutatást tud olvasni, kereskedni és pénzt mozgatni nem.",
     "Connect": "Összekapcsolás",
     "You have no investment account yet.": "Még nincs befektetési számlád.",
-    "Manual": "Manuális"
+    "Manual": "Manuális",
+    "Set it up like this, then save": "Így állítsd be, majd mentsd el",
+    "Copy the Query ID": "Másold ki a Query ID-t",
+    "Next to the saved query, tap the (i) button: it shows the Query ID.": "A mentett lekérdezés mellett nyomj az (i) gombra, ott látod a Query ID-t.",
+    "IBKR: Query Name": "Query Name",
+    "IBKR: Format": "Format",
+    "IBKR: Period": "Period",
+    "IBKR: Date Format": "Date Format"
 }
