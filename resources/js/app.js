@@ -19,6 +19,9 @@ window.appConfirm = (options) => new Promise((resolve) => {
 
 document.addEventListener('alpine:init', () => registerNumpad(window.Alpine))
 
+// iOS Safari pinches through the viewport setting; the app itself does not zoom.
+document.addEventListener('gesturestart', (event) => event.preventDefault(), { passive: false })
+
 window.addEventListener('load', () => push.sync())
 
 // Immediate navigation feedback for wire:navigate (Livewire's own bar shows up late).

@@ -3,7 +3,7 @@
 use App\Models\User;
 use Database\Seeders\CategoryTemplateSeeder;
 
-it('disables double-tap zoom and focus zoom on touch devices', function (): void {
+it('does not zoom: no pinch, no double tap, no focus zoom on touch devices', function (): void {
     $this->actingAs(onboardedUser());
 
     $page = visit(route('dashboard'))->on()->iPhone14Pro();
@@ -13,10 +13,12 @@ it('disables double-tap zoom and focus zoom on touch devices', function (): void
             html: getComputedStyle(document.documentElement).touchAction,
             key: getComputedStyle(document.querySelector('[data-test="entry-sheet"] button')).touchAction,
             input: parseFloat(getComputedStyle(document.querySelector('[data-test="entry-sheet"] input[type="text"]')).fontSize),
+            viewport: document.querySelector('meta[name=viewport]').content,
         })
     JS);
 
-    expect($result['html'])->toBe('manipulation')
+    expect($result['html'])->toBe('pan-x pan-y')
+        ->and($result['viewport'])->toContain('user-scalable=no')
         ->and($result['key'])->toBe('manipulation')
         ->and($result['input'])->toBeGreaterThanOrEqual(16.0);
 });
