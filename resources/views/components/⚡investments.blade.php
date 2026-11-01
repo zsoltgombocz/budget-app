@@ -50,7 +50,10 @@ new class extends Component {
     {
         $since = app(PeriodService::class)->today($this->user()->settings())->subDays(self::TREND_DAYS)->toDateString();
 
+        // Only accounts that are tracked: connected, or with a value typed in. The investment
+        // account picked at setup as a closing target stays out until it gets one.
         return $this->user()->accounts()->where('type', AccountType::Investment)
+            ->where(fn ($query) => $query->where('provider', InvestmentProvider::Ibkr)->orWhereNotNull('value'))
             ->with(['values' => fn ($query) => $query->whereDate('date', '>=', $since)->orderBy('date')])
             ->orderBy('name')->get();
     }
@@ -244,7 +247,7 @@ new class extends Component {
 
 <div x-data="investments({ locale: @js(str_replace('_', '-', app()->getLocale())), decimals: @js(collect(Currency::cases())->mapWithKeys(fn ($c) => [$c->value => $c->decimals()])) })"
      x-on:add-investment.window="openAccount(null)" @if ($refreshing !== []) wire:poll.4s @endif data-test="investments">
-    @forelse ($accounts as $account)
+    @foreach ($accounts as $account)
         @php
             $values = $account->values->pluck('value')->all();
             $curve = $trend->build($values);
@@ -297,68 +300,89 @@ new class extends Component {
                 @elseif ($account->valued_on)
                     <span class="text-hero-sub">{{ $account->provider === InvestmentProvider::Ibkr ? __('Value on :date, read every morning', ['date' => \App\Support\Dates::short($account->valued_on)]) : __('Value on :date', ['date' => \App\Support\Dates::short($account->valued_on)]) }}</span>
                 @else
-                    <span class="text-hero-sub">{{ __('Tap to type in its value or connect it') }}</span>
+                    <span class="text-hero-sub">{{ __('Reading the account…') }}</span>
                 @endif
             </div>
         </button>
-    @empty
-        <div class="mx-4 mt-4 rounded-[28px] bg-surface px-5 py-6 text-center" data-test="investments-empty">
-            <x-ui.icon-tile icon="show_chart" tone="accent" :size="48" class="mx-auto" />
-            <div class="mt-3 text-[17px] font-semibold">{{ __('Your investments in one place') }}</div>
-            <p class="mt-1.5 text-sm leading-normal text-muted">{{ __('Add an account and type in its value, or connect Interactive Brokers and it updates itself every morning. Investments are not part of the month: the month-end leftover does not count them.') }}</p>
-            <x-ui.button class="mt-4 w-full" icon="add" x-on:click="openAccount(null)" data-test="add-investment">{{ __('Add an investment account') }}</x-ui.button>
-        </div>
-    @endforelse
+    @endforeach
 
     @if ($accounts->isNotEmpty())
         <p class="mx-6 mt-3 text-xs leading-snug text-muted">{{ __('Investments are not part of the month: the month-end leftover does not count them. Converted at today\'s MNB rate.') }}</p>
     @endif
 
-    <x-ui.form-sheet show="sheet" close="sheet = false" title="title()" data-test="investment-sheet">
+    <x-ui.form-sheet show="sheet" close="sheet = false" title="title()" :full="false" data-test="investment-sheet">
         <x-slot:action>
-            <button type="button" x-show="form.id" x-on:click="remove()" class="text-danger" aria-label="{{ __('Delete') }}"><x-ui.icon name="delete" :size="22" /></button>
+            <button type="button" x-show="step === 'edit'" x-on:click="remove()" class="text-danger" aria-label="{{ __('Delete') }}"><x-ui.icon name="delete" :size="22" /></button>
         </x-slot:action>
 
-        <x-ui.form-group :title="__('Where does the value come from?')">
-            <div class="p-3">
-                <x-ui.segmented model="form.provider" :options="[InvestmentProvider::Manual->value => __('I type it in'), InvestmentProvider::Ibkr->value => __('Interactive Brokers')]" />
-                <p class="mt-2.5 px-0.5 text-xs leading-snug text-muted" x-show="form.provider === 'manual'">{{ __('For any broker, e.g. ActivTrades or Lightyear: you update the value when you look at it.') }}</p>
-                <p class="mt-2.5 px-0.5 text-xs leading-snug text-muted" x-show="form.provider === 'ibkr'">{{ __('Read every morning with a read-only report token: it cannot trade or move money, and you can revoke it at IBKR any time.') }}</p>
-            </div>
-        </x-ui.form-group>
+        {{-- 1. What kind of account: one row each, more brokers come here later. --}}
+        <div x-show="step === 'type'" class="divide-y divide-line overflow-hidden rounded-2xl bg-surface-2" data-test="investment-types">
+            <button type="button" x-on:click="choose('manual')" class="flex w-full items-center gap-3 px-4 py-3.5 text-left active:bg-ink/4" data-test="type-manual">
+                <x-ui.icon-tile icon="edit" :size="40" />
+                <span class="min-w-0 flex-1"><span class="block text-[15px] font-medium">{{ __('Any broker') }}</span><span class="block text-xs text-muted">{{ __('You type in the value') }}</span></span>
+                <x-ui.icon name="chevron_right" :size="22" class="text-faint" />
+            </button>
+            <button type="button" x-on:click="choose('ibkr')" class="flex w-full items-center gap-3 px-4 py-3.5 text-left active:bg-ink/4" data-test="type-ibkr">
+                <x-ui.icon-tile icon="show_chart" tone="accent" :size="40" />
+                <span class="min-w-0 flex-1"><span class="block text-[15px] font-medium">{{ __('Interactive Brokers') }}</span><span class="block text-xs text-muted">{{ __('Updates itself every morning') }}</span></span>
+                <x-ui.icon name="chevron_right" :size="22" class="text-faint" />
+            </button>
+        </div>
 
-        <x-ui.form-group :title="__('Basics')">
-            <x-ui.text-row :label="__('Name')" x-model="form.name" maxlength="80" :placeholder="__('e.g. IBKR')" error="name" data-test="investment-name" />
-            <div x-show="form.provider === 'manual'">
-                <x-ui.select-row :label="__('Currency')" x-model="form.currency">
-                    @foreach (Currency::cases() as $currency)<option value="{{ $currency->value }}">{{ $currency->value }}</option>@endforeach
-                </x-ui.select-row>
-            </div>
-            <x-ui.amount-row name="value" :label="__('Value now')" x-show="form.provider === 'manual'" error="value" data-test="investment-value" />
-        </x-ui.form-group>
+        {{-- 2a. Typed in by hand, and editing any account: just the fields. --}}
+        <div x-show="step === 'manual' || step === 'edit'">
+            <x-ui.form-group>
+                <x-ui.text-row :label="__('Name')" x-model="form.name" maxlength="80" :placeholder="__('e.g. ActivTrades')" error="name" data-test="investment-name" />
+                <div x-show="form.provider === 'manual'">
+                    <x-ui.select-row :label="__('Currency')" x-model="form.currency">
+                        @foreach (Currency::cases() as $currency)<option value="{{ $currency->value }}">{{ $currency->value }}</option>@endforeach
+                    </x-ui.select-row>
+                </div>
+                <x-ui.amount-row name="value" :label="__('Value now')" x-show="form.provider === 'manual'" error="value" data-test="investment-value" />
+                <template x-if="form.provider === 'ibkr'">
+                    <div class="divide-y divide-line">
+                        <x-ui.text-row :label="__('Query ID')" x-model="form.queryId" inputmode="numeric" error="queryId" />
+                        <x-ui.text-row :label="__('Token')" x-model="form.token" autocomplete="off" ::placeholder="tokenPlaceholder()" error="token" />
+                    </div>
+                </template>
+            </x-ui.form-group>
+        </div>
 
-        <template x-if="form.provider === 'ibkr'">
-            <div>
-                <x-ui.form-group :title="__('Interactive Brokers')">
+        {{-- 2b. Interactive Brokers, one step at a time. --}}
+        <div x-show="step === 'ibkr'" data-test="ibkr-steps">
+            <div class="flex gap-1.5 px-1 pt-1" aria-hidden="true">
+                <template x-for="i in 4"><span class="h-1 flex-1 rounded-full" :class="i <= ibkrStep ? 'bg-accent' : 'bg-surface-3'"></span></template>
+            </div>
+            @foreach ([
+                1 => [__('Open Flex Queries'), __('In the IBKR Client Portal: Performance & Reports → Flex Queries. Next to Activity Flex Query, tap +.')],
+                2 => [__('Add one section'), __('Choose "Net Asset Value (NAV) in Base" and select all its fields.')],
+                3 => [__('Save the query'), __('Format: XML. Period: Last 365 Calendar Days. Leave the date format as it is. Save it, then type its number here.')],
+                4 => [__('Make a token'), __('Under Flex Web Service, turn it on and generate a token. It can only read reports: it cannot trade or move money.')],
+            ] as $number => [$heading, $body])
+                <div x-show="ibkrStep === {{ $number }}" class="px-2 pt-6" data-test="ibkr-step-{{ $number }}">
+                    <h3 class="text-[24px] font-semibold leading-tight tracking-[-0.02em]">{{ $heading }}</h3>
+                    <p class="mt-2 text-[15px] leading-normal text-ink-2">{{ $body }}</p>
+                </div>
+            @endforeach
+            <div x-show="ibkrStep === 3">
+                <x-ui.form-group class="!mt-5">
                     <x-ui.text-row :label="__('Query ID')" x-model="form.queryId" inputmode="numeric" :placeholder="__('e.g. 123456')" error="queryId" data-test="investment-query" />
-                    <x-ui.text-row :label="__('Token')" x-model="form.token" autocomplete="off" ::placeholder="tokenPlaceholder()" error="token" data-test="investment-token" />
                 </x-ui.form-group>
-                <section class="mt-5 rounded-2xl bg-surface-2 px-4 py-3.5 text-[13px] leading-normal text-ink-2">
-                    <div class="font-semibold text-ink">{{ __('How to get them') }}</div>
-                    <ol class="mt-1.5 list-decimal space-y-1 pl-4">
-                        <li>{{ __('In the IBKR Client Portal: Performance & Reports → Flex Queries → Activity Flex Query, +.') }}</li>
-                        <li>{{ __('Add the section "Net Asset Value (NAV) in Base" with all its fields.') }}</li>
-                        <li>{{ __('Format: XML, period: Last 365 Calendar Days, date format: the default (yyyyMMdd). Save it; its number is the Query ID.') }}</li>
-                        <li>{{ __('Under Flex Web Service, turn it on and generate the token; paste it here.') }}</li>
-                    </ol>
-                </section>
             </div>
-        </template>
+            <div x-show="ibkrStep === 4">
+                <x-ui.form-group class="!mt-5">
+                    <x-ui.text-row :label="__('Token')" x-model="form.token" autocomplete="off" :placeholder="__('Paste it here')" error="token" data-test="investment-token" />
+                    <x-ui.text-row :label="__('Name')" x-model="form.name" maxlength="80" error="name" data-test="investment-ibkr-name" />
+                </x-ui.form-group>
+            </div>
+        </div>
 
         <x-slot:footer>
-            <div class="flex gap-2">
-                <x-ui.button variant="secondary" x-show="form.id && form.provider === 'ibkr'" x-on:click="$wire.refresh(form.id); sheet = false" icon="refresh" data-test="investment-refresh">{{ __('Refresh') }}</x-ui.button>
-                <x-ui.button x-on:click="submit()" ::disabled="saving" class="flex-1" data-test="investment-save">{{ __('Save') }}</x-ui.button>
+            <div class="flex gap-2" x-show="step !== 'type'">
+                <x-ui.button variant="secondary" x-show="step === 'manual' || (step === 'ibkr')" x-on:click="back()" data-test="investment-back">{{ __('Back') }}</x-ui.button>
+                <x-ui.button variant="secondary" x-show="step === 'edit' && form.provider === 'ibkr'" x-on:click="$wire.refresh(form.id); sheet = false" icon="refresh" data-test="investment-refresh">{{ __('Refresh') }}</x-ui.button>
+                <x-ui.button x-show="step === 'ibkr' && ibkrStep < 4" x-on:click="next()" class="flex-1" data-test="investment-next">{{ __('Next') }}</x-ui.button>
+                <x-ui.button x-show="step !== 'ibkr' || ibkrStep === 4" x-on:click="submit()" ::disabled="saving" class="flex-1" data-test="investment-save"><span x-text="step === 'ibkr' ? @js(__('Connect')) : @js(__('Save'))"></span></x-ui.button>
             </div>
         </x-slot:footer>
         <x-slot:pad><x-ui.amount-pad :decimal="true" /></x-slot:pad>
@@ -369,6 +393,8 @@ new class extends Component {
 <script>
     Alpine.data('investments', ({ locale, decimals }) => ({
         sheet: false,
+        step: 'type',
+        ibkrStep: 1,
         form: {},
         fields: {},
         active: null,
@@ -383,10 +409,32 @@ new class extends Component {
             this.fields = { ...data.amounts }
             this.errors = {}
             this.active = null
+            this.step = id ? 'edit' : 'type'
+            this.ibkrStep = 1
             this.sheet = true
         },
+        choose(provider) {
+            if (this.form.name === @js(__('Interactive Brokers'))) { this.form.name = ''; }
+            this.form.provider = provider
+            if (provider === 'ibkr' && ! this.form.name) { this.form.name = @js(__('Interactive Brokers')); }
+            this.step = provider
+            this.ibkrStep = 1
+        },
+        next() {
+            if (this.ibkrStep === 3 && ! /^\d{3,12}$/.test(String(this.form.queryId || '').trim())) {
+                this.errors = { queryId: @js(__('The Query ID is a number, e.g. 123456.')) }
+                return
+            }
+            this.errors = {}
+            this.ibkrStep++
+        },
+        back() {
+            if (this.step === 'ibkr' && this.ibkrStep > 1) { this.ibkrStep--; return }
+            this.errors = {}
+            this.step = 'type'
+        },
         tokenPlaceholder() { return this.form.hasToken ? @js(__('Saved, leave empty')) : @js(__('Paste it here')) },
-        title() { return this.form.id ? this.form.name : @js(__('New investment account')) },
+        title() { return this.step === 'edit' ? this.form.name : @js(__('New investment account')) },
         focus(name, label = '') { this.active = name; this.activeLabel = label },
         press(key) {
             if (! this.active) return
@@ -415,6 +463,7 @@ new class extends Component {
             try {
                 const result = await $wire.save({ ...this.form, amounts: { ...this.fields } })
                 this.errors = result.errors
+                if (this.step === 'ibkr' && result.errors.queryId) this.ibkrStep = 3
                 if (result.ok) this.sheet = false
             } finally {
                 this.saving = false
