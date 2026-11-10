@@ -266,7 +266,7 @@ new class extends Component {
                 </div>
                 @if ($account->value !== null)
                     <div class="num mt-1 flex items-baseline gap-1.5">
-                        <span class="text-[44px] leading-none font-extrabold tracking-[-0.045em] text-hero-ink">{{ money_number($account->value, $account->currency) }}</span>
+                        <x-ui.count-up :value="$account->value" :currency="$account->currency" class="text-[44px] leading-none font-extrabold tracking-[-0.045em] text-hero-ink" />
                         <span class="text-xl text-hero-sub">{{ $account->currency->symbol() }}</span>
                     </div>
                     <div class="num mt-1.5 flex flex-wrap items-center gap-x-2 text-[13px] text-hero-soft">
@@ -464,6 +464,7 @@ new class extends Component {
         tokenPlaceholder() { return this.form.hasToken ? @js(__('Saved, leave empty')) : @js(__('Paste it here')) },
         // The tab is hidden on first load, so the curves draw again when it opens.
         replay() {
+            window.dispatchEvent(new CustomEvent('count-up-replay'))
             this.$el.querySelectorAll('.curve-draw, .late-in').forEach((element) => {
                 element.style.animation = 'none'
                 element.getBoundingClientRect()
